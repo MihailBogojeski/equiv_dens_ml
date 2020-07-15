@@ -9,12 +9,14 @@ _sqrt2 = np.sqrt(2)
 def generate_id(size=8, chars=string.ascii_uppercase + string.ascii_lowercase + string.digits):
     return ''.join(random.SystemRandom().choice(chars) for _ in range(size))
 
-def compute_error_dict(predictions, data, loss_weights, max_errors):
+def compute_error_dict(predictions, data, loss_weights, max_errors, coord_weights=None):
     error_dict = {}
     error_dict['loss'] = 0.0
     for key in loss_weights.keys():
         if loss_weights[key] > 0:
             diff = predictions[key]-(data[key])
+            if key=='density' and coord_weights is not None:
+                diff *= coord_weights
             mse  = torch.mean(diff**2)
             rmse = torch.sqrt(mse)
             mae  = torch.mean(torch.abs(diff))
