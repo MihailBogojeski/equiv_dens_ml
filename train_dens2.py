@@ -318,7 +318,12 @@ while step < args.max_steps + 1:
                                   coeffs['radial_scale'])
 
     # compute error metrics
-    errors = compute_error_dict(predictions, data, loss_weights, max_errors)
+    if args.coord_weights:
+        coord_weights = data['coord_weights']
+    else:
+        coord_weights = None
+
+    errors = compute_error_dict(predictions, data, loss_weights, max_errors, coord_weights=coord_weights)
 
     # backward step
     errors['loss'].backward()
@@ -376,10 +381,14 @@ while step < args.max_steps + 1:
                                               coeffs['spherical_coeffs'],
                                               coeffs['radial_width'],
                                               coeffs['radial_scale'])
+                if args.coord_weights:
+                    coord_weights = data['coord_weights']
+                else:
+                    coord_weights = None
 
                 # compute error metrics
                 errors = compute_error_dict(
-                    predictions, data, loss_weights, max_errors)
+                    predictions, data, loss_weights, max_errors, coord_weights=coord_weights)
 
                 # update valid_errors (running average)
                 for key in valid_errors.keys():
@@ -406,9 +415,14 @@ while step < args.max_steps + 1:
                                               coeffs['radial_width'],
                                               coeffs['radial_scale'])
 
+                if args.coord_weights:
+                    coord_weights = data['coord_weights']
+                else:
+                    coord_weights = None
+
                 # compute error metrics
                 errors = compute_error_dict(
-                    predictions, data, loss_weights, max_errors)
+                    predictions, data, loss_weights, max_errors, coord_weights=coord_weights)
 
                 # update valid_errors (running average)
                 for key in valid_cube_errors.keys():

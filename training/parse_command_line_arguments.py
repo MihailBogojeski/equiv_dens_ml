@@ -104,6 +104,8 @@ def parse_command_line_arguments():
     args_training.add_argument("--weight_decay", metavar='FLOAT', type=float, default=0.0, help="regularization term for weights")
     args_training.add_argument("--use_gpu", metavar='True|False', type=str2bool, default=True,
                                choices=[True, False], help="use GPU(s) for training (if available)")
+    args_training.add_argument("--coord_weights", metavar='True|False', type=str2bool, default=True,
+                               choices=[True, False], help="weight grid coordinates based on grid density")
 
     # arguments for logging and checkpoints
     args_logging = parser.add_argument_group("logging and checkpoints")

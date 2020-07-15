@@ -223,11 +223,11 @@ class NeuralNetwork(nn.Module):
     """
 
     def calculate_distances_and_directions(self, R, idx_i, idx_j):
-        print('R shape', R.shape)
+        # print('R shape', R.shape)
         Ri = torch.gather(R, -2, idx_i.view(*(1,) * len(R.shape[: -2]), -1, 1).repeat(*R.shape[: -2], 1, R.size(-1)))
         Rj = torch.gather(R, -2, idx_j.view(*(1,) * len(R.shape[: -2]), -1, 1).repeat(*R.shape[: -2], 1, R.size(-1)))
-        print('Ri shape', Ri.shape)
-        print('Rj shape', Rj.shape)
+        # print('Ri shape', Ri.shape)
+        # print('Rj shape', Rj.shape)
         rij = Rj - Ri  # displacement vectors
         dij = torch.norm(rij, dim=-1, keepdim=True)  # distances
         uij = rij / dij  # unit displacement vectors
@@ -335,17 +335,17 @@ class NeuralNetwork(nn.Module):
 
     def forward(self, R):
         # compute radial basis functions and spherical harmonics
-        print('idx_i', self.idx_i)
+        # print('idx_i', self.idx_i)
         dij, uij = self.calculate_distances_and_directions(R, self.idx_i, self.idx_j)
-        print('dij shape', dij.shape)
-        print('uij shape', uij.shape)
+        # print('dij shape', dij.shape)
+        # print('uij shape', uij.shape)
         rbf = self.radial_basis_functions(dij).unsqueeze_(-2)  # unsqueeze for broadcasting
-        print('rbf shape', rbf.shape)
+        # print('rbf shape', rbf.shape)
         sph = spherical_harmonics(self.order, uij)
-        print('sph shape', sph[0].shape)
+        # print('sph shape', sph[0].shape)
         for L in range(self.order + 1):
             sph[L].unsqueeze_(-1)  # unsqueeze for broadcasting
-        print('sph shape', sph[0].shape)
+        # print('sph shape', sph[0].shape)
 
         # initialize atomic features to embeddings
         # repeat Z along batch dimension

@@ -166,9 +166,7 @@ class AtomsDensityData(Dataset):
 
         # extract/calculate structure
         properties['atom_numbers'] = torch.LongTensor(self.atoms['atom_numbers'])
-        print('data positions shape', self.atoms['positions'].shape)
         positions = self.atoms['positions'][idx]
-        print('idx positions shape', positions.shape)
         properties['idx'] = idx
         # print('positions', positions)
         if self.centered:
@@ -179,7 +177,6 @@ class AtomsDensityData(Dataset):
         return properties
 
     def sample_density(self, idx, sample_coords):
-        print('idx type', type(idx))
         dens = torch.zeros((sample_coords.shape[0], sample_coords.shape[1]), dtype=self.dtype)
         for c, i in enumerate(idx):
             # print('c, i', c, i)
