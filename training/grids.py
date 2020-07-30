@@ -2,15 +2,21 @@ import numpy as np
 from pyscf.dft import gen_grid, radi
 from .rotation import random_rotation_matrix
 from pyscf import lib
+from pyscf.lib import param
 
 
 def spherical_grid(mols, level=2):
-    return gen_grid.gen_atomic_grids(mols[0], radi_method=radi.treutler_ahlrichs, level=level)
+    grid_spec = gen_grid.gen_atomic_grids(mols[0], radi_method=radi.treutler_ahlrichs, level=level)
+    for key in grid_spec.keys():
+        grid_spec[key] = (grid_spec[key][0] * param.BOHR, grid_spec[key][1])  # convert Bohr grid to Angstrom
+
+    return grid_spec
 
 
 def cubical_grid(mols, nx=125, ny=125, nz=125, resolution=None,
                  margin=2, origin=None, extent=[10, 10, 10]):
-        coord = mols[0].atom_coords() * 0.529177
+        coord = mols[0].atom_coords(unit='Angstrom')  # positions in angstrom
+        print('coord', coord)
         if extent is None:
             box = np.max(coord, axis=0) - np.min(coord, axis=0) + margin * 2
             box = np.diag(box)
@@ -38,7 +44,7 @@ def spherical_sampling(grid_spec, n_samp, atom_types, pos):
     grid_coords = []
     grid_weights = []
     for i, t in enumerate(atom_types):
-        grid_coords.append(pos[:, [i], :] + (grid_spec[t][0][None, :] * 0.529177))
+        grid_coords.append(pos[:, [i], :] + (grid_spec[t][0][None, :]))
         grid_weights.append(grid_spec[t][1])
 
     return collect_and_sample_grid(grid_coords, grid_weights, n_samp)
@@ -49,7 +55,7 @@ def rot_spherical_sampling(grid_spec, n_samp, atom_types, pos):
     grid_weights = []
     for i, t in enumerate(atom_types):
         rot_mat = random_rotation_matrix()
-        grid_coords.append(pos[:, [i], :] + (grid_spec[t][0][None, :] * 0.529177) @ rot_mat)
+        grid_coords.append(pos[:, [i], :] + (grid_spec[t][0][None, :]) @ rot_mat)
         grid_weights.append(grid_spec[t][1])
 
     return collect_and_sample_grid(grid_coords, grid_weights, n_samp)

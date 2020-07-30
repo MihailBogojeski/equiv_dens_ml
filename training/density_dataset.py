@@ -21,6 +21,7 @@ from torch.utils.data import Dataset
 from schnetpack.data.partitioning import train_test_split
 from pyscf import gto
 from pyscf.dft import numint
+from pyscf.lib import param
 from .grids import spherical_grid, rot_spherical_sampling
 
 logger = logging.getLogger(__name__)
@@ -68,7 +69,7 @@ class AtomsDensityData(Dataset):
         self.orbitals = []
         for t in self.atoms['atom_types']:
             self.orbitals.append(orbital_basis[t])
-        calc_results = np.load(density_path, allow_pickle=True)
+        calc_results = np.load(density_path, allow_pickle=True)[:50]
         self.mols = []
         self.coeffs = []
         for i in range(len(calc_results)):
@@ -144,6 +145,8 @@ class AtomsDensityData(Dataset):
 
     def get_properties(self, idx):
         idx = self._subset_index(idx)
+        if not hasattr(idx, '__len__'):
+            idx = [idx]
 
         # extract properties
         properties = {}
@@ -177,12 +180,13 @@ class AtomsDensityData(Dataset):
         return properties
 
     def sample_density(self, idx, sample_coords):
+        scaled_sample_coords = sample_coords / param.BOHR  # convert Angstrom grid to Bohr
         dens = torch.zeros((sample_coords.shape[0], sample_coords.shape[1]), dtype=self.dtype)
         for c, i in enumerate(idx):
             # print('c, i', c, i)
             mol = self.mols[i]
             coeff_dict = self.coeffs[i]
-            ao = numint.eval_ao(mol, sample_coords[c])
+            ao = numint.eval_ao(mol, scaled_sample_coords[c])
             rho = numint.eval_rho2(mol, ao, **coeff_dict)
             dens[c, :] = torch.from_numpy(rho).type(self.dtype)
 

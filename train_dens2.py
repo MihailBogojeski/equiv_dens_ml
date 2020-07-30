@@ -90,8 +90,8 @@ train_dataset, valid_dataset, test_dataset = seeded_random_split(
     dataset, [args.num_train, args.num_valid, len(dataset) - (args.num_train + args.num_valid)], seed=args.split_seed)
 
 cube_grid_fn = partial(cubical_grid, nx=50, ny=50, nz=50,
-                       extent=2.5 * np.array([4.1483, 4.1483, 4.1483]),
-                       origin=2.5 * np.array([-2.0318, -2.0318 , -2.0318]))
+                       extent=np.array([4.1483, 4.1483, 4.1483]),
+                       origin=np.array([-2.0318, -2.0318 , -2.0318]))
 cube_sampling_fn = cubical_sampling
 
 valid_cube_dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_dataset,
