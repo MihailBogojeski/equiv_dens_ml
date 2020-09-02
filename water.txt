@@ -45,7 +45,7 @@
 --ema_decay=0.999
 --ema_start_epoch=3000
 --weight_decay=0.0
---use_gpu=True
+--use_gpu=False
 --write_parameter_summaries=False
 --validation_interval=100
 --summary_interval=10

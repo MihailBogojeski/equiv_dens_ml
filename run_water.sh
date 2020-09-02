@@ -2,8 +2,8 @@
 #$ -cwd
 #$ -l cuda=1   # request one GPU (remove this line if none is needed)
 #$ -q all.q    # don't fill the qlogin queue
-#$ -e error.txt
-#$ -o output.txt
+#$ -e water_error.txt
+#$ -o water_output.txt
 
 cd /home/MihailBogojeski/git/schnet-tfn/equiv_dens
 . /home/MihailBogojeski/anaconda3/etc/profile.d/conda.sh

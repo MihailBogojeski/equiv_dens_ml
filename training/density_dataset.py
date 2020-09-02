@@ -69,7 +69,7 @@ class AtomsDensityData(Dataset):
         self.orbitals = []
         for t in self.atoms['atom_types']:
             self.orbitals.append(orbital_basis[t])
-        calc_results = np.load(density_path, allow_pickle=True)[:50]
+        calc_results = np.load(density_path, allow_pickle=True)
         self.mols = []
         self.coeffs = []
         for i in range(len(calc_results)):
