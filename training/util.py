@@ -9,12 +9,13 @@ _sqrt2 = np.sqrt(2)
 def generate_id(size=8, chars=string.ascii_uppercase + string.ascii_lowercase + string.digits):
     return ''.join(random.SystemRandom().choice(chars) for _ in range(size))
 
+
 def compute_error_dict(predictions, data, loss_weights, max_errors, coord_weights=None):
     error_dict = {}
     error_dict['loss'] = 0.0
     for key in loss_weights.keys():
         if loss_weights[key] > 0:
-            diff = predictions[key]-(data[key])
+            diff = predictions[key] - (data[key])
             abs_diff = torch.abs(diff)
             sq_diff = diff**2
             if key == 'density' and coord_weights is not None:
@@ -35,11 +36,11 @@ def compute_error_dict(predictions, data, loss_weights, max_errors, coord_weight
                 w_rmse = 0
                 w_mae  = 0
             if mae > max_errors[key]:
-                error_dict[key+'_mae']  = torch.tensor(max_errors[key])
-                error_dict[key+'_rmse'] = torch.tensor(_sqrt2*max_errors[key])
+                error_dict[key + '_mae']  = torch.tensor(max_errors[key])
+                error_dict[key + '_rmse'] = torch.tensor(_sqrt2 * max_errors[key])
             else:
-                error_dict[key+'_mae']  = mae
-                error_dict[key+'_rmse'] = rmse
+                error_dict[key + '_mae']  = mae
+                error_dict[key + '_rmse'] = rmse
             loss = mae + rmse
             if key == 'density' and coord_weights is not None:
                 # print('weighting coords and scaling')
@@ -48,7 +49,7 @@ def compute_error_dict(predictions, data, loss_weights, max_errors, coord_weight
                 # print('w_loss', w_loss)
                 # print('coord weights mean', torch.mean(coord_weights))
                 # print('coord weights median', torch.median(coord_weights))
-                loss = w_loss + loss / 1000 
+                loss = w_loss + loss / 1000
                 # print('scaled loss + w_loss', loss)
             # loss = mae
             error_dict['loss'] = error_dict['loss'] + loss_weights[key]*loss

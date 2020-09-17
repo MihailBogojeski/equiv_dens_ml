@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #$ -cwd
 #$ -l cuda=1   # request one GPU (remove this line if none is needed)
+#$ -binding linear:3
 #$ -q all.q    # don't fill the qlogin queue
 #$ -e error_sq.txt
 #$ -o output_sq.txt
