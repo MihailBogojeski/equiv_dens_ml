@@ -6,6 +6,7 @@ from pyscf.lib import param
 
 
 def spherical_grid(mols, level=2):
+    print('level', level)
     grid_spec = gen_grid.gen_atomic_grids(mols[0], radi_method=radi.treutler_ahlrichs, level=level)
     for key in grid_spec.keys():
         grid_spec[key] = (grid_spec[key][0] * param.BOHR, grid_spec[key][1])  # convert Bohr grid to Angstrom
@@ -49,7 +50,7 @@ def spherical_sampling(grid_spec, n_samp, atom_types, pos):
     grid_weights = []
     for i, t in enumerate(atom_types):
         grid_coords.append(pos[:, [i], :] + (grid_spec[t][0][None, :]))
-        grid_weights.append(grid_spec[t][1])
+        grid_weights.append(grid_spec[t][1] / len(atom_types))
 
     return collect_and_sample_grid(grid_coords, grid_weights, n_samp)
 
@@ -60,7 +61,7 @@ def rot_spherical_sampling(grid_spec, n_samp, atom_types, pos):
     for i, t in enumerate(atom_types):
         rot_mat = random_rotation_matrix()
         grid_coords.append(pos[:, [i], :] + (grid_spec[t][0][None, :]) @ rot_mat)
-        grid_weights.append(grid_spec[t][1])
+        grid_weights.append(grid_spec[t][1] / len(atom_types))
 
     return collect_and_sample_grid(grid_coords, grid_weights, n_samp)
 
