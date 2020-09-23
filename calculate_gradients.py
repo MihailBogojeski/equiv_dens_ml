@@ -49,7 +49,8 @@ splits = np.round(np.linspace(0, 4999 - 1, 1000)).astype(int)
 print('splits', splits)
 # continue computation
 
-data_batches = np.load('gradient_batches.npy', allow_pickle=True)
+data_batches = list(np.load('gradient_batches.npy', allow_pickle=True))
+print('len data batches', len(data_batches))
 
 for i in range(len(data_batches) + 1, len(splits)):
     torch.cuda.empty_cache()
@@ -60,5 +61,5 @@ for i in range(len(data_batches) + 1, len(splits)):
                 samples[key] = samples[key].cuda()
 
     desc, a_d_desc, n_d_desc = grad_utils.from_r(equiv_model, samples['positions'])
-    data_batches.append((desc, a_d_desc, n_d_desc))
+    data_batches.append((desc.detach().cpu().numpy(), a_d_desc.detach().cpu().numpy(), n_d_desc.detach().cpu().numpy()))
     np.save('gradient_batches.npy', data_batches, allow_pickle=True)
