@@ -339,6 +339,7 @@ class NeuralNetwork(nn.Module):
         dij, uij = self.calculate_distances_and_directions(R, self.idx_i, self.idx_j)
         # print('dij shape', dij.shape)
         # print('uij shape', uij.shape)
+        # print('R shape', R.shape)
         rbf = self.radial_basis_functions(dij).unsqueeze_(-2)  # unsqueeze for broadcasting
         # print('rbf shape', rbf.shape)
         sph = spherical_harmonics(self.order, uij)

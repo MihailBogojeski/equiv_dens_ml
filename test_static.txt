@@ -21,9 +21,9 @@
 --dens_dataset=datasets/h2o_static_pyscf_dft.npy
 --orbitals_file=datasets/augccpvqzjkfit_orbital_basis_df.npy
 --radial_coeffs_file=datasets/augccpvqzjkfit_radial_coeffs_df.npy
---num_train=1
+--num_train=2
 --num_valid=10
---train_batch_size=1
+--train_batch_size=2
 --valid_batch_size=10
 --num_workers=0
 --split_seed=42
@@ -45,7 +45,7 @@
 --ema_decay=0.999
 --ema_start_epoch=3000
 --weight_decay=0.0
---use_gpu=False
+--use_gpu=True
 --write_parameter_summaries=False
 --validation_interval=10
 --summary_interval=10

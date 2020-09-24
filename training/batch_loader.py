@@ -21,9 +21,9 @@ class BatchLoader(DataLoader):
 
 class _SingleProcessBatchLoaderIter(_SingleProcessDataLoaderIter):
 
-    def _next_data(self):
+    def __next__(self):
         indices = self._next_index()  # may raise StopIteration
-        batch = self._dataset[indices]
-        if self._pin_memory:
-            batch = _utils.pin_memory.pin_memory_batch(batch)
+        batch = self.dataset[indices]
+        if self.pin_memory:
+            batch = _utils.pin_memory.pin_memory(batch)
         return batch
