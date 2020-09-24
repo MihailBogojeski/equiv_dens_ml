@@ -22,8 +22,16 @@ class BatchLoader(DataLoader):
 class _SingleProcessBatchLoaderIter(_SingleProcessDataLoaderIter):
 
     def __next__(self):
+        if hasattr(self, 'dataset'):
+            dataset = self.dataset
+        else:
+            dataset = self._dataset
+        if hasattr(self, 'pin_memory'):
+            pin_memory = self.pin_memory
+        else:
+            pin_memory = self._pin_memory
         indices = self._next_index()  # may raise StopIteration
-        batch = self.dataset[indices]
-        if self.pin_memory:
+        batch = dataset[indices]
+        if pin_memory:
             batch = _utils.pin_memory.pin_memory(batch)
         return batch
