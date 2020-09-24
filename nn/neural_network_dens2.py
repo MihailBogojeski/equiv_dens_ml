@@ -368,6 +368,7 @@ class NeuralNetwork(nn.Module):
             out_scale.append(self.radial_scale[L](fs[0]))
             out_scale[L] = out_scale[L].view(*out_scale[L].shape[:-2], self.r_max[L], self.L_counts[L])
         results = {}
-        results['spherical_coeffs'], results['radial_width'], results['radial_scale'] = self.extract_coefficients(out_sph, out_width, out_scale)
+        results['spherical_coeffs'], results['radial_width'], results['radial_scale'] =\
+            self.extract_coefficients(out_sph, out_width, out_scale)
 
         return results

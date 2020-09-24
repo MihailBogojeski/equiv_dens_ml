@@ -96,7 +96,7 @@ class SphericalHarmonicsExpansion(nn.Module):
             coeffs_sum = 0
             for i in range(len(self.orbitals)):
                 z = self.orbital_spec[i][0][0]
-                coeffs_sum += torch.sum(sph_coeffs[i][(z, 0)])
+                coeffs_sum += torch.sum(sph_coeffs[i][(z, 0)], dim=-1, keepdim=True)
             # print("coeffs sum", coeffs_sum)
             # print("n electrons", self.n_electrons)
             scale_factor = self.n_electrons / coeffs_sum

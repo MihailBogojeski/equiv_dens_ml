@@ -313,6 +313,7 @@ while step < args.max_steps + 1:
     optimizer.zero_grad()
 
     # with torch.autograd.set_detect_anomaly(True):  # TODO!!! TURN THIS OFF AGAIN
+
     # forward step
     coeffs = equiv_model(R=data['positions'])
     # print('coords space shape', data['coords'].shape)
@@ -323,7 +324,7 @@ while step < args.max_steps + 1:
                                   coeffs['radial_width'],
                                   coeffs['radial_scale'])
 
-    print('density integral', torch.sum(predictions['density'] * data['coord_weights']))
+    print('density integral', torch.sum(predictions['density'] * data['coord_weights'], dim=-1))
 
     # compute error metrics
     if args.coord_weights:
@@ -390,7 +391,7 @@ while step < args.max_steps + 1:
                                               coeffs['radial_width'],
                                               coeffs['radial_scale'])
 
-                print('spherical density integral', torch.sum(predictions['density'] * data['coord_weights']))
+                print('spherical density integral', torch.sum(predictions['density'] * data['coord_weights'], dim=-1))
                 if args.coord_weights:
                     coord_weights = data['coord_weights']
                 else:
@@ -425,7 +426,7 @@ while step < args.max_steps + 1:
                                               coeffs['radial_width'],
                                               coeffs['radial_scale'])
 
-                print('cubical density integral', torch.sum(predictions['density'] * data['coord_weights']))
+                print('cubical density integral', torch.sum(predictions['density'] * data['coord_weights'], dim=-1))
                 if args.coord_weights:
                     coord_weights = data['coord_weights']
                 else:
