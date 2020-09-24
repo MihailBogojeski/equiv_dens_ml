@@ -2,8 +2,8 @@
 --load_from=None
 --activation=swish
 --order=6
---num_features=64
---num_basis_functions=64
+--num_features=128
+--num_basis_functions=128
 --num_radial_components=4
 --num_modules=1
 --num_residual_pre_x=1
@@ -23,8 +23,8 @@
 --radial_coeffs_file=datasets/augccpvqzjkfit_radial_coeffs_df.npy
 --num_train=500
 --num_valid=500
---train_batch_size=16
---valid_batch_size=16
+--train_batch_size=32
+--valid_batch_size=32
 --num_workers=0
 --split_seed=42
 --optimizer=amsgrad

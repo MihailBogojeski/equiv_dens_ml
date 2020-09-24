@@ -313,7 +313,6 @@ while step < args.max_steps + 1:
     optimizer.zero_grad()
 
     # with torch.autograd.set_detect_anomaly(True):  # TODO!!! TURN THIS OFF AGAIN
-
     # forward step
     coeffs = equiv_model(R=data['positions'])
     # print('coords space shape', data['coords'].shape)

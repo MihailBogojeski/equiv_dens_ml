@@ -23,8 +23,8 @@
 --radial_coeffs_file=datasets/augccpvqzjkfit_radial_coeffs_df.npy
 --num_train=500
 --num_valid=500
---train_batch_size=35
---valid_batch_size=35
+--train_batch_size=32
+--valid_batch_size=32
 --num_workers=0
 --split_seed=42
 --optimizer=amsgrad
