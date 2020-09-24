@@ -159,10 +159,14 @@ if args.load_from is None:
         basis_functions=args.basis_functions,
         cutoff=args.cutoff,
         activation=args.activation)
-    expansion_model = SphericalHarmonicsExpansion(dataset.orbitals, radial_coeffs=dataset.radial_coeffs, constraint_type=args.expansion_constraint)
+    expansion_model = SphericalHarmonicsExpansion(dataset.orbitals, radial_coeffs=dataset.radial_coeffs,
+                                                  expansion_constraint=args.expansion_constraint,
+                                                  integral_constraint=args.integral_constraint)
 else:
     equiv_model = NeuralNetwork(load_from=args.load_from)
-    expansion_model = SphericalHarmonicsExpansion(dataset.orbitals, radial_coeffs=dataset.radial_coeffs, constraint_type=args.expansion_constraint)
+    expansion_model = SphericalHarmonicsExpansion(dataset.orbitals, radial_coeffs=dataset.radial_coeffs,
+                                                  expansion_constraint=args.expansion_constraint,
+                                                  integral_constraint=args.integral_constraint)
 
 # determine what should be calculated based on loss weights
 # tmp = (loss_weights['energy'] > 0) or (loss_weights['forces'] > 0)
@@ -320,6 +324,8 @@ while step < args.max_steps + 1:
                                   coeffs['radial_width'],
                                   coeffs['radial_scale'])
 
+    print('density integral', torch.sum(predictions['density'] * data['coord_weights']))
+
     # compute error metrics
     if args.coord_weights:
         coord_weights = data['coord_weights']
@@ -384,6 +390,8 @@ while step < args.max_steps + 1:
                                               coeffs['spherical_coeffs'],
                                               coeffs['radial_width'],
                                               coeffs['radial_scale'])
+
+                print('spherical density integral', torch.sum(predictions['density'] * data['coord_weights']))
                 if args.coord_weights:
                     coord_weights = data['coord_weights']
                 else:
@@ -418,6 +426,7 @@ while step < args.max_steps + 1:
                                               coeffs['radial_width'],
                                               coeffs['radial_scale'])
 
+                print('cubical density integral', torch.sum(predictions['density'] * data['coord_weights']))
                 if args.coord_weights:
                     coord_weights = data['coord_weights']
                 else:

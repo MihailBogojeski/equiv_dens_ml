@@ -1,18 +1,21 @@
 import torch
 import torch.nn as nn
+import numpy as np
 from nn.spherical_harmonics import spherical_harmonics
 
 
 class SphericalHarmonicsExpansion(nn.Module):
 
-    def __init__(self, orbitals, radial_coeffs=None, constraint_type=None):
+    def __init__(self, orbitals, radial_coeffs=None, expansion_constraint=None, integral_constraint=False):
         super().__init__()
         self.orbitals = orbitals
         self.order_max = 0
-        self.constraint_type = constraint_type
-        print('constraint type',  self.constraint_type)
-
+        self.expansion_constraint = expansion_constraint
+        self.n_electrons = 0
+        self.integral_constraint = integral_constraint
+        print('constraint type',  self.expansion_constraint)
         for i in range(len(self.orbitals)):
+            self.n_electrons += self.orbitals[i][0][0]
             for z, _, l in self.orbitals[i]:
                 if l > self.order_max:
                     self.order_max = l
@@ -89,9 +92,16 @@ class SphericalHarmonicsExpansion(nn.Module):
         if eval_L is None:
             eval_L = list(range(self.order_max + 1))
         result = {'density': 0}
-        # print('eval atoms', eval_atoms)
-        # print('eval L', eval_L)
-        # print('order max', self.order_max)
+        if self.integral_constraint:
+            coeffs_sum = 0
+            for i in range(len(self.orbitals)):
+                z = self.orbital_spec[i][0][0]
+                coeffs_sum += torch.sum(sph_coeffs[i][(z, 0)])
+            # print("coeffs sum", coeffs_sum)
+            # print("n electrons", self.n_electrons)
+            scale_factor = self.n_electrons / coeffs_sum
+        else:
+            scale_factor = 1
         for i in eval_atoms:
             z = self.orbital_spec[i][0][0]
             # print('atom num', z)
@@ -101,9 +111,9 @@ class SphericalHarmonicsExpansion(nn.Module):
             # print('atom[i]', i)
             # print('dists', d)
             # print('min dist', torch.min(d))
-            for l in range(len(s)):
-                zeros = torch.zeros_like(s[l])
-                s[l] = torch.where(torch.isnan(s[l]), zeros, s[l])  # making sure there are no nans to avoid NaNs
+            for L in range(len(s)):
+                zeros = torch.zeros_like(s[L])
+                s[L] = torch.where(torch.isnan(s[L]), zeros, s[L])  # making sure there are no nans to avoid NaNs
 
             for orb in self.orbital_spec[i]:
                 # print('orbital', orb)
@@ -121,7 +131,9 @@ class SphericalHarmonicsExpansion(nn.Module):
                 # scale = self.init_scale(i, key)
                 scale = rad_scale[i][key] + self.init_scale(i, key)
                 # print('scale', scale)
-
+                sph_coeff = sph_coeffs[i][key]
+                if L == 0:
+                    sph_coeff *= scale_factor
                 # print('width nan', torch.sum(torch.isnan(width)))
                 # print('scale nan', torch.sum(torch.isnan(scale)))
                 # print('sph_coeffs nan', torch.sum(torch.isnan(sph_coeffs[i][key])))
@@ -131,26 +143,29 @@ class SphericalHarmonicsExpansion(nn.Module):
                 # print('sph coeffs', sph_coeffs[i][key])
                 # print('width shape', width.shape)
                 # print('scale shape', scale.shape)
-                sph = s[L].unsqueeze(-1) * sph_coeffs[i][key]
+                sph = s[L].unsqueeze(-1) * sph_coeff
                 # print('sph nan', torch.sum(torch.isnan(sph)))
                 # print('sph prod shape', sph.shape)
-                rbf = gaussian_rbf(d.unsqueeze(-1), width, scale)
+                rbf = gaussian_rbf(d.unsqueeze(-1), width, scale, normalize=self.integral_constraint)
                 # print('rbf nan', torch.sum(torch.isnan(rbf)))
                 # print('rbf shape', rbf.shape)
                 result['density'] += torch.sum(rbf * sph, dim=(-2, -1))
-        if self.constraint_type == 'sq':
+        if self.expansion_constraint == 'sq':
             result['density'] = result['density']**2
-        if self.constraint_type == 'abs':
+        if self.expansion_constraint == 'abs':
             result['density'] = torch.sqrt(result['density']**2)
 
         return result
 
 
-def gaussian_rbf(r, width, scale):
+def gaussian_rbf(r, width, scale, normalize=False):
     # print('scale shape', scale.shape)
     # print('scale shape', scale.shape)
     # print('width shape', width.shape)
     # print('r shape', r.shape)
+    if normalize:
+        scale /= torch.sum(scale, dim=-2, keepdim=True)
+        scale *= 8 * (width**(3 / 2)) / (np.pi**(3 / 2) * 53.9866)
     rbf = scale * torch.exp(-width * (r)**2)
     return torch.sum(rbf, dim=-2, keepdim=True)
 

@@ -53,4 +53,5 @@
 --keep_checkpoints=0
 --dtype=torch.float32
 --expansion_constraint=None
+--integral_constraint=False
 --coord_weights=True

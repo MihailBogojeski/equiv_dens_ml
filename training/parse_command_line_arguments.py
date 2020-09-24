@@ -56,6 +56,8 @@ def parse_command_line_arguments():
                                   choices=[True, False], help="use orthonormal basis (overlap matrix is identity) (will only work with appropriate reference data)")
     args_hyperparams.add_argument("--expansion_constraint", metavar='STR', type=str, default=None,
                                   help="type of constraint used on density to ensure positivity")
+    args_hyperparams.add_argument("--integral_constraint", metavar='True|False', type=str2bool, default=False,
+                                  choices=[True, False], help="constrain density integral to number of electrons")
 
 
     # arguments for training
