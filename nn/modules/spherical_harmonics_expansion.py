@@ -96,7 +96,9 @@ class SphericalHarmonicsExpansion(nn.Module):
             coeffs_sum = 0
             for i in range(len(self.orbitals)):
                 z = self.orbital_spec[i][0][0]
-                coeffs_sum += torch.sum(sph_coeffs[i][(z, 0)], dim=-1, keepdim=True)
+                coeffs_sum += torch.sum(sph_coeffs[i][(z, 0)] *
+                                        torch.sum(rad_scale[i][(z, 0)], dim=-2, keepdim=True),
+                                        dim=-1, keepdim=True)
             # print("coeffs sum", coeffs_sum)
             # print("n electrons", self.n_electrons)
             scale_factor = self.n_electrons / coeffs_sum
@@ -124,7 +126,7 @@ class SphericalHarmonicsExpansion(nn.Module):
                 # print('key', key)
                 # width = rad_width[i][key]
                 # width = self.init_width(i, key)
-                width = rad_width[i][key] + self.init_width(i, key)
+                width = (rad_width[i][key] + 1) * self.init_width(i, key)
                 # print('width', width)
 
                 # scale = rad_scale[i][key]
@@ -133,7 +135,8 @@ class SphericalHarmonicsExpansion(nn.Module):
                 # print('scale', scale)
                 sph_coeff = sph_coeffs[i][key]
                 if L == 0:
-                    sph_coeff *= scale_factor
+                    sph_coeff = (sph_coeff * torch.sum(scale, dim=-2, keepdim=True)) * scale_factor
+                    scale = torch.ones_like(scale)
                 # print('width nan', torch.sum(torch.isnan(width)))
                 # print('scale nan', torch.sum(torch.isnan(scale)))
                 # print('sph_coeffs nan', torch.sum(torch.isnan(sph_coeffs[i][key])))
@@ -146,7 +149,8 @@ class SphericalHarmonicsExpansion(nn.Module):
                 sph = s[L].unsqueeze(-1) * sph_coeff
                 # print('sph nan', torch.sum(torch.isnan(sph)))
                 # print('sph prod shape', sph.shape)
-                rbf = gaussian_rbf(d.unsqueeze(-1), width, scale, normalize=self.integral_constraint)
+                rbf = gaussian_rbf(d.unsqueeze(-1), width, scale,
+                                   normalize=(self.integral_constraint and L == 0))
                 # print('rbf nan', torch.sum(torch.isnan(rbf)))
                 # print('rbf shape', rbf.shape)
                 result['density'] += torch.sum(rbf * sph, dim=(-2, -1))

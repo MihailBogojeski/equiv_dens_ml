@@ -1,5 +1,5 @@
 from torch.utils.data import _utils
-from torch.utils.data.dataloader import DataLoader, _SingleProcessDataLoaderIter, _MultiProcessingDataLoaderIter
+from torch.utils.data.dataloader import DataLoader, _SingleProcessDataLoaderIter
 
 
 # This function used to be defined in this file. However, it was moved to
@@ -13,10 +13,7 @@ default_collate = _utils.collate.default_collate
 class BatchLoader(DataLoader):
 
     def __iter__(self):
-        if self.num_workers == 0:
-            return _SingleProcessBatchLoaderIter(self)
-        else:
-            return _MultiProcessingDataLoaderIter(self)
+        return _SingleProcessBatchLoaderIter(self)
 
 
 class _SingleProcessBatchLoaderIter(_SingleProcessDataLoaderIter):

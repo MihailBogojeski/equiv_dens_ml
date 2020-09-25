@@ -72,8 +72,8 @@ class AtomsDensityData(Dataset):
         calc_results = np.load(density_path, allow_pickle=True)
         self.mols = []
         self.coeffs = []
-        for i in range(len(calc_results)):
-        # for i in range(10):
+        # for i in range(len(calc_results)):
+        for i in range(10):
             mol_dict, calc_dict = calc_results[i]
             coeff_dict = {'mo_coeff': calc_dict['mo_coeff'], 'mo_occ': calc_dict['mo_occ']}
             mol = gto.Mole(**mol_dict)

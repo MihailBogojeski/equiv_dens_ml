@@ -363,7 +363,7 @@ class NeuralNetwork(nn.Module):
         out_width = []
         out_scale = []
         for L in range(len(self.radial_width)):
-            out_width.append(F.relu(self.radial_width[L](fs[0])))
+            out_width.append(F.tanh(self.radial_width[L](fs[0])))
             out_width[L] = out_width[L].view(*out_width[L].shape[:-2], self.r_max[L], self.L_counts[L])
             out_scale.append(self.radial_scale[L](fs[0]))
             out_scale[L] = out_scale[L].view(*out_scale[L].shape[:-2], self.r_max[L], self.L_counts[L])
