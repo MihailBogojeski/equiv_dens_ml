@@ -55,3 +55,4 @@
 --expansion_constraint=None
 --integral_constraint=True
 --coord_weights=True
+--weights_balance=1.0

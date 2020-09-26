@@ -332,7 +332,8 @@ while step < args.max_steps + 1:
     else:
         coord_weights = None
 
-    errors = compute_error_dict(predictions, data, loss_weights, max_errors, coord_weights=coord_weights)
+    errors = compute_error_dict(predictions, data, loss_weights, max_errors,
+                                coord_weights=coord_weights, weights_balance=args.weights_balance)
 
     # backward step
     errors['loss'].backward()
@@ -399,7 +400,8 @@ while step < args.max_steps + 1:
 
                 # compute error metrics
                 errors = compute_error_dict(
-                    predictions, data, loss_weights, max_errors, coord_weights=coord_weights)
+                    predictions, data, loss_weights, max_errors,
+                    coord_weights=coord_weights, weights_balance=args.weights_balance)
 
                 # update valid_errors (running average)
                 for key in valid_errors.keys():
