@@ -17,13 +17,12 @@ def compute_error_dict(predictions, data, loss_weights, max_errors, coord_weight
     for key in loss_weights.keys():
         if loss_weights[key] > 0:
             diff = predictions[key] - (data[key])
-            abs_diff = torch.abs(diff)
-            sq_diff = diff**2
             if key == 'density' and coord_weights is not None:
                 balanced_weights = coord_weights ** (1 / weights_balance)
                 balanced_weights *= (torch.sum(coord_weights) / torch.sum(balanced_weights))
-                abs_diff = abs_diff * balanced_weights
-                sq_diff = sq_diff * balanced_weights
+                diff *= balanced_weights
+            abs_diff = torch.abs(diff)
+            sq_diff = diff**2
             mse  = torch.mean(sq_diff)
             rmse = torch.sqrt(mse)
             mae  = torch.mean(abs_diff)
