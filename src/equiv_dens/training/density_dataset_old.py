@@ -72,10 +72,9 @@ class AtomsDensityData(Dataset):
         calc_results = np.load(density_path, allow_pickle=True)
         self.mols = []
         self.coeffs = []
-        for i in range(len(calc_results)):
-        # for i in range(10):
-            mol_dict, calc_dict = calc_results[i]
-            coeff_dict = {'mo_coeff': calc_dict['mo_coeff'], 'mo_occ': calc_dict['mo_occ']}
+        # for i in range(len(calc_results)):
+        for i in range(10):
+            mol_dict, coeff_dict = calc_results[i]
             mol = gto.Mole(**mol_dict)
             mol.build()
             self.mols.append(mol)
@@ -153,8 +152,9 @@ class AtomsDensityData(Dataset):
         # extract properties
         properties = {}
         for pname in self.required_properties:
-            # fallback for properties stored directly
-            # in the row
+            # new data format
+                # fallback for properties stored directly
+                # in the row
             if pname != 'density':
                 properties[pname] = torch.from_numpy(self.atoms[pname][idx])
             else:
@@ -166,6 +166,7 @@ class AtomsDensityData(Dataset):
                 # print('density nans', torch.sum(torch.isnan(properties[pname])))
                 properties['coords'] = torch.from_numpy(sample_coords).type(self.dtype)
                 properties['coord_weights'] = torch.from_numpy(coord_weights).type(self.dtype)
+                # print('coords_space', properties['coords_space'])
 
         # extract/calculate structure
         properties['atom_numbers'] = torch.LongTensor(self.atoms['atom_numbers'])
