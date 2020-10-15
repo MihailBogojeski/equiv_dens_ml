@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import numpy as np
-from nn.spherical_harmonics import spherical_harmonics
+from equiv_dens.nn.spherical_harmonics import spherical_harmonics
 
 
 class SphericalHarmonicsExpansion(nn.Module):
