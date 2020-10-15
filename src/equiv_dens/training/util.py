@@ -18,7 +18,7 @@ def compute_error_dict(predictions, data, loss_weights, max_errors, coord_weight
         if loss_weights[key] > 0:
             diff = predictions[key] - (data[key])
             if key == 'density' and coord_weights is not None:
-                balanced_weights = coord_weights ** (1 / weights_balance)
+                balanced_weights = torch.sign(coord_weights) * torch.abs(coord_weights)**(1 / weights_balance)
                 balanced_weights *= (torch.sum(coord_weights) / torch.sum(balanced_weights))
                 diff *= balanced_weights
             abs_diff = torch.abs(diff)
