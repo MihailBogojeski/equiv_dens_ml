@@ -6,14 +6,13 @@ import numpy as np
 
 class Ewald(nn.Module):
     def __init__(
-        self, a_num, PME=False, grid_shape=np.array([20, 20, 20]), prec=1.0e-8, eta=0.73
+        self, a_num, PME=False, prec=1.0e-8, eta=0.73
     ):
         super().__init__()
         self.a_num = a_num
         self.PME = PME
         self.prec = prec
         self.eta = eta
-        self.grid_shape = grid_shape
         self.mask = None
 
     def forward(self, rho, grid, pos):
@@ -28,11 +27,7 @@ class Ewald(nn.Module):
         return ewald_en
 
     def real_energy(self, rho, grid, pos):
-        lattice = torch.max(grid, dim=0)[0] - torch.min(grid, dim=0)[0]
-        lattice = torch.diag(lattice)
-        print(torch.max(grid, dim=0)[0])
-        print(torch.min(grid, dim=0)[0])
-        L = torch.sqrt(torch.einsum("ij->i", lattice ** 2))
+        L = torch.sqrt(torch.einsum("ij->i", grid.lattice ** 2))
         prec = sp.erfcinv(self.prec / 3.0)
         rmax = prec / np.sqrt(self.eta)
         N = torch.ceil(rmax / L)
@@ -46,7 +41,7 @@ class Ewald(nn.Module):
                     R = torch.einsum(
                         "j,ij->i",
                         torch.tensor([ix, iy, iz], dtype=torch.double),
-                        lattice,
+                        grid.lattice,
                     )
                     for i in np.arange(len(self.a_num)):
                         charges.append(self.a_num[i])
@@ -77,9 +72,7 @@ class Ewald(nn.Module):
         dc_term = const * charge_sq_sum
 
         # G=0 term of local_PP - Hartree
-        lattice = torch.max(grid, dim=0)[0] - torch.min(grid, dim=0)[0]
-        grid_volume = torch.prod(lattice)
-        const = -4.0 * np.pi * (1.0 / (4.0 * self.eta * grid_volume) / 2.0)
+        const = -4.0 * np.pi * (1.0 / (4.0 * self.eta * grid.volume) / 2.0)
         charge_sum = 0
         for i in range(len(self.a_num)):
             charge_sum += self.a_num[i]
@@ -90,26 +83,23 @@ class Ewald(nn.Module):
         return energy
 
     def rec_energy(self, rho, grid, pos):
-        lattice = torch.max(grid, dim=0)[0] - torch.min(grid, dim=0)[0]
-        grid_volume = torch.prod(lattice)
-        rec_grid = self.get_reciprocal_grid(grid)
-        gg = np.einsum("lijk,lijk->ijk", rec_grid, rec_grid)
-
-        a = np.exp(-1j * np.einsum("lijk,l->ijk", rec_grid, pos[0]))
+        rec_grid = grid.get_reciprocal_grid()
+        a = torch.exp(-1j * torch.einsum("lijk,l->ijk", rec_grid.coords, pos[0]))
         strf = a * self.a_num[0]
         for i in np.arange(1, len(self.a_num)):
-            a = np.exp(-1j * np.einsum("lijk,l->ijk", rec_grid, pos[i]))
+            a = torch.exp(-1j * torch.einsum("lijk,l->ijk", rec_grid.coords, pos[i]))
             strf += a * self.a_num[i]
-        strf_sq = np.conjugate(strf) * strf
+        strf_sq = torch.conj(strf) * strf
+        gg = rec_grid.gg.clone()
         gg[0, 0, 0] = 1.0
         invgg = 1.0 / gg
         invgg[0, 0, 0] = 0.0
         gg[0, 0, 0] = 0.0
-        mask = self.get_mask(rec_grid)
-        energy = np.sum(
-            strf_sq[mask] * np.exp(-gg[mask] / (4.0 * self.eta)) * invgg[mask]
+        mask = rec_grid.mask
+        energy = torch.sum(
+            strf_sq[mask] * torch.exp(-gg[mask] / (4.0 * self.eta)) * invgg[mask]
         )
-        energy = 4.0 * np.pi * energy.real / grid_volume
+        energy = 4.0 * np.pi * energy.real / grid.volume
         return energy
 
     # def get_gmax(self, grid):
@@ -141,62 +131,3 @@ class Ewald(nn.Module):
     #         else:
     #             eta = eta - 0.01
     #     return eta
-
-    def get_reciprocal_grid(self, grid):
-        lattice = torch.max(grid, dim=0)[0] - torch.min(grid, dim=0)[0]
-        lattice = np.array(torch.diag(lattice))
-        print('lattice', lattice)
-        fac = 2 * np.pi
-        bg = fac * np.linalg.inv(lattice)
-        reciprocal_lat = bg.T
-        ax = []
-        for i in range(3):
-            dd = 1 / self.grid_shape[i]
-            if i == 2:
-                ax.append(np.fft.rfftfreq(self.grid_shape[i], d=dd))
-            else:
-                freq = np.fft.fftfreq(self.grid_shape[i], d=dd)
-
-                ax.append(freq)
-        S0, S1, S2 = np.meshgrid(ax[0], ax[1], ax[2], indexing="ij")
-
-        # S_cart = s2r(S, self)
-        # S_cart = np.asarray([S2, S1, S0])
-        S_cart = np.asarray([S0, S1, S2])
-        S_cart = np.einsum("j...,kj->k...", S_cart, reciprocal_lat)
-
-        return S_cart
-
-    def get_mask(self, grid):
-        if self.mask is None:
-            grid_shape = np.array(grid.shape[1:])
-            # Dnr = nr[:3]//2
-            # Dmod = nr[:3]%2
-            # mask = np.ones((nr[0], nr[1], Dnr[2]+1), dtype = bool)
-            Dnr = grid_shape // 2
-            Dmod = grid_shape % 2
-            mask = np.ones(grid_shape, dtype=bool)
-            mask[:, :, Dnr[2] + 1 :] = False
-
-            mask[0, 0, 0] = False
-            mask[0, Dnr[1] + 1 :, 0] = False
-            mask[Dnr[0] + 1 :, :, 0] = False
-            if Dmod[2] == 0:
-                mask[0, 0, Dnr[2]] = False
-                mask[0, Dnr[1] + 1 :, Dnr[2]] = False
-                mask[Dnr[0] + 1 :, :, Dnr[2]] = False
-                if Dmod[1] == 0:
-                    mask[0, Dnr[1], Dnr[2]] = False
-                if Dmod[0] == 0:
-                    mask[Dnr[0], 0, Dnr[2]] = False
-                    mask[Dnr[0], Dnr[1] + 1 :, Dnr[2]] = False
-            if Dmod[0] == 0:
-                mask[Dnr[0], Dnr[1] + 1 :, 0] = False
-                if Dmod[1] == 0:
-                    mask[Dnr[0], Dnr[1], 0] = False
-            if Dmod[1] == 0:
-                mask[0, Dnr[1], 0] = False
-            if all(Dmod == 0):
-                mask[Dnr[0], Dnr[1], Dnr[2]] = False
-            self.mask = mask
-        return self.mask

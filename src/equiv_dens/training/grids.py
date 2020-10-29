@@ -3,6 +3,7 @@ from pyscf.dft import gen_grid, radi
 from .rotation import random_rotation_matrix
 from pyscf import lib
 from pyscf.lib import param
+import torch
 
 
 def spherical_grid(mols, level=2):
@@ -78,7 +79,7 @@ def collect_and_sample_grid(grid_coords, grid_weights, n_samp):
 
 
 def cubical_sampling(grid_spec, n_samp, atom_types, pos):
-    flat_coords = np.reshape(grid_spec[0], (-1 , 3))
+    flat_coords = np.reshape(grid_spec[0], (-1, 3))
     flat_coords = flat_coords[None, :]
     flat_coords = np.repeat(flat_coords, pos.shape[0], axis=0)
     if n_samp > flat_coords.shape[1]:
@@ -86,3 +87,132 @@ def cubical_sampling(grid_spec, n_samp, atom_types, pos):
     else:
         rand_idx = np.random.choice(np.arange(flat_coords.shape[1]), size=n_samp, replace=False)
         return flat_coords[:, rand_idx, :], np.ones((n_samp, ) * grid_spec[1])
+
+
+class CubicalGrid():
+
+    def __init__(self, mols, nx=125, ny=125, nz=125, resolution=None,
+                 margin=2, origin=None, extent=[10, 10, 10]):
+        if extent is None:
+            coord = mols[0].atom_coords(unit='Angstrom')  # positions in angstrom
+            box = np.max(coord, axis=0) - np.min(coord, axis=0) + margin * 2
+            box = np.diag(box)
+        else:
+            box = np.diag(extent)
+        if origin is None:
+            coord = mols[0].atom_coords(unit='Angstrom')  # positions in angstrom
+            self.boxorig = np.min(coord, axis=0) - margin
+        else:
+            self.boxorig = np.array(origin)
+        if resolution is not None:
+            nx, ny, nz = np.ceil(np.diag(box) / resolution).astype(int)
+        self.shape = torch.LongTensor([nx, ny, nz])
+        self.box = torch.tensor(box)
+        self.lattice = self.box
+        # .../(nx-1) to get symmetric mesh
+        # see also the discussion https://github.com/sunqm/pyscf/issues/154
+        xs = np.linspace(0, np.diag(box)[0], nx, endpoint=False)
+        ys = np.linspace(0, np.diag(box)[0], nx, endpoint=False)
+        zs = np.linspace(0, np.diag(box)[0], nx, endpoint=False)
+
+        self.point_volume = np.diag(self.box) / np.array([nx, ny, nz])
+        self.point_volume = np.prod(self.point_volume)
+
+        self.volume = np.prod(np.diag(self.lattice))
+
+        self.coords = lib.cartesian_prod([xs, ys, zs])
+        self.coords = np.asarray(self.coords, order='C') - (-self.boxorig)
+        self.coords = torch.tensor(self.coords)
+
+        self._rr = None
+        self.rec_grid = None
+
+    @property
+    def rr(self):
+        if self._rr is None:
+            rr = torch.einsum("lijk,lijk->ijk", self.coords, self.coords)
+            # self._rr = np.reshape(rr, [self.nr[0], self.nr[1], self.nr[2], 1])
+            self._rr = rr
+        return self._rr
+
+    def get_reciprocal_grid(self):
+        if self.rec_grid is None:
+            fac = 2 * np.pi
+            bg = fac * np.linalg.inv(self.lattice)
+            reciprocal_lat = bg.T
+            self.rec_grid = ReciprocalGrid(np.array(self.shape).astype(np.int), reciprocal_lat)
+        return self.rec_grid
+
+
+class ReciprocalGrid():
+
+    def __init__(self, shape, lattice):
+        ax = []
+        for i in range(3):
+            dd = 1 / shape[i]
+            if i == 2:
+                ax.append(np.fft.rfftfreq(shape[i], d=dd))
+            else:
+                freq = np.fft.fftfreq(shape[i], d=dd)
+
+                ax.append(freq)
+        S0, S1, S2 = np.meshgrid(ax[0], ax[1], ax[2], indexing="ij")
+
+        # S_cart = s2r(S, self)
+        self.lattice = torch.tensor(lattice)
+        S_cart = np.asarray([S0, S1, S2])
+        S_cart = torch.tensor(S_cart)
+        self.coords = torch.einsum("j...,kj->k...", S_cart, self.lattice)
+        self.shape = self.coords.shape[1:]
+        self.full_shape = shape
+        self._mask = None
+        self._gg = None
+        self._q = None
+
+    @property
+    def gg(self):
+        if self._gg is None:
+            gg = torch.einsum("lijk,lijk->ijk", self.coords, self.coords)
+            self._gg = gg
+        return self._gg
+
+    @property
+    def q(self):
+        if self._q is None:
+            self._q = torch.sqrt(self.gg)
+        return self._q
+
+    @property
+    def mask(self):
+        if self._mask is None:
+            grid_shape = np.array(self.full_shape)
+            # Dnr = nr[:3]//2
+            # Dmod = nr[:3]%2
+            # mask = np.ones((nr[0], nr[1], Dnr[2]+1), dtype = bool)
+            Dnr = grid_shape // 2
+            Dmod = grid_shape % 2
+            mask = torch.ones(self.shape, dtype=torch.bool)
+            mask[:, :, Dnr[2] + 1:] = False
+
+            mask[0, 0, 0] = False
+            mask[0, Dnr[1] + 1:, 0] = False
+            mask[Dnr[0] + 1:, :, 0] = False
+            if Dmod[2] == 0:
+                mask[0, 0, Dnr[2]] = False
+                mask[0, Dnr[1] + 1:, Dnr[2]] = False
+                mask[Dnr[0] + 1:, :, Dnr[2]] = False
+                if Dmod[1] == 0:
+                    mask[0, Dnr[1], Dnr[2]] = False
+                if Dmod[0] == 0:
+                    mask[Dnr[0], 0, Dnr[2]] = False
+                    mask[Dnr[0], Dnr[1] + 1:, Dnr[2]] = False
+            if Dmod[0] == 0:
+                mask[Dnr[0], Dnr[1] + 1:, 0] = False
+                if Dmod[1] == 0:
+                    mask[Dnr[0], Dnr[1], 0] = False
+            if Dmod[1] == 0:
+                mask[0, Dnr[1], 0] = False
+            if all(Dmod == 0):
+                mask[Dnr[0], Dnr[1], Dnr[2]] = False
+            self._mask = mask
+        return self._mask
