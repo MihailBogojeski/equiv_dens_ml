@@ -92,7 +92,9 @@ def cubical_sampling(grid_spec, n_samp, atom_types, pos):
 class CubicalGrid():
 
     def __init__(self, mols, nx=125, ny=125, nz=125, resolution=None,
-                 margin=2, origin=None, extent=[10, 10, 10]):
+                 margin=2, origin=None, extent=[10, 10, 10], device='cpu', dtype=torch.double):
+        self.device = device
+        self.dtype = dtype
         if extent is None:
             coord = mols[0].atom_coords(unit='Angstrom')  # positions in angstrom
             box = np.max(coord, axis=0) - np.min(coord, axis=0) + margin * 2
@@ -107,7 +109,7 @@ class CubicalGrid():
         if resolution is not None:
             nx, ny, nz = np.ceil(np.diag(box) / resolution).astype(int)
         self.shape = torch.LongTensor([nx, ny, nz])
-        self.box = torch.tensor(box)
+        self.box = torch.tensor(box).to(device).type(dtype)
         self.lattice = self.box
         # .../(nx-1) to get symmetric mesh
         # see also the discussion https://github.com/sunqm/pyscf/issues/154
@@ -122,7 +124,7 @@ class CubicalGrid():
 
         self.coords = lib.cartesian_prod([xs, ys, zs])
         self.coords = np.asarray(self.coords, order='C') - (-self.boxorig)
-        self.coords = torch.tensor(self.coords)
+        self.coords = torch.tensor(self.coords).to(device).type(dtype)
 
         self._rr = None
         self.rec_grid = None
@@ -140,14 +142,17 @@ class CubicalGrid():
             fac = 2 * np.pi
             bg = fac * np.linalg.inv(self.lattice)
             reciprocal_lat = bg.T
-            self.rec_grid = ReciprocalGrid(np.array(self.shape).astype(np.int), reciprocal_lat)
+            self.rec_grid = ReciprocalGrid(np.array(self.shape).astype(np.int),
+                                           reciprocal_lat, device=self.device, dtype=self.dtype)
         return self.rec_grid
 
 
 class ReciprocalGrid():
 
-    def __init__(self, shape, lattice):
+    def __init__(self, shape, lattice, device='cpu', dtype=torch.double):
         ax = []
+        self.device = device
+        self.dtype = dtype
         for i in range(3):
             dd = 1 / shape[i]
             if i == 2:
@@ -159,9 +164,9 @@ class ReciprocalGrid():
         S0, S1, S2 = np.meshgrid(ax[0], ax[1], ax[2], indexing="ij")
 
         # S_cart = s2r(S, self)
-        self.lattice = torch.tensor(lattice)
+        self.lattice = torch.tensor(lattice).to(device).type(dtype)
         S_cart = np.asarray([S0, S1, S2])
-        S_cart = torch.tensor(S_cart)
+        S_cart = torch.tensor(S_cart).to(device).type(dtype)
         self.coords = torch.einsum("j...,kj->k...", S_cart, self.lattice)
         self.shape = self.coords.shape[1:]
         self.full_shape = shape
@@ -214,5 +219,5 @@ class ReciprocalGrid():
                 mask[0, Dnr[1], 0] = False
             if all(Dmod == 0):
                 mask[Dnr[0], Dnr[1], Dnr[2]] = False
-            self._mask = mask
+            self._mask = mask.to(self.device)
         return self._mask

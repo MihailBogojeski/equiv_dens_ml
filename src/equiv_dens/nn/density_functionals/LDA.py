@@ -13,19 +13,21 @@ class LDAFunctional(nn.Module):
         self.ewald = Ewald(a_num, PME=use_PME)
 
     def forward(self, rho, grid, pos, pseudo_pot):
-        total_e = 0
+        pseudo_pot(rho.detach().numpy())
         ewald_e = self.ewald(rho, grid, pos)
+        print('ewald energy', ewald_e)
         tf_e = thomas_fermi_en(rho, grid)
         print('thomas fermi energy', tf_e)
         vw_e = von_weizsacker_en(rho, grid)
         print('von weizsacker energy', vw_e)
+        print('tf_vw en', tf_e + vw_e)
         lda_e = lda_en(rho, grid)
         print('lda energy', lda_e)
         h_e = hartree_en(rho, grid)
         print('hartree energy', h_e)
         pseudo_e = pseudo_en(rho, grid, pseudo_pot)
         print('pseudo energy', pseudo_e)
-        return total_e + ewald_e + tf_e + vw_e + lda_e + h_e + pseudo_e
+        return ewald_e + tf_e + vw_e + lda_e + h_e + pseudo_e
 
 
 def thomas_fermi_en(rho, grid):
@@ -37,19 +39,18 @@ def thomas_fermi_en(rho, grid):
 
 def von_weizsacker_en(rho, grid):
     pot = von_weizsacker_pot(rho, grid)
+    print('pot type', pot.type())
+    print('rho type', rho.type())
     en = torch.einsum("i, i->", rho[rho > 0], pot[rho > 0]) * grid.point_volume
     return en
 
 
 def von_weizsacker_pot(rho, grid):
     tol = 1e-30
-    rhom = rho.clone()
-    mask = rho > 0
-    mask2 = torch.logical_not(mask)
-    rhom[mask2] = tol
+    mask = (rho > 0).to(rho)
     rec_grid = grid.get_reciprocal_grid()
-    gg = rec_grid.gg
-    sq_rho = torch.sqrt(rhom)
+    gg = rec_grid.gg.clone()
+    sq_rho = torch.sqrt(rho) + torch.sqrt((1 - mask) * tol)
     sq_rho_fft = tfft.rfftn(sq_rho) * grid.point_volume
     n2_sq_rho = sq_rho_fft * gg
 
@@ -57,7 +58,9 @@ def von_weizsacker_pot(rho, grid):
     if a.dtype == torch.complex128:
         a = a.real
     a *= 0.5
-    sq_rho[torch.abs(sq_rho) < tol] = tol  # for safe
+    mask = (torch.abs(sq_rho) > tol).to(sq_rho)
+    sq_rho = sq_rho * mask
+    sq_rho = sq_rho + ((1 - mask) * tol)
     pot = a / sq_rho
     return pot
 
@@ -82,7 +85,7 @@ def lda_en(rho, grid):
     ex_rho[rs1] += a[0] * torch.log(rs[rs1]) + b[0] + c[0] * rs[rs1] *\
         torch.log(rs[rs1]) + d[0] * rs[rs1]
     ex_rho[rs2] += gamma[0] / (1.0 + beta1[0] * rs2sqrt + beta2[0] * rs[rs2])
-    ene = np.einsum("ijk, ijk->", ex_rho, rho) * grid.point_volume
+    ene = torch.einsum("ijk, ijk->", ex_rho, rho) * grid.point_volume
 
     return ene
 
@@ -96,8 +99,11 @@ def hartree_en(rho, grid):
     # v_h[mask] = rho_of_g[mask]*gg[mask]**(-1)*4*np.pi
     gg[0, 0, 0] = 1.0
     v_h = rho_of_g / gg * 4 * np.pi
-    gg[0, 0, 0] = 0.0
-    v_h[0, 0, 0] = 0.0
+    # gg[0, 0, 0] = 0.0
+    # v_h[0, 0, 0] = 0.0
+    mask = torch.ones_like(v_h)
+    mask[0, 0, 0] = 0.0
+    v_h = v_h * mask
     v_h_of_r = tfft.irfftn(v_h)
     if v_h_of_r.dtype == torch.complex128:
         v_h_of_r = v_h_of_r.real
@@ -110,6 +116,6 @@ def pseudo_en(rho, grid, pseudo_pot):
     if pseudo_pot is None:
         return 0
     else:
-        pseudo_v = torch.tensor(pseudo_pot.vreal)
+        pseudo_v = torch.tensor(pseudo_pot.vreal).to(rho)
         en = torch.einsum("ijk, ijk->", pseudo_v, rho) * grid.point_volume
         return en

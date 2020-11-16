@@ -6,7 +6,7 @@ import numpy as np
 
 class Ewald(nn.Module):
     def __init__(
-        self, a_num, PME=False, prec=1.0e-8, eta=0.73
+        self, a_num, PME=False, prec=1.0e-8, eta=None
     ):
         super().__init__()
         self.a_num = a_num
@@ -16,12 +16,17 @@ class Ewald(nn.Module):
         self.mask = None
 
     def forward(self, rho, grid, pos):
+        gmax = self.get_gmax(grid)
+        # print('gmax', gmax)
+        if self.eta is None:
+            self.eta = self.get_best_eta(gmax)
+        # print('self eta', self.eta)
         self.real_en = self.real_energy(rho, grid, pos)
-        print("real energy", self.real_en)
+        # print("real energy", self.real_en)
         self.corr_en = self.corr_energy(rho, grid, pos)
-        print("corr energy", self.corr_en)
+        # print("corr energy", self.corr_en)
         self.rec_en = self.rec_energy(rho, grid, pos)
-        print("rec energy", self.rec_en)
+        # print("rec energy", self.rec_en)
         ewald_en = self.real_en + self.corr_en + self.rec_en
 
         return ewald_en
@@ -40,7 +45,7 @@ class Ewald(nn.Module):
                     # R=np.einsum('j,ij->i',np.array([ix,iy,iz],dtype=np.float),rho.grid.lattice.transpose())
                     R = torch.einsum(
                         "j,ij->i",
-                        torch.tensor([ix, iy, iz], dtype=torch.double),
+                        torch.tensor([ix, iy, iz]).to(rho),
                         grid.lattice,
                     )
                     for i in np.arange(len(self.a_num)):
@@ -52,7 +57,7 @@ class Ewald(nn.Module):
         rcut = rmax
         eta_sqrt = np.sqrt(self.eta)
         positions = torch.stack(positions)
-        charges = torch.tensor(charges)
+        charges = torch.tensor(charges).to(rho)
 
         for i in range(len(self.a_num)):
             dists = torch.cdist(positions, pos[i].view((1, 3))).view(-1)
@@ -84,9 +89,13 @@ class Ewald(nn.Module):
 
     def rec_energy(self, rho, grid, pos):
         rec_grid = grid.get_reciprocal_grid()
+        print('rec grid type', rec_grid.coords.type())
+        print('pos type', pos[0].type())
         a = torch.exp(-1j * torch.einsum("lijk,l->ijk", rec_grid.coords, pos[0]))
         strf = a * self.a_num[0]
         for i in np.arange(1, len(self.a_num)):
+            print('rec grid type', rec_grid.coords.type())
+            print('pos type', pos[i].type())
             a = torch.exp(-1j * torch.einsum("lijk,l->ijk", rec_grid.coords, pos[i]))
             strf += a * self.a_num[i]
         strf_sq = torch.conj(strf) * strf
@@ -102,32 +111,33 @@ class Ewald(nn.Module):
         energy = 4.0 * np.pi * energy.real / grid.volume
         return energy
 
-    # def get_gmax(self, grid):
-    #     gg = grid.get_reciprocal().gg
-    #     gmax_x = np.sqrt(np.amax(gg[:, 0, 0]))
-    #     gmax_y = np.sqrt(np.amax(gg[0, :, 0]))
-    #     gmax_z = np.sqrt(np.amax(gg[0, 0, :]))
-    #     gmax = np.amin([gmax_x, gmax_y, gmax_z])
-    #     return gmax
-    #
-    # def get_best_eta(precision, gmax, pos, a_num):
-    #     # charge
-    #     charge = 0.0
-    #     chargeSquare = 0.0
-    #     for i in np.arange(len(ions.pos)):
-    #         charge += ions.Zval[ions.labels[i]]
-    #         chargeSquare += ions.Zval[ions.labels[i]] ** 2
-    #
-    #     # eta
-    #     eta = 1.6
-    #     NotGoodEta = True
-    #     while NotGoodEta:
-    #         # upbound = 2.0 * charge**2 * np.sqrt ( eta / np.pi) * sp.erfc ( np.sqrt (gmax / 4.0 / eta) )
-    #         upbound = (
-    #             4.0 * np.pi * ions.nat * chargeSquare * np.sqrt(eta / np.pi) * sp.erfc(gmax / 2.0 * np.sqrt(1.0 / eta))
-    #         )
-    #         if upbound < precision:
-    #             NotGoodEta = False
-    #         else:
-    #             eta = eta - 0.01
-    #     return eta
+    def get_gmax(self, grid):
+        rec_grid = grid.get_reciprocal_grid()
+        gg = rec_grid.gg
+        gmax_x = torch.sqrt(torch.amax(gg[:, 0, 0]))
+        gmax_y = torch.sqrt(torch.amax(gg[0, :, 0]))
+        gmax_z = torch.sqrt(torch.amax(gg[0, 0, :]))
+        gmax = np.amax([gmax_x, gmax_y, gmax_z])
+        return gmax
+
+    def get_best_eta(self, gmax):
+        # charge
+        charge = 0.0
+        charge_sq = 0.0
+        for i in np.arange(len(self.a_num)):
+            charge += self.a_num[i]
+            charge_sq += self.a_num[i] ** 2
+
+        # eta
+        eta = 1.6
+        NotGoodEta = True
+        while NotGoodEta:
+            # upbound = 2.0 * charge**2 * np.sqrt ( eta / np.pi) * sp.erfc ( np.sqrt (gmax / 4.0 / eta) )
+            upbound = (
+                4.0 * np.pi * len(self.a_num) * charge_sq * np.sqrt(eta / np.pi) * sp.erfc(gmax / 2.0 * np.sqrt(1.0 / eta))
+            )
+            if upbound < self.prec:
+                NotGoodEta = False
+            else:
+                eta = eta - 0.01
+        return eta
