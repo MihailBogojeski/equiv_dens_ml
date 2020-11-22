@@ -89,13 +89,9 @@ class Ewald(nn.Module):
 
     def rec_energy(self, rho, grid, pos):
         rec_grid = grid.get_reciprocal_grid()
-        print('rec grid type', rec_grid.coords.type())
-        print('pos type', pos[0].type())
         a = torch.exp(-1j * torch.einsum("lijk,l->ijk", rec_grid.coords, pos[0]))
         strf = a * self.a_num[0]
         for i in np.arange(1, len(self.a_num)):
-            print('rec grid type', rec_grid.coords.type())
-            print('pos type', pos[i].type())
             a = torch.exp(-1j * torch.einsum("lijk,l->ijk", rec_grid.coords, pos[i]))
             strf += a * self.a_num[i]
         strf_sq = torch.conj(strf) * strf

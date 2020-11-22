@@ -21,6 +21,7 @@
 --dens_dataset=datasets/h2o_dynamic_pyscf_dft.npy
 --orbitals_file=datasets/augccpvqzjkfit_orbital_basis_df.npy
 --radial_coeffs_file=datasets/augccpvqzjkfit_radial_coeffs_df.npy
+--pseudo_pot_path=pseudo_potentials
 --num_train=500
 --num_valid=500
 --train_batch_size=32
@@ -56,3 +57,6 @@
 --integral_constraint=True
 --coord_weights=True
 --weights_balance=1.0
+--cube_size=50
+--cube_gap=0.4
+--minimize_en=True

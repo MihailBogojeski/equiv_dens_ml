@@ -4,6 +4,8 @@ from .rotation import random_rotation_matrix
 from pyscf import lib
 from pyscf.lib import param
 import torch
+from dftpy.math_utils import bestFFTsize
+from dftpy.grid import DirectGrid
 
 
 def spherical_grid(mols, level=2):
@@ -87,6 +89,19 @@ def cubical_sampling(grid_spec, n_samp, atom_types, pos):
     else:
         rand_idx = np.random.choice(np.arange(flat_coords.shape[1]), size=n_samp, replace=False)
         return flat_coords[:, rand_idx, :], np.ones((n_samp, ) * grid_spec[1])
+
+
+def dftpy_grid(lattice, gap):
+    nr = np.zeros(3, dtype='int32')
+    metric = np.dot(lattice.T, lattice)
+    for i in range(3):
+        nr[i] = int(np.sqrt(metric[i, i]) / gap)
+    print('The initial grid size is ', nr)
+    for i in range(3):
+        nr[i] = bestFFTsize(nr[i])
+    print('The final grid size is ', nr)
+    grid = DirectGrid(lattice=lattice, nr=nr, units=None, full=False)
+    return grid
 
 
 class CubicalGrid():

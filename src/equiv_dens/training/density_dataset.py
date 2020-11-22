@@ -23,6 +23,8 @@ from pyscf import gto
 from pyscf.dft import numint
 from pyscf.lib import param
 from .grids import spherical_grid, rot_spherical_sampling
+import equiv_dens.utils.dft_utils as du
+from dftpy.formats import ase_io
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +49,9 @@ class AtomsDensityData(Dataset):
         radial_coeffs_file=None,
         grid_fn=spherical_grid,
         sampling_fn=rot_spherical_sampling,
-        dtype=torch.float32
+        dtype=torch.float32,
+        grid_extent=None,
+        grid_origin=0
     ):
         print('Starting atomsdata density init')
         self.density_path = density_path
@@ -67,11 +71,14 @@ class AtomsDensityData(Dataset):
         self.atoms = np.load(np_path, allow_pickle=True).item()
         orbital_basis = np.load(orbitals_path, allow_pickle=True).item()
         self.orbitals = []
+        print('atoms keys', self.atoms.keys())
         for t in self.atoms['atom_types']:
             self.orbitals.append(orbital_basis[t])
         calc_results = np.load(density_path, allow_pickle=True)
         self.mols = []
         self.coeffs = []
+        self.ions = []
+        ase_atoms = du.npy_to_ase(self.atoms['positions'], self.atoms['atom_types'])
         # for i in range(len(calc_results)):
         for i in range(10):
             mol_dict, calc_dict = calc_results[i]
@@ -80,6 +87,10 @@ class AtomsDensityData(Dataset):
             mol.build()
             self.mols.append(mol)
             self.coeffs.append(coeff_dict)
+            a = ase_atoms[i]
+            a.set_cell(grid_extent)
+            a.set_positions(a.positions - grid_origin)
+            self.ions.append(ase_io.ase2ions(a))
 
         if radial_coeffs_file != 'none':
             self.radial_coeffs = []
@@ -171,6 +182,7 @@ class AtomsDensityData(Dataset):
         properties['atom_numbers'] = torch.LongTensor(self.atoms['atom_numbers'])
         positions = self.atoms['positions'][idx]
         properties['idx'] = idx
+        properties['ions'] = [self.ions[i] for i in idx]
         # print('positions', positions)
         if self.centered:
             # print('atom center', positions.mean(axis=0))

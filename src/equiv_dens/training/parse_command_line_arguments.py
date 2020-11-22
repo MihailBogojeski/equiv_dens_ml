@@ -58,13 +58,17 @@ def parse_command_line_arguments():
                                   help="type of constraint used on density to ensure positivity")
     args_hyperparams.add_argument("--integral_constraint", metavar='True|False', type=str2bool, default=False,
                                   choices=[True, False], help="constrain density integral to number of electrons")
-
+    args_hyperparams.add_argument("--cube_size", metavar='INT', type=int, default=50,
+                                  help="Size of the cubical grid")
+    args_hyperparams.add_argument("--cube_gap", metavar='FLOAT', type=float, default=0.4,
+                                  help="Spacing between two gridpoints in the cubical grid.")
 
     # arguments for training
     args_training = parser.add_argument_group("training hyperparameters")
     args_training.add_argument("--max_steps", metavar='INT', type=int, help="maximum number of training steps")
     args_training.add_argument("--np_dataset", metavar='STR', type=str, help="filepath to atoms dataset")
     args_training.add_argument("--dens_dataset", metavar='STR', type=str, help="filepath to density dataset")
+    args_training.add_argument("--pseudo_pot_path", metavar='STR', type=str, help="filepath to pseudo potentials")
     args_training.add_argument("--orbitals_file", metavar='STR', type=str, help="filepath to orbital basis")
     args_training.add_argument("--radial_coeffs_file", metavar='STR', type=str, default='none', help="filepath to initial radial coefficients")
     args_training.add_argument("--num_train", metavar='INT', type=int, help="size of training set")
@@ -110,6 +114,8 @@ def parse_command_line_arguments():
                                choices=[True, False], help="weight grid coordinates based on grid density")
     args_training.add_argument("--weights_balance", metavar='FLOAT', type=float, default=1.0,
                                help="Term for balancing the coordinate weights of the density grid.")
+    args_training.add_argument("--minimize_en", metavar='True|False', type=str2bool, default=True,
+                               choices=[True, False], help="Minimize energy instead of minimizing loss.")
 
     # arguments for logging and checkpoints
     args_logging = parser.add_argument_group("logging and checkpoints")
@@ -125,6 +131,7 @@ def parse_command_line_arguments():
     args_misc = parser.add_argument_group("miscelleaneous")
     args_misc.add_argument("--dtype", metavar='torch.float32|torch.float64', type=str, default='torch.float32',
                            choices=['torch.float32', 'torch.float64'], help="floating point type used during training")
+    args_training.add_argument("--verbose", metavar='INT', type=int, default=0, help="Verbosity level.")
 
     # actually parse command line arguments
     if len(sys.argv) == 1:  # no arguments were specified, print help message

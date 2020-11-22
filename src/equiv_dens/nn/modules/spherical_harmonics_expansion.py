@@ -1,19 +1,23 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import numpy as np
 from equiv_dens.nn.spherical_harmonics import spherical_harmonics
 
 
 class SphericalHarmonicsExpansion(nn.Module):
 
-    def __init__(self, orbitals, radial_coeffs=None, expansion_constraint=None, integral_constraint=False):
+    def __init__(self, orbitals, radial_coeffs=None, expansion_constraint=None, integral_constraint=False, verbose=0):
         super().__init__()
         self.orbitals = orbitals
         self.order_max = 0
         self.expansion_constraint = expansion_constraint
         self.n_electrons = 0
         self.integral_constraint = integral_constraint
-        print('constraint type',  self.expansion_constraint)
+        self.verbose = verbose
+        if self.verbose:
+            print('expansion constraint', self.expansion_constraint)
+            print('integral constraint', self.integral_constraint)
         for i in range(len(self.orbitals)):
             self.n_electrons += self.orbitals[i][0][0]
             for z, _, l in self.orbitals[i]:
@@ -96,8 +100,10 @@ class SphericalHarmonicsExpansion(nn.Module):
             coeffs_sum = 0
             for i in range(len(self.orbitals)):
                 z = self.orbital_spec[i][0][0]
+                # print('sph coeffs z0', sph_coeffs[i][(z, 0)])
+                # print('sum scale z0', torch.sum(rad_scale[i][(z, 0)], dim=-2, keepdim=True))
                 coeffs_sum += torch.sum(sph_coeffs[i][(z, 0)] *
-                                        torch.sum(rad_scale[i][(z, 0)], dim=-2, keepdim=True),
+                                        torch.sum(rad_scale[i][(z, 0)] + self.init_scale(i, (z, 0)), dim=-2, keepdim=True),
                                         dim=-1, keepdim=True)
             # print("coeffs sum", coeffs_sum)
             # print("n electrons", self.n_electrons)
@@ -135,7 +141,11 @@ class SphericalHarmonicsExpansion(nn.Module):
                 # print('scale', scale)
                 sph_coeff = sph_coeffs[i][key]
                 if L == 0:
+                    # print('sph coeffs L0', sph_coeff)
+                    # print('sum scale L0', torch.sum(scale, dim=-2, keepdim=True))
                     sph_coeff = (sph_coeff * torch.sum(scale, dim=-2, keepdim=True)) * scale_factor
+                    if self.verbose > 0:
+                        print('sum sph coeff', torch.sum(sph_coeff))
                     scale = torch.ones_like(scale)
                 # print('width nan', torch.sum(torch.isnan(width)))
                 # print('scale nan', torch.sum(torch.isnan(scale)))
@@ -158,6 +168,15 @@ class SphericalHarmonicsExpansion(nn.Module):
             result['density'] = result['density']**2
         if self.expansion_constraint == 'abs':
             result['density'] = torch.sqrt(result['density']**2)
+        if self.expansion_constraint == 'sp':
+            dens = result['density']
+            if self.verbose > 1:
+                print('dens int pos before', torch.sum(result['density'][dens > 0] * 0.06021670784495335))
+                print('dens int neg before', torch.sum(result['density'][dens < 0] * 0.06021670784495335))
+            result['density'] = F.softplus(result['density'], beta=10000) + 1e-30
+            if self.verbose > 1:
+                print('dens int pos before', torch.sum(result['density'][dens > 0] * 0.06021670784495335))
+                print('dens int neg before', torch.sum(result['density'][dens < 0] * 0.06021670784495335))
 
         return result
 

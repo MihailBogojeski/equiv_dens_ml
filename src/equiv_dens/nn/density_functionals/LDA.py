@@ -6,32 +6,36 @@ import torch.fft as tfft
 
 
 class LDAFunctional(nn.Module):
-    def __init__(self, a_num, use_PME=False, pseudo_pot=None):
+    def __init__(self, a_num, use_PME=False, pseudo_pot=None, verbose=0):
         super().__init__()
         self.a_num = a_num
         self.use_PME = use_PME
         self.ewald = Ewald(a_num, PME=use_PME)
+        self.verbose = verbose
 
     def forward(self, rho, grid, pos, pseudo_pot):
         pseudo_pot(rho.detach().numpy())
         ewald_e = self.ewald(rho, grid, pos)
-        print('ewald energy', ewald_e)
         tf_e = thomas_fermi_en(rho, grid)
-        print('thomas fermi energy', tf_e)
         vw_e = von_weizsacker_en(rho, grid)
-        print('von weizsacker energy', vw_e)
-        print('tf_vw en', tf_e + vw_e)
         lda_e = lda_en(rho, grid)
-        print('lda energy', lda_e)
         h_e = hartree_en(rho, grid)
-        print('hartree energy', h_e)
         pseudo_e = pseudo_en(rho, grid, pseudo_pot)
-        print('pseudo energy', pseudo_e)
+        if self.verbose > 0:
+            print('ewald energy', ewald_e)
+            print('thomas fermi energy', tf_e)
+            print('von weizsacker energy', vw_e)
+            print('tf_vw en', tf_e + vw_e)
+            print('lda energy', lda_e)
+            print('hartree energy', h_e)
+            print('pseudo energy', pseudo_e)
         return ewald_e + tf_e + vw_e + lda_e + h_e + pseudo_e
 
 
 def thomas_fermi_en(rho, grid):
+    # print('rho', rho)
     e_dens = rho**(5 / 3)
+    # print('e_dens', e_dens)
     en = torch.einsum('ijk->', e_dens)
     en *= (3.0 / 10.0) * (3.0 * np.pi ** 2) ** (2.0 / 3.0) * grid.point_volume
     return en
@@ -39,18 +43,16 @@ def thomas_fermi_en(rho, grid):
 
 def von_weizsacker_en(rho, grid):
     pot = von_weizsacker_pot(rho, grid)
-    print('pot type', pot.type())
-    print('rho type', rho.type())
+    # print('pot type', pot.type())
+    # print('rho type', rho.type())
     en = torch.einsum("i, i->", rho[rho > 0], pot[rho > 0]) * grid.point_volume
     return en
 
 
 def von_weizsacker_pot(rho, grid):
-    tol = 1e-30
-    mask = (rho > 0).to(rho)
     rec_grid = grid.get_reciprocal_grid()
     gg = rec_grid.gg.clone()
-    sq_rho = torch.sqrt(rho) + torch.sqrt((1 - mask) * tol)
+    sq_rho = torch.sqrt(rho)
     sq_rho_fft = tfft.rfftn(sq_rho) * grid.point_volume
     n2_sq_rho = sq_rho_fft * gg
 
@@ -58,9 +60,6 @@ def von_weizsacker_pot(rho, grid):
     if a.dtype == torch.complex128:
         a = a.real
     a *= 0.5
-    mask = (torch.abs(sq_rho) > tol).to(sq_rho)
-    sq_rho = sq_rho * mask
-    sq_rho = sq_rho + ((1 - mask) * tol)
     pot = a / sq_rho
     return pot
 
@@ -74,9 +73,16 @@ def lda_en(rho, grid):
     beta1 = (1.0529, 1.3981)
     beta2 = (0.3334, 0.2611)
 
+    # print('rho', rho)
+    # print('min rho', torch.min(rho))
+    # print('max rho', torch.max(rho))
+    # print('point volume', grid.point_volume)
     rho_cbrt = rho**(1 / 3)
-    rho_cbrt[rho_cbrt < 1e-30] = 1e-30
+    # print('min cbrt', torch.min(rho_cbrt))
+    # print('max cbrt', torch.max(rho_cbrt))
+    # print('rho cbrt', rho_cbrt)
     rs = (3.0 / (4.0 * np.pi))**(1 / 3) / rho_cbrt
+    # print('rs', rs)
     rs1 = rs < 1
     rs2 = rs >= 1
     rs2sqrt = torch.sqrt(rs[rs2])
