@@ -324,7 +324,7 @@ while step < args.max_steps + 1:
                                   coeffs['radial_width'],
                                   coeffs['radial_scale'])
 
-    print('density integral', torch.sum(predictions['density'] * data['coord_weights'], dim=-1))
+    # print('density integral', torch.sum(predictions['density'] * data['coord_weights'], dim=-1))
 
     # compute error metrics
     if args.coord_weights:
@@ -392,7 +392,7 @@ while step < args.max_steps + 1:
                                               coeffs['radial_width'],
                                               coeffs['radial_scale'])
 
-                print('spherical density integral', torch.sum(predictions['density'] * data['coord_weights'], dim=-1))
+                # print('spherical density integral', torch.sum(predictions['density'] * data['coord_weights'], dim=-1))
                 if args.coord_weights:
                     coord_weights = data['coord_weights']
                 else:

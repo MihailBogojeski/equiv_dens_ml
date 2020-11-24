@@ -54,9 +54,6 @@
 --keep_checkpoints=0
 --dtype=torch.float32
 --expansion_constraint=None
---integral_constraint=True
+--integral_constraint=False
 --coord_weights=True
 --weights_balance=1.0
---cube_size=50
---cube_gap=0.4
---minimize_en=True

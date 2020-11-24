@@ -79,8 +79,8 @@ class AtomsDensityData(Dataset):
         self.coeffs = []
         self.ions = []
         ase_atoms = du.npy_to_ase(self.atoms['positions'], self.atoms['atom_types'])
-        # for i in range(len(calc_results)):
-        for i in range(10):
+        # for i in range(10):
+        for i in range(len(calc_results)):
             mol_dict, calc_dict = calc_results[i]
             coeff_dict = {'mo_coeff': calc_dict['mo_coeff'], 'mo_occ': calc_dict['mo_occ']}
             mol = gto.Mole(**mol_dict)
