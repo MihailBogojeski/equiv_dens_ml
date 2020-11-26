@@ -160,7 +160,8 @@ class SphericalHarmonicsExpansion(nn.Module):
                 # print('sph nan', torch.sum(torch.isnan(sph)))
                 # print('sph prod shape', sph.shape)
                 rbf = gaussian_rbf(d.unsqueeze(-1), width, scale,
-                                   normalize=(self.integral_constraint and L == 0))
+                                   # normalize=(self.integral_constraint and L == 1))
+                                   )
                 # print('rbf nan', torch.sum(torch.isnan(rbf)))
                 # print('rbf shape', rbf.shape)
                 result['density'] += torch.sum(rbf * sph, dim=(-2, -1))
@@ -181,7 +182,7 @@ class SphericalHarmonicsExpansion(nn.Module):
         return result
 
 
-def gaussian_rbf(r, width, scale, normalize=False):
+def gaussian_rbf(r, width, scale, normalize=True):
     # print('scale shape', scale.shape)
     # print('scale shape', scale.shape)
     # print('width shape', width.shape)
