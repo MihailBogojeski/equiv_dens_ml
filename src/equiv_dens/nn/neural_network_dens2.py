@@ -39,6 +39,7 @@ class NeuralNetwork(nn.Module):
                  num_residual_output=1,
                  # type of radial basis functions (exp - gaussian / exp - bernstein / gaussian / bernstein)
                  basis_functions='exp-bernstein',
+                 positive_coeffs=False,
                  cutoff=15.0,  # cutoff distance (default is 15 Bohr)
                  # type of activation function used (swish / ssp)
                  activation='swish',
@@ -65,6 +66,7 @@ class NeuralNetwork(nn.Module):
             num_residual_post_v = saved_state['num_residual_post_v']
             num_residual_output = saved_state['num_residual_output']
             num_radial_components = saved_state['num_radial_components']
+            positive_coeffs = True
             basis_functions = saved_state['basis_functions']
             cutoff = saved_state['cutoff']
             activation = saved_state['activation']
@@ -84,6 +86,7 @@ class NeuralNetwork(nn.Module):
         self.num_residual_output = num_residual_output
         self.num_radial_components = num_radial_components
         self.basis_functions = basis_functions
+        self.positive_coeffs = positive_coeffs
         self.cutoff = cutoff
         self.activation = activation
         self.Zmax = Zmax
@@ -191,6 +194,7 @@ class NeuralNetwork(nn.Module):
             'num_residual_post_v': self.num_residual_post_v,
             'num_residual_output': self.num_residual_output,
             'basis_functions': self.basis_functions,
+            'positive_coeffs': self.positive_coeffs,
             'cutoff': self.cutoff,
             'activation': self.activation,
             'Zmax': self.Zmax
@@ -360,14 +364,17 @@ class NeuralNetwork(nn.Module):
                 fs[L] += ys[L]  # add contributions to output features
 
         out_sph = self.spherical_output(fs)
-        out_sph[0] = F.softplus(out_sph[0])
+        if self.positive_coeffs:
+            out_sph[0] = F.softplus(out_sph[0])
         out_width = []
         out_scale = []
         for L in range(len(self.radial_width)):
             out_width.append(F.tanh(self.radial_width[L](fs[0])))
             out_width[L] = out_width[L].view(*out_width[L].shape[:-2], self.r_max[L], self.L_counts[L])
-            out_scale.append(F.softplus(self.radial_scale[L](fs[0])))
-            # out_scale.append(self.radial_scale[L](fs[0]))
+            if self.positive_coeffs:
+                out_scale.append(F.softplus(self.radial_scale[L](fs[0])))
+            else:
+                out_scale.append(self.radial_scale[L](fs[0]))
             out_scale[L] = out_scale[L].view(*out_scale[L].shape[:-2], self.r_max[L], self.L_counts[L])
         results = {}
         results['spherical_coeffs'], results['radial_width'], results['radial_scale'] =\

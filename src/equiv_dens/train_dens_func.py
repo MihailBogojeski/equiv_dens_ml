@@ -170,17 +170,20 @@ if args.load_from is None:
         num_residual_output=args.num_residual_output,
         num_radial_components=args.num_radial_components,
         basis_functions=args.basis_functions,
+        positive_coeffs=args.positive_coeffs,
         cutoff=args.cutoff,
         activation=args.activation)
     expansion_model = SphericalHarmonicsExpansion(dataset.orbitals, radial_coeffs=dataset.radial_coeffs,
                                                   expansion_constraint=args.expansion_constraint,
                                                   integral_constraint=args.integral_constraint,
-                                                  verbose=args.verbose)
+                                                  verbose=args.verbose,
+                                                  softmax_norm=args.softmax_norm)
 else:
     equiv_model = NeuralNetwork(load_from=args.load_from)
     expansion_model = SphericalHarmonicsExpansion(dataset.orbitals, radial_coeffs=dataset.radial_coeffs,
                                                   expansion_constraint=args.expansion_constraint,
                                                   integral_constraint=args.integral_constraint,
+                                                  softmax_norm=args.softmax_norm,
                                                   verbose=args.verbose)
 
 z_vals = []

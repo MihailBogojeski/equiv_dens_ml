@@ -61,3 +61,4 @@
 --cube_gap=0.4
 --minimize_en=True
 --verbose=0
+--positive_coeffs=False

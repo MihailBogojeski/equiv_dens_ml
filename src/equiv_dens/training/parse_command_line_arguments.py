@@ -116,6 +116,12 @@ def parse_command_line_arguments():
                                help="Term for balancing the coordinate weights of the density grid.")
     args_training.add_argument("--minimize_en", metavar='True|False', type=str2bool, default=True,
                                choices=[True, False], help="Minimize energy instead of minimizing loss.")
+    args_training.add_argument("--positive_coeffs", metavar='True|False', type=str2bool, default=True,
+                               choices=[True, False], help="Make the order 0 coefficients always positive.")
+    args_training.add_argument("--softmax_norm", metavar='True|False', type=str2bool, default=True,
+                               choices=[True, False], help="Normalize the coefficients using softmax.")
+    args_training.add_argument("--percentage_error", metavar='True|False', type=str2bool, default=True,
+                               choices=[True, False], help="Measure error as a percentage of the density integral.")
 
     # arguments for logging and checkpoints
     args_logging = parser.add_argument_group("logging and checkpoints")

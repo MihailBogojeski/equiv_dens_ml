@@ -21,6 +21,7 @@ def compute_error_dict(
     coord_weights=None,
     weights_balance=1,
     minimize_en=False,
+    percentage_error=False,
 ):
     error_dict = {}
     error_dict["loss"] = 0.0
@@ -34,12 +35,20 @@ def compute_error_dict(
                 balanced_weights *= torch.sum(coord_weights) / torch.sum(
                     balanced_weights
                 )
-                diff *= balanced_weights
-            abs_diff = torch.abs(diff)
-            sq_diff = diff ** 2
+            else:
+                balanced_weights = 1
+            abs_diff = torch.abs(diff) * balanced_weights
+            sq_diff = (diff ** 2) * balanced_weights
             mse = torch.mean(sq_diff)
             rmse = torch.sqrt(mse)
             mae = torch.mean(abs_diff)
+            # print('RMSE:', rmse)
+            # print('MAE:', mae)
+            if key == "density" and percentage_error and coord_weights is not None:
+                rmse = rmse / torch.sqrt(torch.mean((data[key] ** 2) * balanced_weights))
+                mae = mae / torch.mean(data[key] * balanced_weights)
+                # print('pct RMSE:', rmse)
+                # print('pct MAE:', mae)
             if mae > max_errors[key]:
                 error_dict[key + "_mae"] = torch.tensor(max_errors[key])
                 error_dict[key + "_rmse"] = torch.tensor(_sqrt2 * max_errors[key])

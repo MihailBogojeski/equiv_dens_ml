@@ -157,16 +157,19 @@ if args.load_from is None:
         num_residual_output=args.num_residual_output,
         num_radial_components=args.num_radial_components,
         basis_functions=args.basis_functions,
+        positive_coeffs=args.positive_coeffs,
         cutoff=args.cutoff,
         activation=args.activation)
     expansion_model = SphericalHarmonicsExpansion(dataset.orbitals, radial_coeffs=dataset.radial_coeffs,
                                                   expansion_constraint=args.expansion_constraint,
-                                                  integral_constraint=args.integral_constraint)
+                                                  integral_constraint=args.integral_constraint,
+                                                  softmax_norm=args.softmax_norm)
 else:
     equiv_model = NeuralNetwork(load_from=args.load_from)
     expansion_model = SphericalHarmonicsExpansion(dataset.orbitals, radial_coeffs=dataset.radial_coeffs,
                                                   expansion_constraint=args.expansion_constraint,
-                                                  integral_constraint=args.integral_constraint)
+                                                  integral_constraint=args.integral_constraint,
+                                                  softmax_norm=args.softmax_norm)
 
 # determine what should be calculated based on loss weights
 # tmp = (loss_weights['energy'] > 0) or (loss_weights['forces'] > 0)
@@ -333,7 +336,9 @@ while step < args.max_steps + 1:
         coord_weights = None
 
     errors = compute_error_dict(predictions, data, loss_weights, max_errors,
-                                coord_weights=coord_weights, weights_balance=args.weights_balance)
+                                coord_weights=coord_weights,
+                                weights_balance=args.weights_balance,
+                                percentage_error=args.percentage_error)
 
     # backward step
     errors['loss'].backward()
@@ -401,7 +406,9 @@ while step < args.max_steps + 1:
                 # compute error metrics
                 errors = compute_error_dict(
                     predictions, data, loss_weights, max_errors,
-                    coord_weights=coord_weights, weights_balance=args.weights_balance)
+                    coord_weights=coord_weights,
+                    weights_balance=args.weights_balance,
+                    percentage_error=args.percentage_error)
 
                 # update valid_errors (running average)
                 for key in valid_errors.keys():
@@ -436,7 +443,10 @@ while step < args.max_steps + 1:
 
                 # compute error metrics
                 errors = compute_error_dict(
-                    predictions, data, loss_weights, max_errors, coord_weights=coord_weights)
+                    predictions, data, loss_weights, max_errors,
+                    coord_weights=coord_weights,
+                    weights_balance=args.weights_balance,
+                    percentage_error=args.percentage_error)
 
                 # update valid_errors (running average)
                 for key in valid_cube_errors.keys():

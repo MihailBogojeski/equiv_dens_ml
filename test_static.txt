@@ -31,7 +31,7 @@
 --lookahead_k=-1
 --learning_rate=1e-3
 --decay_factor=0.5
---decay_patience=100
+--decay_patience=30
 --stop_at_learning_rate=1e-5
 --epsilon=1e-8
 --beta1=0.99
@@ -52,7 +52,10 @@
 --checkpoint_interval=10
 --keep_checkpoints=0
 --dtype=torch.float32
---expansion_constraint=None
+--expansion_constraint=sp
 --integral_constraint=False
+--positive_coeffs=False
+--softmax_norm=False
 --coord_weights=True
 --weights_balance=1.0
+--percentage_error=True

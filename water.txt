@@ -57,3 +57,5 @@
 --integral_constraint=False
 --coord_weights=True
 --weights_balance=1.0
+--positive_coeffs=False
+--softmax_norm=False
