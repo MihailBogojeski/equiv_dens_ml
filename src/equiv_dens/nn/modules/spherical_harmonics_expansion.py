@@ -163,7 +163,7 @@ class SphericalHarmonicsExpansion(nn.Module):
                 L0_coeffs_comb = F.softmax(L0_coeffs_comb, dim=1)
                 L0_coeffs_comb = L0_coeffs_comb * self.n_electrons
             else:
-                coeffs_sum = torch.sum(L0_coeffs_comb, dim=1)
+                coeffs_sum = torch.sum(L0_coeffs_comb, dim=1, keepdim=True)
                 scale_factor = self.n_electrons / coeffs_sum
                 L0_coeffs_comb = L0_coeffs_comb * scale_factor
         coeffs_pointer = 0

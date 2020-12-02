@@ -2,17 +2,17 @@ import numpy as np
 from pyscf.dft import gen_grid, radi
 from .rotation import random_rotation_matrix
 from pyscf import lib
-from pyscf.lib import param
 import torch
 from dftpy.math_utils import bestFFTsize
 from dftpy.grid import DirectGrid
+import equiv_dens.utils.dft_utils as du
 
 
 def spherical_grid(mols, level=2):
     print('level', level)
     grid_spec = gen_grid.gen_atomic_grids(mols[0], radi_method=radi.treutler_ahlrichs, level=level)
     for key in grid_spec.keys():
-        grid_spec[key] = (grid_spec[key][0] * param.BOHR, grid_spec[key][1])  # convert Bohr grid to Angstrom
+        grid_spec[key] = (grid_spec[key][0] * du.to_angstrom, grid_spec[key][1])  # convert Bohr grid to Angstrom
 
     return grid_spec
 
@@ -40,7 +40,7 @@ def cubical_grid(mols, nx=125, ny=125, nz=125, resolution=None,
 
     sample_volume = extent / np.array([nx, ny, nz])
 
-    sample_volume /= param.BOHR
+    sample_volume *= du.to_bohr
     sample_volume = np.prod(sample_volume)
 
     coords = lib.cartesian_prod([xs, ys, zs])

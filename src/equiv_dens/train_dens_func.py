@@ -88,7 +88,7 @@ print("loading atoms from" + args.np_dataset + "...")
 # density_file = '/home/mihail/data/water_rot/full_densities.hdf5'
 # np_file = 'h2o_overlap_static.npy'
 grid_origin = -2.0318
-cube_grid_fn = partial(cubical_grid, nx=20, ny=20, nz=20,
+cube_grid_fn = partial(cubical_grid, nx=args.cube_size, ny=args.cube_size, nz=args.cube_size,
                        extent=np.array([4.1483, 4.1483, 4.1483]),
                        origin=np.array([-2.0318, -2.0318, -2.0318]))
 cube_sampling_fn = cubical_sampling
@@ -356,7 +356,7 @@ while step < args.max_steps + 1:
     for i in range(predictions['density'].shape[0]):
         pseudo_pot.restart(grid=grid, ions=data['ions'][i])
         en_preds.append(lda(predictions['density'][i].view((args.cube_size, args.cube_size, args.cube_size)),
-                            grid_cl, data['positions'][i] - grid_origin, pseudo_pot))
+                            grid_cl, du.angstrom_to_bohr(data['positions'][i] - grid_origin), pseudo_pot))
     print('energy preds', en_preds)
     predictions['energy'] = torch.stack(en_preds).to(predictions['density'])
 
@@ -439,7 +439,7 @@ while step < args.max_steps + 1:
                 for i in range(predictions['density'].shape[0]):
                     pseudo_pot.restart(grid=grid, ions=data['ions'][i])
                     en_preds.append(lda(predictions['density'][i].view((args.cube_size, args.cube_size, args.cube_size)),
-                                    grid_cl, data['positions'][i] - grid_origin, pseudo_pot))
+                                    grid_cl, du.angstrom_to_bohr(data['positions'][i] - grid_origin), pseudo_pot))
                 predictions['energy'] = torch.stack(en_preds).to(predictions['density'])
 
                 print('val density integral', torch.sum(predictions['density'] * data['coord_weights'], dim=-1))

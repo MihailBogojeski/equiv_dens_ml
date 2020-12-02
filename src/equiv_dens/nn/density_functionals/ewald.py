@@ -6,7 +6,7 @@ import numpy as np
 
 class Ewald(nn.Module):
     def __init__(
-        self, a_num, PME=False, prec=1.0e-8, eta=None
+        self, a_num, PME=False, prec=1.0e-8, eta=None, verbose=0
     ):
         super().__init__()
         self.a_num = a_num
@@ -14,6 +14,7 @@ class Ewald(nn.Module):
         self.prec = prec
         self.eta = eta
         self.mask = None
+        self.verbose = verbose
 
     def forward(self, rho, grid, pos):
         gmax = self.get_gmax(grid)
@@ -22,11 +23,12 @@ class Ewald(nn.Module):
             self.eta = self.get_best_eta(gmax)
         # print('self eta', self.eta)
         self.real_en = self.real_energy(rho, grid, pos)
-        # print("real energy", self.real_en)
         self.corr_en = self.corr_energy(rho, grid, pos)
-        # print("corr energy", self.corr_en)
         self.rec_en = self.rec_energy(rho, grid, pos)
-        # print("rec energy", self.rec_en)
+        if self.verbose > 0:
+            print("Ewald real energy", self.real_en)
+            print("Ewald corr energy", self.corr_en)
+            print("Ewald rec energy", self.rec_en)
         ewald_en = self.real_en + self.corr_en + self.rec_en
 
         return ewald_en
@@ -36,6 +38,7 @@ class Ewald(nn.Module):
         prec = sp.erfcinv(self.prec / 3.0)
         rmax = prec / np.sqrt(self.eta)
         N = torch.ceil(rmax / L)
+        print('L', L)
 
         charges = []
         positions = []
@@ -53,12 +56,11 @@ class Ewald(nn.Module):
                         positions.append(pos[i] - R)
 
         esum = 0.0
-        rtol = 0.001
+        rtol = 0.01
         rcut = rmax
         eta_sqrt = np.sqrt(self.eta)
         positions = torch.stack(positions)
         charges = torch.tensor(charges).to(rho)
-
         for i in range(len(self.a_num)):
             dists = torch.cdist(positions, pos[i].view((1, 3))).view(-1)
             index = torch.logical_and(dists < rcut, dists > rtol)

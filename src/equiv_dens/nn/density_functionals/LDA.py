@@ -10,7 +10,7 @@ class LDAFunctional(nn.Module):
         super().__init__()
         self.a_num = a_num
         self.use_PME = use_PME
-        self.ewald = Ewald(a_num, PME=use_PME)
+        self.ewald = Ewald(a_num, PME=use_PME, verbose=verbose)
         self.verbose = verbose
 
     def forward(self, rho, grid, pos, pseudo_pot):
