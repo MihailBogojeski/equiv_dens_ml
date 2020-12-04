@@ -29,7 +29,8 @@ class LDAFunctional(nn.Module):
             print('lda energy', lda_e)
             print('hartree energy', h_e)
             print('pseudo energy', pseudo_e)
-        return ewald_e + tf_e + vw_e + lda_e + h_e + pseudo_e
+        total_e = ewald_e + tf_e + vw_e + lda_e + h_e + pseudo_e
+        return total_e + self.en_offset
 
 
 def thomas_fermi_en(rho, grid):

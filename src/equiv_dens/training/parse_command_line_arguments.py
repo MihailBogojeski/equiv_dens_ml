@@ -62,7 +62,9 @@ def parse_command_line_arguments():
                                   help="Size of the cubical grid")
     args_hyperparams.add_argument("--cube_gap", metavar='FLOAT', type=float, default=0.4,
                                   help="Spacing between two gridpoints in the cubical grid.")
-
+    args_hyperparams.add_argument("--energy_offset", metavar='True|False', type=str2bool, default=False,
+                                  choices=[True, False],
+                                  help="Whether to use an constant offset to adjust energy levels for different functionals")
     # arguments for training
     args_training = parser.add_argument_group("training hyperparameters")
     args_training.add_argument("--max_steps", metavar='INT', type=int, help="maximum number of training steps")
@@ -122,6 +124,7 @@ def parse_command_line_arguments():
                                choices=[True, False], help="Normalize the coefficients using softmax.")
     args_training.add_argument("--percentage_error", metavar='True|False', type=str2bool, default=True,
                                choices=[True, False], help="Measure error as a percentage of the density integral.")
+
 
     # arguments for logging and checkpoints
     args_logging = parser.add_argument_group("logging and checkpoints")

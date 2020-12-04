@@ -23,7 +23,7 @@ from equiv_dens.training.grids import cubical_grid, cubical_sampling, dftpy_grid
 from equiv_dens.nn.density_functionals.LDA import LDAFunctional
 
 from dftpy.pseudo import LocalPseudo
-from torch import autograd
+# from torch import autograd
 
 """
 ################################################
@@ -171,21 +171,17 @@ if args.load_from is None:
         num_radial_components=args.num_radial_components,
         basis_functions=args.basis_functions,
         positive_coeffs=args.positive_coeffs,
+        energy_offset=args.energy_offset,
         cutoff=args.cutoff,
         activation=args.activation)
-    expansion_model = SphericalHarmonicsExpansion(dataset.orbitals, radial_coeffs=dataset.radial_coeffs,
-                                                  expansion_constraint=args.expansion_constraint,
-                                                  integral_constraint=args.integral_constraint,
-                                                  verbose=args.verbose,
-                                                  softmax_norm=args.softmax_norm)
 else:
     equiv_model = NeuralNetwork(load_from=args.load_from)
-    expansion_model = SphericalHarmonicsExpansion(dataset.orbitals, radial_coeffs=dataset.radial_coeffs,
-                                                  expansion_constraint=args.expansion_constraint,
-                                                  integral_constraint=args.integral_constraint,
-                                                  softmax_norm=args.softmax_norm,
-                                                  verbose=args.verbose)
 
+expansion_model = SphericalHarmonicsExpansion(dataset.orbitals, radial_coeffs=dataset.radial_coeffs,
+                                              expansion_constraint=args.expansion_constraint,
+                                              integral_constraint=args.integral_constraint,
+                                              verbose=args.verbose,
+                                              softmax_norm=args.softmax_norm)
 z_vals = []
 print('ions0', dataset.ions[0])
 for t in dataset.atoms['atom_types']:
@@ -356,7 +352,7 @@ while step < args.max_steps + 1:
     for i in range(predictions['density'].shape[0]):
         pseudo_pot.restart(grid=grid, ions=data['ions'][i])
         en_preds.append(lda(predictions['density'][i].view((args.cube_size, args.cube_size, args.cube_size)),
-                            grid_cl, du.angstrom_to_bohr(data['positions'][i] - grid_origin), pseudo_pot))
+                            grid_cl, du.angstrom_to_bohr(data['positions'][i] - grid_origin), pseudo_pot) + equiv_model.en_offset)
     print('energy preds', en_preds)
     predictions['energy'] = torch.stack(en_preds).to(predictions['density'])
 
@@ -439,7 +435,7 @@ while step < args.max_steps + 1:
                 for i in range(predictions['density'].shape[0]):
                     pseudo_pot.restart(grid=grid, ions=data['ions'][i])
                     en_preds.append(lda(predictions['density'][i].view((args.cube_size, args.cube_size, args.cube_size)),
-                                    grid_cl, du.angstrom_to_bohr(data['positions'][i] - grid_origin), pseudo_pot))
+                                    grid_cl, du.angstrom_to_bohr(data['positions'][i] - grid_origin), pseudo_pot) + equiv_model.en_offset)
                 predictions['energy'] = torch.stack(en_preds).to(predictions['density'])
 
                 print('val density integral', torch.sum(predictions['density'] * data['coord_weights'], dim=-1))
@@ -471,7 +467,7 @@ while step < args.max_steps + 1:
                 # construct message for logging
                 message = ''
                 for key in best_errors.keys():
-                    message += key + ': %.6f' % best_errors[key] + '\ n'
+                    message += key + ': %.6f' % best_errors[key] + '\n'
                 summary.add_text('best models', message, step)
 
             # swap back to original parameters for training

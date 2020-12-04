@@ -40,6 +40,7 @@ class NeuralNetwork(nn.Module):
                  # type of radial basis functions (exp - gaussian / exp - bernstein / gaussian / bernstein)
                  basis_functions='exp-bernstein',
                  positive_coeffs=False,
+                 energy_offset=False,
                  cutoff=15.0,  # cutoff distance (default is 15 Bohr)
                  # type of activation function used (swish / ssp)
                  activation='swish',
@@ -66,11 +67,12 @@ class NeuralNetwork(nn.Module):
             num_residual_post_v = saved_state['num_residual_post_v']
             num_residual_output = saved_state['num_residual_output']
             num_radial_components = saved_state['num_radial_components']
-            positive_coeffs = True
+            positive_coeffs = saved_state['positive_coeffs']
             basis_functions = saved_state['basis_functions']
             cutoff = saved_state['cutoff']
             activation = saved_state['activation']
             Zmax = saved_state['Zmax']
+            energy_offset = saved_state['energy_offset']
 
         # store hyperparameter values
         self.orbitals = orbitals
@@ -90,6 +92,11 @@ class NeuralNetwork(nn.Module):
         self.cutoff = cutoff
         self.activation = activation
         self.Zmax = Zmax
+
+        if energy_offset:
+            self.en_offset = nn.Parameter(torch.zeros((1,)))
+        else:
+            self.register_buffer('en_offset', torch.zeros((1,)))
 
         N = len(self.orbitals)
         idx_i = torch.arange(N, dtype=torch.int64).view(-1, 1).repeat(1, N).view(-1)
