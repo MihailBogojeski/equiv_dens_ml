@@ -58,8 +58,8 @@
 --minimize_en=True
 --verbose=0
 --expansion_constraint=sp
---integral_constraint=True
---positive_coeffs=False
+--integral_constraint=False
+--positive_coeffs=True
 --softmax_norm=False
 --coord_weights=True
 --weights_balance=1.0

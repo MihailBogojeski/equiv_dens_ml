@@ -38,7 +38,6 @@ class Ewald(nn.Module):
         prec = sp.erfcinv(self.prec / 3.0)
         rmax = prec / np.sqrt(self.eta)
         N = torch.ceil(rmax / L)
-        print('L', L)
 
         charges = []
         positions = []
