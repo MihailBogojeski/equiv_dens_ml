@@ -10,4 +10,4 @@ cd /home/MihailBogojeski/git/schnet-tfn/equiv_dens
 conda deactivate
 conda activate ml_dft
 
-python train_dens2.py @water.txt
+python src/equiv_dens/train_dens2.py @water.txt
