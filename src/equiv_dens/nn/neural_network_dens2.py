@@ -167,8 +167,10 @@ class NeuralNetwork(nn.Module):
         print('L_dict', self.L_dict)
         print('max lcounts', max(self.L_counts))
         self.spherical_output = SphericalLinear(self.order, self.num_features, self.order_max + 1, max(self.L_counts), self.clebsch_gordan)
-        self.radial_width = nn.ModuleList([nn.Linear(self.num_features, self.L_counts[L] * self.r_max[L]) for L in range(self.order_max + 2)])
-        self.radial_scale = nn.ModuleList([nn.Linear(self.num_features, self.L_counts[L] * self.r_max[L]) for L in range(self.order_max + 2)])
+        self.radial_width = nn.ModuleList([nn.Linear(self.num_features, self.L_counts[L] * self.r_max[L])
+                                           for L in range(self.order_max + 2)])
+        self.radial_scale = nn.ModuleList([nn.Linear(self.num_features, self.L_counts[L] * self.r_max[L])
+                                           for L in range(self.order_max + 2)])
 
         # determine minimum number of output features based on orbitals
         # and generate dictionaries (irreps_ii / irreps_ij) that store indices
@@ -202,6 +204,7 @@ class NeuralNetwork(nn.Module):
             'num_residual_output': self.num_residual_output,
             'basis_functions': self.basis_functions,
             'positive_coeffs': self.positive_coeffs,
+            'energy_offset': self.energy_offset,
             'cutoff': self.cutoff,
             'activation': self.activation,
             'Zmax': self.Zmax
