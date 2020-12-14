@@ -114,7 +114,7 @@ class Ewald(nn.Module):
         gmax_x = torch.sqrt(torch.amax(gg[:, 0, 0]))
         gmax_y = torch.sqrt(torch.amax(gg[0, :, 0]))
         gmax_z = torch.sqrt(torch.amax(gg[0, 0, :]))
-        gmax = np.amax([gmax_x, gmax_y, gmax_z])
+        gmax = torch.tensor(np.amax([gmax_x, gmax_y, gmax_z])).to(gg)
         return gmax
 
     def get_best_eta(self, gmax):

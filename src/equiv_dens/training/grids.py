@@ -134,7 +134,6 @@ class CubicalGrid():
 
         self.point_volume = torch.diag(self.box) / torch.tensor([nx, ny, nz]).to(device).type(dtype)
         self.point_volume = torch.prod(self.point_volume)
-        self.point_volume = torch.tensor(self.point_volume).to(device).type(dtype)
 
         self.volume = torch.prod(torch.diag(self.lattice))
 
