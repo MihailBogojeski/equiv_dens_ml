@@ -40,15 +40,23 @@ def from_r(model, R):
     return r_desc, r_d_desc, r_d_num_desc
 
 
-def get_invariant_features(model, R):
-    coeffs = model(R=R)
-    batch_size = R.shape[0]
+def get_invariant_features(coeffs, permutational_invariance=True, keep_dims=False):
+    # coeffs = model(R=R)
     sph_coeffs = coeffs['spherical_coeffs']
     rad_coeffs = coeffs['radial_width']
     rad_scale = coeffs['radial_scale']
 
-    max_num_coeffs = [0] * (model.order_max + 1)
-    max_num_radial = [0] * (model.order_max + 1)
+    max_order = 0
+    for i in range(len(sph_coeffs)):
+        for key in sph_coeffs[i].keys():
+            if key[1] > max_order:
+                max_order = key[1]
+
+    first_key = list(sph_coeffs[0].keys())[0]
+    batch_size = sph_coeffs[0][first_key].shape[0]
+
+    max_num_coeffs = [0] * (max_order + 1)
+    max_num_radial = [0] * (max_order + 1)
     # print('max order', model.order_max)
     for i in range(len(sph_coeffs)):
         for key in sph_coeffs[i].keys():
@@ -61,12 +69,14 @@ def get_invariant_features(model, R):
     # print('max num coeffs', max_num_coeffs)
     # print('max num radial', max_num_radial)
 
-    all_sph = [[torch.zeros([batch_size, 1, 1, max_num_coeffs[i]]).to(R) for j in range(len(sph_coeffs))]
-               for i in range(model.order_max + 1)]
-    all_width = [[torch.zeros([batch_size, 1, max_num_radial[i], max_num_coeffs[i]]).to(R) for j in range(len(sph_coeffs))]
-                 for i in range(model.order_max + 1)]
-    all_scale = [[torch.zeros([batch_size, 1, max_num_radial[i], max_num_coeffs[i]]).to(R) for j in range(len(sph_coeffs))]
-                 for i in range(model.order_max + 1)]
+    all_sph = [[torch.zeros([batch_size, 1, 1, max_num_coeffs[i]]).to(sph_coeffs[0][first_key]) for j in range(len(sph_coeffs))]
+               for i in range(max_order + 1)]
+    all_width = [[torch.zeros([batch_size, 1, max_num_radial[i], max_num_coeffs[i]]).to(sph_coeffs[0][first_key])
+                 for j in range(len(sph_coeffs))]
+                 for i in range(max_order + 1)]
+    all_scale = [[torch.zeros([batch_size, 1, max_num_radial[i], max_num_coeffs[i]]).to(sph_coeffs[0][first_key])
+                 for j in range(len(sph_coeffs))]
+                 for i in range(max_order + 1)]
     # print('all width shapes', [[d.shape for d in sca] for sca in all_scale])
 
     for i in range(len(sph_coeffs)):
@@ -82,7 +92,6 @@ def get_invariant_features(model, R):
             sph_norm = pad(sph_norm, padding)
             width_pad = pad(rad_coeffs[i][key], padding)
             scale_pad = pad(rad_scale[i][key], padding)
-
             all_sph[L][i] = sph_norm
             all_width[L][i] = width_pad
             all_scale[L][i] = scale_pad
@@ -95,22 +104,24 @@ def get_invariant_features(model, R):
             # print('rad_scale', all_scale[L][i].shape)
             # print([[d.shape for d in all_sph[order] if d is not None] for order in range(model.order_max + 1)])
 
-    for i in range(model.order_max + 1):
-        # print("L", i)
-
-        all_sph[i] = torch.stack(all_sph[i], dim=-1).sum(dim=-1)
-        all_width[i] = torch.stack(all_width[i], dim=-1).sum(dim=-1)
-        all_scale[i] = torch.stack(all_scale[i], dim=-1).sum(dim=-1)
-        # print(all_sph[i].shape)
-        # print(all_width[i].shape)
-        # print(all_scale[i].shape)
+    for L in range(max_order + 1):
+        all_sph[L] = torch.stack(all_sph[L], dim=1)
+        all_width[L] = torch.stack(all_width[L], dim=1)
+        all_scale[L] = torch.stack(all_scale[L], dim=1)
+        if permutational_invariance:
+            all_sph[L] = all_sph[L].sum(dim=1)
+            all_width[L] = all_width[L].sum(dim=1)
+            all_scale[L] = all_scale[L].sum(dim=1)
 
     all_sph = torch.cat(all_sph, dim=-1)
     all_width = torch.cat(all_width, dim=-1)
     all_scale = torch.cat(all_scale, dim=-1)
 
     invariant_feats = torch.cat([all_sph, all_width, all_scale], dim=-1)
-    invariant_feats = invariant_feats.view(invariant_feats.shape[0], -1)
+    if keep_dims:
+        invariant_feats = invariant_feats.squeeze(2)
+    else:
+        invariant_feats = invariant_feats.squeeze()
     return invariant_feats
 
 
@@ -118,7 +129,8 @@ def r_to_desc(model, R, grad=False, parallel=False):
     if grad:
         R.requires_grad = True
         if parallel:
-            desc = get_invariant_features(model, R)
+            coeffs = model(R=R)
+            desc = get_invariant_features(coeffs)
             nfeats = desc.shape[-1]
             natoms = R.shape[1]
 
@@ -128,13 +140,15 @@ def r_to_desc(model, R, grad=False, parallel=False):
 
             desc, d_desc = get_gradients_fast(model, d_R, nfeats, natoms, batch_size=120)
         else:
-            desc = get_invariant_features(model, R)
+            coeffs = model(R=R)
+            desc = get_invariant_features(coeffs)
             d_desc = get_gradients(R, desc)
 
         R.requires_grad = False
         return desc, d_desc
     else:
-        desc = get_invariant_features(model, R)
+        coeffs = model(R=R)
+        desc = get_invariant_features(coeffs)
         return desc
 
 
@@ -146,7 +160,8 @@ def get_gradients_fast(model, d_R, nfeats, natoms, batch_size=100):
     descs = []
     for b_R, mask in batch_R:
         bs = b_R.shape[0]
-        b_desc = get_invariant_features(model, d_R)
+        coeffs = model(R=d_R)
+        b_desc = get_invariant_features(coeffs)
         flat_desc = b_desc.view(bs, -1)
         grads = grad(flat_desc, b_R, mask.to(b_desc))[0]
         d_descs.append(grads)
@@ -217,7 +232,8 @@ def get_numerical_gradients(model, R, offset=0.001):
 
     d_R = torch.Tensor(displacements).to(R)
     with torch.no_grad():
-        descs = get_invariant_features(model, d_R)
+        coeffs = model(R=d_R)
+        descs = get_invariant_features(coeffs)
 
     nfeats = descs.shape[1]
 

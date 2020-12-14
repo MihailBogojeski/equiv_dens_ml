@@ -15,7 +15,7 @@ class SphericalLinear(nn.Module):
         self.bias = bias
         self.mix_orders = mix_orders
         self.zero_init = zero_init
-        if self.mix_orders: 
+        if self.mix_orders:
             assert clebsch_gordan is not None #Clebsch-Gordan coefficients are necessary for mixing
             self.mixing = SelfMixing(self.order_in, self.order_out, self.num_in, clebsch_gordan)
         else: #order can only be changed if mixing is enabled

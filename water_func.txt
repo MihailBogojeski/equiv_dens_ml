@@ -65,3 +65,4 @@
 --weights_balance=1.0
 --percentage_error=True
 --energy_offset=False
+--energy_model=True

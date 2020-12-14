@@ -37,7 +37,10 @@ class PairMixing(nn.Module):
         # initialize output to zeros
         ys = [torch.zeros_like(x1s[0]).repeat(*(1,) * len(x1s[0].shape[: - 2]), 2 * L + 1, 1)
               for L in range(self.order_out + 1)]
-        cg_matrix, _ = self.clebsch_gordan(self.order_in1, self.order_in1, self.order_out)
+        if self.clebsch_gordan is not None:
+            cg_matrix, _ = self.clebsch_gordan(self.order_in1, self.order_in1, self.order_out)
+        else:
+            cg_matrix = torch.ones((1, 1, 1)).to(x1s[0])
         # loop over all combinations of orders
         for l1 in range(self.order_in1 + 1):
             # get view of x1s[l1] that enables broadcasting to compute the spherical tensor product

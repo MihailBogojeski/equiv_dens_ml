@@ -132,10 +132,11 @@ class CubicalGrid():
         ys = np.linspace(0, np.diag(box)[0], nx, endpoint=False)
         zs = np.linspace(0, np.diag(box)[0], nx, endpoint=False)
 
-        self.point_volume = np.diag(self.box) / np.array([nx, ny, nz])
-        self.point_volume = np.prod(self.point_volume)
+        self.point_volume = torch.diag(self.box) / torch.tensor([nx, ny, nz]).to(device).type(dtype)
+        self.point_volume = torch.prod(self.point_volume)
+        self.point_volume = torch.tensor(self.point_volume).to(device).type(dtype)
 
-        self.volume = np.prod(np.diag(self.lattice))
+        self.volume = torch.prod(torch.diag(self.lattice))
 
         self.coords = lib.cartesian_prod([xs, ys, zs])
         self.coords = np.asarray(self.coords, order='C') - (-self.boxorig)
@@ -155,7 +156,7 @@ class CubicalGrid():
     def get_reciprocal_grid(self):
         if self.rec_grid is None:
             fac = 2 * np.pi
-            bg = fac * np.linalg.inv(self.lattice)
+            bg = fac * torch.inverse(self.lattice)
             reciprocal_lat = bg.T
             self.rec_grid = ReciprocalGrid(np.array(self.shape).astype(np.int),
                                            reciprocal_lat, device=self.device, dtype=self.dtype)
@@ -179,7 +180,7 @@ class ReciprocalGrid():
         S0, S1, S2 = np.meshgrid(ax[0], ax[1], ax[2], indexing="ij")
 
         # S_cart = s2r(S, self)
-        self.lattice = torch.tensor(lattice).to(device).type(dtype)
+        self.lattice = lattice
         S_cart = np.asarray([S0, S1, S2])
         S_cart = torch.tensor(S_cart).to(device).type(dtype)
         self.coords = torch.einsum("j...,kj->k...", S_cart, self.lattice)

@@ -65,6 +65,10 @@ def parse_command_line_arguments():
     args_hyperparams.add_argument("--energy_offset", metavar='True|False', type=str2bool, default=False,
                                   choices=[True, False],
                                   help="Whether to use an constant offset to adjust energy levels for different functionals")
+    args_hyperparams.add_argument("--positive_coeffs", metavar='True|False', type=str2bool, default=True,
+                                  choices=[True, False], help="Make the order 0 coefficients always positive.")
+    args_hyperparams.add_argument("--energy_model", metavar='True|False', type=str2bool, default=False,
+                                  choices=[True, False], help="Use a neural network for energy prediction instead of functional.")
     # arguments for training
     args_training = parser.add_argument_group("training hyperparameters")
     args_training.add_argument("--max_steps", metavar='INT', type=int, help="maximum number of training steps")
@@ -94,8 +98,9 @@ def parse_command_line_arguments():
     args_training.add_argument("--beta1", metavar='FLOAT', type=float, default=0.9, help="beta1 for the optimizer (only relevant for Adam/AMSGrad)")
     args_training.add_argument("--beta2", metavar='FLOAT', type=float, default=0.999, help="beta2 for the optimizer (only relevant for Adam/AMSGrad)")
     args_training.add_argument("--momentum", metavar='FLOAT', type=float, default=0.0, help="momentum for the optimizer (only relevant for SGD)")
-    args_training.add_argument("--density_weight", metavar='FLOAT', type=float, default=1.0, help="weight of the energy in the loss function")
-    args_training.add_argument("--energy_weight", metavar='FLOAT', type=float, default=0.0, help="weight of the forces in the loss function")
+    args_training.add_argument("--density_weight", metavar='FLOAT', type=float, default=1.0, help="weight of the density in the loss function")
+    args_training.add_argument("--energy_weight", metavar='FLOAT', type=float, default=0.0, help="weight of the energy in the loss function")
+    args_training.add_argument("--energy_min_weight", metavar='FLOAT', type=float, default=0.0, help="weight of the energy minimization loss")
     args_training.add_argument("--max_energy_error", metavar='FLOAT', type=float, default=0.1,
                                help="for better stability at beginning of training: maximum allowed MAE in energy (higher errors are clamped)")
     args_training.add_argument("--max_forces_error", metavar='FLOAT', type=float, default=0.1,
@@ -116,10 +121,6 @@ def parse_command_line_arguments():
                                choices=[True, False], help="weight grid coordinates based on grid density")
     args_training.add_argument("--weights_balance", metavar='FLOAT', type=float, default=1.0,
                                help="Term for balancing the coordinate weights of the density grid.")
-    args_training.add_argument("--minimize_en", metavar='True|False', type=str2bool, default=True,
-                               choices=[True, False], help="Minimize energy instead of minimizing loss.")
-    args_training.add_argument("--positive_coeffs", metavar='True|False', type=str2bool, default=True,
-                               choices=[True, False], help="Make the order 0 coefficients always positive.")
     args_training.add_argument("--softmax_norm", metavar='True|False', type=str2bool, default=True,
                                choices=[True, False], help="Normalize the coefficients using softmax.")
     args_training.add_argument("--percentage_error", metavar='True|False', type=str2bool, default=True,

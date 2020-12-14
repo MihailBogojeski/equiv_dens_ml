@@ -14,7 +14,7 @@ class LDAFunctional(nn.Module):
         self.verbose = verbose
 
     def forward(self, rho, grid, pos, pseudo_pot):
-        pseudo_pot(rho.detach().numpy())
+        pseudo_pot(rho.detach().cpu().numpy())
         ewald_e = self.ewald(rho, grid, pos)
         tf_e = thomas_fermi_en(rho, grid)
         vw_e = von_weizsacker_en(rho, grid)
@@ -30,7 +30,7 @@ class LDAFunctional(nn.Module):
             print('hartree energy', h_e)
             print('pseudo energy', pseudo_e)
         total_e = ewald_e + tf_e + vw_e + lda_e + h_e + pseudo_e
-        return total_e + self.en_offset
+        return total_e
 
 
 def thomas_fermi_en(rho, grid):

@@ -36,14 +36,14 @@ class Ewald(nn.Module):
     def real_energy(self, rho, grid, pos):
         L = torch.sqrt(torch.einsum("ij->i", grid.lattice ** 2))
         prec = sp.erfcinv(self.prec / 3.0)
-        rmax = prec / np.sqrt(self.eta)
+        rmax = prec / torch.sqrt(self.eta)
         N = torch.ceil(rmax / L)
 
         charges = []
         positions = []
-        for ix in np.arange(-N[0], N[0] + 1):
-            for iy in np.arange(-N[1], N[1] + 1):
-                for iz in np.arange(-N[2], N[2] + 1):
+        for ix in torch.arange(-N[0], N[0] + 1):
+            for iy in torch.arange(-N[1], N[1] + 1):
+                for iz in torch.arange(-N[2], N[2] + 1):
                     # R=np.einsum('j,ij->i',np.array([ix,iy,iz],dtype=np.float),rho.grid.lattice.transpose())
                     R = torch.einsum(
                         "j,ij->i",
@@ -57,21 +57,21 @@ class Ewald(nn.Module):
         esum = 0.0
         rtol = 0.01
         rcut = rmax
-        eta_sqrt = np.sqrt(self.eta)
+        eta_sqrt = torch.sqrt(self.eta)
         positions = torch.stack(positions)
         charges = torch.tensor(charges).to(rho)
         for i in range(len(self.a_num)):
             dists = torch.cdist(positions, pos[i].view((1, 3))).view(-1)
             index = torch.logical_and(dists < rcut, dists > rtol)
             esum += self.a_num[i] * torch.sum(
-                charges[index] * sp.erfc(eta_sqrt * dists[index]) / dists[index]
+                charges[index] * torch.erfc(eta_sqrt * dists[index]) / dists[index]
             )
         esum /= 2.0
 
         return esum
 
     def corr_energy(self, rho, grid, pos):
-        const = -np.sqrt(self.eta / np.pi)
+        const = -torch.sqrt(self.eta / np.pi)
         charge_sq_sum = 0
         for i in range(len(self.a_num)):
             charge_sq_sum += self.a_num[i] ** 2
@@ -126,12 +126,12 @@ class Ewald(nn.Module):
             charge_sq += self.a_num[i] ** 2
 
         # eta
-        eta = 1.6
+        eta = torch.tensor(1.6).to(gmax)
         NotGoodEta = True
         while NotGoodEta:
             # upbound = 2.0 * charge**2 * np.sqrt ( eta / np.pi) * sp.erfc ( np.sqrt (gmax / 4.0 / eta) )
             upbound = (
-                4.0 * np.pi * len(self.a_num) * charge_sq * np.sqrt(eta / np.pi) * sp.erfc(gmax / 2.0 * np.sqrt(1.0 / eta))
+                4.0 * np.pi * len(self.a_num) * charge_sq * torch.sqrt(eta / np.pi) * torch.erfc(gmax / 2.0 * torch.sqrt(1.0 / eta))
             )
             if upbound < self.prec:
                 NotGoodEta = False

@@ -5,7 +5,8 @@ import torch
 from torch.nn.functional import softplus
 from datetime import datetime
 from tensorboardX import SummaryWriter
-from equiv_dens.nn.neural_network_dens2 import NeuralNetwork
+from equiv_dens.nn.neural_network_dens2 import DensityNetwork
+from equiv_dens.nn.neural_network_en import EnergyNetwork
 from equiv_dens.training.parse_command_line_arguments import parse_command_line_arguments
 from equiv_dens.training.util import generate_id, empty_error_dict, compute_error_dict
 from equiv_dens.training.density_dataset import AtomsDensityData
@@ -112,8 +113,7 @@ train_dataset, valid_dataset, test_dataset = seeded_random_split(
 grid_cl = CubicalGrid(None, nx=args.cube_size, ny=args.cube_size, nz=args.cube_size,
                       origin=[0, 0, 0], extent=du.angstrom_to_bohr(np.array([4.1483, 4.1483, 4.1483])), device=device, dtype=args.dtype)
 
-gap = 0.4
-grid = dftpy_grid(np.diag(du.angstrom_to_bohr(np.array([4.1483, 4.1483, 4.1483]))), 0.4)
+grid = dftpy_grid(np.diag(du.angstrom_to_bohr(np.array([4.1483, 4.1483, 4.1483]))), args.cube_gap)
 # print('grid.lattice', grid.lattice)
 # print('grid size', grid.r.shape)
 # print('ions lattice', dataset.ions[0].pos.cell.lattice)
@@ -129,6 +129,7 @@ pseudo_pot.restart(grid=grid, ions=dataset.ions[0])
 loss_weights = {}
 loss_weights['density'] = args.density_weight
 loss_weights['energy'] = args.energy_weight
+loss_weights['energy_min'] = args.energy_min_weight
 # loss_weights['full_hamiltonian'] = args.full_hamiltonian_weight
 # loss_weights['core_hamiltonian'] = args.core_hamiltonian_weight
 # loss_weights['overlap_matrix'] = args.overlap_matrix_weight
@@ -142,6 +143,7 @@ loss_weights['energy'] = args.energy_weight
 max_errors = {}
 max_errors['density'] = np.inf
 max_errors['energy'] = np.inf
+max_errors['energy_min'] = np.inf
 
 # prepare data loaders
 train_sampler = torch.utils.data.BatchSampler(torch.utils.data.RandomSampler(train_dataset),
@@ -156,7 +158,7 @@ valid_data_loader = BatchLoader(valid_dataset, batch_sampler=valid_sampler,
 
 # define model
 if args.load_from is None:
-    equiv_model = NeuralNetwork(
+    dens_model = DensityNetwork(
         orbitals=dataset.orbitals,
         order=args.order,
         num_features=args.num_features,
@@ -174,8 +176,27 @@ if args.load_from is None:
         energy_offset=args.energy_offset,
         cutoff=args.cutoff,
         activation=args.activation)
+
+    if args.energy_model:
+        en_model = EnergyNetwork(
+            orbitals=dataset.orbitals,
+            num_features=args.num_features,
+            num_basis_functions=args.num_basis_functions,
+            num_modules=args.num_modules,
+            num_residual_pre_x=args.num_residual_pre_x,
+            num_residual_post_x=args.num_residual_post_x,
+            num_residual_pre_vi=args.num_residual_pre_vi,
+            num_residual_pre_vj=args.num_residual_pre_vj,
+            num_residual_post_v=args.num_residual_post_v,
+            num_residual_output=args.num_residual_output,
+            num_radial_components=args.num_radial_components,
+            basis_functions=args.basis_functions,
+            cutoff=args.cutoff,
+            activation=args.activation)
 else:
-    equiv_model = NeuralNetwork(load_from=args.load_from)
+    dens_model = DensityNetwork(load_from=args.load_from)
+    if args.energy_model:
+        en_model = EnergyNetwork(load_from=args.load_from)
 
 expansion_model = SphericalHarmonicsExpansion(dataset.orbitals, radial_coeffs=dataset.radial_coeffs,
                                               expansion_constraint=args.expansion_constraint,
@@ -189,7 +210,7 @@ for t in dataset.atoms['atom_types']:
 z_vals = np.array(z_vals)
 print(dataset.atoms['atom_numbers'])
 print(z_vals)
-lda = LDAFunctional(z_vals, verbose=args.verbose)
+functional = LDAFunctional(z_vals, verbose=args.verbose)
 
 # determine what should be calculated based on loss weights
 # tmp = (loss_weights['energy'] > 0) or (loss_weights['forces'] > 0)
@@ -203,24 +224,27 @@ lda = LDAFunctional(z_vals, verbose=args.verbose)
 # model.calculate_forces = loss_weights['forces'] > 0
 
 # convert the model to the correct dtype
-equiv_model.to(args.dtype)
+dens_model.to(args.dtype)
+if args.energy_model:
+    en_model.to(args.dtype)
 expansion_model.to(args.dtype)
 
 # send model to GPU (if use_gpu is True)
 if use_gpu:
-    equiv_model.cuda()
+    dens_model.cuda()
+    en_model.cuda()
     expansion_model.cuda()
 
 # if there are multiple GPUs, wrap the model in DataParallel
 # "module" is used whenever direct access is needed, e.g. for parameters,
 # whereas "model" may be DataParallel and is used for inference only
 if use_gpu and torch.cuda.device_count() > 1:
-    equiv_model = torch.nn.DataParallel(equiv_model)
-    equiv_module = equiv_model.module
+    dens_model = torch.nn.DataParallel(dens_model)
+    equiv_module = dens_model.module
     expansion_model = torch.nn.DataParallel(expansion_model)
     expansion_module = expansion_model.module
 else:
-    equiv_module = equiv_model
+    equiv_module = dens_model
     expansion_module = expansion_model
 
 # for keeping an exponential moving average of the model parameters (usually leads to better models)
@@ -233,9 +257,13 @@ else:
 # build list of parameters to optimize (with or without weight decay)
 parameters = []
 weight_decay_parameters = []
+offset_param = []
+param_names = []
 for name, param in equiv_module.named_parameters():
     if 'weight' in name and 'radial_fn' not in name and 'embedding' not in name:
         weight_decay_parameters.append(param)
+    elif name == 'en_offset':
+        offset_param.append(param)
     else:
         parameters.append(param)
 
@@ -248,14 +276,23 @@ if args.optimizer == 'adam':  # Adam
     print("using Adam optimizer")
     optimizer = torch.optim.Adam(parameter_list, lr=args.learning_rate, eps=args.epsilon, betas=(
         args.beta1, args.beta2), weight_decay=0.0)
+    if args.energy_offset:
+        offset_optimizer = torch.optim.Adam(offset_param, lr=100 * args.learning_rate, eps=args.epsilon, betas=(
+            args.beta1, args.beta2), weight_decay=0.0)
 elif args.optimizer == 'amsgrad':  # AMSGrad
     print("using AMSGrad optimizer")
     optimizer = torch.optim.Adam(parameter_list, lr=args.learning_rate, eps=args.epsilon, betas=(
         args.beta1, args.beta2), weight_decay=0.0, amsgrad=True)
+    if args.energy_offset:
+        offset_optimizer = torch.optim.Adam(offset_param, lr=100 * args.learning_rate, eps=args.epsilon, betas=(
+            args.beta1, args.beta2), weight_decay=0.0, amsgrad=True)
 elif args.optimizer == 'sgd':  # Stochastic Gradient Descent
     print("using Stochastic Gradient Descent optimizer")
     optimizer = torch.optim.SGD(
         parameter_list, lr=args.learning_rate, momentum=args.momentum, weight_decay=0.0)
+    if args.energy_offset:
+        offset_optimizer = torch.optim.SGD(
+            offset_param, lr=100 * args.learning_rate, momentum=args.momentum, weight_decay=0.0)
 
 # initialize Lookahead
 if args.lookahead_k > 0:
@@ -264,6 +301,9 @@ if args.lookahead_k > 0:
 # learning rate scheduler (decays learning rate if validation loss plateaus)
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
     optimizer, mode='min', factor=args.decay_factor, patience=args.decay_patience, verbose=args.verbose)
+if args.energy_offset:
+    offset_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        offset_optimizer, mode='min', factor=args.decay_factor, patience=args.decay_patience, verbose=args.verbose)
 
 # restore state from checkpoint
 if checkpoint is not None:  # no checkpoint is specified
@@ -274,6 +314,9 @@ if checkpoint is not None:  # no checkpoint is specified
     equiv_module.load_state_dict(checkpoint['model_state_dict'])
     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+    if args.energy_offset:
+        offset_optimizer.load_state_dict(checkpoint['offset_optimizer_state_dict'])
+        offset_scheduler.load_state_dict(checkpoint['offset_scheduler_state_dict'])
     if exponential_moving_average is not None:
         checkpoint_ema = checkpoint['exponential_moving_average']
         for key in exponential_moving_average.ema.keys():
@@ -307,7 +350,7 @@ if args.use_gradient_clipping:
 train_errors = empty_error_dict(loss_weights)  # reset train error metrics
 train_batch_num = - 1
 # initialize state
-equiv_model.train()
+dens_model.train()
 expansion_model.eval()
 train_iterator = iter(train_data_loader)
 new_valid = False
@@ -335,11 +378,13 @@ while step < args.max_steps + 1:
 
     # zero the parameter gradients
     optimizer.zero_grad()
+    if args.energy_offset:
+        offset_optimizer.zero_grad()
 
     # with torch.autograd.set_detect_anomaly(True):  # TODO!!! TURN THIS OFF AGAIN
 
     # forward step
-    coeffs = equiv_model(R=data['positions'])
+    coeffs = dens_model(R=data['positions'])
     # print('coords space shape', data['coords'].shape)
     # print('coords space extremes', torch.min(data['coords'][0], dim=0)[0],
     #       torch.max(data['coords'][0], dim=0)[0])
@@ -348,16 +393,25 @@ while step < args.max_steps + 1:
                                   coeffs['radial_width'],
                                   coeffs['radial_scale'])
 
-    en_preds = []
+    func_ens = []
     for i in range(predictions['density'].shape[0]):
         pseudo_pot.restart(grid=grid, ions=data['ions'][i])
-        en_preds.append(lda(predictions['density'][i].view((args.cube_size, args.cube_size, args.cube_size)),
-                            grid_cl, du.angstrom_to_bohr(data['positions'][i] - grid_origin), pseudo_pot) + equiv_model.en_offset)
-    print('energy preds', en_preds)
-    predictions['energy'] = torch.stack(en_preds).to(predictions['density'])
+        func_ens.append(functional(predictions['density'][i].view((args.cube_size, args.cube_size, args.cube_size)),
+                                   grid_cl, du.angstrom_to_bohr(data['positions'][i] - grid_origin), pseudo_pot))
 
-    print('density integral', torch.sum(predictions['density'] * data['coord_weights'], dim=-1))
-    print('energy', predictions['energy'])
+    # print('functional en', func_ens)
+    # print('en offset', dens_model.en_offset)
+    predictions['energy_min'] = torch.stack(func_ens).to(predictions['density'])
+    if args.energy_model:
+        en_preds = en_model(data['positions'], coeffs)
+        # print('model en', en_preds.squeeze())
+        predictions['energy'] = en_preds + dens_model.en_offset
+    else:
+        predictions['energy'] = torch.stack(func_ens).to(predictions['density']) + dens_model.en_offset
+
+    # print('energy preds + offset', predictions['energy'].squeeze())
+    #
+    # print('density integral', torch.sum(predictions['density'] * data['coord_weights'], dim=-1))
 
     # compute error metrics
     if args.coord_weights:
@@ -367,7 +421,7 @@ while step < args.max_steps + 1:
 
     errors = compute_error_dict(predictions, data, loss_weights, max_errors,
                                 coord_weights=coord_weights, weights_balance=args.weights_balance,
-                                minimize_en=args.minimize_en)
+                                )
 
     # backward step
     errors['loss'].backward()
@@ -380,6 +434,8 @@ while step < args.max_steps + 1:
 
     # optimization step
     optimizer.step()
+    if args.energy_offset:
+        offset_optimizer.step()
 
     # update parameter averages
     if args.use_parameter_averaging:
@@ -406,7 +462,7 @@ while step < args.max_steps + 1:
                 loss_weights)  # reset valid error metrics
             valid_cube_errors = empty_error_dict(
                 loss_weights)  # reset valid error metrics
-            equiv_model.eval()  # sets model to evaluation mode
+            dens_model.eval()  # sets model to evaluation mode
             start_load = time.time()
             for valid_batch_num, data in enumerate(valid_data_loader):
                 # print('valid load time', time.time() - start_load)
@@ -417,7 +473,7 @@ while step < args.max_steps + 1:
                             data[key] = data[key].cuda()
 
                 # forward step
-                coeffs = equiv_model(R=data['positions'])
+                coeffs = dens_model(R=data['positions'])
                 # print('coords space shape', data['coords'].shape)
                 # print('coords space extremes', torch.min(data['coords'][0], dim=0)[0],
                 #       torch.max(data['coords'][0], dim=0)[0])
@@ -426,20 +482,25 @@ while step < args.max_steps + 1:
                                               coeffs['radial_width'],
                                               coeffs['radial_scale'])
 
-                if args.coord_weights:
-                    coord_weights = data['coord_weights']
-                else:
-                    coord_weights = None
-
-                en_preds = []
+                func_ens = []
                 for i in range(predictions['density'].shape[0]):
                     pseudo_pot.restart(grid=grid, ions=data['ions'][i])
-                    en_preds.append(lda(predictions['density'][i].view((args.cube_size, args.cube_size, args.cube_size)),
-                                    grid_cl, du.angstrom_to_bohr(data['positions'][i] - grid_origin), pseudo_pot) + equiv_model.en_offset)
-                predictions['energy'] = torch.stack(en_preds).to(predictions['density'])
+                    func_ens.append(functional(predictions['density'][i].view((args.cube_size, args.cube_size, args.cube_size)),
+                                               grid_cl, du.angstrom_to_bohr(data['positions'][i] - grid_origin), pseudo_pot))
+
+                print('val functional en', func_ens)
+                print('en offset', dens_model.en_offset)
+                predictions['energy_min'] = torch.stack(func_ens).to(predictions['density'])
+                if args.energy_model:
+                    en_preds = en_model(data['positions'], coeffs)
+                    print('val model en', en_preds.squeeze())
+                    predictions['energy'] = en_preds + dens_model.en_offset
+                else:
+                    predictions['energy'] = torch.stack(func_ens).to(predictions['density']) + dens_model.en_offset
+
+                print('val energy preds + offset', predictions['energy'].squeeze())
 
                 print('val density integral', torch.sum(predictions['density'] * data['coord_weights'], dim=-1))
-                print('val energy', predictions['energy'])
 
                 # compute error metrics
                 if args.coord_weights:
@@ -449,7 +510,7 @@ while step < args.max_steps + 1:
 
                 errors = compute_error_dict(predictions, data, loss_weights, max_errors,
                                             coord_weights=coord_weights, weights_balance=args.weights_balance,
-                                            minimize_en=args.minimize_en)
+                                            )
 
                 # update valid_errors (running average)
                 for key in valid_errors.keys():
@@ -458,6 +519,8 @@ while step < args.max_steps + 1:
 
             # pass validation loss to learning rate scheduler
             scheduler.step(metrics=valid_errors['loss'])
+            if args.energy_offset:
+                offset_scheduler.step(metrics=valid_errors['loss'])
 
             # save if it outperforms previous best
             if valid_errors['loss'] < best_errors['loss']:
@@ -475,7 +538,7 @@ while step < args.max_steps + 1:
                 exponential_moving_average.swap()
 
             # set model back to training mode
-            equiv_model.train()
+            dens_model.train()
 
             start_load = time.time()
     # write summary to console
@@ -551,7 +614,7 @@ while step < args.max_steps + 1:
         latest_checkpoint = step
 
         # overwrite latest checkpoint
-        torch.save({
+        chk_dict = {
             'ID': ID,
             'args': args,
             'step': step,
@@ -562,7 +625,12 @@ while step < args.max_steps + 1:
             'optimizer_state_dict': optimizer.state_dict(),
             'scheduler_state_dict': scheduler.state_dict(),
             'exponential_moving_average': (exponential_moving_average.ema if args.use_parameter_averaging else None)
-        }, os.path.join(checkpoint_dir, 'latest_checkpoint.pth'))
+        }
+
+        if args.energy_offset:
+            chk_dict['offset_optimizer_state_dict'] = offset_optimizer.state_dict()
+            chk_dict['offset_scheduler_state_dict'] = offset_scheduler.state_dict()
+        torch.save(chk_dict, os.path.join(checkpoint_dir, 'latest_checkpoint.pth'))
         summary.add_text('checkpoints', 'saved checkpoint', step)
 
         # remove oldest checkpoints

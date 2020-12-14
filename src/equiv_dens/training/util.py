@@ -20,46 +20,46 @@ def compute_error_dict(
     max_errors,
     coord_weights=None,
     weights_balance=1,
-    minimize_en=False,
     percentage_error=False,
 ):
     error_dict = {}
     error_dict["loss"] = 0.0
     for key in loss_weights.keys():
         if loss_weights[key] > 0:
-            diff = predictions[key] - (data[key])
-            if key == "density" and coord_weights is not None:
-                balanced_weights = torch.sign(coord_weights) * torch.abs(
-                    coord_weights
-                ) ** (1 / weights_balance)
-                balanced_weights *= torch.sum(coord_weights) / torch.sum(
-                    balanced_weights
-                )
-            else:
-                balanced_weights = 1
-            abs_diff = torch.abs(diff) * balanced_weights
-            sq_diff = (diff ** 2) * balanced_weights
-            mse = torch.mean(sq_diff)
-            rmse = torch.sqrt(mse)
-            mae = torch.mean(abs_diff)
-            # print('RMSE:', rmse)
-            # print('MAE:', mae)
-            if key == "density" and percentage_error and coord_weights is not None:
-                rmse = rmse / torch.sqrt(torch.mean((data[key] ** 2) * balanced_weights))
-                mae = mae / torch.mean(data[key] * balanced_weights)
-                # print('pct RMSE:', rmse)
-                # print('pct MAE:', mae)
-            if mae > max_errors[key]:
-                error_dict[key + "_mae"] = torch.tensor(max_errors[key])
-                error_dict[key + "_rmse"] = torch.tensor(_sqrt2 * max_errors[key])
-            else:
-                error_dict[key + "_mae"] = mae
-                error_dict[key + "_rmse"] = rmse
-            loss = mae + rmse
-            if key == "energy" and minimize_en:
-                loss = torch.mean(predictions["energy"])
+            if key == "energy_min":
+                loss = torch.mean(predictions[key])
                 error_dict[key + "_mae"] = loss
                 error_dict[key + "_rmse"] = loss
+            else:
+                diff = predictions[key] - (data[key])
+                if key == "density" and coord_weights is not None:
+                    balanced_weights = torch.sign(coord_weights) * torch.abs(
+                        coord_weights
+                    ) ** (1 / weights_balance)
+                    balanced_weights *= torch.sum(coord_weights) / torch.sum(
+                        balanced_weights
+                    )
+                else:
+                    balanced_weights = 1
+                abs_diff = torch.abs(diff) * balanced_weights
+                sq_diff = (diff ** 2) * balanced_weights
+                mse = torch.mean(sq_diff)
+                rmse = torch.sqrt(mse)
+                mae = torch.mean(abs_diff)
+                # print('RMSE:', rmse)
+                # print('MAE:', mae)
+                if key == "density" and percentage_error and coord_weights is not None:
+                    rmse = rmse / torch.sqrt(torch.mean((data[key] ** 2) * balanced_weights))
+                    mae = mae / torch.mean(data[key] * balanced_weights)
+                    # print('pct RMSE:', rmse)
+                    # print('pct MAE:', mae)
+                if mae > max_errors[key]:
+                    error_dict[key + "_mae"] = torch.tensor(max_errors[key])
+                    error_dict[key + "_rmse"] = torch.tensor(_sqrt2 * max_errors[key])
+                else:
+                    error_dict[key + "_mae"] = mae
+                    error_dict[key + "_rmse"] = rmse
+                loss = mae + rmse
             error_dict["loss"] = error_dict["loss"] + loss_weights[key] * loss
     return error_dict
 

@@ -16,7 +16,7 @@ Neural network for computing Hamiltonian / Overlap matrices in a rotationally eq
 """
 
 
-class NeuralNetwork(nn.Module):
+class DensityNetwork(nn.Module):
     def __init__(self,
                  orbitals=None,  # orbitals of atoms, defines layout and shape of output matrix
                  order=1,  # maximum order of spherical harmonics features
@@ -48,7 +48,8 @@ class NeuralNetwork(nn.Module):
                  Zmax=87):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
         super().__init__()
 
-        # variables to control the flow of the forward graph (calculate full_hamiltonian / core_hamiltonian / overlap_matrix / energy / forces?)
+        # variables to control the flow of the forward graph
+        # (calculate full_hamiltonian / core_hamiltonian / overlap_matrix / energy / forces?)
         self.create_graph = True  # can be set to False if the NN is only used for inference
 
         # load state from a file (if load_from is given) and overwrite hyperparameters
@@ -91,6 +92,7 @@ class NeuralNetwork(nn.Module):
         self.positive_coeffs = positive_coeffs
         self.cutoff = cutoff
         self.activation = activation
+        self.energy_offset = energy_offset
         self.Zmax = Zmax
 
         if energy_offset:
@@ -355,7 +357,6 @@ class NeuralNetwork(nn.Module):
         # print('uij shape', uij.shape)
         # print('R shape', R.shape)
         rbf = self.radial_basis_functions(dij).unsqueeze_(-2)  # unsqueeze for broadcasting
-        # print('rbf shape', rbf.shape)
         sph = spherical_harmonics(self.order, uij)
         # print('sph shape', sph[0].shape)
         for L in range(self.order + 1):
