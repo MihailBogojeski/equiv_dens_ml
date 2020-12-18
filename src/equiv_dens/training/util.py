@@ -21,6 +21,7 @@ def compute_error_dict(
     coord_weights=None,
     weights_balance=1,
     percentage_error=False,
+    exclude_energy_min=False,
 ):
     error_dict = {}
     error_dict["loss"] = 0.0
@@ -30,6 +31,8 @@ def compute_error_dict(
                 loss = torch.mean(predictions[key])
                 error_dict[key + "_mae"] = loss
                 error_dict[key + "_rmse"] = loss
+                if exclude_energy_min:
+                    continue
             else:
                 diff = predictions[key] - (data[key])
                 if key == "density" and coord_weights is not None:

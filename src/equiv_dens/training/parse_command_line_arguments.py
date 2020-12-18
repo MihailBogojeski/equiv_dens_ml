@@ -100,7 +100,16 @@ def parse_command_line_arguments():
     args_training.add_argument("--momentum", metavar='FLOAT', type=float, default=0.0, help="momentum for the optimizer (only relevant for SGD)")
     args_training.add_argument("--density_weight", metavar='FLOAT', type=float, default=1.0, help="weight of the density in the loss function")
     args_training.add_argument("--energy_weight", metavar='FLOAT', type=float, default=0.0, help="weight of the energy in the loss function")
+    args_training.add_argument("--forces_weight", metavar='FLOAT', type=float, default=0.0, help="weight of the forces in the loss function")
     args_training.add_argument("--energy_min_weight", metavar='FLOAT', type=float, default=0.0, help="weight of the energy minimization loss")
+    args_training.add_argument("--density_weight_min", metavar='FLOAT', type=float, default=0.0, help="minimum weight of the density in the loss function")
+    args_training.add_argument("--energy_weight_min", metavar='FLOAT', type=float, default=0.0, help="minimum weight of the energy in the loss function")
+    args_training.add_argument("--forces_weight_min", metavar='FLOAT', type=float, default=0.0, help="minimum weight of the forces in the loss function")
+    args_training.add_argument("--energy_min_weight_min", metavar='FLOAT', type=float, default=0.0, help="minimum weight of the energy minimization loss")
+    args_training.add_argument("--density_weight_decay", metavar='FLOAT', type=float, default=1.0, help="decay of the weight of the density in the loss function")
+    args_training.add_argument("--energy_weight_decay", metavar='FLOAT', type=float, default=1.0, help="decay of the weight of the energy in the loss function")
+    args_training.add_argument("--forces_weight_decay", metavar='FLOAT', type=float, default=1.0, help="decay of the weight of the forces in the loss function")
+    args_training.add_argument("--energy_min_weight_decay", metavar='FLOAT', type=float, default=1.0, help="decay of the weight of the energy minimization loss")
     args_training.add_argument("--max_energy_error", metavar='FLOAT', type=float, default=0.1,
                                help="for better stability at beginning of training: maximum allowed MAE in energy (higher errors are clamped)")
     args_training.add_argument("--max_forces_error", metavar='FLOAT', type=float, default=0.1,

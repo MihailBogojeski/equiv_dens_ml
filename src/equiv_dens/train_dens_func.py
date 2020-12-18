@@ -98,7 +98,7 @@ cube_sampling_fn = cubical_sampling
 dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_dataset,
                            orbitals_path=args.orbitals_file,
                            density_n_samp=10000000000,
-                           required_properties=['density', 'energy'],
+                           required_properties=['density', 'energy', 'forces'],
                            center_positions=False,
                            radial_coeffs_file=args.radial_coeffs_file,
                            dtype=args.dtype,
@@ -129,7 +129,18 @@ pseudo_pot.restart(grid=grid, ions=dataset.ions[0])
 loss_weights = {}
 loss_weights['density'] = args.density_weight
 loss_weights['energy'] = args.energy_weight
+loss_weights['forces'] = args.forces_weight
 loss_weights['energy_min'] = args.energy_min_weight
+weights_decay = {}
+weights_decay['density'] = args.density_weight_decay
+weights_decay['energy'] = args.energy_weight_decay
+weights_decay['forces'] = args.forces_weight_decay
+weights_decay['energy_min'] = args.energy_min_weight_decay
+weights_min = {}
+weights_min['density'] = args.density_weight_min
+weights_min['energy'] = args.energy_weight_min
+weights_min['forces'] = args.forces_weight_min
+weights_min['energy_min'] = args.energy_min_weight_min
 # loss_weights['full_hamiltonian'] = args.full_hamiltonian_weight
 # loss_weights['core_hamiltonian'] = args.core_hamiltonian_weight
 # loss_weights['overlap_matrix'] = args.overlap_matrix_weight
@@ -143,6 +154,7 @@ loss_weights['energy_min'] = args.energy_min_weight
 max_errors = {}
 max_errors['density'] = np.inf
 max_errors['energy'] = np.inf
+max_errors['forces'] = np.inf
 max_errors['energy_min'] = np.inf
 
 # prepare data loaders
@@ -203,6 +215,10 @@ expansion_model = SphericalHarmonicsExpansion(dataset.orbitals, radial_coeffs=da
                                               integral_constraint=args.integral_constraint,
                                               verbose=args.verbose,
                                               softmax_norm=args.softmax_norm)
+
+dens_model.calculate_forces  = loss_weights['forces'] > 0
+en_model.calculate_forces  = loss_weights['forces'] > 0
+
 z_vals = []
 print('ions0', dataset.ions[0])
 for t in dataset.atoms['atom_types']:
@@ -361,6 +377,7 @@ start_time = time.time()
 while step < args.max_steps + 1:
     # get the next batch
     start_load = time.time()
+
     try:
         data = next(train_iterator)
     except StopIteration:
@@ -381,6 +398,9 @@ while step < args.max_steps + 1:
     if args.energy_offset:
         offset_optimizer.zero_grad()
 
+    for key in loss_weights.keys():
+        loss_weights[key] = max(weights_min[key], loss_weights[key] * weights_decay[key])
+
     # with torch.autograd.set_detect_anomaly(True):  # TODO!!! TURN THIS OFF AGAIN
 
     # forward step
@@ -393,6 +413,13 @@ while step < args.max_steps + 1:
                                   coeffs['radial_width'],
                                   coeffs['radial_scale'])
 
+    if args.energy_model:
+        en_preds = en_model(data['positions'], coeffs)
+        # print('model en', en_preds.squeeze())
+        predictions['energy'] = en_preds['energy'] + dens_model.en_offset
+        if loss_weights['forces'] > 0:
+            predictions['forces'] = en_preds['forces']
+
     func_ens = []
     for i in range(predictions['density'].shape[0]):
         pseudo_pot.restart(grid=grid, ions=data['ions'][i])
@@ -402,11 +429,8 @@ while step < args.max_steps + 1:
     # print('functional en', func_ens)
     # print('en offset', dens_model.en_offset)
     predictions['energy_min'] = torch.stack(func_ens).to(predictions['density'])
-    if args.energy_model:
-        en_preds = en_model(data['positions'], coeffs)
-        # print('model en', en_preds.squeeze())
-        predictions['energy'] = en_preds + dens_model.en_offset
-    else:
+
+    if not args.energy_model:
         predictions['energy'] = torch.stack(func_ens).to(predictions['density']) + dens_model.en_offset
 
     # print('energy preds + offset', predictions['energy'].squeeze())
@@ -448,99 +472,108 @@ while step < args.max_steps + 1:
 
     # run validation each validation_interval
     if step % args.validation_interval == 0:
-        with torch.no_grad():
-            print('validation')
-            # this is a signal to the summary writer
-            new_valid = True
+        print('validation')
+        # this is a signal to the summary writer
+        new_valid = True
 
-            # swap to exponentially averaged parameters for validation
-            if args.use_parameter_averaging:
-                exponential_moving_average.swap()
+        # swap to exponentially averaged parameters for validation
+        if args.use_parameter_averaging:
+            exponential_moving_average.swap()
 
-            # run once over the validation set
-            valid_errors = empty_error_dict(
-                loss_weights)  # reset valid error metrics
-            valid_cube_errors = empty_error_dict(
-                loss_weights)  # reset valid error metrics
-            dens_model.eval()  # sets model to evaluation mode
-            start_load = time.time()
-            for valid_batch_num, data in enumerate(valid_data_loader):
-                # print('valid load time', time.time() - start_load)
-                # send data to GPU
-                if use_gpu:
-                    for key in data.keys():
-                        if isinstance(data[key], torch.Tensor):
-                            data[key] = data[key].cuda()
+        # run once over the validation set
+        valid_errors = empty_error_dict(
+            loss_weights)  # reset valid error metrics
+        valid_cube_errors = empty_error_dict(
+            loss_weights)  # reset valid error metrics
+        # dens_model.eval()  # sets model to evaluation mode
+        # en_model.eval()
+        start_load = time.time()
+        for valid_batch_num, data in enumerate(valid_data_loader):
+            # print('valid load time', time.time() - start_load)
+            # send data to GPU
+            if use_gpu:
+                for key in data.keys():
+                    if isinstance(data[key], torch.Tensor):
+                        data[key] = data[key].cuda()
 
-                # forward step
-                coeffs = dens_model(R=data['positions'])
-                # print('coords space shape', data['coords'].shape)
-                # print('coords space extremes', torch.min(data['coords'][0], dim=0)[0],
-                #       torch.max(data['coords'][0], dim=0)[0])
-                predictions = expansion_model(data['coords'], data['positions'],
-                                              coeffs['spherical_coeffs'],
-                                              coeffs['radial_width'],
-                                              coeffs['radial_scale'])
+            # forward step
+            coeffs = dens_model(R=data['positions'])
+            # print('coords space shape', data['coords'].shape)
+            # print('coords space extremes', torch.min(data['coords'][0], dim=0)[0],
+            #       torch.max(data['coords'][0], dim=0)[0])
+            predictions = expansion_model(data['coords'], data['positions'],
+                                          coeffs['spherical_coeffs'],
+                                          coeffs['radial_width'],
+                                          coeffs['radial_scale'])
 
-                func_ens = []
-                for i in range(predictions['density'].shape[0]):
-                    pseudo_pot.restart(grid=grid, ions=data['ions'][i])
-                    func_ens.append(functional(predictions['density'][i].view((args.cube_size, args.cube_size, args.cube_size)),
-                                               grid_cl, du.angstrom_to_bohr(data['positions'][i] - grid_origin), pseudo_pot))
+            if args.energy_model:
+                en_preds = en_model(data['positions'], coeffs)
+                # print('model en', en_preds.squeeze())
+                predictions['energy'] = en_preds['energy'] + dens_model.en_offset
+                if loss_weights['forces'] > 0:
+                    predictions['forces'] = en_preds['forces']
 
-                print('val functional en', func_ens)
-                print('en offset', dens_model.en_offset)
-                predictions['energy_min'] = torch.stack(func_ens).to(predictions['density'])
-                if args.energy_model:
-                    en_preds = en_model(data['positions'], coeffs)
-                    print('val model en', en_preds.squeeze())
-                    predictions['energy'] = en_preds + dens_model.en_offset
-                else:
-                    predictions['energy'] = torch.stack(func_ens).to(predictions['density']) + dens_model.en_offset
+            func_ens = []
+            # functional.verbose = 2
+            for i in range(predictions['density'].shape[0]):
+                pseudo_pot.restart(grid=grid, ions=data['ions'][i])
+                func_ens.append(functional(predictions['density'][i].view((args.cube_size, args.cube_size, args.cube_size)),
+                                           grid_cl, du.angstrom_to_bohr(data['positions'][i] - grid_origin), pseudo_pot))
 
-                print('val energy preds + offset', predictions['energy'].squeeze())
+            # functional.verbose = 0
+            print('val functional en', func_ens)
+            print('en offset', dens_model.en_offset)
+            predictions['energy_min'] = torch.stack(func_ens).to(predictions['density'])
+            if not args.energy_model:
+                predictions['energy'] = torch.stack(func_ens).to(predictions['density']) + dens_model.en_offset
 
-                print('val density integral', torch.sum(predictions['density'] * data['coord_weights'], dim=-1))
+            print('val energy preds + offset', predictions['energy'].squeeze())
 
-                # compute error metrics
-                if args.coord_weights:
-                    coord_weights = data['coord_weights']
-                else:
-                    coord_weights = None
+            print('val density integral', torch.sum(predictions['density'] * data['coord_weights'], dim=-1))
 
-                errors = compute_error_dict(predictions, data, loss_weights, max_errors,
-                                            coord_weights=coord_weights, weights_balance=args.weights_balance,
-                                            )
+            # compute error metrics
+            if args.coord_weights:
+                coord_weights = data['coord_weights']
+            else:
+                coord_weights = None
 
-                # update valid_errors (running average)
-                for key in valid_errors.keys():
-                    valid_errors[key] += (errors[key].item() -
-                                          valid_errors[key]) / (valid_batch_num + 1)
+            tmp = loss_weights['energy_min']
+            errors = compute_error_dict(predictions, data, loss_weights, max_errors,
+                                        coord_weights=coord_weights, weights_balance=args.weights_balance,
+                                        exclude_energy_min=True)
+            # update valid_errors (running average)
+            for key in valid_errors.keys():
+                valid_errors[key] += (errors[key].item() -
+                                      valid_errors[key]) / (valid_batch_num + 1)
 
-            # pass validation loss to learning rate scheduler
-            scheduler.step(metrics=valid_errors['loss'])
-            if args.energy_offset:
-                offset_scheduler.step(metrics=valid_errors['loss'])
+        # pass validation loss to learning rate scheduler
+        for param_group in scheduler.optimizer.param_groups:
+            print('current LR:', param_group['lr'])
+        scheduler.step(metrics=valid_errors['loss'])
 
-            # save if it outperforms previous best
-            if valid_errors['loss'] < best_errors['loss']:
-                new_best = True
-                best_errors = valid_errors
-                equiv_module.save(os.path.join(directory, 'best_' + str(ID) + '.pth'))
-                # construct message for logging
-                message = ''
-                for key in best_errors.keys():
-                    message += key + ': %.6f' % best_errors[key] + '\n'
-                summary.add_text('best models', message, step)
+        if args.energy_offset:
+            offset_scheduler.step(metrics=valid_errors['loss'])
 
-            # swap back to original parameters for training
-            if args.use_parameter_averaging:
-                exponential_moving_average.swap()
+        # save if it outperforms previous best
+        if valid_errors['loss'] < best_errors['loss']:
+            new_best = True
+            best_errors = valid_errors
+            equiv_module.save(os.path.join(directory, 'best_' + str(ID) + '.pth'))
+            # construct message for logging
+            message = ''
+            for key in best_errors.keys():
+                message += key + ': %.6f' % best_errors[key] + '\n'
+            summary.add_text('best models', message, step)
 
-            # set model back to training mode
-            dens_model.train()
+        # swap back to original parameters for training
+        if args.use_parameter_averaging:
+            exponential_moving_average.swap()
 
-            start_load = time.time()
+        # set model back to training mode
+        # dens_model.train()
+        # en_model.train()
+
+        start_load = time.time()
     # write summary to console
     if step % args.summary_interval == 0:
         # write error summaries

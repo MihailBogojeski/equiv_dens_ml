@@ -48,6 +48,8 @@ class DensityNetwork(nn.Module):
                  Zmax=87):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
         super().__init__()
 
+        self.calculate_forces = False
+
         # variables to control the flow of the forward graph
         # (calculate full_hamiltonian / core_hamiltonian / overlap_matrix / energy / forces?)
         self.create_graph = True  # can be set to False if the NN is only used for inference
@@ -350,6 +352,8 @@ class DensityNetwork(nn.Module):
     """
 
     def forward(self, R):
+        if self.calculate_forces:
+            R.requires_grad = True
         # compute radial basis functions and spherical harmonics
         # print('idx_i', self.idx_i)
         dij, uij = self.calculate_distances_and_directions(R, self.idx_i, self.idx_j)

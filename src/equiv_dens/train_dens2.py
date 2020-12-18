@@ -5,7 +5,7 @@ import torch
 from torch.nn.functional import softplus
 from datetime import datetime
 from tensorboardX import SummaryWriter
-from nn.neural_network_dens2 import NeuralNetwork
+from nn.neural_network_dens2 import DensityNetwork
 from training.parse_command_line_arguments import parse_command_line_arguments
 from training.util import generate_id, empty_error_dict, compute_error_dict
 from training.density_dataset import AtomsDensityData
@@ -143,7 +143,7 @@ valid_cube_loader = BatchLoader(valid_cube_dataset, batch_sampler=valid_cube_sam
 
 # define model
 if args.load_from is None:
-    equiv_model = NeuralNetwork(
+    equiv_model = DensityNetwork(
         orbitals=dataset.orbitals,
         order=args.order,
         num_features=args.num_features,
@@ -165,7 +165,7 @@ if args.load_from is None:
                                                   integral_constraint=args.integral_constraint,
                                                   softmax_norm=args.softmax_norm)
 else:
-    equiv_model = NeuralNetwork(load_from=args.load_from)
+    equiv_model = DensityNetwork(load_from=args.load_from)
     expansion_model = SphericalHarmonicsExpansion(dataset.orbitals, radial_coeffs=dataset.radial_coeffs,
                                                   expansion_constraint=args.expansion_constraint,
                                                   integral_constraint=args.integral_constraint,
