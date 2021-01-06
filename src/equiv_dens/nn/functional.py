@@ -1,7 +1,6 @@
 import math
 import torch
 import torch.nn.functional as F
-from .spherical_harmonics import spherical_harmonics
 
 """
 IMPORTANT NOTE: The cutoff and the switch function are numerically a bit tricky:

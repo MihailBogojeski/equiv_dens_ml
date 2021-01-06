@@ -67,8 +67,8 @@ def parse_command_line_arguments():
                                   help="Whether to use an constant offset to adjust energy levels for different functionals")
     args_hyperparams.add_argument("--positive_coeffs", metavar='True|False', type=str2bool, default=True,
                                   choices=[True, False], help="Make the order 0 coefficients always positive.")
-    args_hyperparams.add_argument("--energy_model", metavar='True|False', type=str2bool, default=False,
-                                  choices=[True, False], help="Use a neural network for energy prediction instead of functional.")
+    args_hyperparams.add_argument("--energy_model", metavar='STR', type=str, default=None,
+                                  help="Use a neural network for energy prediction instead of functional.")
     # arguments for training
     args_training = parser.add_argument_group("training hyperparameters")
     args_training.add_argument("--max_steps", metavar='INT', type=int, help="maximum number of training steps")
@@ -114,9 +114,7 @@ def parse_command_line_arguments():
                                help="for better stability at beginning of training: maximum allowed MAE in energy (higher errors are clamped)")
     args_training.add_argument("--max_forces_error", metavar='FLOAT', type=float, default=0.1,
                                help="for better stability at beginning of training: maximum allowed MAE in forces (higher errors are clamped)")
-    args_training.add_argument("--use_gradient_clipping", metavar='True|False', type=str2bool, default=False,
-                               choices=[True, False], help="use gradient clipping during training")
-    args_training.add_argument("--clip_norm", metavar='FLOAT', type=float, default=1000.0,
+    args_training.add_argument("--clip_norm", metavar='FLOAT', type=float, default=0.0,
                                help="gradient clip norm (only when --use_gradient_clipping is active)")
     args_training.add_argument("--use_parameter_averaging", metavar='True|False', type=str2bool, default=True,
                                choices=[True, False], help="keep exponential moving average of model parameters (might boost convergence speed)")
@@ -134,7 +132,6 @@ def parse_command_line_arguments():
                                choices=[True, False], help="Normalize the coefficients using softmax.")
     args_training.add_argument("--percentage_error", metavar='True|False', type=str2bool, default=True,
                                choices=[True, False], help="Measure error as a percentage of the density integral.")
-
 
     # arguments for logging and checkpoints
     args_logging = parser.add_argument_group("logging and checkpoints")
@@ -170,5 +167,7 @@ def parse_command_line_arguments():
             args.load_from = None
         if args.expansion_constraint == 'None':
             args.expansion_constraint = None
+        if args.energy_model == 'None':
+            args.energy_model = None
 
     return args

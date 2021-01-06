@@ -1,0 +1,1 @@
+from .spherical_harmonic import EquivariantSphericalHarmonics

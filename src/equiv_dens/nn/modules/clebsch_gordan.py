@@ -9,6 +9,7 @@ class ClebschGordan(nn.Module):
     """
     Helper class that stores Clebsch - Gordan coefficients
     """
+
     def __init__(self):
         super(ClebschGordan, self).__init__()
         tmp = np.load(os.path.join(os.path.dirname(__file__), 'clebsch_gordan_coefficients_L10.npz'), allow_pickle=True)['cg'][()]

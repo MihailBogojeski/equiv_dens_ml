@@ -39,13 +39,13 @@
 --momentum=0.0
 --density_weight=1.0
 --energy_weight=0.0
---use_gradient_clipping=True
+--energy_min_weight=0.0
 --clip_norm=1.0
 --use_parameter_averaging=True
 --ema_decay=0.999
 --ema_start_epoch=3000
 --weight_decay=0.0
---use_gpu=True
+--use_gpu=False
 --write_parameter_summaries=False
 --validation_interval=10
 --summary_interval=10
@@ -55,7 +55,7 @@
 --expansion_constraint=sp
 --integral_constraint=True
 --positive_coeffs=False
---softmax_norm=True
+--softmax_norm=False
 --coord_weights=True
 --weights_balance=1.0
 --percentage_error=True

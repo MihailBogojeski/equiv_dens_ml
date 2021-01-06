@@ -1,1 +1,1 @@
-from .neural_network import *
+from .dft_network import *
