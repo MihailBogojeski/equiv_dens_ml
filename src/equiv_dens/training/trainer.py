@@ -3,6 +3,7 @@ import torch
 from tensorboardX import SummaryWriter
 import math
 import time
+from equiv_dens.training.exponential_moving_average import ExponentialMovingAverage
 
 
 class Trainer:
@@ -37,7 +38,7 @@ class Trainer:
         validation_interval=10,
         summary_interval=10,
         hooks=[],
-        exponential_moving_average=None,
+        ema_params=None,
         args=None,
         restore=False,
         max_steps=100000,
@@ -55,7 +56,8 @@ class Trainer:
         self.summary_interval = summary_interval
         self.keep_n_checkpoints = keep_n_checkpoints
         self.hooks = hooks
-        self.exponential_moving_average = exponential_moving_average
+        self.ema_params = ema_params
+        self.exponential_moving_average = None
         self.args = args
         self.max_steps = max_steps
         self.clip_norm = clip_norm
@@ -148,8 +150,10 @@ class Trainer:
             self.optimizers[i].load_state_dict[checkpoint['optimizers_state_dict'][i]]
         for i in range(len(self.schedulers)):
             self.schedulers[i].load_state_dict[checkpoint['schedulers_state_dict'][i]]
-        if self.exponential_moving_average is not None:
+        if self.ema_params is not None:
             checkpoint_ema = checkpoint['exponential_moving_average']
+            self.exponential_moving_average = ExponentialMovingAverage(self._module, decay=self.ema_params['decay'],
+                                                                       start_epoch=self.ema_params['start_epoch'])
             for key in self.exponential_moving_average.ema.keys():
                 with torch.no_grad():
                     self.exponential_moving_average.ema[key].data.copy_(
@@ -171,6 +175,10 @@ class Trainer:
             print("Training on " + str(torch.cuda.device_count()) + " GPUs:")
         else:
             print("Training on the CPU:")
+
+        if self.ema_params is not None and self.exponential_moving_average is not None:
+            self.exponential_moving_average = ExponentialMovingAverage(self._module, decay=self.ema_params['decay'],
+                                                                       start_epoch=self.ema_params['start_epoch'])
 
         if self.clip_norm > 0:
             self.gradient_norm = 0
