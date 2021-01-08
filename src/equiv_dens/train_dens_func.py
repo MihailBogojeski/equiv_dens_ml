@@ -15,7 +15,6 @@ from equiv_dens.training.errors import ErrorDict
 from equiv_dens.training.trainer import Trainer
 from equiv_dens.data.density_dataset import AtomsDensityData
 from equiv_dens.data.hamiltonian_dataset import seeded_random_split
-from equiv_dens.training.exponential_moving_average import ExponentialMovingAverage
 from equiv_dens.training.lookahead import Lookahead
 from equiv_dens.data.batch_loader import BatchLoader
 from equiv_dens.utils.grids import cubical_grid, cubical_sampling, dftpy_grid, CubicalGrid
@@ -268,10 +267,9 @@ model = DFTNetwork(density_model, property_models, calculate_forces_dict=calcula
 # "module" is used whenever direct access is needed, e.g. for parameters,
 # whereas "model" may be DataParallel and is used for inference only
 if args.use_parameter_averaging:
-    exponential_moving_average = ExponentialMovingAverage(
-        model, decay=args.ema_decay, start_epoch=args.ema_start_epoch)
+    ema_params = {'decay': args.ema_decay, 'start_epoch': args.ema_start_epoch}
 else:
-    exponential_moving_average = None
+    ema_params = None
 
 # build list of parameters to optimize (with or without weight decay)
 parameters = []
@@ -338,7 +336,7 @@ trainer = Trainer(model_path=directory, model=model, error_dict=error_dict,
                   checkpoint_interval=args.checkpoint_interval,
                   validation_interval=args.validation_interval,
                   summary_interval=args.summary_interval,
-                  exponential_moving_average=exponential_moving_average,
+                  ema_params=ema_params,
                   args=args,
                   restore=restore,
                   max_steps=args.max_steps,
