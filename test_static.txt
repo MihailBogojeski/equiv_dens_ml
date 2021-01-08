@@ -21,6 +21,7 @@
 --dens_dataset=datasets/h2o_static_pyscf_dft.npy
 --orbitals_file=datasets/augccpvqzjkfit_orbital_basis_df.npy
 --radial_coeffs_file=datasets/augccpvqzjkfit_radial_coeffs_df.npy
+--verbose=0
 --num_train=1
 --num_valid=5
 --train_batch_size=1
@@ -53,7 +54,7 @@
 --keep_checkpoints=0
 --dtype=torch.float32
 --expansion_constraint=sp
---integral_constraint=True
+--integral_constraint=False
 --positive_coeffs=False
 --softmax_norm=False
 --coord_weights=True

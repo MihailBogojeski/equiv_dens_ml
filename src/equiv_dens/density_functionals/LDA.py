@@ -3,6 +3,7 @@ from .ewald import Ewald
 import torch.nn as nn
 import numpy as np
 import torch.fft as tfft
+from equiv_dens.utils.base import angstrom_to_bohr
 
 
 class LDAFunctional(nn.Module):
@@ -45,7 +46,7 @@ def prepare_functional_vars(atoms):
     grid = atoms['grid']
     dftpy_grid = atoms['dftpy_grid']
     rho = atoms['density'].view(-1, *grid.shape)
-    pos = atoms['shifted_positions']
+    pos = angstrom_to_bohr(atoms['shifted_positions'])
     pseudo_pot = atoms['pseudo_pot']
     v_real = []
     for i in range(rho.shape[0]):

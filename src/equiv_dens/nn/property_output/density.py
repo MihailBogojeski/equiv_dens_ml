@@ -4,7 +4,7 @@ import torch.nn as nn
 from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
 from equiv_dens.nn.modules.spherical_harmonic_layers import SphericalLinear
 from equiv_dens.utils.spherical_harmonics import spherical_harmonics
-from equiv_dens.utils.orbitals import combine_orbitals, gaussian_rbf, get_max_order
+from equiv_dens.utils.orbitals import combine_orbitals, gaussian_rbf, get_max_order, get_n_electrons
 from equiv_dens.utils.base import calculate_distances_and_directions
 import numpy as np
 
@@ -144,8 +144,8 @@ class DensityCoeffsNetwork(nn.Module):
 
     def forward(self, atoms):
         fs = atoms['sph_repr']
-        print('fs[0]:', fs[0][:, 0, :, :10])
-        print('fs[1]:', fs[1][:, 0, :, :10])
+        # print('fs[0]:', fs[0][:, 0, :, :10])
+        # print('fs[1]:', fs[1][:, 0, :, :10])
         out_sph = self.spherical_output(fs)
         if self.positive_coeffs:
             out_sph[0] = F.softplus(out_sph[0])
@@ -177,7 +177,6 @@ class DensityExpansion(nn.Module):
         super().__init__()
         self.orbitals = orbitals
         self.expansion_constraint = expansion_constraint
-        self.n_electrons = 0
         self.integral_constraint = integral_constraint
         self.softmax_norm = softmax_norm
         self.verbose = verbose
@@ -186,6 +185,7 @@ class DensityExpansion(nn.Module):
             print('integral constraint', self.integral_constraint)
 
         self.order_max = get_max_order(self.orbitals)
+        self.n_electrons = get_n_electrons(self.orbitals)
 
         self.radial_coeffs = radial_coeffs
         self.orbital_spec, self.radial_counts = combine_orbitals(self.orbitals, self.order_max)
@@ -243,10 +243,10 @@ class DensityExpansion(nn.Module):
             # print('orbitals i', self.orbital_spec[i])
             d, u = calculate_distances_and_directions(atoms['coords'], center=atoms['positions'][:, [i]])
             s = spherical_harmonics(self.order_max, u)
-            print('atom[i]', i)
-            print('dists', d)
-            print('dists shape', d.shape)
-            print('min dist', torch.min(d))
+            # print('atom[i]', i)
+            # print('dists', d)
+            # print('dists shape', d.shape)
+            # print('min dist', torch.min(d))
             for L in range(len(s)):
                 zeros = torch.zeros_like(s[L])
                 s[L] = torch.where(torch.isnan(s[L]), zeros, s[L])  # making sure there are no nans to avoid NaNs
@@ -254,13 +254,14 @@ class DensityExpansion(nn.Module):
                 # print('orbital', orb)
                 L = orb[2]
                 key = (z, L)
-                print('init_width', self.init_width(i, key))
-                print('init_scale', self.init_scale(i, key))
                 width = (atoms['radial_width'][i][key] + 1) * self.init_width(i, key)
 
                 scale = atoms['radial_scale'][i][key] + self.init_scale(i, key)
-                print('width', width)
-                print('scale', scale)
+                if self.verbose > 1:
+                    print('init_width', self.init_width(i, key))
+                    print('init_scale', self.init_scale(i, key))
+                    print('width', width)
+                    print('scale', scale)
                 sph_coeff = atoms['spherical_coeffs'][i][key]
                 if L == 0:
                     L0_coeff = sph_coeff * scale

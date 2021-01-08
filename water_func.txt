@@ -53,8 +53,8 @@
 --checkpoint_interval=30
 --keep_checkpoints=0
 --dtype=torch.float32
---cube_size=50
---cube_gap=0.155
+--cube_size=20
+--cube_gap=0.4
 --verbose=0
 --expansion_constraint=sp
 --integral_constraint=True

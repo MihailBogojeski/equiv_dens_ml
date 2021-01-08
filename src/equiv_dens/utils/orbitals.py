@@ -33,6 +33,13 @@ def get_max_order(orbitals):
     return order_max
 
 
+def get_n_electrons(orbitals):
+    n_electrons = 0
+    for i in range(len(orbitals)):
+        n_electrons += orbitals[i][0][0]
+    return n_electrons
+
+
 def gaussian_rbf(r, width, scale, normalize=True):
     # print('scale shape', scale.shape)
     # print('scale shape', scale.shape)

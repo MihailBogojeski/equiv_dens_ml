@@ -260,6 +260,7 @@ class Trainer:
 
         # forward step
         predictions = self._model(data)
+        print('train density intergal', torch.sum(predictions['density'] * predictions['coord_weights'], dim=1))
         errors = self.error_dict.compute(predictions, data)
 
         # backward step
@@ -301,7 +302,7 @@ class Trainer:
             # forward step
             predictions = self._model(data)
             # print('energy pred', predictions['energy'])
-            print('density intergal', torch.sum(predictions['density'] * predictions['coord_weights'], dim=1))
+            print('valid density intergal', torch.sum(predictions['density'] * predictions['coord_weights'], dim=1))
 
             # print('spherical density integral', torch.sum(predictions['density'] * data['coord_weights'], dim=-1))
             # compute error metrics

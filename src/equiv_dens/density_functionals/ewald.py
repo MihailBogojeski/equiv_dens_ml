@@ -25,7 +25,7 @@ class Ewald(nn.Module):
         self.real_en = self.real_energy(grid, pos)
         self.corr_en = self.corr_energy(grid)
         self.rec_en = self.rec_energy(grid, pos)
-        if self.verbose > 0:
+        if self.verbose > 1:
             print("Ewald real energy", self.real_en)
             print("Ewald corr energy", self.corr_en)
             print("Ewald rec energy", self.rec_en)
