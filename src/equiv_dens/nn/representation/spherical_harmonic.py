@@ -138,8 +138,11 @@ class EquivariantSphericalHarmonics(nn.Module):
         # print('dij shape', dij.shape)
         # print('uij shape', uij.shape)
         # print('R shape', R.shape)
+        # print('dij', dij)
         rbf = self.radial_basis_functions(dij).unsqueeze_(-2)  # unsqueeze for broadcasting
+        # print('rbf shape', rbf.shape)
         sph = spherical_harmonics(self.order, uij)
+        # print('sph', sph)
         atoms['distances'] = dij
         atoms['directions'] = uij
         # print('sph shape', sph[0].shape)

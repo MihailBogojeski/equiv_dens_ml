@@ -70,7 +70,7 @@ class ComplexEnergyNetwork(nn.Module):
         self.register_buffer('idx_i', idx_i)
         self.register_buffer('idx_j', idx_j)
 
-        self.order_max = get_max_order()
+        self.order_max = get_max_order(self.orbitals)
         self.orbital_spec, _ = combine_orbitals(self.orbitals, self.order_max)
         self.dens_features = 0
         for i in range(len(self.orbital_spec)):
@@ -116,19 +116,15 @@ class ComplexEnergyNetwork(nn.Module):
 
         self.energy_output = nn.Linear(self.num_features, 1)
 
-    def forward(self, atoms, coeffs):
+    def forward(self, atoms):
         # initialize atomic features to embeddings
-        xs = get_invariant_features(coeffs, permutational_invariance=False, keep_dims=True)
+        xs = get_invariant_features(atoms, permutational_invariance=False, keep_dims=True)
         dij = atoms['distances']
         sph = atoms['sph']
         # print('dij shape', dij.shape)
         # print('uij shape', uij.shape)
         # print('R shape', R.shape)
         rbf = self.radial_basis_functions(dij).unsqueeze_(-2)  # unsqueeze for broadcasting
-        # print('rbf shape', rbf.shape)
-        # print('sph shape', sph[0].shape)
-        for L in range(1):
-            sph[L].unsqueeze_(-1)  # unsqueeze for broadcasting
 
         if self.num_features != self.dens_features:
             xs = self.input_layer(xs)
@@ -161,6 +157,7 @@ class SimpleEnergyNetwork(nn.Module):
                  orbitals=None,
                  num_features=32,
                  calculate_forces=False,
+                 activation='swish',
                  ):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
         super().__init__()
 
@@ -174,7 +171,10 @@ class SimpleEnergyNetwork(nn.Module):
         self.orbitals = orbitals
         self.num_features = num_features
 
-        self.orbital_spec, _ = combine_orbitals()
+        self.order_max = get_max_order(self.orbitals)
+        self.activation = activation 
+
+        self.orbital_spec, _ = combine_orbitals(self.orbitals, self.order_max)
         self.dens_features = 0
         for i in range(len(self.orbital_spec)):
             curr_feats = 0
@@ -197,10 +197,12 @@ class SimpleEnergyNetwork(nn.Module):
 
         self.energy_output = nn.Linear(self.num_features, 1)
 
-    def forward(self, atoms, coeffs):
+    def forward(self, atoms):
         # initialize atomic features to embeddings
-        fs = get_invariant_features(coeffs, permutational_invariance=False, keep_dims=True)
+        fs = get_invariant_features(atoms, permutational_invariance=False, keep_dims=True)
 
+        if self.num_features != self.dens_features:
+            fs = self.input_layer(fs)
         atom_en = self.energy_output(self.out_activation(fs))
 
         energy = torch.sum(atom_en, dim=1)

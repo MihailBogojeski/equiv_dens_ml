@@ -3,7 +3,7 @@
 --activation=swish
 --order=6
 --num_features=128
---num_basis_functions=128
+--num_basis_functions=32
 --num_radial_components=4
 --num_modules=1
 --num_residual_pre_x=1

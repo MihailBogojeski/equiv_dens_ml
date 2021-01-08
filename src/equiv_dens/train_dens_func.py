@@ -112,6 +112,11 @@ dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_datas
 train_dataset, valid_dataset, test_dataset = seeded_random_split(
     dataset, [args.num_train, args.num_valid, len(dataset) - (args.num_train + args.num_valid)], seed=args.split_seed)
 
+if args.center_energy:
+    train_ind = train_dataset.indices
+    energy_mean = dataset.atoms['energy'][train_ind].mean()
+    dataset.center_energy(energy_mean)
+
 grid_cl = CubicalGrid(None, nx=args.cube_size, ny=args.cube_size, nz=args.cube_size,
                       origin=[0, 0, 0], extent=utils.angstrom_to_bohr(grid_extent), device=device, dtype=args.dtype)
 
@@ -195,7 +200,8 @@ dens_model = DensityCoeffsNetwork(
     order=args.order,
     num_features=args.num_features,
     positive_coeffs=args.positive_coeffs,
-    clebsch_gordan=clebsch_gordan)
+    clebsch_gordan=clebsch_gordan,
+    verbose=args.verbose)
 
 expansion_model = DensityExpansion(dataset.orbitals, radial_coeffs=dataset.radial_coeffs,
                                    expansion_constraint=args.expansion_constraint,
@@ -206,8 +212,9 @@ expansion_model = DensityExpansion(dataset.orbitals, radial_coeffs=dataset.radia
 calculate_forces = loss_weights['forces'] > 0
 
 
-if args.energy_model == 'simple':
-    en_model = SimpleEnergyNetwork(
+if args.energy_model == 'complex':
+    print('building complex energy model')
+    en_model = ComplexEnergyNetwork(
         orbitals=dataset.orbitals,
         num_features=args.num_features,
         num_basis_functions=args.num_basis_functions,
@@ -223,10 +230,12 @@ if args.energy_model == 'simple':
         cutoff=args.cutoff,
         activation=args.activation,
         calculate_forces=calculate_forces)
-elif args.energy_model == 'complex':
-    en_model = ComplexEnergyNetwork(
+elif args.energy_model == 'simple':
+    print('building simple energy model')
+    en_model = SimpleEnergyNetwork(
         orbitals=dataset.orbitals,
         num_features=args.num_features,
+        activation=args.activation,
         calculate_forces=calculate_forces)
 else:
     args.energy_model = None
@@ -246,8 +255,9 @@ functional_en_model = nn.Sequential(expansion_model, functional)
 
 property_models = {}
 calculate_forces_dict = {}
-property_models['energy_min'] = functional_en_model
-calculate_forces_dict['energy_min'] = False
+if error_dict.loss_weights['energy_min'] > 0:
+    property_models['energy_min'] = functional_en_model
+    calculate_forces_dict['energy_min'] = False
 if args.energy_model is not None:
     property_models['energy'] = en_model
     calculate_forces_dict['energy'] = calculate_forces

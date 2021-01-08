@@ -19,7 +19,9 @@ class DensityCoeffsNetwork(nn.Module):
                  order=1,  # maximum order of spherical harmonics features
                  num_features=32,
                  positive_coeffs=False,
-                 clebsch_gordan=None):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
+                 clebsch_gordan=None,
+                 verbose=0,
+                 ):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
         super().__init__()
 
         # variables to control the flow of the forward graph
@@ -31,6 +33,7 @@ class DensityCoeffsNetwork(nn.Module):
         self.order = order
         self.num_features = num_features
         self.positive_coeffs = positive_coeffs
+        self.verbose = verbose
 
         # extract nuclear charges from orbitals, determine maximum order, and
         # build the occupation mask (for extracting occupied orbitals in energy prediction)
@@ -144,8 +147,10 @@ class DensityCoeffsNetwork(nn.Module):
 
     def forward(self, atoms):
         fs = atoms['sph_repr']
-        # print('fs[0]:', fs[0][:, 0, :, :10])
-        # print('fs[1]:', fs[1][:, 0, :, :10])
+        if self.verbose > 1:
+            print('positions', atoms['positions'])
+            print('fs[0]:', fs[0][:, 0, :, :10])
+            print('fs[1]:', fs[1][:, 0, :, :10])
         out_sph = self.spherical_output(fs)
         if self.positive_coeffs:
             out_sph[0] = F.softplus(out_sph[0])

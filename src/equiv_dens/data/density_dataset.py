@@ -65,10 +65,12 @@ class AtomsDensityData(Dataset):
         self.grid_rn = grid_fn
         self.sampling_fn = sampling_fn
         self.dtype = dtype
+        self.grid_extent = grid_extent
+        self.grid_origin = grid_origin
         print('Some variables')
         if required_properties is None:
             self.required_properties = self.available_properties
-        self.centered = center_positions
+        self.centered_positions = center_positions
         self.atoms = np.load(np_path, allow_pickle=True).item()
         orbital_basis = np.load(orbitals_path, allow_pickle=True).item()
         self.orbitals = []
@@ -128,17 +130,20 @@ class AtomsDensityData(Dataset):
             idx if self.subset is None or len(idx) == 0 else np.array(self.subset)[idx]
         )
         return type(self)(
-            self.np_path,
-            self.density_path,
-            self.orbitals_path,
-            self.density_n_samp,
-            subidx,
-            self.required_properties,
-            self.centered,
-            self.radial_coeffs_file,
-            self.grid_fn,
-            self.sampling_fn,
-            self.dtype
+            np_path=self.np_path,
+            desnity_path=self.density_path,
+            orbitals_path=self.orbitals_path,
+            density_n_samp=self.density_n_samp,
+            subset=subidx,
+            required_propertie=self.required_properties,
+            center_positions=self.centered_positions,
+            radial_coeffs_file=self.radial_coeffs_file,
+            grid_fn=self.grid_fn,
+            sampling_fn=self.sampling_fn,
+            dtype=self.dtype,
+            grid_extent=self.grid_extent,
+            grid_origin=self.grid_origin,
+            fixed_properties=self.fixed_properties,
         )
 
     def __len__(self):
@@ -157,6 +162,9 @@ class AtomsDensityData(Dataset):
         if self.subset is not None:
             idx = self.subset[idx]
         return idx
+
+    def center_energy(self, energy_mean):
+        self.atoms['energy'] -= energy_mean
 
     def get_properties(self, idx):
         idx = self._subset_index(idx)
@@ -186,7 +194,7 @@ class AtomsDensityData(Dataset):
         properties['idx'] = idx
         properties['ions'] = [self.ions[i] for i in idx]
         # print('positions', positions)
-        if self.centered:
+        if self.centered_positions:
             # print('atom center', positions.mean(axis=0))
             positions -= positions.mean(axis=0)
         properties['positions'] = torch.from_numpy(positions).type(self.dtype)

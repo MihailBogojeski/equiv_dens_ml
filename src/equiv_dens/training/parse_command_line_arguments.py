@@ -114,6 +114,8 @@ def parse_command_line_arguments():
                                help="for better stability at beginning of training: maximum allowed MAE in energy (higher errors are clamped)")
     args_training.add_argument("--max_forces_error", metavar='FLOAT', type=float, default=0.1,
                                help="for better stability at beginning of training: maximum allowed MAE in forces (higher errors are clamped)")
+    args_training.add_argument("--center_energy", metavar='True|False', type=str2bool, default=True,
+                               choices=[True, False], help="set energy mean to zero.")
     args_training.add_argument("--clip_norm", metavar='FLOAT', type=float, default=0.0,
                                help="gradient clip norm (only when --use_gradient_clipping is active)")
     args_training.add_argument("--use_parameter_averaging", metavar='True|False', type=str2bool, default=True,

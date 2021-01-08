@@ -116,7 +116,9 @@ class ExponentialBernsteinRadialBasisFunctions(nn.Module):
     def forward(self, r):
         alpha = F.softplus(self._alpha)
         x = -alpha * r
+        # print('rbf x', x)
         x = self.logc + self.n * x + self.v * torch.log(-torch.expm1(x))
+        # print('rbf x', x)
         rbf = cutoff_function(r, self.cutoff) * torch.exp(x)
         return rbf
 
