@@ -215,7 +215,7 @@ class SimpleEnergyNetwork(nn.Module):
             # print('fs intermediate', fs)
             fs = self.out_activation(layer(fs))
         atom_en = self.energy_output(self.out_activation(fs))
-        # print('atom en', atom_en)
+        print('atom en shape', atom_en.shape)
 
         energy = torch.sum(atom_en, dim=1)
 
