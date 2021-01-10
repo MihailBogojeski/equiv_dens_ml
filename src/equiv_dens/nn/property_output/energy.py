@@ -214,11 +214,12 @@ class SimpleEnergyNetwork(nn.Module):
         for layer in self.transofrmation_layers:
             # print('fs intermediate', fs)
             fs = self.out_activation(layer(fs))
-        atom_en = self.energy_output(self.out_activation(fs))
-        # print('atom en', atom_en)
+        atom_en = self.energy_output(self.out_activation(fs)).squeeze()
+        # print('atom en shape', atom_en.shape)
 
-        energy = torch.sum(atom_en, dim=1)
+        energy = torch.sum(atom_en, dim=1, keepdim=True)
 
+        # print('energy shape', energy.shape)
         atoms['energy'] = energy
         if self.calculate_forces:
             forces = -torch.autograd.grad(torch.sum(energy), atoms['positions'], create_graph=self.create_graph)[0]
