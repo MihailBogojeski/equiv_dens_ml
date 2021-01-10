@@ -148,7 +148,7 @@ class DensityCoeffsNetwork(nn.Module):
     def forward(self, atoms):
         fs = atoms['sph_repr']
         if self.verbose > 1:
-            print('positions', atoms['positions'])
+            print('distances', atoms['distances'])
             print('fs[0]:', fs[0][:, 0, :, :10])
             print('fs[1]:', fs[1][:, 0, :, :10])
         out_sph = self.spherical_output(fs)

@@ -233,7 +233,8 @@ elif args.energy_model == 'simple':
     print('building simple energy model')
     en_model = SimpleEnergyNetwork(
         orbitals=dataset.orbitals,
-        num_features=args.num_features,
+        num_features=None,
+        num_layers=0,
         activation=args.activation,
         calculate_forces=calculate_forces)
 else:
@@ -261,7 +262,9 @@ if args.energy_model is not None:
     property_models['energy'] = en_model
     calculate_forces_dict['energy'] = calculate_forces
 
+print('property models', property_models)
 model = DFTNetwork(density_model, property_models, calculate_forces_dict=calculate_forces_dict, verbose=args.verbose)
+print('dft network', model)
 
 # if there are multiple GPUs, wrap the model in DataParallel
 # "module" is used whenever direct access is needed, e.g. for parameters,

@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from equiv_dens.nn.modules.radial_basis_functions import BernsteinRadialBasisFunctions, GaussianRadialBasisFunctions,\
     ExponentialBernsteinRadialBasisFunctions, ExponentialGaussianRadialBasisFunctions
 from equiv_dens.nn.modules.embeddings import SphericalEmbedding
@@ -141,6 +142,14 @@ class EquivariantSphericalHarmonics(nn.Module):
         # print('dij', dij)
         rbf = self.radial_basis_functions(dij).unsqueeze_(-2)  # unsqueeze for broadcasting
         # print('rbf shape', rbf.shape)
+        # print('rbf', rbf)
+        rbf = rbf**10
+        # print('rbf power', rbf)
+        rbf = rbf / torch.sum(rbf, dim=-1, keepdim=True)
+        # print('rbf power scale', rbf)
+        # print('rbf shape', rbf.shape)
+        # print('rbf sum', torch.sum(rbf, dim=-1))
+        # print('rbf softmax', F.softmax(rbf, dim=-1))
         sph = spherical_harmonics(self.order, uij)
         # print('sph', sph)
         atoms['distances'] = dij

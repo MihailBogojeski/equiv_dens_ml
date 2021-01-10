@@ -156,6 +156,7 @@ class SimpleEnergyNetwork(nn.Module):
     def __init__(self,
                  orbitals=None,
                  num_features=32,
+                 num_layers=5,
                  calculate_forces=False,
                  activation='swish',
                  ):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
@@ -172,7 +173,7 @@ class SimpleEnergyNetwork(nn.Module):
         self.num_features = num_features
 
         self.order_max = get_max_order(self.orbitals)
-        self.activation = activation 
+        self.activation = activation
 
         self.orbital_spec, _ = combine_orbitals(self.orbitals, self.order_max)
         self.dens_features = 0
@@ -183,9 +184,13 @@ class SimpleEnergyNetwork(nn.Module):
             if curr_feats > self.dens_features:
                 self.dens_features = curr_feats
         self.dens_features *= 3
+        if self.num_features is None:
+            self.num_features = self.dens_features
 
         if self.num_features != self.dens_features:
             self.input_layer = nn.Linear(self.dens_features, self.num_features)
+
+        self.transofrmation_layers = nn.ModuleList([nn.Linear(self.num_features, self.num_features) for i in range(num_layers)])
 
         if self.activation == 'swish':
             self.out_activation = Swish(self.num_features)
@@ -199,11 +204,18 @@ class SimpleEnergyNetwork(nn.Module):
 
     def forward(self, atoms):
         # initialize atomic features to embeddings
+        # print('sph coeffs', atoms['spherical_coeffs'][0][(8, 0)])
         fs = get_invariant_features(atoms, permutational_invariance=False, keep_dims=True)
+        # print('invariant_features', fs)
+        # print('fs.shape', fs.shape)
 
         if self.num_features != self.dens_features:
             fs = self.input_layer(fs)
+        for layer in self.transofrmation_layers:
+            # print('fs intermediate', fs)
+            fs = self.out_activation(layer(fs))
         atom_en = self.energy_output(self.out_activation(fs))
+        # print('atom en', atom_en)
 
         energy = torch.sum(atom_en, dim=1)
 

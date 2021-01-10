@@ -268,10 +268,11 @@ class Trainer:
 
         # forward step
         predictions = self._model(data)
-        print('train density intergal', torch.sum(predictions['density'] * predictions['coord_weights'], dim=1))
+        if 'density' in predictions.keys():
+            print('train density intergal', torch.sum(predictions['density'] * predictions['coord_weights'], dim=1))
         if 'energy' in predictions.keys():
-            print('pred energy', predictions['energy'])
-            print('true energy', data['energy'])
+            print('pred energy', predictions['energy'].view((-1, )))
+            print('true energy', data['energy'].view((-1, )))
         errors = self.error_dict.compute(predictions, data)
 
         # backward step
@@ -313,10 +314,11 @@ class Trainer:
             # forward step
             predictions = self._model(data)
             # print('energy pred', predictions['energy'])
-            print('valid density intergal', torch.sum(predictions['density'] * predictions['coord_weights'], dim=1))
+            if 'density' in predictions.keys():
+                print('valid density intergal', torch.sum(predictions['density'] * predictions['coord_weights'], dim=1))
             if 'energy' in predictions.keys():
-                print('pred energy', predictions['energy'])
-                print('true energy', data['energy'])
+                print('pred energy', predictions['energy'].view((-1, )))
+                print('true energy', data['energy'].view((-1, )))
 
             # print('spherical density integral', torch.sum(predictions['density'] * data['coord_weights'], dim=-1))
             # compute error metrics
