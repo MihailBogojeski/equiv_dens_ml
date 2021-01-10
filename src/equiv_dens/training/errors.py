@@ -36,6 +36,10 @@ class ErrorDict:
                     error_dict[key + "_rmse"] = loss
                 else:
                     diff = predictions[key] - (data[key])
+                    # print('error key', key)
+                    # print('pred.shape', predictions[key].shape)
+                    # print('data.shape', data[key].shape)
+                    # print('diff.shape', diff.shape)
                     if key == "density" and coord_weights is not None:
                         balanced_weights = torch.sign(coord_weights)\
                             * torch.abs(coord_weights) ** (1 / self.weights_balance)
