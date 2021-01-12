@@ -199,11 +199,10 @@ class Trainer:
                 print('validation')
                 new_valid = True
                 self._module.eval()
-                with torch.no_grad():
-                    for i, valid_data_loader in enumerate(self.validation_loaders):
-                        self.valid_errors[i], is_best = self._validate(valid_data_loader, device, check_best=self.valid_check_best[i])
-                        if self.valid_check_best[i]:
-                            new_best = is_best
+                for i, valid_data_loader in enumerate(self.validation_loaders):
+                    self.valid_errors[i], is_best = self._validate(valid_data_loader, device, check_best=self.valid_check_best[i])
+                    if self.valid_check_best[i]:
+                        new_best = is_best
                 self._module.train()
 
             # write summary to console

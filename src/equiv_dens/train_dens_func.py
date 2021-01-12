@@ -264,7 +264,7 @@ if args.energy_model is not None:
 
 print('property models', property_models)
 model = DFTNetwork(density_model, property_models, calculate_forces_dict=calculate_forces_dict, verbose=args.verbose)
-print('dft network', model)
+# print('dft network', model)
 
 # if there are multiple GPUs, wrap the model in DataParallel
 # "module" is used whenever direct access is needed, e.g. for parameters,
