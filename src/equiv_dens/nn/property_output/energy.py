@@ -136,9 +136,9 @@ class ComplexEnergyNetwork(nn.Module):
             xs, ys = module(xs, rbf, sph, self.idx_i, self.idx_j)
             fs[0] += ys[0]  # add contributions to output features
 
-        atom_en = self.energy_output(self.out_activation(fs[0]))
+        atom_en = self.energy_output(self.out_activation(fs[0])).squeeze()
 
-        energy = torch.sum(atom_en, dim=1)
+        energy = torch.sum(atom_en, dim=1, keepdim=True)
 
         atoms['energy'] = energy
         if self.calculate_forces:

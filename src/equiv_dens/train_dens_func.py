@@ -233,8 +233,8 @@ elif args.energy_model == 'simple':
     print('building simple energy model')
     en_model = SimpleEnergyNetwork(
         orbitals=dataset.orbitals,
-        num_features=None,
-        num_layers=0,
+        num_features=args.num_features,
+        num_layers=2,
         activation=args.activation,
         calculate_forces=calculate_forces)
 else:
