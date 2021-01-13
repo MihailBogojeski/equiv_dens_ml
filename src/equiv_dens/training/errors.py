@@ -10,10 +10,22 @@ class ErrorDict:
     """
     def __init__(self, loss_weights, weights_balance=1,
                  percentage_error=True,
-                 max_errors=None):
+                 max_errors=None,
+                 weights_decay=None,
+                 weights_min=None):
         self.loss_weights = loss_weights
         self.weights_balance = weights_balance
         self.percentage_error = percentage_error
+        self.weights_decay = weights_decay
+        self.weights_min = weights_min
+        if self.weights_decay is None:
+            self.weights_decay = {}
+            for key in self.loss_weights.keys():
+                self.weights_decay[key] = 1.0
+        if self.weights_min is None:
+            self.weights_min = {}
+            for key in self.loss_weights.keys():
+                self.weights_min[key] = self.loss_weights[key]
         if max_errors is None:
             self.max_errors = {key: np.inf for key in self.loss_weights.keys()}
         else:
