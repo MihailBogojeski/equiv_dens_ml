@@ -109,7 +109,8 @@ class Trainer:
             'optimizers_state_dict': [optimizer.state_dict() for optimizer in self.optimizers],
             'schedulers_state_dict': [scheduler.state_dict() for scheduler in self.schedulers],
             'exponential_moving_average': (self.exponential_moving_average.ema
-                                           if self.exponential_moving_average is not None else None)
+                                           if self.exponential_moving_average is not None else None),
+            'error_dict': self.error_dict,
         }, os.path.join(self.checkpoint_path, 'latest_checkpoint.pth'))
         self.summary.add_text('checkpoints', 'saved checkpoint', self.step)
 
@@ -148,6 +149,7 @@ class Trainer:
         self.best_errors = checkpoint['best_errors']
         self.valid_errors = checkpoint['valid_errors']
         self._module.load_state_dict(checkpoint['model_state_dict'])
+        self.error_dict = checkpoint['error_dict']
         for i in range(len(self.optimizers)):
             self.optimizers[i].load_state_dict[checkpoint['optimizers_state_dict'][i]]
         for i in range(len(self.schedulers)):
@@ -225,6 +227,9 @@ class Trainer:
 
             # increment step counter
             self.step += 1
+            for key in self.error_dict.loss_weights.keys():
+                if self.error_dict.loss_weights[key] > self.error_dict.weights_min['key']:
+                    self.error_dict.loss_weights[key] *= self.error_dict.weights_decay[key]
 
             # save checkpoint (always the last step)
             if self.step % self.checkpoint_interval == 0:
