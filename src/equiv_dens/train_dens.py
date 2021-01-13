@@ -263,6 +263,7 @@ trainer = Trainer(model_path=directory, model=model, error_dict=error_dict,
                   clip_norm=args.clip_norm,
                   stop_at_learning_rate=args.stop_at_learning_rate,
                   valid_check_best=[True, False],
+                  verbose=args.verbose,
                   )
 
 trainer.run(args.max_steps, device=device, dtype=args.dtype)

@@ -45,6 +45,7 @@ class Trainer:
         clip_norm=0,
         stop_at_learning_rate=1e-5,
         valid_check_best=None,
+        verbose=0,
     ):
         self.model_path = model_path
         self.model_code = model_path.split('_')[-1]
@@ -62,6 +63,7 @@ class Trainer:
         self.max_steps = max_steps
         self.clip_norm = clip_norm
         self.stop_at_learning_rate = stop_at_learning_rate
+        self.verbose = verbose
         if valid_check_best is None:
             self.valid_check_best = [False] * len(validation_loaders)
             self.valid_check_best[0] = True
@@ -196,7 +198,8 @@ class Trainer:
             self._train_step(device)
             # run validation each validation_interval
             if self.step % self.validation_interval == 0:
-                print('validation')
+                if self.verbose > 0:
+                    print('validation')
                 new_valid = True
                 self._module.eval()
                 for i, valid_data_loader in enumerate(self.validation_loaders):
@@ -235,7 +238,9 @@ class Trainer:
                     stop_training = stop_training and (
                         param_group['lr'] < self.stop_at_learning_rate)
             if self.step > self.max_steps:
-                stop_training = True
+                print('Reached maximum number of steps! Training stopped.')
+                break
+
             if stop_training:
                 print("Learning rate is smaller than " +
                       str(self.stop_at_learning_rate) + "! Training stopped.")
@@ -267,11 +272,12 @@ class Trainer:
 
         # forward step
         predictions = self._model(data)
-        if 'density' in predictions.keys():
-            print('train density intergal', torch.sum(predictions['density'] * predictions['coord_weights'], dim=1))
-        if 'energy' in predictions.keys():
-            print('pred energy', predictions['energy'].view((-1, )))
-            print('true energy', data['energy'].view((-1, )))
+        if self.verbose > 0:
+            if 'density' in predictions.keys():
+                print('train density intergal', torch.sum(predictions['density'] * predictions['coord_weights'], dim=1))
+            if 'energy' in predictions.keys():
+                print('pred energy', predictions['energy'].view((-1, )))
+                print('true energy', data['energy'].view((-1, )))
         errors = self.error_dict.compute(predictions, data)
 
         # backward step
@@ -313,11 +319,12 @@ class Trainer:
             # forward step
             predictions = self._model(data)
             # print('energy pred', predictions['energy'])
-            if 'density' in predictions.keys():
-                print('valid density intergal', torch.sum(predictions['density'] * predictions['coord_weights'], dim=1))
-            if 'energy' in predictions.keys():
-                print('pred energy', predictions['energy'].view((-1, )))
-                print('true energy', data['energy'].view((-1, )))
+            if self.verbose > 0:
+                if 'density' in predictions.keys():
+                    print('valid density intergal', torch.sum(predictions['density'] * predictions['coord_weights'], dim=1))
+                if 'energy' in predictions.keys():
+                    print('pred energy', predictions['energy'].view((-1, )))
+                    print('true energy', data['energy'].view((-1, )))
 
             # print('spherical density integral', torch.sum(predictions['density'] * data['coord_weights'], dim=-1))
             # compute error metrics

@@ -16,13 +16,11 @@ class DFTNetwork(nn.Module):
         self.density_repr_model = density_repr_model
         self.property_models = nn.ModuleDict(property_model_dict)
         self.verbose = verbose
-        print('calculate forces dict', calculate_forces_dict)
         if calculate_forces_dict is None:
             calculate_forces_dict = {key: False for key in property_model_dict.keys()}
             self.calculate_forces = False
         else:
             self.calculate_forces = np.any(list(calculate_forces_dict.values()))
-        print('calculate forces', self.calculate_forces)
 
         # separate properties that require forces to calculate them first
         self.force_props = [key for key in calculate_forces_dict if calculate_forces_dict[key]]
@@ -48,7 +46,6 @@ class DFTNetwork(nn.Module):
             else:
                 atoms[key] = data[key]
         if self.calculate_forces:
-            print('set requires grad to true')
             atoms['positions'].requires_grad = True
 
         atoms = self.density_repr_model(atoms)
