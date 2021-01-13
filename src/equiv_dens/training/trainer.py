@@ -225,7 +225,7 @@ class Trainer:
             # increment step counter
             self.step += 1
             for key in self.error_dict.loss_weights.keys():
-                if self.error_dict.loss_weights[key] > self.error_dict.weights_min['key']:
+                if self.error_dict.loss_weights[key] > self.error_dict.weights_min[key]:
                     self.error_dict.loss_weights[key] *= self.error_dict.weights_decay[key]
 
             # save checkpoint (always the last step)
