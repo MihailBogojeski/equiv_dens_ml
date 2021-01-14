@@ -150,7 +150,7 @@ weights_min['forces'] = args.forces_weight_min
 weights_min['energy_min'] = args.energy_min_weight_min
 
 error_dict = ErrorDict(loss_weights, weights_balance=args.weights_balance,
-                       percentage_error=args.percentage_error,)
+                       percentage_error=args.percentage_error, weights_decay=weights_decay, weights_min=weights_min)
 # loss_weights['full_hamiltonian'] = args.full_hamiltonian_weight
 # loss_weights['core_hamiltonian'] = args.core_hamiltonian_weight
 # loss_weights['overlap_matrix'] = args.overlap_matrix_weight
