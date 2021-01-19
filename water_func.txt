@@ -3,9 +3,9 @@
 --activation=swish
 --order=6
 --num_features=128
---num_basis_functions=128
+--num_basis_functions=32
 --num_radial_components=4
---num_modules=1
+--num_modules=3
 --num_residual_pre_x=1
 --num_residual_post_x=1
 --num_residual_pre_vi=1
@@ -13,7 +13,7 @@
 --num_residual_post_v=1
 --num_residual_output=1
 --basis_functions=exp-bernstein
---density_subsamples=100000
+--density_subsamples=100000000
 --cutoff=15.0
 --orthonormal_basis=False
 --max_steps=20000
@@ -48,14 +48,14 @@
 --weight_decay=0.0
 --use_gpu=False
 --write_parameter_summaries=False
---validation_interval=30
+--validation_interval=100
 --summary_interval=10
---checkpoint_interval=30
+--checkpoint_interval=100
 --keep_checkpoints=0
 --dtype=torch.float32
 --cube_size=20
 --cube_gap=0.4
---verbose=0
+--verbose=1
 --expansion_constraint=sp
 --integral_constraint=True
 --positive_coeffs=False
@@ -64,4 +64,5 @@
 --weights_balance=1.0
 --percentage_error=True
 --energy_offset=False
---energy_model=True
+--energy_model=False
+--integral_scale=True

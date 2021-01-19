@@ -110,8 +110,9 @@ class DensityCoeffsNetwork(nn.Module):
     """
 
     def compute_orbital_features_num(self):
-        # orbital_counts = torch.zeros(size=(self.order + 1, ))
+        # counts the number of orbitals of each order across all atoms for the given basis
         L_counts = [0 for L in range(2 * self.order + 1)]
+        # contains maximum number of radial components for each order across all atoms for the given basis
         r_max = [0 for L in range(2 * self.order + 1)]
         orbital_dict = {}
         # radial_dict = {}
@@ -147,7 +148,7 @@ class DensityCoeffsNetwork(nn.Module):
 
     def forward(self, atoms):
         fs = atoms['sph_repr']
-        if self.verbose > 1:
+        if self.verbose > 2:
             print('distances', atoms['distances'])
             print('fs[0]:', fs[0][:, 0, :, :10])
             print('fs[1]:', fs[1][:, 0, :, :10])
@@ -178,19 +179,30 @@ class DensityExpansion(nn.Module):
     def __init__(self, orbitals, radial_coeffs=None,
                  expansion_constraint=None,
                  integral_constraint=False,
-                 softmax_norm=False, verbose=0):
+                 softmax_norm=False,
+                 n_electrons=None,
+                 integral_scale=False,
+                 verbose=0,
+                 ):
         super().__init__()
         self.orbitals = orbitals
         self.expansion_constraint = expansion_constraint
         self.integral_constraint = integral_constraint
         self.softmax_norm = softmax_norm
+        if integral_scale:
+            self.register_parameter('integral_scale', nn.Parameter(torch.ones(size=(1,))))
+        else:
+            self.register_buffer('integral_scale', torch.ones(size=(1,)))
         self.verbose = verbose
         if self.verbose:
             print('expansion constraint', self.expansion_constraint)
             print('integral constraint', self.integral_constraint)
 
         self.order_max = get_max_order(self.orbitals)
-        self.n_electrons = get_n_electrons(self.orbitals)
+        if n_electrons is None:
+            self.n_electrons = get_n_electrons(self.orbitals)
+        else:
+            self.n_electrons = n_electrons
 
         self.radial_coeffs = radial_coeffs
         self.orbital_spec, self.radial_counts = combine_orbitals(self.orbitals, self.order_max)
@@ -262,7 +274,7 @@ class DensityExpansion(nn.Module):
                 width = (atoms['radial_width'][i][key] + 1) * self.init_width(i, key)
 
                 scale = atoms['radial_scale'][i][key] + self.init_scale(i, key)
-                if self.verbose > 1:
+                if self.verbose > 2:
                     print('init_width', self.init_width(i, key))
                     print('init_scale', self.init_scale(i, key))
                     print('width', width)
@@ -280,20 +292,25 @@ class DensityExpansion(nn.Module):
                 if i in eval_atoms and L in eval_L:
                     atoms['density'] += torch.sum(rbf * sph, dim=(-2, -1))
         L0_coeffs_comb = torch.cat([coeff.view((coeff.shape[0], -1)) for coeff in L0_coeffs], dim=1)
+        atoms['L0_coeffs'] = L0_coeffs_comb
         if self.integral_constraint:
             if self.softmax_norm:
                 L0_coeffs_comb = F.softmax(L0_coeffs_comb, dim=1)
                 L0_coeffs_comb = L0_coeffs_comb * self.n_electrons
+                L0_coeffs_comb = L0_coeffs_comb * torch.clamp(self.integral_scale, 0.5, 1.5)
+                print('coeffs_sum', torch.sum(L0_coeffs_comb, dim=1, keepdim=True))
             else:
                 coeffs_sum = torch.sum(L0_coeffs_comb, dim=1, keepdim=True)
                 scale_factor = self.n_electrons / coeffs_sum
                 L0_coeffs_comb = L0_coeffs_comb * scale_factor
+                L0_coeffs_comb = L0_coeffs_comb * torch.clamp(self.integral_scale, 0.5, 1.5)
+                print('coeffs_sum', torch.sum(L0_coeffs_comb, dim=1, keepdim=True))
         coeffs_pointer = 0
         if 0 in eval_L:
             for i in range(len(L0_coeffs)):
                 coeffs_size = np.prod(list(L0_coeffs[i].shape[1:]))
                 curr_coeffs = L0_coeffs_comb[:, coeffs_pointer:(coeffs_size + coeffs_pointer)]
-                if self.verbose > 1:
+                if self.verbose > 2:
                     print('curr_coeffs', curr_coeffs)
                     print('curr_coeffs sum', torch.sum(curr_coeffs))
                     print('L0 width', L0_width[i])
@@ -309,11 +326,11 @@ class DensityExpansion(nn.Module):
             atoms['density'] = torch.sqrt(atoms['density']**2)
         if self.expansion_constraint == 'sp':
             dens = atoms['density']
-            if self.verbose > 1:
+            if self.verbose > 2:
                 print('dens int pos before', torch.sum(atoms['density'][dens > 0] * 0.06021670784495335))
                 print('dens int neg before', torch.sum(atoms['density'][dens < 0] * 0.06021670784495335))
             atoms['density'] = F.softplus(atoms['density'], beta=100000000) + 1e-30
-            if self.verbose > 1:
+            if self.verbose > 2:
                 print('dens int pos before', torch.sum(atoms['density'][dens > 0] * 0.06021670784495335))
                 print('dens int neg before', torch.sum(atoms['density'][dens < 0] * 0.06021670784495335))
 

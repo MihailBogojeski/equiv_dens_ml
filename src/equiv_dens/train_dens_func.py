@@ -132,6 +132,13 @@ pseudo_pot.restart(grid=grid, ions=dataset.ions[0])
 
 dataset.add_fixed_properties({'grid': grid_cl, 'dftpy_grid': grid, 'pseudo_pot': pseudo_pot})
 
+z_vals = []
+print('ions0', dataset.ions[0])
+for t in dataset.atoms['atom_types']:
+    z_vals.append(dataset.ions[0].Zval[t])
+z_vals = np.array(z_vals)
+print(dataset.atoms['atom_numbers'])
+print(z_vals)
 # determine weights of different quantities for scaling loss
 loss_weights = {}
 loss_weights['density'] = args.density_weight
@@ -204,8 +211,10 @@ dens_model = DensityCoeffsNetwork(
 expansion_model = DensityExpansion(dataset.orbitals, radial_coeffs=dataset.radial_coeffs,
                                    expansion_constraint=args.expansion_constraint,
                                    integral_constraint=args.integral_constraint,
+                                   integral_scale=args.integral_scale,
                                    verbose=args.verbose,
-                                   softmax_norm=args.softmax_norm)
+                                   softmax_norm=args.softmax_norm, n_electrons=sum(z_vals),
+                                   )
 
 calculate_forces = loss_weights['forces'] > 0
 
@@ -239,13 +248,6 @@ elif args.energy_model == 'simple':
 else:
     args.energy_model = None
 
-z_vals = []
-print('ions0', dataset.ions[0])
-for t in dataset.atoms['atom_types']:
-    z_vals.append(dataset.ions[0].Zval[t])
-z_vals = np.array(z_vals)
-print(dataset.atoms['atom_numbers'])
-print(z_vals)
 functional = LDAFunctional(z_vals, verbose=args.verbose, energy_offset=args.energy_offset, store_energy=(args.energy_model is None))
 
 density_model = nn.Sequential(repr_model, dens_model)

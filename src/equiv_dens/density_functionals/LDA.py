@@ -27,7 +27,7 @@ class LDAFunctional(nn.Module):
         lda_e = lda_en(rho, grid)
         h_e = hartree_en(rho, grid)
         pseudo_e = pseudo_en(rho, grid, v_real)
-        if self.verbose > 0:
+        if self.verbose > 1:
             print('ewald energy', ewald_e)
             print('thomas fermi energy', tf_e)
             print('von weizsacker energy', vw_e)

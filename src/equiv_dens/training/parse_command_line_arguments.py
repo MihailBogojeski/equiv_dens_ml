@@ -58,6 +58,10 @@ def parse_command_line_arguments():
                                   help="type of constraint used on density to ensure positivity")
     args_hyperparams.add_argument("--integral_constraint", metavar='True|False', type=str2bool, default=False,
                                   choices=[True, False], help="constrain density integral to number of electrons")
+    args_hyperparams.add_argument("--integral_scale", metavar='True|False', type=str2bool, default=False,
+                                  choices=[True, False], help="scale density integral by a limited amount")
+    args_hyperparams.add_argument("--integral_min", metavar='FLOAT', type=float, default=None,
+                                  help="Constrain density integral to a minimum value")
     args_hyperparams.add_argument("--cube_size", metavar='INT', type=int, default=50,
                                   help="Size of the cubical grid")
     args_hyperparams.add_argument("--cube_gap", metavar='FLOAT', type=float, default=0.4,
