@@ -6,20 +6,31 @@ import torch
 from dftpy.math_utils import bestFFTsize
 from dftpy.grid import DirectGrid
 import equiv_dens.utils.base as utils
+from pyscf import gto
 
 
-def spherical_grid(mols, level=2):
+def spherical_grid(atoms, level=2):
+    symbols = atoms['atom_types']
+    positions = atoms['positions'][0]
+    mol_dict = list(zip(symbols, positions))
+    print('mol_dict', mol_dict)
+    mol = gto.M(atom=mol_dict)
     print('level', level)
-    grid_spec = gen_grid.gen_atomic_grids(mols[0], radi_method=radi.treutler_ahlrichs, level=level)
+    grid_spec = gen_grid.gen_atomic_grids(mol, radi_method=radi.treutler_ahlrichs, level=level)
     for key in grid_spec.keys():
         grid_spec[key] = (grid_spec[key][0] * utils.to_angstrom, grid_spec[key][1])  # convert Bohr grid to Angstrom
 
     return grid_spec
 
 
-def cubical_grid(mols, nx=125, ny=125, nz=125, resolution=None,
+def cubical_grid(atoms, nx=125, ny=125, nz=125, resolution=None,
                  margin=2, origin=None, extent=[10, 10, 10]):
-    coord = mols[0].atom_coords(unit='Angstrom')  # positions in angstrom
+    symbols = atoms['atom_types']
+    positions = atoms['positions'][0]
+    mol_dict = list(zip(symbols, positions))
+    print('mol_dict', mol_dict)
+    mol = gto.M(atom=mol_dict)
+    coord = mol.atom_coords(unit='Angstrom')  # positions in angstrom
     if extent is None:
         box = np.max(coord, axis=0) - np.min(coord, axis=0) + margin * 2
         box = np.diag(box)
@@ -94,6 +105,9 @@ def cubical_sampling(grid_spec, n_samp, atom_types, pos):
 def dftpy_grid(lattice, gap):
     nr = np.zeros(3, dtype='int32')
     metric = np.dot(lattice.T, lattice)
+    print('lattice', lattice)
+    print('metric', np.sqrt(metric[0, 0]))
+    print('gap', gap)
     for i in range(3):
         nr[i] = int(np.sqrt(metric[i, i]) / gap)
     print('The initial grid size is ', nr)
@@ -106,18 +120,23 @@ def dftpy_grid(lattice, gap):
 
 class CubicalGrid():
 
-    def __init__(self, mols, nx=125, ny=125, nz=125, resolution=None,
+    def __init__(self, atoms, nx=125, ny=125, nz=125, resolution=None,
                  margin=2, origin=None, extent=[10, 10, 10], device='cpu', dtype=torch.double):
         self.device = device
         self.dtype = dtype
+        symbols = atoms['atom_types']
+        positions = atoms['positions'][0]
+        mol_dict = list(zip(symbols, positions))
+        print('mol_dict', mol_dict)
+        mol = gto.M(atom=mol_dict)
         if extent is None:
-            coord = mols[0].atom_coords(unit='Angstrom')  # positions in angstrom
+            coord = mol.atom_coords(unit='Angstrom')  # positions in angstrom
             box = np.max(coord, axis=0) - np.min(coord, axis=0) + margin * 2
             box = np.diag(box)
         else:
             box = np.diag(extent)
         if origin is None:
-            coord = mols[0].atom_coords(unit='Angstrom')  # positions in angstrom
+            coord = mol.atom_coords(unit='Angstrom')  # positions in angstrom
             self.boxorig = np.min(coord, axis=0) - margin
         else:
             self.boxorig = np.array(origin)

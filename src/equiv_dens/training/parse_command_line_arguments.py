@@ -48,6 +48,8 @@ def parse_command_line_arguments():
                                   help="number of residual blocks for refining interaction feature vectors post interaction")
     args_hyperparams.add_argument("--num_residual_output", metavar='INT', type=int, default=1,
                                   help="number of residual blocks for refining output feature vectors")
+    args_hyperparams.add_argument("--num_energy_output", metavar='INT', type=int, default=2,
+                                  help="number of layers for the simple energy output network.")
     args_hyperparams.add_argument("--basis_functions", metavar='STR', type=str, default='exp-bernstein',
                                   choices=['exp-bernstein', 'exp-gaussian', 'bernstein', 'gaussian'], help="which type of basis functions to use")
     args_hyperparams.add_argument("--cutoff", metavar='FLOAT', type=float, default=7.937658158457616,
@@ -64,8 +66,10 @@ def parse_command_line_arguments():
                                   help="Constrain density integral to a minimum value")
     args_hyperparams.add_argument("--cube_size", metavar='INT', type=int, default=50,
                                   help="Size of the cubical grid")
-    args_hyperparams.add_argument("--cube_gap", metavar='FLOAT', type=float, default=0.4,
-                                  help="Spacing between two gridpoints in the cubical grid.")
+    args_hyperparams.add_argument("--cube_extent", metavar='FLOAT', type=float, default=4.1483,
+                                  help="Extent of the cubical grid.")
+    args_hyperparams.add_argument("--cube_origin", metavar='FLOAT', type=float, default=-2.0318,
+                                  help="Origin of the cubical grid.")
     args_hyperparams.add_argument("--energy_offset", metavar='True|False', type=str2bool, default=False,
                                   choices=[True, False],
                                   help="Whether to use an constant offset to adjust energy levels for different functionals")
@@ -80,7 +84,7 @@ def parse_command_line_arguments():
     args_training.add_argument("--dens_dataset", metavar='STR', type=str, help="filepath to density dataset")
     args_training.add_argument("--pseudo_pot_path", metavar='STR', type=str, help="filepath to pseudo potentials")
     args_training.add_argument("--orbitals_file", metavar='STR', type=str, help="filepath to orbital basis")
-    args_training.add_argument("--radial_coeffs_file", metavar='STR', type=str, default='none', help="filepath to initial radial coefficients")
+    args_training.add_argument("--radial_coeffs_file", metavar='STR', type=str, default=None, help="filepath to initial radial coefficients")
     args_training.add_argument("--num_train", metavar='INT', type=int, help="size of training set")
     args_training.add_argument("--num_valid", metavar='INT', type=int, help="size of validation set")
     args_training.add_argument("--density_subsamples", metavar='INT', type=int, default=10000, help="number of grid samples used for evaluating density")
@@ -169,6 +173,10 @@ def parse_command_line_arguments():
         # necessary because None is not properly by argparse (special case)
         if args.restart == 'None':
             args.restart = None
+        if args.dens_dataset == 'None':
+            args.dens_dataset = None
+        if args.radial_coeffs_file == 'None':
+            args.args.radial_coeffs_file = None
         if args.load_from == 'None':
             args.load_from = None
         if args.expansion_constraint == 'None':

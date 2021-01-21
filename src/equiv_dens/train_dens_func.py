@@ -82,13 +82,13 @@ else:
     device = 'cpu'
 
 # load dataset(s)
-print("loading density from" + args.dens_dataset + "...")
+print("loading density from" + str(args.dens_dataset) + "...")
 print("loading atoms from" + args.np_dataset + "...")
 
 # density_file = '/home/mihail/data/water_rot/full_densities.hdf5'
 # np_file = 'h2o_overlap_static.npy'
-grid_origin = -2.0318
-grid_extent = np.array([4.1483, 4.1483, 4.1483])
+grid_origin = args.cube_origin
+grid_extent = np.array([args.cube_extent] * 3)
 cube_grid_fn = partial(cubical_grid, nx=args.cube_size, ny=args.cube_size, nz=args.cube_size,
                        extent=grid_extent,
                        origin=np.array([grid_origin] * 3))
@@ -115,10 +115,14 @@ if args.center_energy:
     energy_mean = dataset.atoms['energy'][train_ind].mean()
     dataset.center_energy(energy_mean)
 
-grid_cl = CubicalGrid(None, nx=args.cube_size, ny=args.cube_size, nz=args.cube_size,
+grid_cl = CubicalGrid(dataset.atoms, nx=args.cube_size, ny=args.cube_size, nz=args.cube_size,
                       origin=[0, 0, 0], extent=utils.angstrom_to_bohr(grid_extent), device=device, dtype=args.dtype)
 
-grid = dftpy_grid(np.diag(utils.angstrom_to_bohr(grid_extent)), args.cube_gap)
+cube_gap = utils.angstrom_to_bohr(args.cube_extent) / args.cube_size
+print('cube_extent', utils.angstrom_to_bohr(args.cube_extent))
+print('cube_size', args.cube_size)
+print('cube_gap', cube_gap)
+grid = dftpy_grid(np.diag(utils.angstrom_to_bohr(grid_extent)), cube_gap)
 # print('grid.lattice', grid.lattice)
 # print('grid size', grid.r.shape)
 # print('ions lattice', dataset.ions[0].pos.cell.lattice)
@@ -242,7 +246,7 @@ elif args.energy_model == 'simple':
     en_model = SimpleEnergyNetwork(
         orbitals=dataset.orbitals,
         num_features=args.num_features,
-        num_layers=2,
+        num_layers=args.num_energy_output,
         activation=args.activation,
         calculate_forces=calculate_forces)
 else:

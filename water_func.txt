@@ -54,7 +54,8 @@
 --keep_checkpoints=0
 --dtype=torch.float32
 --cube_size=20
---cube_gap=0.4
+--cube_extent=4.1483
+--cube_origin=-2.0319
 --verbose=1
 --expansion_constraint=sp
 --integral_constraint=True

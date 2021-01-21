@@ -78,24 +78,26 @@ class AtomsDensityData(Dataset):
         for t in self.atoms['atom_types']:
             self.orbitals.append(orbital_basis[t])
         self.atoms['shifted_positions'] = self.atoms['positions'] - grid_origin
-        calc_results = np.load(density_path, allow_pickle=True)
+        if self.density_path is not None:
+            calc_results = np.load(density_path, allow_pickle=True)
         self.mols = []
         self.coeffs = []
         self.ions = []
         ase_atoms = utils.npy_to_ase(self.atoms['shifted_positions'], self.atoms['atom_types'])
         for i in range(10):
         # for i in range(len(calc_results)):
-            mol_dict, calc_dict = calc_results[i]
-            coeff_dict = {'mo_coeff': calc_dict['mo_coeff'], 'mo_occ': calc_dict['mo_occ']}
-            mol = gto.Mole(**mol_dict)
-            mol.build()
-            self.mols.append(mol)
-            self.coeffs.append(coeff_dict)
+            if self.density_path is not None:
+                mol_dict, calc_dict = calc_results[i]
+                coeff_dict = {'mo_coeff': calc_dict['mo_coeff'], 'mo_occ': calc_dict['mo_occ']}
+                mol = gto.Mole(**mol_dict)
+                mol.build()
+                self.mols.append(mol)
+                self.coeffs.append(coeff_dict)
             a = ase_atoms[i]
             a.set_cell(grid_extent)
             self.ions.append(ase_io.ase2ions(a))
 
-        if radial_coeffs_file != 'none':
+        if radial_coeffs_file is not None:
             self.radial_coeffs = []
             radial_coeffs_atoms = np.load(radial_coeffs_file, allow_pickle=True).item()
             for t in self.atoms['atom_types']:
@@ -103,7 +105,7 @@ class AtomsDensityData(Dataset):
         else:
             self.radial_coeffs = None
 
-        self.grid_spec = grid_fn(self.mols)
+        self.grid_spec = grid_fn(self.atoms)
         self.fixed_properties = fixed_properties
 
         print('finished init')
@@ -148,7 +150,10 @@ class AtomsDensityData(Dataset):
 
     def __len__(self):
         if self.subset is None:
-            return len(self.mols)
+            if len(self.mols) > 0:
+                return len(self.mols)
+            else:
+                return self.atoms['positions'].shape[0]
         return len(self.subset)
 
     def __getitem__(self, idx):
@@ -207,13 +212,14 @@ class AtomsDensityData(Dataset):
     def sample_density(self, idx, sample_coords):
         scaled_sample_coords = sample_coords / param.BOHR  # convert Angstrom grid to Bohr
         dens = torch.zeros((sample_coords.shape[0], sample_coords.shape[1]), dtype=self.dtype)
-        for c, i in enumerate(idx):
-            # print('c, i', c, i)
-            mol = self.mols[i]
-            coeff_dict = self.coeffs[i]
-            ao = numint.eval_ao(mol, scaled_sample_coords[c])
-            rho = numint.eval_rho2(mol, ao, **coeff_dict)
-            dens[c, :] = torch.from_numpy(rho).type(self.dtype)
+        if len(self.mols) > 0:
+            for c, i in enumerate(idx):
+                # print('c, i', c, i)
+                mol = self.mols[i]
+                coeff_dict = self.coeffs[i]
+                ao = numint.eval_ao(mol, scaled_sample_coords[c])
+                rho = numint.eval_rho2(mol, ao, **coeff_dict)
+                dens[c, :] = torch.from_numpy(rho).type(self.dtype)
 
         return dens
 
