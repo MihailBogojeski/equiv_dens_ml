@@ -59,7 +59,7 @@
 --expansion_constraint=sp
 --integral_constraint=True
 --positive_coeffs=False
---softmax_norm=False
+--softmax_norm=True
 --coord_weights=True
 --weights_balance=1.0
 --percentage_error=True
