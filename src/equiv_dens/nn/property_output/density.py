@@ -21,6 +21,7 @@ class DensityCoeffsNetwork(nn.Module):
                  positive_coeffs=False,
                  clebsch_gordan=None,
                  verbose=0,
+                 compressed_extraction=False,
                  ):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
         super().__init__()
 
@@ -34,6 +35,7 @@ class DensityCoeffsNetwork(nn.Module):
         self.num_features = num_features
         self.positive_coeffs = positive_coeffs
         self.verbose = verbose
+        self.compressed_extraction = compressed_extraction
 
         # extract nuclear charges from orbitals, determine maximum order, and
         # build the occupation mask (for extracting occupied orbitals in energy prediction)
@@ -55,7 +57,10 @@ class DensityCoeffsNetwork(nn.Module):
         self.orbital_spec, self.radial_count = combine_orbitals(self.orbitals, self.order_max)
         print('orbital_spec', self.orbital_spec)
 
-        self.L_counts, self.r_max, self.L_dict = self.compute_orbital_features_num()
+        if self.compressed_extraction:
+            self.L_counts, self.r_max, self.L_dict = self.compute_orbital_features_num_compressed()
+        else:
+            self.L_counts, self.r_max, self.L_dict = self.compute_orbital_features_num()
         print('L_counts', self.L_counts)
         print('L_dict', self.L_dict)
         print('max lcounts', max(self.L_counts))
@@ -130,6 +135,42 @@ class DensityCoeffsNetwork(nn.Module):
                     # print('lcounts range', L_counts[L], L_counts[L] + n)
                     orbital_dict[key] = range(L_counts[L], L_counts[L] + n)
                     L_counts[L] += n
+                    # print('rmax L', r_max[L])
+                    # print('rad_c L', rad_c[L])
+                    r_max[L] = max(rad_c[L], r_max[L])
+                    # return one radial function per orbital
+                    # radial function consists of multiple gaussians each with width and factor
+        return L_counts, r_max, orbital_dict
+
+    """
+    Counts how many features of each order are needed to collect the orbital coefficients
+    outputs:
+        matrix: Number of features required for each orbital order
+    """
+
+    def compute_orbital_features_num_compressed(self):
+        # counts the number of orbitals of each order across all atoms for the given basis
+        L_counts = [0 for L in range(2 * self.order + 1)]
+        # contains maximum number of radial components for each order across all atoms for the given basis
+        r_max = [0 for L in range(2 * self.order + 1)]
+        orbital_dict = {}
+        # radial_dict = {}
+        for i in range(len(self.orbital_spec)):
+            z = self.orbital_spec[i][0][0]
+            for j in range(len(self.orbital_spec[i])):
+                orb = self.orbital_spec[i][j]
+                rad_c = self.radial_count[i][j]
+                L = orb[2]
+                n = orb[1]
+                # print('L', L)
+                # print('n', n)
+                key = (z, L)
+                if key not in orbital_dict:
+                    # print('lcounts range', L_counts[L], L_counts[L] + n)
+                    orbital_dict[key] = range(n)
+                    if L_counts[L] < n:
+                        L_counts[L] = n
+                    # L_counts[L] += n
                     # print('rmax L', r_max[L])
                     # print('rad_c L', rad_c[L])
                     r_max[L] = max(rad_c[L], r_max[L])
@@ -298,13 +339,13 @@ class DensityExpansion(nn.Module):
                 L0_coeffs_comb = F.softmax(L0_coeffs_comb, dim=1)
                 L0_coeffs_comb = L0_coeffs_comb * self.n_electrons
                 L0_coeffs_comb = L0_coeffs_comb * torch.clamp(self.integral_scale, 0.5, 1.5)
-                print('coeffs_sum', torch.sum(L0_coeffs_comb, dim=1, keepdim=True))
+                # print('coeffs_sum', torch.sum(L0_coeffs_comb, dim=1, keepdim=True))
             else:
                 coeffs_sum = torch.sum(L0_coeffs_comb, dim=1, keepdim=True)
                 scale_factor = self.n_electrons / coeffs_sum
                 L0_coeffs_comb = L0_coeffs_comb * scale_factor
                 L0_coeffs_comb = L0_coeffs_comb * torch.clamp(self.integral_scale, 0.5, 1.5)
-                print('coeffs_sum', torch.sum(L0_coeffs_comb, dim=1, keepdim=True))
+                # print('coeffs_sum', torch.sum(L0_coeffs_comb, dim=1, keepdim=True))
         coeffs_pointer = 0
         if 0 in eval_L:
             for i in range(len(L0_coeffs)):

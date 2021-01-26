@@ -174,7 +174,8 @@ dens_model = DensityCoeffsNetwork(
     order=args.order,
     num_features=args.num_features,
     positive_coeffs=args.positive_coeffs,
-    clebsch_gordan=clebsch_gordan)
+    clebsch_gordan=clebsch_gordan,
+    compressed_extraction=args.compressed_extraction)
 
 expansion_model = DensityExpansion(dataset.orbitals, radial_coeffs=dataset.radial_coeffs,
                                    expansion_constraint=args.expansion_constraint,

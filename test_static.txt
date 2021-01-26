@@ -53,10 +53,11 @@
 --checkpoint_interval=10
 --keep_checkpoints=0
 --dtype=torch.float32
---expansion_constraint=None
---integral_constraint=False
+--expansion_constraint=sp
+--integral_constraint=True
 --positive_coeffs=False
 --softmax_norm=False
 --coord_weights=True
 --weights_balance=1.0
 --percentage_error=True
+--compressed_extraction=False

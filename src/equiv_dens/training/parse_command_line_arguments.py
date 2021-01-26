@@ -75,6 +75,9 @@ def parse_command_line_arguments():
                                   help="Whether to use an constant offset to adjust energy levels for different functionals")
     args_hyperparams.add_argument("--positive_coeffs", metavar='True|False', type=str2bool, default=True,
                                   choices=[True, False], help="Make the order 0 coefficients always positive.")
+    args_hyperparams.add_argument("--compressed_extraction", metavar='True|False', type=str2bool, default=False,
+                                  choices=[True, False],
+                                  help="Extract the spherical harmonic coefficients from the features in a more compresesd way.")
     args_hyperparams.add_argument("--energy_model", metavar='STR', type=str, default=None,
                                   help="Use a neural network for energy prediction instead of functional.")
     # arguments for training

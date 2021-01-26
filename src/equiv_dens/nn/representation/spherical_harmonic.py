@@ -76,11 +76,9 @@ class EquivariantSphericalHarmonics(nn.Module):
         # build the occupation mask (for extracting occupied orbitals in energy prediction)
         Zl = []
         self.order_max = 0
-        self.Norb = 0
         for i in range(len(self.orbitals)):
             Zl.append(self.orbitals[i][0][0])
             for z, _, l in self.orbitals[i]:
-                self.Norb += 2 * l + 1
                 assert z == Zl[i]  # check that Z is the same for all orbitals
                 if l > self.order_max:
                     self.order_max = l
