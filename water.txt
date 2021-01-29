@@ -17,15 +17,15 @@
 --cutoff=15.0
 --orthonormal_basis=False
 --max_steps=20000
---np_dataset=datasets/h2o_dynamic_centered.npy
---dens_dataset=datasets/h2o_dynamic_pyscf_dft.npy
+--np_dataset=datasets/h2o_dynamic_centered_mid.npy
+--dens_dataset=datasets/h2o_dynamic_pyscf_dft_mid.npy
 --orbitals_file=datasets/augccpvqzjkfit_orbital_basis_df.npy
 --radial_coeffs_file=datasets/augccpvqzjkfit_radial_coeffs_df.npy
 --pseudo_pot_path=pseudo_potentials
---num_train=500
---num_valid=500
---train_batch_size=32
---valid_batch_size=32
+--num_train=50
+--num_valid=50
+--train_batch_size=15
+--valid_batch_size=15
 --num_workers=0
 --split_seed=42
 --optimizer=amsgrad
@@ -40,7 +40,6 @@
 --momentum=0.0
 --density_weight=1.0
 --energy_weight=0.0
---use_gradient_clipping=True
 --clip_norm=1.0
 --use_parameter_averaging=True
 --ema_decay=0.999
@@ -60,3 +59,4 @@
 --positive_coeffs=False
 --softmax_norm=False
 --percentage_error=True
+--compressed_extraction=False

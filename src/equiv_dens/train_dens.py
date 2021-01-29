@@ -69,6 +69,7 @@ else:
 
 max_steps = args.max_steps
 
+print('model code:', model_code)
 # determine whether GPU is used for training
 print('args use gpu', args.use_gpu)
 use_gpu = args.use_gpu and torch.cuda.is_available()

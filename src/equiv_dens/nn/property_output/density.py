@@ -115,6 +115,7 @@ class DensityCoeffsNetwork(nn.Module):
     """
 
     def compute_orbital_features_num(self):
+        print('using expanded extraction')
         # counts the number of orbitals of each order across all atoms for the given basis
         L_counts = [0 for L in range(2 * self.order + 1)]
         # contains maximum number of radial components for each order across all atoms for the given basis
@@ -149,6 +150,7 @@ class DensityCoeffsNetwork(nn.Module):
     """
 
     def compute_orbital_features_num_compressed(self):
+        print('using compressed extraction')
         # counts the number of orbitals of each order across all atoms for the given basis
         L_counts = [0 for L in range(2 * self.order + 1)]
         # contains maximum number of radial components for each order across all atoms for the given basis
