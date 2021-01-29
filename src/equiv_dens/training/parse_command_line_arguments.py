@@ -85,6 +85,8 @@ def parse_command_line_arguments():
     args_training.add_argument("--max_steps", metavar='INT', type=int, help="maximum number of training steps")
     args_training.add_argument("--np_dataset", metavar='STR', type=str, help="filepath to atoms dataset")
     args_training.add_argument("--dens_dataset", metavar='STR', type=str, help="filepath to density dataset")
+    args_training.add_argument("--np_dataset_test", metavar='STR', type=str, help="filepath to atoms test dataset")
+    args_training.add_argument("--dens_dataset_test", metavar='STR', type=str, help="filepath to density test dataset")
     args_training.add_argument("--pseudo_pot_path", metavar='STR', type=str, help="filepath to pseudo potentials")
     args_training.add_argument("--orbitals_file", metavar='STR', type=str, help="filepath to orbital basis")
     args_training.add_argument("--radial_coeffs_file", metavar='STR', type=str, default=None, help="filepath to initial radial coefficients")
@@ -93,6 +95,7 @@ def parse_command_line_arguments():
     args_training.add_argument("--density_subsamples", metavar='INT', type=int, default=10000, help="number of grid samples used for evaluating density")
     args_training.add_argument("--train_batch_size", metavar='INT', type=int, default=1, help="batch size for training")
     args_training.add_argument("--valid_batch_size", metavar='INT', type=int, default=1, help="batch size for validation")
+    args_training.add_argument("--test_batch_size", metavar='INT', type=int, default=1, help="batch size for validation")
     args_training.add_argument("--num_workers", metavar='INT', type=int, default=0, help="number of worker threads for preparing batches")
     args_training.add_argument("--split_seed", metavar='INT', type=int, default=42, help="seed for splitting the dataset in training, validation and test sets")
     args_training.add_argument("--optimizer", metavar='adam|amsgrad|sgd', type=str, default='sgd',
@@ -178,6 +181,10 @@ def parse_command_line_arguments():
             args.restart = None
         if args.dens_dataset == 'None':
             args.dens_dataset = None
+        if args.dens_dataset_test == 'None':
+            args.dens_dataset_test = None
+        if args.np_dataset_test == 'None':
+            args.np_dataset_test = None
         if args.radial_coeffs_file == 'None':
             args.args.radial_coeffs_file = None
         if args.load_from == 'None':
