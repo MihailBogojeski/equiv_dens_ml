@@ -86,6 +86,7 @@ class AtomsDensityData(Dataset):
         ase_atoms = utils.npy_to_ase(self.atoms['shifted_positions'], self.atoms['atom_types'])
         # for i in range(10):
         for i in range(self.atoms['positions'].shape[0]):
+            print('loading sample', i)
             if self.density_path is not None:
                 mol_dict, calc_dict = calc_results[i]
                 coeff_dict = {'mo_coeff': calc_dict['mo_coeff'], 'mo_occ': calc_dict['mo_occ']}

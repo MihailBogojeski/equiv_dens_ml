@@ -18,7 +18,7 @@
 --orthonormal_basis=False
 --max_steps=20000
 --np_dataset=datasets/ethanol_dft_train.npy
---np_dataset_test=datasets/ethanol_dft_train.npy
+--np_dataset_test=datasets/ethanol_dft_test.npy
 --dens_dataset=None
 --dens_dataset_test=None
 --orbitals_file=datasets/augccpvqzjkfit_orbital_basis_df.npy
