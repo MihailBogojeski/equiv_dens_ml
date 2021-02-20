@@ -55,73 +55,21 @@ def gaussian_rbf(r, width, scale, normalize=True):
 
 def get_invariant_features(coeffs, permutational_invariance=True, keep_dims=False):
     # coeffs = model(R=R)
-    sph_coeffs = coeffs['spherical_coeffs']
-    rad_coeffs = coeffs['radial_width']
-    rad_scale = coeffs['radial_scale']
+    sph_coeffs, rad_scale, rad_width = coeffs_dict_to_tensors(coeffs)
+    for L in len(sph_coeffs):
+        sph_coeffs[L] = torch.norm(sph_coeffs[L], dim=-2)
+        rad_scale[L] = torch.norm(rad_scale[L], dim=-2)
+        rad_width[L] = torch.norm(rad_width[L], dim=-2)
 
-    max_order = 0
-    for i in range(len(sph_coeffs)):
-        for key in sph_coeffs[i].keys():
-            if key[1] > max_order:
-                max_order = key[1]
+    all_sph = torch.cat(sph_coeffs, dim=-1)
+    all_width = torch.cat(rad_width, dim=-1)
+    all_scale = torch.cat(rad_scale, dim=-1)
 
-    first_key = list(sph_coeffs[0].keys())[0]
-    batch_size = sph_coeffs[0][first_key].shape[0]
+    invariant_feats = torch.cat([all_sph, all_scale, all_width])
 
-    max_num_coeffs = [0] * (max_order + 1)
-    max_num_radial = [0] * (max_order + 1)
-    # print('max order', model.order_max)
-    for i in range(len(sph_coeffs)):
-        for key in sph_coeffs[i].keys():
-            L = key[1]
-            # print(i, L)
-            if sph_coeffs[i][key].shape[-1] > max_num_coeffs[L]:
-                max_num_coeffs[L] = sph_coeffs[i][key].shape[-1]
-            if rad_coeffs[i][key].shape[-2] > max_num_radial[L]:
-                max_num_radial[L] = rad_coeffs[i][key].shape[-2]
-    # print('max num coeffs', max_num_coeffs)
-    # print('max num radial', max_num_radial)
+    if permutational_invariance:
+        invariant_feats = invariant_feats.sum(dim=1)
 
-    all_sph = [[torch.zeros([batch_size, 1, 1, max_num_coeffs[i]]).to(sph_coeffs[0][first_key])
-               for j in range(len(sph_coeffs))]
-               for i in range(max_order + 1)]
-    all_width = [[torch.zeros([batch_size, 1, max_num_radial[i], max_num_coeffs[i]]).to(sph_coeffs[0][first_key])
-                 for j in range(len(sph_coeffs))]
-                 for i in range(max_order + 1)]
-    all_scale = [[torch.zeros([batch_size, 1, max_num_radial[i], max_num_coeffs[i]]).to(sph_coeffs[0][first_key])
-                 for j in range(len(sph_coeffs))]
-                 for i in range(max_order + 1)]
-    # print('all width shapes', [[d.shape for d in sca] for sca in all_scale])
-
-    for i in range(len(sph_coeffs)):
-        for key in sph_coeffs[i].keys():
-            L = key[1]
-            # print('i, ', i, ', key', key)
-            sph_norm = sph_coeffs[i][key].norm(dim=-2, keepdim=True)
-
-            padding = (0, max_num_coeffs[L] - sph_norm.shape[-1])
-            # print('padding', padding)
-            sph_norm = pad(sph_norm, padding)
-            width_pad = pad(rad_coeffs[i][key], padding)
-            scale_pad = pad(rad_scale[i][key], padding)
-            all_sph[L][i] = sph_norm
-            all_width[L][i] = width_pad
-            all_scale[L][i] = scale_pad
-
-    for L in range(max_order + 1):
-        all_sph[L] = torch.stack(all_sph[L], dim=1)
-        all_width[L] = torch.stack(all_width[L], dim=1)
-        all_scale[L] = torch.stack(all_scale[L], dim=1)
-        if permutational_invariance:
-            all_sph[L] = all_sph[L].sum(dim=1)
-            all_width[L] = all_width[L].sum(dim=1)
-            all_scale[L] = all_scale[L].sum(dim=1)
-
-    all_sph = torch.cat(all_sph, dim=-1)
-    all_width = torch.cat(all_width, dim=-1)
-    all_scale = torch.cat(all_scale, dim=-1)
-
-    invariant_feats = torch.cat([all_sph, all_width, all_scale], dim=-1)
     if keep_dims:
         invariant_feats = invariant_feats.squeeze(2)
     else:
@@ -129,10 +77,11 @@ def get_invariant_features(coeffs, permutational_invariance=True, keep_dims=Fals
     return invariant_feats
 
 
-def compress_coefficients(coeffs):
+def coeffs_dict_to_tensors(coeffs):
     sph_coeffs = coeffs['spherical_coeffs']
-    rad_coeffs = coeffs['radial_width']
+    rad_width = coeffs['radial_width']
     rad_scale = coeffs['radial_scale']
+    L_dict = coeffs['L_dict']
 
     max_order = 0
     for i in range(len(sph_coeffs)):
@@ -150,14 +99,13 @@ def compress_coefficients(coeffs):
         for key in sph_coeffs[i].keys():
             L = key[1]
             # print(i, L)
-            if sph_coeffs[i][key].shape[-1] > max_num_coeffs[L]:
-                max_num_coeffs[L] = sph_coeffs[i][key].shape[-1]
-            if rad_coeffs[i][key].shape[-2] > max_num_radial[L]:
-                max_num_radial[L] = rad_coeffs[i][key].shape[-2]
+            if L_dict[key].stop > max_num_coeffs[L]:
+                max_num_coeffs[L] = L_dict[key].stop
+            if rad_scale[i][key].shape[-2] > max_num_radial[L]:
+                max_num_radial[L] = rad_scale[i][key].shape[-2]
     # print('max num coeffs', max_num_coeffs)
     # print('max num radial', max_num_radial)
 
-    max_coeffs_all = max(max_num_coeffs)
     all_sph = [[torch.zeros([batch_size, 1, (2 * i) + 1, max_num_coeffs[i]]).to(sph_coeffs[0][first_key])
                for j in range(len(sph_coeffs))]
                for i in range(max_order + 1)]
@@ -171,17 +119,12 @@ def compress_coefficients(coeffs):
     for i in range(len(sph_coeffs)):
         for key in sph_coeffs[i].keys():
             L = key[1]
+            inds = L_dict[key]
             # print('i, ', i, ', key', key)
-            sph_tensor = sph_coeffs[i][key]
-
-            padding = (0, max_coeffs_all - sph_tensor.shape[-1])
             # print('padding', padding)
-            sph_pad = pad(sph_tensor, padding)
-            width_pad = pad(rad_coeffs[i][key], padding)
-            scale_pad = pad(rad_scale[i][key], padding)
-            all_sph[L][i] = sph_pad
-            all_width[L][i] = width_pad
-            all_scale[L][i] = scale_pad
+            all_sph[L][i][..., inds] = sph_coeffs[i][key]
+            all_width[L][i][..., inds] = rad_width[i][key]
+            all_scale[L][i][..., inds] = rad_scale[i][key]
 
     for L in range(max_order + 1):
         all_sph[L] = torch.stack(all_sph[L], dim=1)
@@ -189,4 +132,3 @@ def compress_coefficients(coeffs):
         all_scale[L] = torch.stack(all_scale[L], dim=1)
 
     return all_sph, all_scale, all_width
-

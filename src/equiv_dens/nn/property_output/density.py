@@ -210,6 +210,11 @@ class DensityCoeffsNetwork(nn.Module):
             out_scale[L] = out_scale[L].view(*out_scale[L].shape[:-2], self.r_max[L], self.L_counts[L])
         atoms['spherical_coeffs'], atoms['radial_width'], atoms['radial_scale'] =\
             self.extract_coefficients(out_sph, out_width, out_scale)
+        print('out sph[1][0]', out_sph[1][:, 0, :])
+        print('spherical_coeffs[1][0]', atoms['spherical_coeffs'][0][(8, 1)])
+        print('out sph[1][0]', out_sph[1][:, 1, :])
+        print('spherical_coeffs[1][0]', atoms['spherical_coeffs'][1][(1, 1)])
+        atoms['L_dict'] = self.L_dict
 
         return atoms
 
@@ -315,8 +320,8 @@ class DensityExpansion(nn.Module):
                 L = orb[2]
                 key = (z, L)
                 width = (atoms['radial_width'][i][key] + 1) * self.init_width(i, key)
-
-                scale = atoms['radial_scale'][i][key] + self.init_scale(i, key)
+                zero_scale = (self.init_scale(i, key) != 0).to(atoms['radial_scale'][i][key])
+                scale = (atoms['radial_scale'][i][key] + self.init_scale(i, key)) * zero_scale
                 if self.verbose > 2:
                     print('init_width', self.init_width(i, key))
                     print('init_scale', self.init_scale(i, key))

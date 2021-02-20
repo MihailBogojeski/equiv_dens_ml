@@ -3,9 +3,8 @@ import torch.nn as nn
 from equiv_dens.nn.modules.network_blocks import ModularBlock
 from equiv_dens.nn.modules.radial_basis_functions import BernsteinRadialBasisFunctions,\
     GaussianRadialBasisFunctions, ExponentialBernsteinRadialBasisFunctions, ExponentialGaussianRadialBasisFunctions
-from equiv_dens.nn.modules.spherical_harmonic_layers import SphericalLinear
 from equiv_dens.nn.modules.activations import Swish, ShiftedSoftplus
-from equiv_dens.utils.orbitals import combine_orbitals, get_invariant_features, get_max_order
+from equiv_dens.utils.orbitals import combine_orbitals, get_invariant_features, get_max_order, coeffs_dict_to_tensors
 from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
 
 
@@ -182,7 +181,7 @@ class SimpleEnergyNetwork(nn.Module):
         for i in range(len(self.orbital_spec)):
             curr_feats = 0
             for orb in self.orbital_spec[i]:
-                curr_feats += orb[1]
+                curr_feats += 1
             if curr_feats > self.dens_features:
                 self.dens_features = curr_feats
         self.dens_features *= 3
@@ -261,6 +260,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
                  activation='swish',
                  clebsch_gordan=None,  # instance of the clebsch gordan matrix
                  calculate_forces=False,
+                 compressed_extraction=False,
                  ):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
         super().__init__()
 
@@ -286,6 +286,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
         self.basis_functions = basis_functions
         self.cutoff = cutoff
         self.activation = activation
+        self.compressed_extraction = compressed_extraction
 
         N = len(self.orbitals)
         idx_i = torch.arange(N, dtype=torch.int64).view(-1, 1).repeat(1, N).view(-1)
@@ -297,13 +298,24 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
 
         self.order_max = get_max_order(self.orbitals)
         self.orbital_spec, _ = combine_orbitals(self.orbitals, self.order_max)
-        self.dens_features = 0
+        self.dens_features = [0] * (self.order_max + 1)
+        seen_z = []
         for i in range(len(self.orbital_spec)):
-            curr_feats = 0
+            curr_feats = [0] * (self.order_max + 1)
+            z = self.orbital_spec[i][0][0]
             for orb in self.orbital_spec[i]:
-                curr_feats += orb[1]
-            if curr_feats > self.dens_features:
-                self.dens_features = curr_feats
+                L = orb[2]
+                curr_feats[L] += 1
+
+            if self.compressed_extraction:
+                if z not in seen_z:
+                    seen_z.append(z)
+                    for L in range(len(curr_feats)):
+                        self.dens_features[L] += curr_feats[L]
+            else:
+                for L in range(len(curr_feats)):
+                    if curr_feats[L] > self.dens_features[L]:
+                        self.dens_features[L] = curr_feats[L]
 
         if clebsch_gordan is None:
             self.clebsch_gordan = ClebschGordanMatrix()
@@ -327,9 +339,9 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
             print("basis function type:",
                   self.basis_functions, "is not supported")
 
-        self.combine_LO_features = nn.Linear(self.dens_features * 3, self.num_features)
-        if self.num_features != self.dens_features:
-            self.input_layer = SphericalLinear(self.order, self.dens_features, self.order_max + 1, self.num_features, self.clebsch_gordan)
+        self.radial_scale_filters = nn.ParameterList([nn.Parameter(torch.ones(1, df_num)) for df_num in self.dens_features])
+        self.radial_width_filters = nn.ParameterList([nn.Parameter(torch.ones(1, df_num)) for df_num in self.dens_features])
+        self.input_layer = nn.ModuleList([nn.Linear(df_num, self.num_features) for df_num in self.dens_features])
         self.module = nn.ModuleList([ModularBlock(self.order, self.num_features, self.num_basis_functions,
                                                   self.num_residual_pre_x, self.num_residual_post_x, self.num_residual_pre_vi,
                                                   self.num_residual_pre_vj, self.num_residual_post_v, self.num_residual_output,
@@ -347,17 +359,23 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
 
     def forward(self, atoms):
         # initialize atomic features to embeddings
-        xs = get_invariant_features(atoms, permutational_invariance=False, keep_dims=True)
+        sph_fs, scale_fs, width_fs = coeffs_dict_to_tensors(atoms, permutational_invariance=False, keep_dims=True)
         dij = atoms['distances']
         sph = atoms['sph']
         # print('dij shape', dij.shape)
         # print('uij shape', uij.shape)
         # print('R shape', R.shape)
         rbf = self.radial_basis_functions(dij).unsqueeze_(-2)  # unsqueeze for broadcasting
+        xs = []
+        for L in range(len(scale_fs)):
+            scale_fs[L] = scale_fs[L] * self.radial_scale_filters[L]
+            width_fs[L] = width_fs[L] * self.radial_width_filters[L]
+            radial_comb = self.activation(scale_fs[L] * width_fs[L])
+            xs.append(sph_fs[L] * radial_comb)
 
         if self.num_features != self.dens_features:
-            xs = self.input_layer(xs)
-        xs = [xs]
+            for L in range(len(xs)):
+                xs[L] = self.input_layer[L](xs[L])
 
         # perform iterations over modular building blocks to get environment - dependent features
         fs = [torch.zeros_like(x) for x in xs]  # output features
