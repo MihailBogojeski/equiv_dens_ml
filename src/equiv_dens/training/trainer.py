@@ -273,9 +273,6 @@ class Trainer:
         for optimizer in self.optimizers:
             optimizer.zero_grad()
 
-        # with torch.autograd.set_detect_anomaly(True):  # TODO!!! TURN THIS OFF AGAIN
-
-        # forward step
         predictions = self._model(data)
         if self.verbose > 0:
             if 'density' in predictions.keys():

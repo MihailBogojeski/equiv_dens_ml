@@ -38,6 +38,7 @@ class ComplexEnergyNetwork(nn.Module):
                  # type of activation function used (swish / ssp)
                  activation='swish',
                  calculate_forces=False,
+                 compressed_extraction=False,
                  ):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
         super().__init__()
 
@@ -62,6 +63,7 @@ class ComplexEnergyNetwork(nn.Module):
         self.basis_functions = basis_functions
         self.cutoff = cutoff
         self.activation = activation
+        self.compressed_extraction = compressed_extraction
 
         N = len(self.orbitals)
         idx_i = torch.arange(N, dtype=torch.int64).view(-1, 1).repeat(1, N).view(-1)
@@ -74,12 +76,18 @@ class ComplexEnergyNetwork(nn.Module):
         self.order_max = get_max_order(self.orbitals)
         self.orbital_spec, _ = combine_orbitals(self.orbitals, self.order_max)
         self.dens_features = 0
+        seen_zs = []
         for i in range(len(self.orbital_spec)):
             curr_feats = 0
             for orb in self.orbital_spec[i]:
                 curr_feats += orb[1]
-            if curr_feats > self.dens_features:
-                self.dens_features = curr_feats
+            if self.compressed_extraction:
+                if curr_feats > self.dens_features:
+                    self.dens_features = curr_feats
+            else:
+                if orb[0] not in seen_zs:
+                    self.dens_features += curr_feats
+                    seen_zs.append(orb[0])
         self.dens_features *= 3
 
         # extract nuclear charges from orbitals, determine maximum order, and
@@ -160,6 +168,7 @@ class SimpleEnergyNetwork(nn.Module):
                  num_layers=5,
                  calculate_forces=False,
                  activation='swish',
+                 compressed_extraction=False,
                  ):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
         super().__init__()
 
@@ -168,6 +177,7 @@ class SimpleEnergyNetwork(nn.Module):
         self.create_graph = True  # can be set to False if the NN is only used for inference
 
         self.calculate_forces = calculate_forces
+        self.compressed_extraction = compressed_extraction
 
         # store hyperparameter values
         self.orbitals = orbitals
@@ -178,12 +188,18 @@ class SimpleEnergyNetwork(nn.Module):
 
         self.orbital_spec, _ = combine_orbitals(self.orbitals, self.order_max)
         self.dens_features = 0
+        seen_zs = []
         for i in range(len(self.orbital_spec)):
             curr_feats = 0
             for orb in self.orbital_spec[i]:
-                curr_feats += 1
-            if curr_feats > self.dens_features:
-                self.dens_features = curr_feats
+                curr_feats += orb[1]
+            if self.compressed_extraction:
+                if curr_feats > self.dens_features:
+                    self.dens_features = curr_feats
+            else:
+                if orb[0] not in seen_zs:
+                    self.dens_features += curr_feats
+                    seen_zs.append(orb[0])
         self.dens_features *= 3
         if self.num_features is None:
             self.num_features = self.dens_features
@@ -207,7 +223,6 @@ class SimpleEnergyNetwork(nn.Module):
         # initialize atomic features to embeddings
         # print('sph coeffs', atoms['spherical_coeffs'][0][(8, 0)])
         fs = get_invariant_features(atoms, permutational_invariance=False, keep_dims=True)
-        # print('invariant_features', fs)
         # print('fs.shape', fs.shape)
 
         if self.num_features != self.dens_features:

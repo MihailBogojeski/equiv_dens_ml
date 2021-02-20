@@ -56,16 +56,27 @@ def gaussian_rbf(r, width, scale, normalize=True):
 def get_invariant_features(coeffs, permutational_invariance=True, keep_dims=False):
     # coeffs = model(R=R)
     sph_coeffs, rad_scale, rad_width = coeffs_dict_to_tensors(coeffs)
-    for L in len(sph_coeffs):
-        sph_coeffs[L] = torch.norm(sph_coeffs[L], dim=-2)
-        rad_scale[L] = torch.norm(rad_scale[L], dim=-2)
-        rad_width[L] = torch.norm(rad_width[L], dim=-2)
+    for L in range(len(sph_coeffs)):
+        # avoid calculating norm for zero vectors
+        sph_zeros = (torch.sum(torch.abs(sph_coeffs[L]), dim=-2, keepdim=True) == 0).to(sph_coeffs[L])
+        sph_nz = (1 - sph_zeros).squeeze()
+        scale_zeros = (torch.sum(torch.abs(rad_scale[L]), dim=-2, keepdim=True) == 0).to(sph_coeffs[L])
+        scale_nz = (1 - scale_zeros).squeeze()
+        width_zeros = (torch.sum(torch.abs(rad_width[L]), dim=-2, keepdim=True) == 0).to(sph_coeffs[L])
+        width_nz = (1 - width_zeros).squeeze()
+        sph_coeffs_mod = sph_coeffs[L] + sph_zeros
+        rad_scale_mod = rad_scale[L] + scale_zeros
+        rad_width_mod = rad_width[L] + width_zeros
+
+        sph_coeffs[L] = torch.norm(sph_coeffs_mod, dim=-2) * sph_nz
+        rad_scale[L] = torch.norm(rad_scale_mod, dim=-2) * scale_nz
+        rad_width[L] = torch.norm(rad_width_mod, dim=-2) * width_nz
 
     all_sph = torch.cat(sph_coeffs, dim=-1)
     all_width = torch.cat(rad_width, dim=-1)
     all_scale = torch.cat(rad_scale, dim=-1)
 
-    invariant_feats = torch.cat([all_sph, all_scale, all_width])
+    invariant_feats = torch.cat([all_sph, all_scale, all_width], dim=-1)
 
     if permutational_invariance:
         invariant_feats = invariant_feats.sum(dim=1)
@@ -127,8 +138,8 @@ def coeffs_dict_to_tensors(coeffs):
             all_scale[L][i][..., inds] = rad_scale[i][key]
 
     for L in range(max_order + 1):
-        all_sph[L] = torch.stack(all_sph[L], dim=1)
-        all_width[L] = torch.stack(all_width[L], dim=1)
-        all_scale[L] = torch.stack(all_scale[L], dim=1)
+        all_sph[L] = torch.cat(all_sph[L], dim=1)
+        all_width[L] = torch.cat(all_width[L], dim=1)
+        all_scale[L] = torch.cat(all_scale[L], dim=1)
 
     return all_sph, all_scale, all_width
