@@ -191,7 +191,7 @@ class DensityCoeffsNetwork(nn.Module):
 
     def forward(self, atoms):
         fs = atoms['sph_repr']
-        if self.verbose > 2:
+        if self.verbose > 3:
             print('distances', atoms['distances'])
             print('fs[0]:', fs[0][:, 0, :, :10])
             print('fs[1]:', fs[1][:, 0, :, :10])
@@ -322,7 +322,7 @@ class DensityExpansion(nn.Module):
                 width = (atoms['radial_width'][i][key] + 1) * self.init_width(i, key)
                 zero_scale = (self.init_scale(i, key) != 0).to(atoms['radial_scale'][i][key])
                 scale = (atoms['radial_scale'][i][key] + self.init_scale(i, key)) * zero_scale
-                if self.verbose > 2:
+                if self.verbose > 3:
                     print('init_width', self.init_width(i, key))
                     print('init_scale', self.init_scale(i, key))
                     print('width', width)
@@ -358,7 +358,7 @@ class DensityExpansion(nn.Module):
             for i in range(len(L0_coeffs)):
                 coeffs_size = np.prod(list(L0_coeffs[i].shape[1:]))
                 curr_coeffs = L0_coeffs_comb[:, coeffs_pointer:(coeffs_size + coeffs_pointer)]
-                if self.verbose > 2:
+                if self.verbose > 3:
                     print('curr_coeffs', curr_coeffs)
                     print('curr_coeffs sum', torch.sum(curr_coeffs))
                     print('L0 width', L0_width[i])
@@ -374,11 +374,11 @@ class DensityExpansion(nn.Module):
             atoms['density'] = torch.sqrt(atoms['density']**2)
         if self.expansion_constraint == 'sp':
             dens = atoms['density']
-            if self.verbose > 2:
+            if self.verbose > 3:
                 print('dens int pos before', torch.sum(atoms['density'][dens > 0] * 0.06021670784495335))
                 print('dens int neg before', torch.sum(atoms['density'][dens < 0] * 0.06021670784495335))
             atoms['density'] = F.softplus(atoms['density'], beta=100000000) + 1e-30
-            if self.verbose > 2:
+            if self.verbose > 3:
                 print('dens int pos before', torch.sum(atoms['density'][dens > 0] * 0.06021670784495335))
                 print('dens int neg before', torch.sum(atoms['density'][dens < 0] * 0.06021670784495335))
 

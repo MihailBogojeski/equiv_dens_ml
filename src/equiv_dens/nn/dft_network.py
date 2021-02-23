@@ -39,6 +39,8 @@ class DFTNetwork(nn.Module):
             atoms: Updated dictionary containing the requested predicted properties
         """
 
+        if self.verbose > 2:
+            print('dft network forward:', torch.cuda.memory_summary())
         atoms = {}
         for key in data.keys():
             if isinstance(data[key], torch.Tensor):
@@ -49,13 +51,18 @@ class DFTNetwork(nn.Module):
             atoms['positions'].requires_grad = True
 
         atoms = self.density_repr_model(atoms)
-
+        if self.verbose > 2:
+            print('dft network forward after repr:', torch.cuda.memory_summary())
         # run the models that require forces first, then turn off gradient for the positions
         for key in self.force_props:
             atoms = self.property_models[key](atoms)
+            if self.verbose > 2:
+                print('dft network forward after prop:', key, torch.cuda.memory_summary())
 
         atoms['positions'].requires_grad = False
         for key in self.no_force_props:
             atoms = self.property_models[key](atoms)
+            if self.verbose > 2:
+                print('dft network forward after prop:', key, torch.cuda.memory_summary())
 
         return atoms

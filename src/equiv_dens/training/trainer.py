@@ -283,7 +283,12 @@ class Trainer:
         errors = self.error_dict.compute(predictions, data)
 
         # backward step
+
+        if self.verbose > 2:
+            print('train step before backward:', torch.cuda.memory_summary())
         errors['loss'].backward()
+        if self.verbose > 2:
+            print('train step after backward:', torch.cuda.memory_summary())
 
         # apply gradient clipping
         if self.clip_norm > 0:
@@ -319,7 +324,11 @@ class Trainer:
                     data[key] = data[key].to(device)
 
             # forward step
+            if self.verbose > 2:
+                print('validate before prediction:', torch.cuda.memory_summary())
             predictions = self._model(data)
+            if self.verbose > 2:
+                print('validate after prediction:', torch.cuda.memory_summary())
             # print('energy pred', predictions['energy'])
             if self.verbose > 0:
                 if 'density' in predictions.keys():
