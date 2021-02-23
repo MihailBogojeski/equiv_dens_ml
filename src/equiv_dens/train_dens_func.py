@@ -337,6 +337,8 @@ if args.energy_offset:
 summary = SummaryWriter(logdir=os.path.join(
     directory, 'logs'), purge_step=step)
 
+total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+print('Total params is {}'.format(total_params))
 
 trainer = Trainer(model_path=directory, model=model, error_dict=error_dict,
                   optimizers=optimizers, schedulers=schedulers,
