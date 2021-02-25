@@ -40,9 +40,9 @@ class DFTNetwork(nn.Module):
         """
 
         if self.verbose > 2:
-            print('dft network forward:', torch.cuda.memory_summary())
-            print(torch.cuda.memory_allocated() / 1024**2)
-            print(torch.cuda.memory_cached() / 1024**2)
+            # print('dft network forward:', torch.cuda.memory_summary())
+            print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
+            print('Memory cached', torch.cuda.memory_cached() / 1024**2)
         atoms = {}
         for key in data.keys():
             if isinstance(data[key], torch.Tensor):
@@ -53,18 +53,18 @@ class DFTNetwork(nn.Module):
             atoms['positions'].requires_grad = True
 
         atoms = self.density_repr_model(atoms)
-        if self.verbose > 2:
-            print('dft network forward after repr:', torch.cuda.memory_summary())
+        # if self.verbose > 2:
+        #     print('dft network forward after repr:', torch.cuda.memory_summary())
         # run the models that require forces first, then turn off gradient for the positions
         for key in self.force_props:
             atoms = self.property_models[key](atoms)
-            if self.verbose > 2:
-                print('dft network forward after prop:', key, torch.cuda.memory_summary())
+            # if self.verbose > 2:
+            #     print('dft network forward after prop:', key, torch.cuda.memory_summary())
 
         atoms['positions'].requires_grad = False
         for key in self.no_force_props:
             atoms = self.property_models[key](atoms)
-            if self.verbose > 2:
-                print('dft network forward after prop:', key, torch.cuda.memory_summary())
+            # if self.verbose > 2:
+            #     print('dft network forward after prop:', key, torch.cuda.memory_summary())
 
         return atoms

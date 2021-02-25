@@ -284,11 +284,11 @@ class Trainer:
 
         # backward step
 
-        if self.verbose > 2:
-            print('train step before backward:', torch.cuda.memory_summary())
+        # if self.verbose > 2:
+        #     print('train step before backward:', torch.cuda.memory_summary())
         errors['loss'].backward()
-        if self.verbose > 2:
-            print('train step after backward:', torch.cuda.memory_summary())
+        # if self.verbose > 2:
+        #     print('train step after backward:', torch.cuda.memory_summary())
 
         # apply gradient clipping
         if self.clip_norm > 0:
@@ -318,17 +318,18 @@ class Trainer:
         # run once over the validation set
         valid_errors = self.error_dict.empty()
         for valid_batch_num, data in enumerate(valid_data_loader):
+            start = time.time()
             # send data to GPU
             for key in data.keys():
                 if isinstance(data[key], torch.Tensor):
                     data[key] = data[key].to(device)
 
             # forward step
-            if self.verbose > 2:
-                print('validate before prediction:', torch.cuda.memory_summary())
+            # if self.verbose > 2:
+            #     print('validate before prediction:', torch.cuda.memory_summary())
             predictions = self._model(data)
-            if self.verbose > 2:
-                print('validate after prediction:', torch.cuda.memory_summary())
+            # if self.verbose > 2:
+            #     print('validate after prediction:', torch.cuda.memory_summary())
             # print('energy pred', predictions['energy'])
             if self.verbose > 0:
                 if 'density' in predictions.keys():
@@ -344,6 +345,7 @@ class Trainer:
                 if self.error_dict.loss_weights['energy_min'] == sum(self.error_dict.loss_weights.values()):
                     exclude_energy_min = False
             errors = self.error_dict.compute(predictions, data, exclude_energy_min=exclude_energy_min)
+            print('valid time:', time.time() - start)
 
             # update valid_errors (running average)
             for key in errors.keys():
@@ -369,6 +371,7 @@ class Trainer:
         # swap back to original parameters for training
         if self.exponential_moving_average:
             self.exponential_moving_average.swap()
+
 
             # set model back to training mode
         return valid_errors, is_best

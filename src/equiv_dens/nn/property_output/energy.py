@@ -44,7 +44,6 @@ class ComplexEnergyNetwork(nn.Module):
 
         # variables to control the flow of the forward graph
         # (calculate full_hamiltonian / core_hamiltonian / overlap_matrix / energy / forces?)
-        self.create_graph = True  # can be set to False if the NN is only used for inference
 
         self.calculate_forces = calculate_forces
 
@@ -151,7 +150,7 @@ class ComplexEnergyNetwork(nn.Module):
 
         atoms['energy'] = energy
         if self.calculate_forces:
-            forces = -torch.autograd.grad(torch.sum(energy), atoms['positions'], create_graph=self.create_graph)[0]
+            forces = -torch.autograd.grad(torch.sum(energy), atoms['positions'], create_graph=self.training)[0]
             atoms['forces'] = forces
 
         return atoms
@@ -174,7 +173,6 @@ class SimpleEnergyNetwork(nn.Module):
 
         # variables to control the flow of the forward graph
         # (calculate full_hamiltonian / core_hamiltonian / overlap_matrix / energy / forces?)
-        self.create_graph = True  # can be set to False if the NN is only used for inference
 
         self.calculate_forces = calculate_forces
         self.compressed_extraction = compressed_extraction
@@ -238,7 +236,7 @@ class SimpleEnergyNetwork(nn.Module):
         # print('energy shape', energy.shape)
         atoms['energy'] = energy
         if self.calculate_forces:
-            forces = -torch.autograd.grad(torch.sum(energy), atoms['positions'], create_graph=self.create_graph)[0]
+            forces = -torch.autograd.grad(torch.sum(energy), atoms['positions'], create_graph=self.training)[0]
             atoms['forces'] = forces
 
         return atoms
@@ -281,7 +279,6 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
 
         # variables to control the flow of the forward graph
         # (calculate full_hamiltonian / core_hamiltonian / overlap_matrix / energy / forces?)
-        self.create_graph = True  # can be set to False if the NN is only used for inference
 
         self.calculate_forces = calculate_forces
 
@@ -404,7 +401,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
 
         atoms['energy'] = energy
         if self.calculate_forces:
-            forces = -torch.autograd.grad(torch.sum(energy), atoms['positions'], create_graph=self.create_graph)[0]
+            forces = -torch.autograd.grad(torch.sum(energy), atoms['positions'], create_graph=self.training)[0]
             atoms['forces'] = forces
 
         return atoms
