@@ -41,6 +41,8 @@ class DFTNetwork(nn.Module):
 
         if self.verbose > 2:
             print('dft network forward:', torch.cuda.memory_summary())
+            print(torch.cuda.memory_allocated() / 1024**2)
+            print(torch.cuda.memory_cached() / 1024**2)
         atoms = {}
         for key in data.keys():
             if isinstance(data[key], torch.Tensor):

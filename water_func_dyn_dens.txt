@@ -5,7 +5,7 @@
 --num_features=128
 --num_basis_functions=16
 --num_radial_components=4
---num_modules=3
+--num_modules=2
 --num_residual_pre_x=1
 --num_residual_post_x=1
 --num_residual_pre_vi=1
@@ -63,7 +63,7 @@
 --keep_checkpoints=0
 --dtype=torch.float32
 --cube_size=50
---verbose=0
+--verbose=3
 --expansion_constraint=sp
 --integral_constraint=True
 --positive_coeffs=False
