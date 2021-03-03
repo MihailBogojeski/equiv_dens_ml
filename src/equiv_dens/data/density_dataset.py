@@ -91,7 +91,6 @@ class AtomsDensityData(Dataset):
                 mol_dict, calc_dict = calc_results[i]
                 coeff_dict = {'mo_coeff': calc_dict['mo_coeff'], 'mo_occ': calc_dict['mo_occ']}
                 mol = gto.Mole(**mol_dict)
-                mol.build()
                 self.mols.append(mol)
                 self.coeffs.append(coeff_dict)
             a = ase_atoms[i]
@@ -217,6 +216,9 @@ class AtomsDensityData(Dataset):
             for c, i in enumerate(idx):
                 # print('c, i', c, i)
                 mol = self.mols[i]
+                if not mol._built:
+                    print('building mol', i)
+                    mol.build()
                 coeff_dict = self.coeffs[i]
                 ao = numint.eval_ao(mol, scaled_sample_coords[c])
                 rho = numint.eval_rho2(mol, ao, **coeff_dict)
