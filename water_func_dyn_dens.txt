@@ -63,7 +63,7 @@
 --keep_checkpoints=0
 --dtype=torch.float32
 --cube_size=50
---verbose=3
+--verbose=1
 --expansion_constraint=sp
 --integral_constraint=True
 --positive_coeffs=False

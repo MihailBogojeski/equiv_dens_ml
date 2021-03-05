@@ -4,6 +4,7 @@ from tensorboardX import SummaryWriter
 import math
 import time
 from equiv_dens.training.exponential_moving_average import ExponentialMovingAverage
+import numpy as np
 
 
 class Trainer:
@@ -171,7 +172,7 @@ class Trainer:
 
         if 'cuda' in device and torch.cuda.device_count() > 1:
             self._model = torch.nn.DataParallel(self._model)
-            self.module = self._model.module
+            self._module = self._model.module
         else:
             self._module = self._model
 
@@ -193,6 +194,8 @@ class Trainer:
         new_valid = False
         new_best = False
         start_time = time.time()
+        need_grad = np.any(self._module.calculate_forces_dict.values())
+        print('gradient needed', need_grad)
 
         while self.step < n_steps + 1:
             # get the next batch
@@ -205,7 +208,11 @@ class Trainer:
                 new_valid = True
                 self._module.eval()
                 for i, valid_data_loader in enumerate(self.validation_loaders):
-                    self.valid_errors[i], is_best = self._validate(valid_data_loader, device, check_best=self.valid_check_best[i])
+                    if need_grad:
+                        self.valid_errors[i], is_best = self._validate(valid_data_loader, device, check_best=self.valid_check_best[i])
+                    else:
+                        with torch.no_grad():
+                            self.valid_errors[i], is_best = self._validate(valid_data_loader, device, check_best=self.valid_check_best[i])
                     if self.valid_check_best[i]:
                         new_best = is_best
                 self._module.train()
