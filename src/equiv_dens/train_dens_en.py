@@ -88,7 +88,8 @@ dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_datas
                            required_properties=['density', 'energy', 'forces'],
                            center_positions=False,
                            radial_coeffs_file=args.radial_coeffs_file,
-                           dtype=args.dtype)
+                           dtype=args.dtype,
+                           verbose=args.verbose)
 # split into train / valid / test
 print('dataset len', len(dataset))
 train_dataset, valid_dataset, test_dataset = seeded_random_split(

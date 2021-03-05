@@ -194,8 +194,6 @@ class Trainer:
         new_valid = False
         new_best = False
         start_time = time.time()
-        need_grad = np.any(self._module.calculate_forces_dict.values())
-        print('gradient needed', need_grad)
 
         while self.step < n_steps + 1:
             # get the next batch
@@ -208,7 +206,7 @@ class Trainer:
                 new_valid = True
                 self._module.eval()
                 for i, valid_data_loader in enumerate(self.validation_loaders):
-                    if need_grad:
+                    if self._module.calculate_forces:
                         self.valid_errors[i], is_best = self._validate(valid_data_loader, device, check_best=self.valid_check_best[i])
                     else:
                         with torch.no_grad():

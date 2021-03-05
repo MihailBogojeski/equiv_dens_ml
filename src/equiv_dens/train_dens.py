@@ -94,7 +94,8 @@ dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_datas
                            required_properties=['density'],
                            center_positions=False,
                            radial_coeffs_file=args.radial_coeffs_file,
-                           dtype=args.dtype)
+                           dtype=args.dtype,
+                           verbose=args.verbose)
 # split into train / valid / test
 print('loading_time', time.time() - load_start)
 train_dataset, valid_dataset, test_dataset = seeded_random_split(
@@ -117,7 +118,8 @@ valid_cube_dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args
                                       radial_coeffs_file=args.radial_coeffs_file,
                                       dtype=args.dtype,
                                       grid_fn=cube_grid_fn,
-                                      sampling_fn=cube_sampling_fn)
+                                      sampling_fn=cube_sampling_fn,
+                                      verbose=args.verbose)
 
 valid_cube_dataset = torch.utils.data.Subset(valid_cube_dataset, valid_dataset.indices)
 

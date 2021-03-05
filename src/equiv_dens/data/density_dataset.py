@@ -53,6 +53,7 @@ class AtomsDensityData(Dataset):
         grid_extent=None,
         grid_origin=0,
         fixed_properties={},
+        verbose=0,
     ):
         print('Starting atomsdata density init')
         self.density_path = density_path
@@ -67,6 +68,7 @@ class AtomsDensityData(Dataset):
         self.dtype = dtype
         self.grid_extent = grid_extent
         self.grid_origin = grid_origin
+        self.verbose = verbose
         print('Some variables')
         if required_properties is None:
             self.required_properties = self.available_properties
@@ -86,7 +88,8 @@ class AtomsDensityData(Dataset):
         ase_atoms = utils.npy_to_ase(self.atoms['shifted_positions'], self.atoms['atom_types'])
         # for i in range(10):
         for i in range(self.atoms['positions'].shape[0]):
-            print('loading sample', i)
+            if self.verbose > 3:
+                print('loading sample', i)
             if self.density_path is not None:
                 mol_dict, calc_dict = calc_results[i]
                 coeff_dict = {'mo_coeff': calc_dict['mo_coeff'], 'mo_occ': calc_dict['mo_occ']}
@@ -217,7 +220,8 @@ class AtomsDensityData(Dataset):
                 # print('c, i', c, i)
                 mol = self.mols[i]
                 if not mol._built:
-                    print('building mol', i)
+                    if self.verbose > 3:
+                        print('building mol', i)
                     mol.build()
                 coeff_dict = self.coeffs[i]
                 ao = numint.eval_ao(mol, scaled_sample_coords[c])
