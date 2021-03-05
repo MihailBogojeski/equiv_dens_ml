@@ -17,6 +17,7 @@ from equiv_dens.data.hamiltonian_dataset import seeded_random_split
 from equiv_dens.training.lookahead import Lookahead
 from equiv_dens.data.batch_loader import BatchLoader
 from equiv_dens.utils.grids import cubical_grid, cubical_sampling
+import time
 
 import numpy as np
 from functools import partial
@@ -86,6 +87,7 @@ print("loading atoms from" + args.np_dataset + "...")
 # density_file = '/home/mihail/data/water_rot/full_densities.hdf5'
 # np_file = 'h2o_overlap_static.npy'
 
+load_start = time.time()
 dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_dataset,
                            orbitals_path=args.orbitals_file,
                            density_n_samp=args.density_subsamples,
@@ -94,6 +96,7 @@ dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_datas
                            radial_coeffs_file=args.radial_coeffs_file,
                            dtype=args.dtype)
 # split into train / valid / test
+print('loading_time', time.time() - load_start)
 train_dataset, valid_dataset, test_dataset = seeded_random_split(
     dataset, [args.num_train, args.num_valid, len(dataset) - (args.num_train + args.num_valid)], seed=args.split_seed)
 print('train dataset len', len(train_dataset))
@@ -105,6 +108,7 @@ cube_grid_fn = partial(cubical_grid, nx=50, ny=50, nz=50,
                        origin=np.array([-2.0318, -2.0318, -2.0318]))
 cube_sampling_fn = cubical_sampling
 
+load_start = time.time()
 valid_cube_dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_dataset,
                                       orbitals_path=args.orbitals_file,
                                       density_n_samp=10000000000,
@@ -117,6 +121,7 @@ valid_cube_dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args
 
 valid_cube_dataset = torch.utils.data.Subset(valid_cube_dataset, valid_dataset.indices)
 
+print('loading_time', time.time() - load_start)
 # determine weights of different quantities for scaling loss
 loss_weights = {}
 loss_weights['density'] = args.density_weight
