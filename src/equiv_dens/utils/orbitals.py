@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from torch.nn.functional import pad
+import scipy as sp
 
 
 def combine_orbitals(orbitals, order_max):
@@ -143,3 +143,23 @@ def coeffs_dict_to_tensors(coeffs):
         all_scale[L] = torch.cat(all_scale[L], dim=1)
 
     return all_sph, all_scale, all_width
+
+
+def orbitals_from_hamiltonian(hamiltonians, overlaps):
+    orbital_coeffs = []
+    for i in range(hamiltonians.shape[0]):
+        en, coefs = sp.linalg.eigh(a=hamiltonians[i], b=overlaps[i])
+        orbital_coeffs.append(coefs)
+    return orbital_coeffs
+
+
+def parse_orbitals(orbitals, atom_types, basis_def):
+    split_orbitals = []
+    count = 0
+    for at in atom_types:
+        basis_at = basis_def[at]
+        for orb in basis_at:
+            L = orb[2]
+            split_orbitals.append(orbitals[:, count:(count + (2 * L) + 1)])
+            count += (2 * L) + 1
+    return split_orbitals
