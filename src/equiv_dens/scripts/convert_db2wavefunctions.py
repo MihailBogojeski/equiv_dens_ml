@@ -38,7 +38,7 @@ if __name__ == "__main__":
     print('hamiltonians shape', h_data['full_hamiltonian'].shape)
     print(h_data.keys())
     h_data['positions'] = utils.bohr_to_angstrom(h_data['positions'])
-    h_data['positions'] -= h_data['positions'][:, [0], :]
+    # h_data['positions'] -= h_data['positions'][:, [0], :]
     if args.convention != '':
         hamiltonians = transform_hamiltonians.transform(h_data['full_hamiltonian'].numpy(), atom_types, convention=args.convention)
         overlap = transform_hamiltonians.transform(h_data['overlap_matrix'].numpy(), atom_types, convention=args.convention)
