@@ -205,6 +205,8 @@ repr_model = EquivariantSphericalHarmonics(
     cutoff=args.cutoff,
     activation=args.activation,
     clebsch_gordan=clebsch_gordan,
+    verbose=args.verbose,
+    timing=args.timing,
 )
 dens_model = DensityCoeffsNetwork(
     orbitals=dataset.orbitals,
@@ -212,14 +214,17 @@ dens_model = DensityCoeffsNetwork(
     num_features=args.num_features,
     positive_coeffs=args.positive_coeffs,
     clebsch_gordan=clebsch_gordan,
-    verbose=args.verbose)
+    verbose=args.verbose,
+    timing=args.timing,
+)
 
 expansion_model = DensityExpansion(dataset.orbitals, radial_coeffs=dataset.radial_coeffs,
                                    expansion_constraint=args.expansion_constraint,
                                    integral_constraint=args.integral_constraint,
                                    integral_scale=args.integral_scale,
-                                   verbose=args.verbose,
                                    softmax_norm=args.softmax_norm, n_electrons=sum(z_vals),
+                                   verbose=args.verbose,
+                                   timing=args.timing,
                                    )
 
 calculate_forces = loss_weights['forces'] > 0
@@ -242,7 +247,10 @@ if args.energy_model == 'complex':
         basis_functions=args.basis_functions,
         cutoff=args.cutoff,
         activation=args.activation,
-        calculate_forces=calculate_forces)
+        calculate_forces=calculate_forces,
+        verbose=args.verbose,
+        timing=args.timing,
+    )
 elif args.energy_model == 'simple':
     print('building simple energy model')
     en_model = SimpleEnergyNetwork(
@@ -250,7 +258,10 @@ elif args.energy_model == 'simple':
         num_features=args.num_features,
         num_layers=args.num_energy_output,
         activation=args.activation,
-        calculate_forces=calculate_forces)
+        calculate_forces=calculate_forces,
+        verbose=args.verbose,
+        timing=args.timing,
+    )
 else:
     args.energy_model = None
 
@@ -356,6 +367,7 @@ trainer = Trainer(model_path=directory, model=model, error_dict=error_dict,
                   stop_at_learning_rate=args.stop_at_learning_rate,
                   valid_check_best=[True],
                   verbose=args.verbose,
+                  timing=args.timing,
                   )
 
 trainer.run(args.max_steps, device=device, dtype=args.dtype)

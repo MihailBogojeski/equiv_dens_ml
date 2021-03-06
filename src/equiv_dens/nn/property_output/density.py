@@ -7,6 +7,7 @@ from equiv_dens.utils.spherical_harmonics import spherical_harmonics
 from equiv_dens.utils.orbitals import combine_orbitals, gaussian_rbf, get_max_order, get_n_electrons
 from equiv_dens.utils.base import calculate_distances_and_directions
 import numpy as np
+import time
 
 
 class DensityCoeffsNetwork(nn.Module):
@@ -22,6 +23,7 @@ class DensityCoeffsNetwork(nn.Module):
                  clebsch_gordan=None,
                  verbose=0,
                  compressed_extraction=False,
+                 timing=False,
                  ):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
         super().__init__()
 
@@ -36,6 +38,7 @@ class DensityCoeffsNetwork(nn.Module):
         self.positive_coeffs = positive_coeffs
         self.verbose = verbose
         self.compressed_extraction = compressed_extraction
+        self.timing = timing
 
         # extract nuclear charges from orbitals, determine maximum order, and
         # build the occupation mask (for extracting occupied orbitals in energy prediction)
@@ -190,6 +193,7 @@ class DensityCoeffsNetwork(nn.Module):
     """
 
     def forward(self, atoms):
+        start = time.time()
         fs = atoms['sph_repr']
         if self.verbose > 3:
             print('distances', atoms['distances'])
@@ -215,6 +219,8 @@ class DensityCoeffsNetwork(nn.Module):
         # print('out sph[1][0]', out_sph[1][:, 1, :])
         # print('spherical_coeffs[1][0]', atoms['spherical_coeffs'][1][(1, 1)])
         atoms['L_dict'] = self.L_dict
+        if self.timing:
+            print('density coeffs time:', time.time() - start)
 
         return atoms
 
@@ -231,17 +237,19 @@ class DensityExpansion(nn.Module):
                  n_electrons=None,
                  integral_scale=False,
                  verbose=0,
+                 timing=False,
                  ):
         super().__init__()
         self.orbitals = orbitals
         self.expansion_constraint = expansion_constraint
         self.integral_constraint = integral_constraint
         self.softmax_norm = softmax_norm
+        self.timing = timing
+        self.verbose = verbose
         if integral_scale:
             self.register_parameter('integral_scale', nn.Parameter(torch.ones(size=(1,))))
         else:
             self.register_buffer('integral_scale', torch.ones(size=(1,)))
-        self.verbose = verbose
         if self.verbose:
             print('expansion constraint', self.expansion_constraint)
             print('integral constraint', self.integral_constraint)
@@ -293,6 +301,7 @@ class DensityExpansion(nn.Module):
         return getattr(self, 'init_scale_{}_{}_{}'.format(i, key[0], key[1]))
 
     def forward(self, atoms, eval_atoms=None, eval_L=None):
+        start = time.time()
         if eval_atoms is None:
             eval_atoms = list(range(len(self.orbitals)))
         if eval_L is None:
@@ -382,4 +391,6 @@ class DensityExpansion(nn.Module):
                 print('dens int pos before', torch.sum(atoms['density'][dens > 0] * 0.06021670784495335))
                 print('dens int neg before', torch.sum(atoms['density'][dens < 0] * 0.06021670784495335))
 
+        if self.timing:
+            print('density expansion time:', time.time() - start)
         return atoms

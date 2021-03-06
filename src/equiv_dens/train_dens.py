@@ -176,6 +176,8 @@ repr_model = EquivariantSphericalHarmonics(
     cutoff=args.cutoff,
     activation=args.activation,
     clebsch_gordan=clebsch_gordan,
+    verbose=args.verbose,
+    timing=args.timing,
 )
 dens_model = DensityCoeffsNetwork(
     orbitals=dataset.orbitals,
@@ -183,13 +185,18 @@ dens_model = DensityCoeffsNetwork(
     num_features=args.num_features,
     positive_coeffs=args.positive_coeffs,
     clebsch_gordan=clebsch_gordan,
-    compressed_extraction=args.compressed_extraction)
+    compressed_extraction=args.compressed_extraction,
+    verbose=args.verbose,
+    timing=args.timing,
+)
 
 expansion_model = DensityExpansion(dataset.orbitals, radial_coeffs=dataset.radial_coeffs,
                                    expansion_constraint=args.expansion_constraint,
                                    integral_constraint=args.integral_constraint,
+                                   softmax_norm=args.softmax_norm,
                                    verbose=args.verbose,
-                                   softmax_norm=args.softmax_norm)
+                                   timing=args.timing,
+                                   )
 
 # determine what should be calculated based on loss weights
 # tmp = (loss_weights['energy'] > 0) or (loss_weights['forces'] > 0)
@@ -275,6 +282,7 @@ trainer = Trainer(model_path=directory, model=model, error_dict=error_dict,
                   stop_at_learning_rate=args.stop_at_learning_rate,
                   valid_check_best=[True, False],
                   verbose=args.verbose,
+                  timing=args.timing,
                   )
 
 trainer.run(args.max_steps, device=device, dtype=args.dtype)

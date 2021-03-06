@@ -6,6 +6,7 @@ from equiv_dens.nn.modules.radial_basis_functions import BernsteinRadialBasisFun
 from equiv_dens.nn.modules.activations import Swish, ShiftedSoftplus
 from equiv_dens.utils.orbitals import combine_orbitals, get_invariant_features, get_max_order, coeffs_dict_to_tensors
 from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
+import time
 
 
 class ComplexEnergyNetwork(nn.Module):
@@ -168,6 +169,8 @@ class SimpleEnergyNetwork(nn.Module):
                  calculate_forces=False,
                  activation='swish',
                  compressed_extraction=False,
+                 verbose=0,
+                 timing=False,
                  ):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
         super().__init__()
 
@@ -218,6 +221,7 @@ class SimpleEnergyNetwork(nn.Module):
         self.energy_output = nn.Linear(self.num_features, 1)
 
     def forward(self, atoms):
+        start = time.time()
         # initialize atomic features to embeddings
         # print('sph coeffs', atoms['spherical_coeffs'][0][(8, 0)])
         fs = get_invariant_features(atoms, permutational_invariance=False, keep_dims=True)
@@ -239,6 +243,7 @@ class SimpleEnergyNetwork(nn.Module):
             forces = -torch.autograd.grad(torch.sum(energy), atoms['positions'], create_graph=self.training)[0]
             atoms['forces'] = forces
 
+        print('simple energy time', time.time() - start)
         return atoms
 
 

@@ -164,6 +164,8 @@ def parse_command_line_arguments():
     args_misc.add_argument("--dtype", metavar='torch.float32|torch.float64', type=str, default='torch.float32',
                            choices=['torch.float32', 'torch.float64'], help="floating point type used during training")
     args_training.add_argument("--verbose", metavar='INT', type=int, default=0, help="Verbosity level.")
+    args_training.add_argument("--timing", metavar='True|False', type=str2bool, default=False,
+                               choices=[True, False], help="Timing runtime.")
 
     # actually parse command line arguments
     if len(sys.argv) == 1:  # no arguments were specified, print help message

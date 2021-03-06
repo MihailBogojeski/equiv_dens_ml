@@ -47,6 +47,7 @@ class Trainer:
         stop_at_learning_rate=1e-5,
         valid_check_best=None,
         verbose=0,
+        timing=False,
     ):
         self.model_path = model_path
         self.model_code = model_path.split('_')[-1]
@@ -65,6 +66,7 @@ class Trainer:
         self.clip_norm = clip_norm
         self.stop_at_learning_rate = stop_at_learning_rate
         self.verbose = verbose
+        self.timing = timing
         if valid_check_best is None:
             self.valid_check_best = [False] * len(validation_loaders)
             self.valid_check_best[0] = True
@@ -260,6 +262,7 @@ class Trainer:
         self.summary.close()
 
     def _train_step(self, device):
+        start = time.time()
         try:
             data = next(self.train_iterator)
         except StopIteration:
@@ -273,7 +276,8 @@ class Trainer:
         for key in data.keys():
             if isinstance(data[key], torch.Tensor):
                 data[key] = data[key].to(device)
-
+        if self.timing:
+            print('train load time', time.time() - start)
         # zero the parameter gradients
         for optimizer in self.optimizers:
             optimizer.zero_grad()
@@ -291,7 +295,10 @@ class Trainer:
 
         # if self.verbose > 2:
         #     print('train step before backward:', torch.cuda.memory_summary())
+        start_bw = time.time()
         errors['loss'].backward()
+        if self.timing:
+            print('backward time', time.time() - start_bw)
         # if self.verbose > 2:
         #     print('train step after backward:', torch.cuda.memory_summary())
 
@@ -302,8 +309,11 @@ class Trainer:
             self.gradient_norm += (norm - self.gradient_norm) / (self.train_batch_num + 1)
 
         # optimization step
+        start_step = time.time()
         for optimizer in self.optimizers:
             optimizer.step()
+        if self.timing:
+            print('step time', time.time() - start_step)
 
         # update parameter averages
         if self.exponential_moving_average is not None:
@@ -313,6 +323,8 @@ class Trainer:
         for key in errors.keys():
             self.train_errors[key] += (errors[key].item() -
                                        self.train_errors[key]) / (self.train_batch_num + 1)
+        if self.timing:
+            print('train step time', time.time() - start)
 
     def _validate(self, valid_data_loader, device, check_best=False):
         is_best = False
@@ -328,6 +340,8 @@ class Trainer:
             for key in data.keys():
                 if isinstance(data[key], torch.Tensor):
                     data[key] = data[key].to(device)
+            if self.timing:
+                print('valid load time', time.time() - start)
 
             # forward step
             # if self.verbose > 2:
@@ -350,12 +364,13 @@ class Trainer:
                 if self.error_dict.loss_weights['energy_min'] == sum(self.error_dict.loss_weights.values()):
                     exclude_energy_min = False
             errors = self.error_dict.compute(predictions, data, exclude_energy_min=exclude_energy_min)
-            print('valid time:', time.time() - start)
 
             # update valid_errors (running average)
             for key in errors.keys():
                 valid_errors[key] += (errors[key].item() -
                                       valid_errors[key]) / (valid_batch_num + 1)
+            if self.timing:
+                print('valid step time:', time.time() - start)
 
         # pass validation loss to learning rate scheduler
         if check_best:
@@ -377,8 +392,6 @@ class Trainer:
         if self.exponential_moving_average:
             self.exponential_moving_average.swap()
 
-
-            # set model back to training mode
         return valid_errors, is_best
 
     def write_summary(self, new_valid, new_best):

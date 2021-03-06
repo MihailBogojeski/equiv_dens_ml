@@ -17,16 +17,16 @@
 --cutoff=15.0
 --orthonormal_basis=False
 --max_steps=20000
---np_dataset=datasets/h2o_dynamic_centered_small.npy
---dens_dataset=datasets/h2o_dynamic_pyscf_dft_small.npy
+--np_dataset=datasets/h2o_dynamic_centered.npy
+--dens_dataset=datasets/h2o_dynamic_pyscf_dft.npy
 --orbitals_file=datasets/augccpvqzjkfit_orbital_basis_df.npy
 --radial_coeffs_file=datasets/augccpvqzjkfit_radial_coeffs_df.npy
 --pseudo_pot_path=pseudo_potentials
 --center_energy=True
---num_train=3
---num_valid=3
---train_batch_size=3
---valid_batch_size=3
+--num_train=500
+--num_valid=40
+--train_batch_size=20
+--valid_batch_size=20
 --num_workers=0
 --split_seed=42
 --optimizer=amsgrad
@@ -63,7 +63,6 @@
 --keep_checkpoints=0
 --dtype=torch.float32
 --cube_size=50
---verbose=0
 --expansion_constraint=sp
 --integral_constraint=True
 --positive_coeffs=False
@@ -73,3 +72,5 @@
 --percentage_error=True
 --energy_offset=False
 --energy_model=simple
+--verbose=3
+--timing=True

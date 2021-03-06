@@ -8,6 +8,7 @@ from equiv_dens.nn.modules.network_blocks import ModularBlock
 from equiv_dens.utils.spherical_harmonics import spherical_harmonics
 from equiv_dens.utils.base import calculate_distances_and_directions
 from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
+import time
 
 
 class EquivariantSphericalHarmonics(nn.Module):
@@ -41,7 +42,10 @@ class EquivariantSphericalHarmonics(nn.Module):
                  # type of activation function used (swish / ssp)
                  activation='swish',
                  clebsch_gordan=None,  # instance of the clebsch gordan matrix
-                 Zmax=87):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
+                 Zmax=87,
+                 timing=False,
+                 verbose=0,
+                 ):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
         super().__init__()
 
         # variables to control the flow of the forward graph
@@ -63,6 +67,8 @@ class EquivariantSphericalHarmonics(nn.Module):
         self.cutoff = cutoff
         self.activation = activation
         self.Zmax = Zmax
+        self.timing = timing
+        self.verbose = verbose
 
         N = len(self.orbitals)
         idx_i = torch.arange(N, dtype=torch.int64).view(-1, 1).repeat(1, N).view(-1)
@@ -129,7 +135,7 @@ class EquivariantSphericalHarmonics(nn.Module):
         outputs:
             C: Spherical harmonics coefficients
         """
-
+        start = time.time()
         R = atoms['positions']
         # compute radial basis functions and spherical harmonics
         # print('idx_i', self.idx_i)
@@ -170,4 +176,6 @@ class EquivariantSphericalHarmonics(nn.Module):
                 fs[L] += ys[L]  # add contributions to output features
 
         atoms['sph_repr'] = fs
+        if self.timing:
+            print('sph repr time', time.time() - start)
         return atoms
