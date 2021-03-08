@@ -137,8 +137,10 @@ class EquivariantSphericalHarmonics(nn.Module):
         """
         start = time.time()
         R = atoms['positions']
+        print('R requires grad', R.requires_grad)
         # compute radial basis functions and spherical harmonics
         # print('idx_i', self.idx_i)
+        start_dist = time.time()
         dij, uij = calculate_distances_and_directions(R, self.idx_i, self.idx_j)
         # print('dij shape', dij.shape)
         # print('uij shape', uij.shape)
@@ -163,17 +165,25 @@ class EquivariantSphericalHarmonics(nn.Module):
             sph[L].unsqueeze_(-1)  # unsqueeze for broadcasting
         # print('sph shape', sph[0].shape)
         atoms['sph'] = sph
-
+        print('dist sph time', time.time() - start_dist)
         # initialize atomic features to embeddings
         # repeat Z along batch dimension
+        start_emb = time.time()
         xs = self.embedding(atoms['atom_numbers'].repeat(R.size(0), 1))
 
         # perform iterations over modular building blocks to get environment - dependent features
         fs = [torch.zeros_like(x) for x in xs]  # output features
+        print('embedding time', time.time() - start_emb)
         for module in self.module:
+            start_mod = time.time()
             xs, ys = module(xs, rbf, sph, self.idx_i, self.idx_j)
+            print('rbf shape', rbf.shape)
+            print('sph shape', sph[1].shape)
+            print('xs shape', xs[1].shape)
+            print('ys shape', ys[1].shape)
             for L in range(self.order + 1):
                 fs[L] += ys[L]  # add contributions to output features
+            print('module time', time.time() - start_mod)
 
         atoms['sph_repr'] = fs
         if self.timing:

@@ -327,5 +327,5 @@ trainer = Trainer(model_path=directory, model=model, error_dict=error_dict,
                   timing=args.timing
                   )
 
-with torch.autograd.set_detect_anomaly(True):  # TODO!!! TURN THIS OFF AGAIN
-    trainer.run(args.max_steps, device=device, dtype=args.dtype)
+# with torch.autograd.set_detect_anomaly(True):  # TODO!!! TURN THIS OFF AGAIN
+trainer.run(args.max_steps, device=device, dtype=args.dtype)

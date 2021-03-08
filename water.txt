@@ -17,8 +17,8 @@
 --cutoff=15.0
 --orthonormal_basis=False
 --max_steps=20000
---np_dataset=datasets/h2o_dynamic_centered_mid.npy
---dens_dataset=datasets/h2o_dynamic_pyscf_dft_mid.npy
+--np_dataset=datasets/h2o_dynamic_centered.npy
+--dens_dataset=datasets/h2o_dynamic_pyscf_dft.npy
 --orbitals_file=datasets/augccpvqzjkfit_orbital_basis_df.npy
 --radial_coeffs_file=datasets/augccpvqzjkfit_radial_coeffs_df.npy
 --pseudo_pot_path=pseudo_potentials
