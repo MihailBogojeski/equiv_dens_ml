@@ -60,7 +60,12 @@ class ErrorDict:
                         balanced_weights = 1
                     abs_diff = torch.abs(diff) * balanced_weights
                     sq_diff = (diff ** 2) * balanced_weights
-                    mse = torch.mean(sq_diff)
+                    # if key == 'density':
+                    #     print('sq diff no weights negative', torch.sum((diff ** 2) < 0))
+                    #     print('sq diff negative', torch.sum(sq_diff < 0))
+                    mse = torch.mean(sq_diff, dim=1)
+                    # use abs to bypass rare cases of negative mse, while still giving some loss
+                    mse = torch.mean(torch.abs(mse))
                     rmse = torch.sqrt(mse)
                     mae = torch.mean(abs_diff)
                     # print('RMSE:', rmse)

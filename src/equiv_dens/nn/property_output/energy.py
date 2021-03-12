@@ -40,6 +40,8 @@ class ComplexEnergyNetwork(nn.Module):
                  activation='swish',
                  calculate_forces=False,
                  compressed_extraction=False,
+                 verbose=0,
+                 timing=False,
                  ):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
         super().__init__()
 
@@ -64,6 +66,8 @@ class ComplexEnergyNetwork(nn.Module):
         self.cutoff = cutoff
         self.activation = activation
         self.compressed_extraction = compressed_extraction
+        self.verbose = verbose
+        self.timing = timing
 
         N = len(self.orbitals)
         idx_i = torch.arange(N, dtype=torch.int64).view(-1, 1).repeat(1, N).view(-1)
@@ -127,6 +131,7 @@ class ComplexEnergyNetwork(nn.Module):
 
     def forward(self, atoms):
         # initialize atomic features to embeddings
+        start = time.time()
         xs = get_invariant_features(atoms, permutational_invariance=False, keep_dims=True)
         dij = atoms['distances']
         sph = atoms['sph']
@@ -154,6 +159,8 @@ class ComplexEnergyNetwork(nn.Module):
             forces = -torch.autograd.grad(torch.sum(energy), atoms['positions'], create_graph=self.training)[0]
             atoms['forces'] = forces
 
+        if self.timing:
+            print('simple energy time', time.time() - start)
         return atoms
 
 
@@ -189,6 +196,8 @@ class SimpleEnergyNetwork(nn.Module):
 
         self.orbital_spec, _ = combine_orbitals(self.orbitals, self.order_max)
         self.dens_features = 0
+        self.verbose = verbose
+        self.timing = timing
         seen_zs = []
         for i in range(len(self.orbital_spec)):
             curr_feats = 0
@@ -243,7 +252,8 @@ class SimpleEnergyNetwork(nn.Module):
             forces = -torch.autograd.grad(torch.sum(energy), atoms['positions'], create_graph=self.training)[0]
             atoms['forces'] = forces
 
-        print('simple energy time', time.time() - start)
+        if self.timing:
+            print('simple energy time', time.time() - start)
         return atoms
 
 
@@ -279,6 +289,8 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
                  clebsch_gordan=None,  # instance of the clebsch gordan matrix
                  calculate_forces=False,
                  compressed_extraction=False,
+                 verbose=0,
+                 timing=False,
                  ):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
         super().__init__()
 
@@ -304,6 +316,8 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
         self.cutoff = cutoff
         self.activation = activation
         self.compressed_extraction = compressed_extraction
+        self.verbose = verbose
+        self.timing = timing
 
         N = len(self.orbitals)
         idx_i = torch.arange(N, dtype=torch.int64).view(-1, 1).repeat(1, N).view(-1)
@@ -375,6 +389,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
         self.energy_output = nn.SphericalLinear(self.num_features, self.order_max + 1, 1, 0, self.clebsch_gordan)
 
     def forward(self, atoms):
+        start = time.time()
         # initialize atomic features to embeddings
         sph_fs, scale_fs, width_fs = coeffs_dict_to_tensors(atoms, permutational_invariance=False, keep_dims=True)
         dij = atoms['distances']
@@ -409,4 +424,6 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
             forces = -torch.autograd.grad(torch.sum(energy), atoms['positions'], create_graph=self.training)[0]
             atoms['forces'] = forces
 
+        if self.timing:
+            print('simple energy time', time.time() - start)
         return atoms

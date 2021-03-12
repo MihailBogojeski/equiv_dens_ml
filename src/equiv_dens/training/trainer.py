@@ -4,6 +4,7 @@ from tensorboardX import SummaryWriter
 import math
 import time
 from equiv_dens.training.exponential_moving_average import ExponentialMovingAverage
+import sys
 import numpy as np
 
 
@@ -94,11 +95,15 @@ class Trainer:
         self.train_errors = self.error_dict.empty()  # reset train error metrics
         self.summary = SummaryWriter(logdir=os.path.join(self.model_path, 'logs'), purge_step=self.step)
 
-    def store_checkpoint(self):
+    def store_checkpoint(self, best=False):
         # move latest checkpoint (so it is not overwritten)
-        if os.path.isfile(os.path.join(self.checkpoint_path, 'latest_checkpoint.pth')):
-            os.rename(os.path.join(self.checkpoint_path, 'latest_checkpoint.pth'), os.path.join(
-                self.checkpoint_path, 'checkpoint_' + str(self.step).zfill(10) + '.pth'))
+        if not best:
+            if os.path.isfile(os.path.join(self.checkpoint_path, 'latest_checkpoint.pth')):
+                os.rename(os.path.join(self.checkpoint_path, 'latest_checkpoint.pth'), os.path.join(
+                    self.checkpoint_path, 'checkpoint_' + str(self.step).zfill(10) + '.pth'))
+            chk_name = 'latest_checkpoint.pth'
+        else:
+            chk_name = 'best_checkpoint.pth'
 
         # overwrite latest checkpoint
         torch.save({
@@ -114,11 +119,11 @@ class Trainer:
             'exponential_moving_average': (self.exponential_moving_average.ema
                                            if self.exponential_moving_average is not None else None),
             'error_dict': self.error_dict,
-        }, os.path.join(self.checkpoint_path, 'latest_checkpoint.pth'))
+        }, os.path.join(self.checkpoint_path, chk_name))
         self.summary.add_text('checkpoints', 'saved checkpoint', self.step)
 
         # remove oldest checkpoints
-        if self.keep_n_checkpoints >= 0:  # for negative arguments, all checkpoints are kept
+        if self.keep_n_checkpoints >= 0 and not best:  # for negative arguments, all checkpoints are kept
             for file in os.listdir(self.checkpoint_path):
                 if file.startswith("checkpoint") and file.endswith('.pth'):
                     checkpoint_step = int(file.split('.pth')[0].split('_')[-1])
@@ -286,11 +291,46 @@ class Trainer:
         if self.verbose > 0:
             if 'density' in predictions.keys():
                 print('train density intergal', torch.sum(predictions['density'] * predictions['coord_weights'], dim=1))
+                print('true density intergal', torch.sum(data['density'] * data['coord_weights'], dim=1))
             if 'energy' in predictions.keys():
                 print('pred energy', predictions['energy'].view((-1, )))
                 print('true energy', data['energy'].view((-1, )))
+            if 'forces' in predictions.keys():
+                print('pred forces', predictions['forces'].sum((-1, -2)).view((-1, )))
+                print('true forces', data['forces'].sum((-1, -2)).view((-1, )))
+
+        if torch.any(torch.isnan(data['density'])):
+            print('Nans found in label density, skipping batch')
+            return
+        elif torch.any(torch.isnan(predictions['density'])):
+            raise Exception('Nans found in predicted density')
+            sys.exit()
+        elif torch.any(torch.isnan(data['energy'])):
+            print('Nans found in label energy, skipping batch')
+            return
+        elif torch.any(torch.isnan(predictions['energy'])):
+            raise Exception('Nans found in predicted energy')
+            sys.exit()
+        elif torch.any(torch.isnan(data['forces'])):
+            print('Nans found in label forces, skipping batch')
+            return
+        elif torch.any(torch.isnan(predictions['forces'])):
+            raise Exception('Nans found in predicted forces')
+            sys.exit()
         errors = self.error_dict.compute(predictions, data)
 
+        for key in errors.keys():
+            if torch.any(torch.isnan(errors[key])):
+                print('Nans found in', key, 'error')
+                for k in errors.keys():
+                    print('key', k)
+                    print('nans', torch.any(torch.isnan(errors[k])))
+                np.save(self.model_code + '_pred_crash_dump_' + str(self.step) + '.npy', predictions, allow_pickle=True)
+                np.save(self.model_code + '_true_crash_dump_' + str(self.step) + '.npy', data, allow_pickle=True)
+                torch.save(self._module.state_dict(), self.model_code + '_model_crash_dump_' + str(self.step) + '.pth')
+                return
+                # raise Exception('Nans found in', key, 'error')
+                # sys.exit()
         # backward step
 
         # if self.verbose > 2:
@@ -353,9 +393,31 @@ class Trainer:
             if self.verbose > 0:
                 if 'density' in predictions.keys():
                     print('valid density intergal', torch.sum(predictions['density'] * predictions['coord_weights'], dim=1))
+                    print('true density intergal', torch.sum(data['density'] * data['coord_weights'], dim=1))
                 if 'energy' in predictions.keys():
                     print('pred energy', predictions['energy'].view((-1, )))
                     print('true energy', data['energy'].view((-1, )))
+                if 'forces' in predictions.keys():
+                    print('pred forces', predictions['forces'].sum((-1, -2)).view((-1, )))
+                    print('true forces', data['forces'].sum((-1, -2)).view((-1, )))
+            if torch.any(torch.isnan(data['density'])):
+                print('Nans found in label density, skipping batch')
+                continue
+            elif torch.any(torch.isnan(predictions['density'])):
+                raise Exception('Nans found in predicted density')
+                sys.exit()
+            if torch.any(torch.isnan(data['energy'])):
+                print('Nans found in label energy, skipping batch')
+                continue
+            elif torch.any(torch.isnan(predictions['energy'])):
+                raise Exception('Nans found in predicted energy')
+                sys.exit()
+            elif torch.any(torch.isnan(data['forces'])):
+                print('Nans found in label forces, skipping batch')
+                continue
+            elif torch.any(torch.isnan(predictions['forces'])):
+                raise Exception('Nans found in predicted forces')
+                sys.exit()
 
             # print('spherical density integral', torch.sum(predictions['density'] * data['coord_weights'], dim=-1))
             # compute error metrics
@@ -364,9 +426,19 @@ class Trainer:
                 if self.error_dict.loss_weights['energy_min'] == sum(self.error_dict.loss_weights.values()):
                     exclude_energy_min = False
             errors = self.error_dict.compute(predictions, data, exclude_energy_min=exclude_energy_min)
-
             # update valid_errors (running average)
             for key in errors.keys():
+                if torch.any(torch.isnan(errors[key])):
+                    print('Nans found in', key, 'error')
+                    for k in errors.keys():
+                        print('key', k)
+                        print('nans', torch.any(torch.isnan(errors[k])))
+                    np.save(self.model_code + '_pred_crash_dump_' + str(self.step) + '.npy', predictions, allow_pickle=True)
+                    np.save(self.model_code + '_true_crash_dump_' + str(self.step) + '.npy', data, allow_pickle=True)
+                    torch.save(self._module.state_dict(), self.model_code + '_model_crash_dump_' + str(self.step) + '.pth')
+                    # raise Exception('Nans found in', key, 'error')
+                    # sys.exit()
+                    continue
                 valid_errors[key] += (errors[key].item() -
                                       valid_errors[key]) / (valid_batch_num + 1)
             if self.timing:
@@ -382,6 +454,7 @@ class Trainer:
                 is_best = True
                 self.best_errors = valid_errors
                 torch.save(self._module.state_dict(), os.path.join(self.model_path, 'best_' + str(self.model_code) + '.pth'))
+                self.store_checkpoint(best=True)
                 # construct message for logging
                 message = ''
                 for key in self.best_errors.keys():
