@@ -17,6 +17,8 @@ from equiv_dens.data.density_dataset import AtomsDensityData
 from equiv_dens.data.hamiltonian_dataset import seeded_random_split
 from equiv_dens.training.lookahead import Lookahead
 from equiv_dens.data.batch_loader import BatchLoader
+from equiv_dens.utils import grids
+from functools import partial
 
 # from torch import autograd
 
@@ -28,6 +30,7 @@ from equiv_dens.data.batch_loader import BatchLoader
 # read arguments
 args = parse_command_line_arguments()
 
+max_steps = args.max_steps
 # no restart directory specified
 if args.restart is None:
     # generate "unique" id for the run (very unlikely that two runs will have the same ID)
@@ -59,11 +62,12 @@ else:
         checkpoint_path, 'latest_checkpoint.pth'), map_location='cpu')
     latest_checkpoint = checkpoint['step']
     model_code = checkpoint['ID']  # load ID
-    args = checkpoint['args']  # overwrite args
+    # args = checkpoint['args']  # overwrite args
+    for arg in vars(checkpoint['args']):
+        setattr(args, arg, getattr(checkpoint['args'], arg))
     step = checkpoint['step']
     restore = True
 
-max_steps = args.max_steps
 
 print('model code:', model_code)
 # determine whether GPU is used for training
@@ -82,12 +86,14 @@ print("loading atoms from" + args.np_dataset + "...")
 # density_file = '/home/mihail/data/water_rot/full_densities.hdf5'
 # np_file = 'h2o_overlap_static.npy'
 
+grid_fn = partial(grids.spherical_grid, level=args.spherical_grid_level)
 dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_dataset,
                            orbitals_path=args.orbitals_file,
                            density_n_samp=args.density_subsamples,
                            required_properties=['density', 'energy', 'forces'],
                            center_positions=False,
                            radial_coeffs_file=args.radial_coeffs_file,
+                           grid_fn=grid_fn,
                            dtype=args.dtype,
                            verbose=args.verbose)
 # split into train / valid / test
@@ -319,7 +325,7 @@ trainer = Trainer(model_path=directory, model=model, error_dict=error_dict,
                   ema_params=ema_params,
                   args=args,
                   restore=restore,
-                  max_steps=args.max_steps,
+                  max_steps=max_steps,
                   clip_norm=args.clip_norm,
                   stop_at_learning_rate=args.stop_at_learning_rate,
                   valid_check_best=[True],
@@ -328,4 +334,4 @@ trainer = Trainer(model_path=directory, model=model, error_dict=error_dict,
                   )
 
 # with torch.autograd.set_detect_anomaly(True):  # TODO!!! TURN THIS OFF AGAIN
-trainer.run(args.max_steps, device=device, dtype=args.dtype)
+trainer.run(max_steps, device=device, dtype=args.dtype)

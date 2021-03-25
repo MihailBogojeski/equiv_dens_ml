@@ -44,7 +44,8 @@ checkpoint = torch.load(os.path.join(
     checkpoint_path, 'latest_checkpoint.pth'), map_location='cpu')
 latest_checkpoint = checkpoint['step']
 model_code = checkpoint['ID']  # load ID
-args = checkpoint['args']  # overwrite args
+for arg in vars(checkpoint['args']):
+    setattr(args, arg, getattr(checkpoint['args'], arg))
 step = checkpoint['step']
 args.restart = old_args.restart
 args.np_dataset_test = old_args.np_dataset_test
@@ -295,6 +296,5 @@ for test_batch_num, data in enumerate(test_data_loader):
     for key in errors.keys():
         test_errors[key] += (errors[key].item() -
                              test_errors[key]) / (test_batch_num + 1)
-    print('step ' + str(test_batch_num) + ':', test_errors)
 
-print('final:', test_errors)
+print(test_errors)

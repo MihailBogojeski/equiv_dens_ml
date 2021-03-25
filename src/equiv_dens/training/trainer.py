@@ -64,6 +64,7 @@ class Trainer:
         self.exponential_moving_average = None
         self.args = args
         self.max_steps = max_steps
+        print('max steps', self.max_steps)
         self.clip_norm = clip_norm
         self.stop_at_learning_rate = stop_at_learning_rate
         self.verbose = verbose
@@ -151,7 +152,9 @@ class Trainer:
     def restore_checkpoint(self):
         checkpoint = torch.load(os.path.join(
             self.checkpoint_path, 'latest_checkpoint.pth'), map_location='cpu')
-        self.args = checkpoint['args']  # overwrite args
+        # self.args = checkpoint['args']  # overwrite args
+        for arg in vars(checkpoint['args']):
+            setattr(self.args, arg, getattr(checkpoint['args'], arg))
         self.step = checkpoint['step']
         self.epoch = checkpoint['epoch']
         self.best_errors = checkpoint['best_errors']
@@ -159,17 +162,21 @@ class Trainer:
         self._module.load_state_dict(checkpoint['model_state_dict'])
         self.error_dict = checkpoint['error_dict']
         for i in range(len(self.optimizers)):
-            self.optimizers[i].load_state_dict[checkpoint['optimizers_state_dict'][i]]
+            self.optimizers[i].load_state_dict(checkpoint['optimizers_state_dict'][i])
         for i in range(len(self.schedulers)):
-            self.schedulers[i].load_state_dict[checkpoint['schedulers_state_dict'][i]]
+            self.schedulers[i].load_state_dict(checkpoint['schedulers_state_dict'][i])
         if self.ema_params is not None:
             checkpoint_ema = checkpoint['exponential_moving_average']
-            self.exponential_moving_average = ExponentialMovingAverage(self._module, decay=self.ema_params['decay'],
-                                                                       start_epoch=self.ema_params['start_epoch'])
-            for key in self.exponential_moving_average.ema.keys():
-                with torch.no_grad():
-                    self.exponential_moving_average.ema[key].data.copy_(
-                        checkpoint_ema[key].data)
+            if checkpoint_ema is not None:
+                self.exponential_moving_average = ExponentialMovingAverage(self._module, decay=self.ema_params['decay'],
+                                                                           start_epoch=self.ema_params['start_epoch'])
+                for key in self.exponential_moving_average.ema.keys():
+                    with torch.no_grad():
+                        self.exponential_moving_average.ema[key].data.copy_(
+                            checkpoint_ema[key].data)
+            else:
+                self.exponential_moving_average = None
+                self.ema_params = None
 
     def run(self, n_steps, device='cpu', dtype=torch.float64):
 
@@ -188,7 +195,7 @@ class Trainer:
         else:
             print("Training on the CPU:")
 
-        if self.ema_params is not None and self.exponential_moving_average is not None:
+        if self.ema_params is not None and self.exponential_moving_average is None:
             self.exponential_moving_average = ExponentialMovingAverage(self._module, decay=self.ema_params['decay'],
                                                                        start_epoch=self.ema_params['start_epoch'])
 
@@ -299,22 +306,22 @@ class Trainer:
                 print('pred forces', predictions['forces'].sum((-1, -2)).view((-1, )))
                 print('true forces', data['forces'].sum((-1, -2)).view((-1, )))
 
-        if torch.any(torch.isnan(data['density'])):
+        if 'density' in data.keys() and torch.any(torch.isnan(data['density'])):
             print('Nans found in label density, skipping batch')
             return
-        elif torch.any(torch.isnan(predictions['density'])):
+        elif 'density' in predictions.keys() and torch.any(torch.isnan(predictions['density'])):
             raise Exception('Nans found in predicted density')
             sys.exit()
-        elif torch.any(torch.isnan(data['energy'])):
+        elif 'energy' in data.keys() and torch.any(torch.isnan(data['energy'])):
             print('Nans found in label energy, skipping batch')
             return
-        elif torch.any(torch.isnan(predictions['energy'])):
+        elif 'energy' in predictions.keys() and torch.any(torch.isnan(predictions['energy'])):
             raise Exception('Nans found in predicted energy')
             sys.exit()
-        elif torch.any(torch.isnan(data['forces'])):
+        elif 'forces' in data.keys() and torch.any(torch.isnan(data['forces'])):
             print('Nans found in label forces, skipping batch')
             return
-        elif torch.any(torch.isnan(predictions['forces'])):
+        elif 'forces' in predictions.keys() and torch.any(torch.isnan(predictions['forces'])):
             raise Exception('Nans found in predicted forces')
             sys.exit()
         errors = self.error_dict.compute(predictions, data)
@@ -400,22 +407,22 @@ class Trainer:
                 if 'forces' in predictions.keys():
                     print('pred forces', predictions['forces'].sum((-1, -2)).view((-1, )))
                     print('true forces', data['forces'].sum((-1, -2)).view((-1, )))
-            if torch.any(torch.isnan(data['density'])):
+            if 'density' in data.keys() and torch.any(torch.isnan(data['density'])):
                 print('Nans found in label density, skipping batch')
                 continue
-            elif torch.any(torch.isnan(predictions['density'])):
+            elif 'density' in predictions.keys() and torch.any(torch.isnan(predictions['density'])):
                 raise Exception('Nans found in predicted density')
                 sys.exit()
-            if torch.any(torch.isnan(data['energy'])):
+            if 'energy' in data.keys() and torch.any(torch.isnan(data['energy'])):
                 print('Nans found in label energy, skipping batch')
                 continue
-            elif torch.any(torch.isnan(predictions['energy'])):
+            elif 'energy' in predictions.keys() and torch.any(torch.isnan(predictions['energy'])):
                 raise Exception('Nans found in predicted energy')
                 sys.exit()
-            elif torch.any(torch.isnan(data['forces'])):
+            elif 'forces' in data.keys() and torch.any(torch.isnan(data['forces'])):
                 print('Nans found in label forces, skipping batch')
                 continue
-            elif torch.any(torch.isnan(predictions['forces'])):
+            elif 'forces' in predictions.keys() and torch.any(torch.isnan(predictions['forces'])):
                 raise Exception('Nans found in predicted forces')
                 sys.exit()
 

@@ -64,12 +64,16 @@ def parse_command_line_arguments():
                                   choices=[True, False], help="scale density integral by a limited amount")
     args_hyperparams.add_argument("--integral_min", metavar='FLOAT', type=float, default=None,
                                   help="Constrain density integral to a minimum value")
+    args_hyperparams.add_argument("--cube_valid", metavar='True|False', type=str2bool, default=True,
+                                  choices=[True, False], help="also use cube densty grid for validation.")
     args_hyperparams.add_argument("--cube_size", metavar='INT', type=int, default=50,
                                   help="Size of the cubical grid")
     args_hyperparams.add_argument("--cube_extent", metavar='FLOAT', type=float, default=4.1483,
                                   help="Extent of the cubical grid.")
     args_hyperparams.add_argument("--cube_origin", metavar='FLOAT', type=float, default=-2.0318,
                                   help="Origin of the cubical grid.")
+    args_hyperparams.add_argument("--spherical_grid_level", metavar='INT', type=int, default=2,
+                                  help="Size of the spherical grid")
     args_hyperparams.add_argument("--energy_offset", metavar='True|False', type=str2bool, default=False,
                                   choices=[True, False],
                                   help="Whether to use an constant offset to adjust energy levels for different functionals")

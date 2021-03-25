@@ -104,24 +104,25 @@ print('train dataset len', len(train_dataset))
 print('valid dataset len', len(valid_dataset))
 print('test dataset len', len(test_dataset))
 
-cube_grid_fn = partial(cubical_grid, nx=50, ny=50, nz=50,
-                       extent=np.array([4.1483, 4.1483, 4.1483]),
-                       origin=np.array([-2.0318, -2.0318, -2.0318]))
-cube_sampling_fn = cubical_sampling
+if args.cube_valid:
+    cube_grid_fn = partial(cubical_grid, nx=50, ny=50, nz=50,
+                           extent=np.array([4.1483, 4.1483, 4.1483]),
+                           origin=np.array([-2.0318, -2.0318, -2.0318]))
+    cube_sampling_fn = cubical_sampling
 
-load_start = time.time()
-valid_cube_dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_dataset,
-                                      orbitals_path=args.orbitals_file,
-                                      density_n_samp=10000000000,
-                                      required_properties=['density'],
-                                      center_positions=False,
-                                      radial_coeffs_file=args.radial_coeffs_file,
-                                      dtype=args.dtype,
-                                      grid_fn=cube_grid_fn,
-                                      sampling_fn=cube_sampling_fn,
-                                      verbose=args.verbose)
+    load_start = time.time()
+    valid_cube_dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_dataset,
+                                          orbitals_path=args.orbitals_file,
+                                          density_n_samp=10000000000,
+                                          required_properties=['density'],
+                                          center_positions=False,
+                                          radial_coeffs_file=args.radial_coeffs_file,
+                                          dtype=args.dtype,
+                                          grid_fn=cube_grid_fn,
+                                          sampling_fn=cube_sampling_fn,
+                                          verbose=args.verbose)
 
-valid_cube_dataset = torch.utils.data.Subset(valid_cube_dataset, valid_dataset.indices)
+    valid_cube_dataset = torch.utils.data.Subset(valid_cube_dataset, valid_dataset.indices)
 
 print('loading_time', time.time() - load_start)
 # determine weights of different quantities for scaling loss
@@ -147,15 +148,16 @@ train_sampler = torch.utils.data.BatchSampler(torch.utils.data.RandomSampler(tra
                                               batch_size=args.train_batch_size, drop_last=False)
 valid_sampler = torch.utils.data.BatchSampler(torch.utils.data.RandomSampler(valid_dataset),
                                               batch_size=args.valid_batch_size, drop_last=False)
-valid_cube_sampler = torch.utils.data.BatchSampler(torch.utils.data.RandomSampler(valid_cube_dataset),
-                                                   batch_size=args.valid_batch_size, drop_last=False)
 
 train_data_loader = BatchLoader(train_dataset, batch_sampler=train_sampler,
                                 num_workers=args.num_workers, pin_memory=use_gpu)
 valid_data_loader = BatchLoader(valid_dataset, batch_sampler=valid_sampler,
                                 num_workers=args.num_workers, pin_memory=use_gpu)
-valid_cube_loader = BatchLoader(valid_cube_dataset, batch_sampler=valid_cube_sampler,
-                                num_workers=args.num_workers, pin_memory=use_gpu)
+if args.cube_valid:
+    valid_cube_sampler = torch.utils.data.BatchSampler(torch.utils.data.RandomSampler(valid_cube_dataset),
+                                                       batch_size=args.valid_batch_size, drop_last=False)
+    valid_cube_loader = BatchLoader(valid_cube_dataset, batch_sampler=valid_cube_sampler,
+                                    num_workers=args.num_workers, pin_memory=use_gpu)
 
 # define model
 clebsch_gordan = ClebschGordanMatrix()
@@ -267,10 +269,16 @@ summary = SummaryWriter(logdir=os.path.join(
 total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
 print('Total params is {}'.format(total_params))
 
+validation_loaders = [valid_data_loader]
+valid_check_best = [True]
+if args.cube_valid:
+    validation_loaders.append(valid_cube_loader)
+    valid_check_best.append(False)
+
 trainer = Trainer(model_path=directory, model=model, error_dict=error_dict,
                   optimizers=[optimizer], schedulers=[scheduler],
                   train_loader=train_data_loader,
-                  validation_loaders=[valid_data_loader, valid_cube_loader],
+                  validation_loaders=validation_loaders,
                   checkpoint_interval=args.checkpoint_interval,
                   validation_interval=args.validation_interval,
                   summary_interval=args.summary_interval,
