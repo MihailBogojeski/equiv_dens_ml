@@ -6,6 +6,7 @@ from datetime import datetime
 from tensorboardX import SummaryWriter
 from equiv_dens.nn.dft_network import DFTNetwork
 from equiv_dens.nn.representation.spherical_harmonic import EquivariantSphericalHarmonics
+from equiv_dens.nn.property_output.energy import ComplexEnergyNetwork, SimpleEnergyNetwork
 from equiv_dens.nn.property_output.density import DensityCoeffsNetwork, DensityExpansion
 from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
 from equiv_dens.training.parse_command_line_arguments import parse_command_line_arguments
@@ -16,12 +17,15 @@ from equiv_dens.data.density_dataset import AtomsDensityData
 from equiv_dens.data.hamiltonian_dataset import seeded_random_split
 from equiv_dens.training.lookahead import Lookahead
 from equiv_dens.data.batch_loader import BatchLoader
-from equiv_dens.utils.grids import cubical_grid, cubical_sampling
-import time
+from equiv_dens.utils.grids import cubical_grid, cubical_sampling,\
+    dftpy_grid, CubicalGrid, spherical_grid, rot_spherical_sampling
+from equiv_dens.density_functionals.LDA import LDAFunctional
+import equiv_dens.utils.base as utils
 
 import numpy as np
 from functools import partial
 
+from dftpy.pseudo import LocalPseudo
 # from torch import autograd
 
 """
@@ -31,7 +35,8 @@ from functools import partial
 """
 # read arguments
 args = parse_command_line_arguments()
-print('args use gpu', args.use_gpu)
+
+max_steps = args.max_steps
 
 # no restart directory specified
 if args.restart is None:
@@ -64,11 +69,10 @@ else:
         checkpoint_path, 'latest_checkpoint.pth'), map_location='cpu')
     latest_checkpoint = checkpoint['step']
     model_code = checkpoint['ID']  # load ID
-    args = checkpoint['args']  # overwrite args
+    for arg in vars(checkpoint['args']):
+        setattr(args, arg, getattr(checkpoint['args'], arg))
     step = checkpoint['step']
     restore = True
-
-max_steps = args.max_steps
 
 print('model code:', model_code)
 # determine whether GPU is used for training
@@ -81,40 +85,53 @@ else:
     device = 'cpu'
 
 # load dataset(s)
-print("loading density from" + args.dens_dataset + "...")
+print("loading density from" + str(args.dens_dataset) + "...")
 print("loading atoms from" + args.np_dataset + "...")
 
 # density_file = '/home/mihail/data/water_rot/full_densities.hdf5'
 # np_file = 'h2o_overlap_static.npy'
+if args.cube_grid:
+    grid_origin = args.cube_origin
+    grid_extent = np.array([args.cube_extent] * 3)
+    grid_fn = partial(cubical_grid, nx=args.cube_size, ny=args.cube_size, nz=args.cube_size,
+                      extent=grid_extent,
+                      origin=np.array([grid_origin] * 3))
+    sampling_fn = cubical_sampling
+else:
+    grid_fn = partial(spherical_grid, level=args.spherical_grid_level)
+    sampling_fn = rot_spherical_sampling
+    grid_origin = 0
+    grid_extent = None
 
-load_start = time.time()
+
 dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_dataset,
                            orbitals_path=args.orbitals_file,
-                           density_n_samp=args.density_subsamples,
-                           required_properties=['density'],
+                           density_n_samp=10000000000,
+                           required_properties=['density', 'energy', 'forces'],
                            center_positions=False,
                            radial_coeffs_file=args.radial_coeffs_file,
                            dtype=args.dtype,
+                           grid_fn=grid_fn,
+                           sampling_fn=sampling_fn,
+                           grid_extent=grid_extent,
+                           grid_origin=grid_origin,
                            verbose=args.verbose)
 # split into train / valid / test
-print('loading_time', time.time() - load_start)
 train_dataset, valid_dataset, test_dataset = seeded_random_split(
     dataset, [args.num_train, args.num_valid, len(dataset) - (args.num_train + args.num_valid)], seed=args.split_seed)
-print('train dataset len', len(train_dataset))
-print('valid dataset len', len(valid_dataset))
-print('test dataset len', len(test_dataset))
 
 if args.cube_grid_valid:
-    cube_grid_fn = partial(cubical_grid, nx=50, ny=50, nz=50,
-                           extent=np.array([4.1483, 4.1483, 4.1483]),
-                           origin=np.array([-2.0318, -2.0318, -2.0318]))
+    grid_origin = args.cube_origin
+    grid_extent = np.array([args.cube_extent] * 3)
+    cube_grid_fn = partial(cubical_grid, nx=args.cube_size, ny=args.cube_size, nz=args.cube_size,
+                           extent=grid_extent,
+                           origin=np.array([grid_origin] * 3))
     cube_sampling_fn = cubical_sampling
 
-    load_start = time.time()
-    valid_cube_dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_dataset,
+    cube_dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_dataset,
                                           orbitals_path=args.orbitals_file,
                                           density_n_samp=10000000000,
-                                          required_properties=['density'],
+                                          required_properties=['density', 'energy', 'forces'],
                                           center_positions=False,
                                           radial_coeffs_file=args.radial_coeffs_file,
                                           dtype=args.dtype,
@@ -122,14 +139,68 @@ if args.cube_grid_valid:
                                           sampling_fn=cube_sampling_fn,
                                           verbose=args.verbose)
 
-    valid_cube_dataset = torch.utils.data.Subset(valid_cube_dataset, valid_dataset.indices)
+    valid_cube_dataset = torch.utils.data.Subset(cube_dataset, valid_dataset.indices)
 
-print('loading_time', time.time() - load_start)
-# determine weights of different quantities for scaling loss
+
+if args.center_energy:
+    train_ind = train_dataset.indices
+    energy_mean = dataset.atoms['energy'][train_ind].mean()
+    dataset.center_energy(energy_mean)
+    if args.cube_grid_valid:
+        cube_dataset.center_energy(energy_mean)
+
 loss_weights = {}
 loss_weights['density'] = args.density_weight
 loss_weights['energy'] = args.energy_weight
 loss_weights['forces'] = args.forces_weight
+loss_weights['energy_min'] = args.energy_min_weight
+weights_decay = {}
+weights_decay['density'] = args.density_weight_decay
+weights_decay['energy'] = args.energy_weight_decay
+weights_decay['forces'] = args.forces_weight_decay
+weights_decay['energy_min'] = args.energy_min_weight_decay
+weights_min = {}
+weights_min['density'] = args.density_weight_min
+weights_min['energy'] = args.energy_weight_min
+weights_min['forces'] = args.forces_weight_min
+weights_min['energy_min'] = args.energy_min_weight_min
+
+error_dict = ErrorDict(loss_weights, weights_balance=args.weights_balance,
+                       percentage_error=args.percentage_error, weights_decay=weights_decay, weights_min=weights_min)
+
+z_vals = dataset.atoms['atom_numbers']
+if loss_weights['energy_min']:
+    grid_origin = args.cube_origin
+    grid_extent = np.array([args.cube_extent] * 3)
+    grid_cl = CubicalGrid(dataset.atoms, nx=args.cube_size, ny=args.cube_size, nz=args.cube_size,
+                          origin=[0, 0, 0], extent=utils.angstrom_to_bohr(grid_extent), device=device, dtype=args.dtype)
+
+    cube_gap = utils.angstrom_to_bohr(args.cube_extent) / args.cube_size
+    print('cube_extent', utils.angstrom_to_bohr(args.cube_extent))
+    print('cube_size', args.cube_size)
+    print('cube_gap', cube_gap)
+    grid = dftpy_grid(np.diag(utils.angstrom_to_bohr(grid_extent)), cube_gap)
+    # print('grid.lattice', grid.lattice)
+    # print('grid size', grid.r.shape)
+    # print('ions lattice', dataset.ions[0].pos.cell.lattice)
+
+    file_names = {'H': 'H.pbe-kjpaw_psl.0.1.UPF', 'C': 'C.pbe-kjpaw_psl.0.1.UPF',
+                  'O': 'O.pbe-n-kjpaw_psl.0.1.UPF'}
+    PP_list = {key: os.path.join(args.pseudo_pot_path, file_names[key]) for key in file_names.keys()}
+    # print('pseudo potentials', PP_list)
+    pseudo_pot = LocalPseudo(grid=grid, ions=None, PP_list=PP_list, PME=True)
+    pseudo_pot.restart(grid=grid, ions=dataset.ions[0])
+
+    dataset.add_fixed_properties({'grid': grid_cl, 'dftpy_grid': grid, 'pseudo_pot': pseudo_pot})
+
+    z_vals = []
+    print('ions0', dataset.ions[0])
+    for t in dataset.atoms['atom_types']:
+        z_vals.append(dataset.ions[0].Zval[t])
+    z_vals = np.array(z_vals)
+    print(dataset.atoms['atom_numbers'])
+    print(z_vals)
+# determine weights of different quantities for scaling loss
 # loss_weights['full_hamiltonian'] = args.full_hamiltonian_weight
 # loss_weights['core_hamiltonian'] = args.core_hamiltonian_weight
 # loss_weights['overlap_matrix'] = args.overlap_matrix_weight
@@ -140,8 +211,6 @@ loss_weights['forces'] = args.forces_weight
 # at the beginning of training usually lead to NaNs. For this
 # reason gradients are only allowed to flow through loss terms
 # if the MAE is smaller than a certain threshold.
-error_dict = ErrorDict(loss_weights, weights_balance=args.weights_balance,
-                       percentage_error=args.percentage_error,)
 
 # prepare data loaders
 train_sampler = torch.utils.data.BatchSampler(torch.utils.data.RandomSampler(train_dataset),
@@ -153,12 +222,12 @@ train_data_loader = BatchLoader(train_dataset, batch_sampler=train_sampler,
                                 num_workers=args.num_workers, pin_memory=use_gpu)
 valid_data_loader = BatchLoader(valid_dataset, batch_sampler=valid_sampler,
                                 num_workers=args.num_workers, pin_memory=use_gpu)
+
 if args.cube_grid_valid:
     valid_cube_sampler = torch.utils.data.BatchSampler(torch.utils.data.RandomSampler(valid_cube_dataset),
                                                        batch_size=args.valid_batch_size, drop_last=False)
     valid_cube_loader = BatchLoader(valid_cube_dataset, batch_sampler=valid_cube_sampler,
                                     num_workers=args.num_workers, pin_memory=use_gpu)
-
 # define model
 clebsch_gordan = ClebschGordanMatrix()
 repr_model = EquivariantSphericalHarmonics(
@@ -187,7 +256,6 @@ dens_model = DensityCoeffsNetwork(
     num_features=args.num_features,
     positive_coeffs=args.positive_coeffs,
     clebsch_gordan=clebsch_gordan,
-    compressed_extraction=args.compressed_extraction,
     verbose=args.verbose,
     timing=args.timing,
 )
@@ -195,29 +263,71 @@ dens_model = DensityCoeffsNetwork(
 expansion_model = DensityExpansion(dataset.orbitals, radial_coeffs=dataset.radial_coeffs,
                                    expansion_constraint=args.expansion_constraint,
                                    integral_constraint=args.integral_constraint,
-                                   softmax_norm=args.softmax_norm,
+                                   integral_scale=args.integral_scale,
+                                   softmax_norm=args.softmax_norm, n_electrons=sum(z_vals),
                                    verbose=args.verbose,
                                    timing=args.timing,
                                    )
 
-# determine what should be calculated based on loss weights
-# tmp = (loss_weights['energy'] > 0) or (loss_weights['forces'] > 0)
-# model.calculate_full_hamiltonian = (
-#     loss_weights['full_hamiltonian'] > 0) or tmp
-# model.calculate_core_hamiltonian = (
-#     loss_weights['core_hamiltonian'] > 0) or tmp
-# model.calculate_overlap_matrix = (
-#     (loss_weights['overlap_matrix'] > 0) or tmp) and not args.orthonormal_basis
-# model.calculate_energy = loss_weights['energy'] > 0
-# model.calculate_forces = loss_weights['forces'] > 0
-
 calculate_forces = loss_weights['forces'] > 0
-# send model to GPU (if use_gpu is True)
-density_model = nn.Sequential(repr_model, dens_model)
-property_models = {'density': expansion_model}
-calculate_forces_dict = {'density': False}
 
-model = DFTNetwork(density_model, property_models, verbose=args.verbose)
+
+if args.energy_model == 'complex':
+    print('building complex energy model')
+    en_model = ComplexEnergyNetwork(
+        orbitals=dataset.orbitals,
+        num_features=args.num_features,
+        num_basis_functions=args.num_basis_functions,
+        num_modules=args.num_modules,
+        num_residual_pre_x=args.num_residual_pre_x,
+        num_residual_post_x=args.num_residual_post_x,
+        num_residual_pre_vi=args.num_residual_pre_vi,
+        num_residual_pre_vj=args.num_residual_pre_vj,
+        num_residual_post_v=args.num_residual_post_v,
+        num_residual_output=args.num_residual_output,
+        num_radial_components=args.num_radial_components,
+        basis_functions=args.basis_functions,
+        cutoff=args.cutoff,
+        activation=args.activation,
+        calculate_forces=calculate_forces,
+        verbose=args.verbose,
+        timing=args.timing,
+    )
+elif args.energy_model == 'simple':
+    print('building simple energy model')
+    en_model = SimpleEnergyNetwork(
+        orbitals=dataset.orbitals,
+        num_features=args.num_features,
+        num_layers=args.num_energy_output,
+        activation=args.activation,
+        calculate_forces=calculate_forces,
+        verbose=args.verbose,
+        timing=args.timing,
+    )
+else:
+    args.energy_model = None
+
+if loss_weights['energy_min'] > 0:
+    functional = LDAFunctional(z_vals, verbose=args.verbose, energy_offset=args.energy_offset, store_energy=(args.energy_model is None))
+    functional_en_model = nn.Sequential(expansion_model, functional)
+
+density_model = nn.Sequential(repr_model, dens_model)
+
+property_models = {}
+calculate_forces_dict = {}
+if (loss_weights['density'] + loss_weights['energy_min']) > 0:
+    property_models['density'] = expansion_model
+    calculate_forces_dict['density'] = False
+if loss_weights['energy_min'] > 0:
+    property_models['energy_min'] = functional_en_model
+    calculate_forces_dict['energy_min'] = False
+if args.energy_model is not None:
+    property_models['energy'] = en_model
+    calculate_forces_dict['energy'] = calculate_forces
+
+print('property models', property_models)
+model = DFTNetwork(density_model, property_models, calculate_forces_dict=calculate_forces_dict, verbose=args.verbose)
+# print('dft network', model)
 
 # if there are multiple GPUs, wrap the model in DataParallel
 # "module" is used whenever direct access is needed, e.g. for parameters,
@@ -230,9 +340,13 @@ else:
 # build list of parameters to optimize (with or without weight decay)
 parameters = []
 weight_decay_parameters = []
+offset_param = []
+param_names = []
 for name, param in model.named_parameters():
     if 'weight' in name and 'radial_fn' not in name and 'embedding' not in name:
         weight_decay_parameters.append(param)
+    elif name == 'en_offset':
+        offset_param.append(param)
     else:
         parameters.append(param)
 
@@ -241,26 +355,40 @@ parameter_list = [
     {'params': weight_decay_parameters, 'weight_decay': float(args.weight_decay)}]
 
 # choose optimizer
+optimizers = []
 if args.optimizer == 'adam':  # Adam
     print("using Adam optimizer")
-    optimizer = torch.optim.Adam(parameter_list, lr=args.learning_rate, eps=args.epsilon, betas=(
-        args.beta1, args.beta2), weight_decay=0.0)
+    optimizers.append(torch.optim.Adam(parameter_list, lr=args.learning_rate, eps=args.epsilon, betas=(
+        args.beta1, args.beta2), weight_decay=0.0))
+    if args.energy_offset:
+        optimizers.append(torch.optim.Adam(offset_param, lr=100 * args.learning_rate, eps=args.epsilon, betas=(
+            args.beta1, args.beta2), weight_decay=0.0))
 elif args.optimizer == 'amsgrad':  # AMSGrad
     print("using AMSGrad optimizer")
-    optimizer = torch.optim.Adam(parameter_list, lr=args.learning_rate, eps=args.epsilon, betas=(
-        args.beta1, args.beta2), weight_decay=0.0, amsgrad=True)
+    optimizers.append(torch.optim.Adam(parameter_list, lr=args.learning_rate, eps=args.epsilon, betas=(
+        args.beta1, args.beta2), weight_decay=0.0, amsgrad=True))
+    if args.energy_offset:
+        optimizers.append(torch.optim.Adam(offset_param, lr=100 * args.learning_rate, eps=args.epsilon, betas=(
+            args.beta1, args.beta2), weight_decay=0.0, amsgrad=True))
 elif args.optimizer == 'sgd':  # Stochastic Gradient Descent
     print("using Stochastic Gradient Descent optimizer")
-    optimizer = torch.optim.SGD(
-        parameter_list, lr=args.learning_rate, momentum=args.momentum, weight_decay=0.0)
+    optimizers.append(torch.optim.SGD(
+        parameter_list, lr=args.learning_rate, momentum=args.momentum, weight_decay=0.0))
+    if args.energy_offset:
+        optimizers.append(torch.optim.SGD(
+            offset_param, lr=100 * args.learning_rate, momentum=args.momentum, weight_decay=0.0))
 
 # initialize Lookahead
 if args.lookahead_k > 0:
-    optimizer = Lookahead(optimizer, k=args.lookahead_k)
+    optimizer = Lookahead(optimizers[0], k=args.lookahead_k)
 
 # learning rate scheduler (decays learning rate if validation loss plateaus)
-scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-    optimizer, mode='min', factor=args.decay_factor, patience=args.decay_patience, verbose=1)
+
+schedulers = [torch.optim.lr_scheduler.ReduceLROnPlateau(
+    optimizers[0], mode='min', factor=args.decay_factor, patience=args.decay_patience, verbose=args.verbose)]
+if args.energy_offset:
+    schedulers.append(torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizers[1], mode='min', factor=args.decay_factor, patience=args.decay_patience, verbose=args.verbose))
 
 # create summary writer for tensorboard
 summary = SummaryWriter(logdir=os.path.join(
@@ -275,8 +403,9 @@ if args.cube_grid_valid:
     validation_loaders.append(valid_cube_loader)
     valid_check_best.append(False)
 
+
 trainer = Trainer(model_path=directory, model=model, error_dict=error_dict,
-                  optimizers=[optimizer], schedulers=[scheduler],
+                  optimizers=optimizers, schedulers=schedulers,
                   train_loader=train_data_loader,
                   validation_loaders=validation_loaders,
                   checkpoint_interval=args.checkpoint_interval,
@@ -293,4 +422,5 @@ trainer = Trainer(model_path=directory, model=model, error_dict=error_dict,
                   timing=args.timing,
                   )
 
+# with torch.autograd.detect_anomaly():
 trainer.run(args.max_steps, device=device, dtype=args.dtype)

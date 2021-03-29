@@ -23,8 +23,8 @@ class DFTNetwork(nn.Module):
             self.calculate_forces = np.any(list(calculate_forces_dict.values()))
 
         # separate properties that require forces to calculate them first
-        self.force_props = [key for key in calculate_forces_dict if calculate_forces_dict[key]]
-        self.no_force_props = [key for key in calculate_forces_dict if not calculate_forces_dict[key]]
+        self.force_props = sorted([key for key in calculate_forces_dict if calculate_forces_dict[key]])
+        self.no_force_props = sorted([key for key in calculate_forces_dict if not calculate_forces_dict[key]])
         if self.verbose > 0:
             print('force props', self.force_props)
             print('no force props', self.no_force_props)

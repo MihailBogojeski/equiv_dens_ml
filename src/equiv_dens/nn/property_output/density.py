@@ -388,8 +388,8 @@ class DensityExpansion(nn.Module):
                 print('dens int neg before', torch.sum(atoms['density'][dens < 0] * 0.06021670784495335))
             atoms['density'] = F.softplus(atoms['density'], beta=100000000) + 1e-30
             if self.verbose > 3:
-                print('dens int pos before', torch.sum(atoms['density'][dens > 0] * 0.06021670784495335))
-                print('dens int neg before', torch.sum(atoms['density'][dens < 0] * 0.06021670784495335))
+                print('dens int pos after', torch.sum(atoms['density'][dens > 0] * 0.06021670784495335))
+                print('dens int neg after', torch.sum(atoms['density'][dens < 0] * 0.06021670784495335))
 
         if self.timing:
             print('density expansion time:', time.time() - start)

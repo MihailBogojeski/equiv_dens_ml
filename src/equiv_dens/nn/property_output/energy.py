@@ -234,15 +234,17 @@ class SimpleEnergyNetwork(nn.Module):
         # initialize atomic features to embeddings
         # print('sph coeffs', atoms['spherical_coeffs'][0][(8, 0)])
         fs = get_invariant_features(atoms, permutational_invariance=False, keep_dims=True)
-        # print('fs.shape', fs.shape)
+        if self.verbose > 3:
+            print('fs.shape', fs.shape)
 
         if self.num_features != self.dens_features:
             fs = self.input_layer(fs)
         for layer in self.transofrmation_layers:
             # print('fs intermediate', fs)
             fs = self.out_activation(layer(fs))
-        atom_en = self.energy_output(self.out_activation(fs)).squeeze()
-        # print('atom en shape', atom_en.shape)
+        atom_en = self.energy_output(self.out_activation(fs)).squeeze(-1)
+        if self.verbose > 3:
+            print('atom en shape', atom_en.shape)
 
         energy = torch.sum(atom_en, dim=1, keepdim=True)
 

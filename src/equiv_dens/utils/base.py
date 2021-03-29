@@ -3,12 +3,10 @@ import scipy
 import ase
 import ase.io
 import torch
+import ase.data
 
 to_bohr = 1.889725989
 to_angstrom = 0.529177249
-
-number_to_symbol_map = {1: 'H', 6: 'C', 8: 'O'}
-symbol_to_number_map = {'H': 1, 'C': 6, 'O': 8}
 
 
 def angstrom_to_bohr(pos):
@@ -198,7 +196,7 @@ def normal_plane_on_line(plane_points, is_line_point):
 def symbols_to_numbers(symbols):
     numbers = []
     for s in symbols:
-        numbers.append(symbol_to_number_map[s])
+        numbers.append(ase.data.atomic_numbers[s])
 
     return numbers
 
@@ -206,7 +204,7 @@ def symbols_to_numbers(symbols):
 def numbers_to_symbols(numbers, join=True):
     symbols = []
     for n in numbers:
-        symbols.append(number_to_symbol_map[n])
+        symbols.append(ase.data.chemical_symbols[n])
 
     if join:
         symbols = ''.join(symbols)
