@@ -49,6 +49,7 @@ class Trainer:
         valid_check_best=None,
         verbose=0,
         timing=False,
+        data_split_indices=None,
     ):
         self.model_path = model_path
         self.model_code = model_path.split('_')[-1]
@@ -69,6 +70,7 @@ class Trainer:
         self.stop_at_learning_rate = stop_at_learning_rate
         self.verbose = verbose
         self.timing = timing
+        self.data_split_indices = data_split_indices
         if valid_check_best is None:
             self.valid_check_best = [False] * len(validation_loaders)
             self.valid_check_best[0] = True
@@ -120,6 +122,7 @@ class Trainer:
             'exponential_moving_average': (self.exponential_moving_average.ema
                                            if self.exponential_moving_average is not None else None),
             'error_dict': self.error_dict,
+            'data_split_indices': self.data_split_indices,
         }, os.path.join(self.checkpoint_path, chk_name))
         self.summary.add_text('checkpoints', 'saved checkpoint', self.step)
 
@@ -161,6 +164,7 @@ class Trainer:
         self.valid_errors = checkpoint['valid_errors']
         self._module.load_state_dict(checkpoint['model_state_dict'])
         self.error_dict = checkpoint['error_dict']
+        self.data_split_indices = checkpoint['data_split_indices']
         for i in range(len(self.optimizers)):
             self.optimizers[i].load_state_dict(checkpoint['optimizers_state_dict'][i])
         for i in range(len(self.schedulers)):

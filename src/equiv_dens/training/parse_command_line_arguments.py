@@ -86,6 +86,7 @@ def parse_command_line_arguments():
     args_training.add_argument("--radial_coeffs_file", metavar='STR', type=str, default=None, help="filepath to initial radial coefficients")
     args_training.add_argument("--num_train", metavar='INT', type=int, help="size of training set")
     args_training.add_argument("--num_valid", metavar='INT', type=int, help="size of validation set")
+    args_training.add_argument("--num_test", metavar='INT', default=None, type=int, help="size of validation set")
     args_training.add_argument("--density_subsamples", metavar='INT', type=int, default=10000, help="number of grid samples used for evaluating density")
     args_training.add_argument("--train_batch_size", metavar='INT', type=int, default=1, help="batch size for training")
     args_training.add_argument("--valid_batch_size", metavar='INT', type=int, default=1, help="batch size for validation")
