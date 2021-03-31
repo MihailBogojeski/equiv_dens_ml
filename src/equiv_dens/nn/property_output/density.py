@@ -42,7 +42,7 @@ class DensityCoeffsNetwork(nn.Module):
 
         # extract nuclear charges from orbitals, determine maximum order, and
         # build the occupation mask (for extracting occupied orbitals in energy prediction)
-        self.order_max = get_max_order(orbitals)
+        self.orbitals_max_order = get_max_order(orbitals)
         # for calculating nucleus - nucleus repulsion
 
         if clebsch_gordan is None:
@@ -51,13 +51,13 @@ class DensityCoeffsNetwork(nn.Module):
             self.clebsch_gordan = clebsch_gordan
 
         # error checking
-        if self.order < self.order_max:
+        if self.order < self.orbitals_max_order:
             print("An orbital with L={} was found, but the neural network was initialized with L={}".format(
-                self.order_max, self.order))
+                self.orbitals_max_order, self.order))
             print("The neural network MUST have at least the same order as all orbitals!")
             quit()
 
-        self.orbital_spec, self.radial_count = combine_orbitals(self.orbitals, self.order_max)
+        self.orbital_spec, self.radial_count = combine_orbitals(self.orbitals, self.orbitals_max_order)
         print('orbital_spec', self.orbital_spec)
 
         if self.compressed_extraction:
@@ -67,11 +67,13 @@ class DensityCoeffsNetwork(nn.Module):
         print('L_counts', self.L_counts)
         print('L_dict', self.L_dict)
         print('max lcounts', max(self.L_counts))
-        self.spherical_output = SphericalLinear(self.order, self.num_features, self.order_max + 1, max(self.L_counts), self.clebsch_gordan)
+        self.spherical_output = SphericalLinear(self.order, self.num_features,
+                                                self.orbitals_max_order + 1,
+                                                max(self.L_counts), self.clebsch_gordan)
         self.radial_width = nn.ModuleList([nn.Linear(self.num_features, self.L_counts[L] * self.r_max[L])
-                                           for L in range(self.order_max + 2)])
+                                           for L in range(self.orbitals_max_order + 2)])
         self.radial_scale = nn.ModuleList([nn.Linear(self.num_features, self.L_counts[L] * self.r_max[L])
-                                           for L in range(self.order_max + 2)])
+                                           for L in range(self.orbitals_max_order + 2)])
 
     """
     Collects spherical harmonics features into orbital coefficients of the appropriate size
@@ -205,7 +207,7 @@ class DensityCoeffsNetwork(nn.Module):
         out_width = []
         out_scale = []
         for L in range(len(self.radial_width)):
-            out_width.append(F.tanh(self.radial_width[L](fs[0])))
+            out_width.append(torch.tanh(self.radial_width[L](fs[0])))
             out_width[L] = out_width[L].view(*out_width[L].shape[:-2], self.r_max[L], self.L_counts[L])
             if self.positive_coeffs:
                 out_scale.append(F.softplus(self.radial_scale[L](fs[0])))
@@ -254,14 +256,14 @@ class DensityExpansion(nn.Module):
             print('expansion constraint', self.expansion_constraint)
             print('integral constraint', self.integral_constraint)
 
-        self.order_max = get_max_order(self.orbitals)
+        self.orbitals_max_order = get_max_order(self.orbitals)
         if n_electrons is None:
             self.n_electrons = get_n_electrons(self.orbitals)
         else:
             self.n_electrons = n_electrons
 
         self.radial_coeffs = radial_coeffs
-        self.orbital_spec, self.radial_counts = combine_orbitals(self.orbitals, self.order_max)
+        self.orbital_spec, self.radial_counts = combine_orbitals(self.orbitals, self.orbitals_max_order)
         self.init_radial_coeffs()
 
     def init_radial_coeffs(self):
@@ -305,7 +307,7 @@ class DensityExpansion(nn.Module):
         if eval_atoms is None:
             eval_atoms = list(range(len(self.orbitals)))
         if eval_L is None:
-            eval_L = list(range(self.order_max + 1))
+            eval_L = list(range(self.orbitals_max_order + 1))
         atoms['density'] = 0
         L0_coeffs = []
         L0_sph = []
@@ -316,7 +318,7 @@ class DensityExpansion(nn.Module):
             # print('atom num', z)
             # print('orbitals i', self.orbital_spec[i])
             d, u = calculate_distances_and_directions(atoms['coords'], center=atoms['positions'][:, [i]])
-            s = spherical_harmonics(self.order_max, u)
+            s = spherical_harmonics(self.orbitals_max_order, u)
             # print('atom[i]', i)
             # print('dists', d)
             # print('dists shape', d.shape)

@@ -1,10 +1,10 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from equiv_dens.nn.modules.radial_basis_functions import BernsteinRadialBasisFunctions, GaussianRadialBasisFunctions,\
     ExponentialBernsteinRadialBasisFunctions, ExponentialGaussianRadialBasisFunctions
 from equiv_dens.nn.modules.embeddings import SphericalEmbedding
 from equiv_dens.nn.modules.network_blocks import ModularBlock
+from equiv_dens.nn.modules.spherical_harmonic_layers import SphericalLinear
 from equiv_dens.utils.spherical_harmonics import spherical_harmonics
 from equiv_dens.utils.base import calculate_distances_and_directions
 from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
@@ -70,6 +70,16 @@ class EquivariantSphericalHarmonics(nn.Module):
         self.timing = timing
         self.verbose = verbose
 
+        print('self order', self.order)
+        if not isinstance(self.order, list):
+            self.order = [self.order] * self.num_modules
+        print('self order', self.order)
+
+        if len(self.order) != self.num_modules:
+            print('Order needs to be an integer or a list of integers with length equal to num_modules.' +
+                  ' Taking last order element and using it for all modules.')
+            self.order = [self.order[-1]] * self.num_modules
+
         N = len(self.orbitals)
         idx_i = torch.arange(N, dtype=torch.int64).view(-1, 1).repeat(1, N).view(-1)
         idx_j = torch.arange(N, dtype=torch.int64).view(1, -1).repeat(N, 1).view(-1)
@@ -81,31 +91,33 @@ class EquivariantSphericalHarmonics(nn.Module):
         # extract nuclear charges from orbitals, determine maximum order, and
         # build the occupation mask (for extracting occupied orbitals in energy prediction)
         Zl = []
-        self.order_max = 0
+        self.orbitals_max_order = 0
         for i in range(len(self.orbitals)):
             Zl.append(self.orbitals[i][0][0])
             for z, _, l in self.orbitals[i]:
                 assert z == Zl[i]  # check that Z is the same for all orbitals
-                if l > self.order_max:
-                    self.order_max = l
+                if l > self.orbitals_max_order:
+                    self.orbitals_max_order = l
         Z = torch.tensor(Zl, dtype=torch.int64).unsqueeze(0)
+
         # for calculating nucleus - nucleus repulsion
         self.register_buffer('Z', Z)  # for gathering embeddings
 
         # error checking
-        if self.order < self.order_max:
+        if self.order[-1] < self.orbitals_max_order:
             print("An orbital with L={} was found, but the neural network was initialized with L={}".format(
-                self.order_max, self.order))
+                self.orbitals_max_order, self.order[-1]))
             print("The neural network MUST have at least the same order as all orbitals!")
             quit()
 
+        self.order_max = max(self.order)
         # declare modules and parameters
         if clebsch_gordan is None:
             self.clebsch_gordan = ClebschGordanMatrix()
         else:
             self.clebsch_gordan = clebsch_gordan
         self.embedding = SphericalEmbedding(
-            self.order, self.num_features, self.Zmax)
+            self.order_max, self.num_features, self.Zmax)
         if basis_functions == 'exp-gaussian':
             self.radial_basis_functions = ExponentialGaussianRadialBasisFunctions(
                 self.num_basis_functions, self.cutoff)
@@ -121,10 +133,20 @@ class EquivariantSphericalHarmonics(nn.Module):
         else:
             print("basis function type:",
                   basis_functions, "is not supported")
-        self.module = nn.ModuleList([ModularBlock(self.order, self.num_features, self.num_basis_functions,
+        self.module = nn.ModuleList([ModularBlock(self.order[i], self.num_features, self.num_basis_functions,
                                                   self.num_residual_pre_x, self.num_residual_post_x, self.num_residual_pre_vi,
                                                   self.num_residual_pre_vj, self.num_residual_post_v, self.num_residual_output,
                                                   self.clebsch_gordan, True, self.activation) for i in range(self.num_modules)])
+        self.order_change = [nn.Identity()]
+        for i in range(1, self.num_modules):
+            if self.order[i] != self.order[i - 1]:
+                self.order_change.append(SphericalLinear(self.order[i - 1], self.num_features,
+                                                         self.order[i], self.num_features,
+                                                         clebsch_gordan=self.clebsch_gordan,
+                                                         bias=False))
+            else:
+                self.order_change.append(nn.Identity())
+        self.order_change = nn.ModuleList(self.order_change)
 
     def forward(self, atoms):
         """
@@ -154,12 +176,12 @@ class EquivariantSphericalHarmonics(nn.Module):
         # print('rbf shape', rbf.shape)
         # print('rbf sum', torch.sum(rbf, dim=-1))
         # print('rbf softmax', F.softmax(rbf, dim=-1))
-        sph = spherical_harmonics(self.order, uij)
+        sph = spherical_harmonics(self.order_max, uij)
         # print('sph', sph)
         atoms['distances'] = dij
         atoms['directions'] = uij
         # print('sph shape', sph[0].shape)
-        for L in range(self.order + 1):
+        for L in range(self.order_max + 1):
             sph[L].unsqueeze_(-1)  # unsqueeze for broadcasting
         # print('sph shape', sph[0].shape)
         atoms['sph'] = sph
@@ -169,9 +191,10 @@ class EquivariantSphericalHarmonics(nn.Module):
 
         # perform iterations over modular building blocks to get environment - dependent features
         fs = [torch.zeros_like(x) for x in xs]  # output features
-        for module in self.module:
+        for i, module in enumerate(self.module):
+            xs = self.order_change[i](xs)
             xs, ys = module(xs, rbf, sph, self.idx_i, self.idx_j)
-            for L in range(self.order + 1):
+            for L in range(self.order[i] + 1):
                 fs[L] += ys[L]  # add contributions to output features
 
         atoms['sph_repr'] = fs

@@ -265,7 +265,7 @@ repr_model = EquivariantSphericalHarmonics(
 )
 dens_model = DensityCoeffsNetwork(
     orbitals=dataset.orbitals,
-    order=args.order,
+    order=args.order[-1],
     num_features=args.num_features,
     positive_coeffs=args.positive_coeffs,
     clebsch_gordan=clebsch_gordan,

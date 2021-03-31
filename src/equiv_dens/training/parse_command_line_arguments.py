@@ -15,7 +15,7 @@ def str2bool(s):
 
 def parse_command_line_arguments():
     # declare parser
-    parser = argparse.ArgumentParser(fromfile_prefix_chars='@', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(fromfile_prefix_chars='@')
     parser._action_groups.pop()
 
     # argument for restarting runs
@@ -29,7 +29,7 @@ def parse_command_line_arguments():
                                   help="initialize model from given pth file (other architecture hyperparameters are ignored)")
     args_hyperparams.add_argument("--activation", metavar='STR', type=str, default='swish',
                                   choices=['ssp', 'swish'], help="which activation function to use (shifted softplus (ssp) or swish))")
-    args_hyperparams.add_argument("--order", metavar='INT', type=int, default=2, help="angular order of the feature vectors")
+    args_hyperparams.add_argument("--order", metavar='INT', type=int, default=[2], nargs='+', help="angular order of the feature vectors")
     args_hyperparams.add_argument("--num_features", metavar='INT', type=int, default=32, help="dimensionality of feature vectors")
     args_hyperparams.add_argument("--num_basis_functions", metavar='INT', type=int, default=32, help="number of radial basis functions")
     args_hyperparams.add_argument("--num_radial_components", metavar='INT', type=int, default=32,
