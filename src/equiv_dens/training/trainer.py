@@ -331,19 +331,23 @@ class Trainer:
             sys.exit()
         errors = self.error_dict.compute(predictions, data)
 
+        # check for nans
+        found_nans = False
         for key in errors.keys():
             if torch.any(torch.isnan(errors[key])):
                 print('Nans found in', key, 'error')
-                for k in errors.keys():
-                    print('key', k)
-                    print('nans', torch.any(torch.isnan(errors[k])))
-                np.save(self.model_code + '_pred_crash_dump_' + str(self.step) + '.npy', predictions, allow_pickle=True)
-                np.save(self.model_code + '_true_crash_dump_' + str(self.step) + '.npy', data, allow_pickle=True)
-                torch.save(self._module.state_dict(), self.model_code + '_model_crash_dump_' + str(self.step) + '.pth')
-                return
+                found_nans = True
                 # raise Exception('Nans found in', key, 'error')
                 # sys.exit()
         # backward step
+        if found_nans:
+            for k in errors.keys():
+                print('key', k)
+                print('nans', torch.any(torch.isnan(errors[k])))
+            torch.save(predictions, self.model_code + '_pred_crash_dump_train_' + str(self.step) + '.pth')
+            torch.save(data, self.model_code + '_true_crash_dump_train_' + str(self.step) + '.pth')
+            torch.save(self._module.state_dict(), self.model_code + '_model_crash_dump_train_' + str(self.step) + '.pth')
+            return
 
         # if self.verbose > 2:
         #     print('train step before backward:', torch.cuda.memory_summary())
@@ -439,18 +443,23 @@ class Trainer:
                     exclude_energy_min = False
             errors = self.error_dict.compute(predictions, data, exclude_energy_min=exclude_energy_min)
             # update valid_errors (running average)
+            found_nans = False
             for key in errors.keys():
                 if torch.any(torch.isnan(errors[key])):
                     print('Nans found in', key, 'error')
-                    for k in errors.keys():
-                        print('key', k)
-                        print('nans', torch.any(torch.isnan(errors[k])))
-                    np.save(self.model_code + '_pred_crash_dump_' + str(self.step) + '.npy', predictions, allow_pickle=True)
-                    np.save(self.model_code + '_true_crash_dump_' + str(self.step) + '.npy', data, allow_pickle=True)
-                    torch.save(self._module.state_dict(), self.model_code + '_model_crash_dump_' + str(self.step) + '.pth')
+                    found_nans = True
                     # raise Exception('Nans found in', key, 'error')
                     # sys.exit()
-                    continue
+            # backward step
+            if found_nans:
+                for k in errors.keys():
+                    print('key', k)
+                    print('nans', torch.any(torch.isnan(errors[k])))
+                torch.save(predictions, self.model_code + '_pred_crash_dump_valid_' + str(self.step) + '.pth')
+                torch.save(data, self.model_code + '_true_crash_dump_valid_' + str(self.step) + '.pth')
+                torch.save(self._module.state_dict(), self.model_code + '_model_crash_dump_valid_' + str(self.step) + '.pth')
+                continue
+            for key in errors.keys():
                 valid_errors[key] += (errors[key].item() -
                                       valid_errors[key]) / (valid_batch_num + 1)
             if self.timing:

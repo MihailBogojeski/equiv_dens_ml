@@ -50,7 +50,10 @@ args.dens_dataset_test = old_args.dens_dataset_test
 args.num_test = old_args.num_test
 args.test_batch_size = old_args.test_batch_size
 restore = True
-data_split_indices = checkpoint['data_split_indices']
+if 'data_split_indices' in checkpoint.keys():
+    data_split_indices = checkpoint['data_split_indices']
+else:
+    data_split_indices = None
 best_model_path = 'best_' + model_code + '.pth'
 print('best_model_path', best_model_path)
 
