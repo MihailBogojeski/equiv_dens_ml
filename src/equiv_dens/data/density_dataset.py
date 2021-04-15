@@ -25,6 +25,7 @@ from pyscf.lib import param
 from equiv_dens.utils.grids import spherical_grid, rot_spherical_sampling
 import equiv_dens.utils.base as utils
 from dftpy.formats import ase_io
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -159,11 +160,9 @@ class AtomsDensityData(Dataset):
                 return self.atoms['positions'].shape[0]
         return len(self.subset)
 
+    # property collection is done by the get_properties function when passed as collate_fn
     def __getitem__(self, idx):
-        properties = self.get_properties(idx)
-        properties["_idx"] = torch.LongTensor(np.array([idx], dtype=np.int))
-
-        return properties
+        return idx
 
     def _subset_index(self, idx):
         # get row
@@ -174,6 +173,7 @@ class AtomsDensityData(Dataset):
     def center_energy(self, energy_mean):
         self.atoms['energy'] -= energy_mean
 
+    # collects the molecular properties for the batch, should be used as collate_fn
     def get_properties(self, idx):
         idx = self._subset_index(idx)
         if not hasattr(idx, '__len__'):
@@ -208,6 +208,7 @@ class AtomsDensityData(Dataset):
             positions -= positions.mean(axis=0)
         properties['positions'] = torch.from_numpy(positions).type(self.dtype)
         properties['shifted_positions'] = torch.from_numpy(self.atoms['shifted_positions'][idx]).type(self.dtype)
+        properties["_idx"] = torch.LongTensor(np.array(idx, dtype=np.int))
         for prop in self.fixed_properties.keys():
             properties[prop] = self.fixed_properties[prop]
 

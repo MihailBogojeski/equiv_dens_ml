@@ -16,7 +16,6 @@ from equiv_dens.training.trainer import Trainer
 from equiv_dens.data.density_dataset import AtomsDensityData
 from equiv_dens.data.hamiltonian_dataset import seeded_random_split
 from equiv_dens.training.lookahead import Lookahead
-from equiv_dens.data.batch_loader import BatchLoader
 from equiv_dens.utils.grids import cubical_grid, cubical_sampling,\
     dftpy_grid, CubicalGrid, spherical_grid, rot_spherical_sampling
 from equiv_dens.density_functionals.LDA import LDAFunctional
@@ -80,11 +79,6 @@ print('model code:', model_code)
 # determine whether GPU is used for training
 print('args use gpu', args.use_gpu)
 use_gpu = args.use_gpu and torch.cuda.is_available()
-
-if use_gpu:
-    device = 'cuda'
-else:
-    device = 'cpu'
 
 # load dataset(s)
 print("loading density from" + str(args.dens_dataset) + "...")
@@ -185,7 +179,7 @@ loss_comp['forces'] = args.forces_loss_comp
 error_dict = ErrorDict(loss_weights, weights_balance=args.weights_balance,
                        percentage_error=args.percentage_error,
                        weights_decay=weights_decay, weights_min=weights_min,
-                       loss_comp=loss_comp, 
+                       loss_comp=loss_comp,
                        )
 
 z_vals = dataset.atoms['atom_numbers']
@@ -193,7 +187,8 @@ if loss_weights['energy_min']:
     grid_origin = args.cube_origin
     grid_extent = np.array([args.cube_extent] * 3)
     grid_cl = CubicalGrid(dataset.atoms, nx=args.cube_size, ny=args.cube_size, nz=args.cube_size,
-                          origin=[0, 0, 0], extent=utils.angstrom_to_bohr(grid_extent), device=device, dtype=args.dtype)
+                          origin=[0, 0, 0], extent=utils.angstrom_to_bohr(grid_extent),
+                          use_gpu=use_gpu, dtype=args.dtype)
 
     cube_gap = utils.angstrom_to_bohr(args.cube_extent) / args.cube_size
     print('cube_extent', utils.angstrom_to_bohr(args.cube_extent))
@@ -233,21 +228,20 @@ if loss_weights['energy_min']:
 # if the MAE is smaller than a certain threshold.
 
 # prepare data loaders
-train_sampler = torch.utils.data.BatchSampler(torch.utils.data.RandomSampler(train_dataset),
-                                              batch_size=args.train_batch_size, drop_last=False)
-valid_sampler = torch.utils.data.BatchSampler(torch.utils.data.RandomSampler(valid_dataset),
-                                              batch_size=args.valid_batch_size, drop_last=False)
-
-train_data_loader = BatchLoader(train_dataset, batch_sampler=train_sampler,
-                                num_workers=args.num_workers, pin_memory=use_gpu)
-valid_data_loader = BatchLoader(valid_dataset, batch_sampler=valid_sampler,
-                                num_workers=args.num_workers, pin_memory=use_gpu)
-
+train_data_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.train_batch_size,
+                                                num_workers=args.num_workers, pin_memory=use_gpu,
+                                                shuffle=True,
+                                                collate_fn=lambda batch: dataset.get_properties(batch))
+valid_data_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=args.valid_batch_size,
+                                                num_workers=args.num_workers, pin_memory=use_gpu,
+                                                shuffle=False,
+                                                collate_fn=lambda batch: dataset.get_properties(batch))
 if args.cube_grid_valid:
-    valid_cube_sampler = torch.utils.data.BatchSampler(torch.utils.data.RandomSampler(valid_cube_dataset),
-                                                       batch_size=args.valid_batch_size, drop_last=False)
-    valid_cube_loader = BatchLoader(valid_cube_dataset, batch_sampler=valid_cube_sampler,
-                                    num_workers=args.num_workers, pin_memory=use_gpu)
+    valid_cube_loader = torch.utils.data.DataLoader(valid_cube_dataset, batch_size=args.valid_batch_size,
+                                                    num_workers=args.num_workers, pin_memory=use_gpu,
+                                                    shuffle=True,
+                                                    collate_fn=lambda batch: dataset.get_properties(batch))
+
 # define model
 clebsch_gordan = ClebschGordanMatrix()
 repr_model = EquivariantSphericalHarmonics(
@@ -445,4 +439,4 @@ trainer = Trainer(model_path=directory, model=model, error_dict=error_dict,
                   )
 
 # with torch.autograd.detect_anomaly():
-trainer.run(args.max_steps, device=device, dtype=args.dtype)
+trainer.run(args.max_steps, use_gpu=use_gpu, dtype=args.dtype)

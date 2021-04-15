@@ -121,8 +121,8 @@ def dftpy_grid(lattice, gap):
 class CubicalGrid():
 
     def __init__(self, atoms, nx=125, ny=125, nz=125, resolution=None,
-                 margin=2, origin=None, extent=[10, 10, 10], device='cpu', dtype=torch.double):
-        self.device = device
+                 margin=2, origin=None, extent=[10, 10, 10], use_gpu=False, dtype=torch.double):
+        self.use_gpu = use_gpu
         self.dtype = dtype
         symbols = atoms['atom_types']
         positions = atoms['positions'][0]
@@ -143,7 +143,9 @@ class CubicalGrid():
         if resolution is not None:
             nx, ny, nz = np.ceil(np.diag(box) / resolution).astype(int)
         self.shape = torch.LongTensor([nx, ny, nz])
-        self.box = torch.tensor(box).to(device).type(dtype)
+        self.box = torch.tensor(box).type(dtype)
+        if self.use_gpu:
+            self.box = self.box.cuda()
         self.lattice = self.box
         # .../(nx-1) to get symmetric mesh
         # see also the discussion https://github.com/sunqm/pyscf/issues/154
@@ -151,14 +153,18 @@ class CubicalGrid():
         ys = np.linspace(0, np.diag(box)[0], nx, endpoint=False)
         zs = np.linspace(0, np.diag(box)[0], nx, endpoint=False)
 
-        self.point_volume = torch.diag(self.box) / torch.tensor([nx, ny, nz]).to(device).type(dtype)
+        self.point_volume = torch.diag(self.box) / torch.tensor([nx, ny, nz]).type(dtype)
+        if self.use_gpu:
+            self.point_volume = self.point_volume.cuda()
         self.point_volume = torch.prod(self.point_volume)
 
         self.volume = torch.prod(torch.diag(self.lattice))
 
         self.coords = lib.cartesian_prod([xs, ys, zs])
         self.coords = np.asarray(self.coords, order='C') - (-self.boxorig)
-        self.coords = torch.tensor(self.coords).to(device).type(dtype)
+        self.coords = torch.tensor(self.coords).type(dtype)
+        if self.use_gpu:
+            self.coords = self.coords.cuda()
 
         self._rr = None
         self.rec_grid = None
@@ -177,15 +183,16 @@ class CubicalGrid():
             bg = fac * torch.inverse(self.lattice)
             reciprocal_lat = bg.T
             self.rec_grid = ReciprocalGrid(np.array(self.shape).astype(np.int),
-                                           reciprocal_lat, device=self.device, dtype=self.dtype)
+                                           reciprocal_lat, use_gpu=self.use_gpu,
+                                           dtype=self.dtype)
         return self.rec_grid
 
 
 class ReciprocalGrid():
 
-    def __init__(self, shape, lattice, device='cpu', dtype=torch.double):
+    def __init__(self, shape, lattice, use_gpu=False, dtype=torch.double):
         ax = []
-        self.device = device
+        self.use_gpu = use_gpu
         self.dtype = dtype
         for i in range(3):
             dd = 1 / shape[i]
@@ -200,7 +207,9 @@ class ReciprocalGrid():
         # S_cart = s2r(S, self)
         self.lattice = lattice
         S_cart = np.asarray([S0, S1, S2])
-        S_cart = torch.tensor(S_cart).to(device).type(dtype)
+        S_cart = torch.tensor(S_cart).type(dtype)
+        if self.use_gpu:
+            S_cart = S_cart.cuda()
         self.coords = torch.einsum("j...,kj->k...", S_cart, self.lattice)
         self.shape = self.coords.shape[1:]
         self.full_shape = shape
@@ -253,5 +262,8 @@ class ReciprocalGrid():
                 mask[0, Dnr[1], 0] = False
             if all(Dmod == 0):
                 mask[Dnr[0], Dnr[1], Dnr[2]] = False
-            self._mask = mask.to(self.device)
+            if self.use_gpu:
+                self._mask = mask.cuda()
+            else:
+                self._mask = mask
         return self._mask

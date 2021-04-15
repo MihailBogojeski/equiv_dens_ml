@@ -52,9 +52,6 @@ class ErrorDict:
                     error_dict[key + "_mae"] = loss
                     error_dict[key + "_rmse"] = loss
                 else:
-                    print('key', key)
-                    print('predictions shape', predictions[key].shape)
-                    print('data shape', data[key].shape)
                     diff = predictions[key] - (data[key])
                     # print('error key', key)
                     # print('pred.shape', predictions[key].shape)

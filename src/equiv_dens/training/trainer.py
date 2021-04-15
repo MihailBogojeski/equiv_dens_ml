@@ -135,7 +135,7 @@ class Trainer:
                         if os.path.isfile(filename):
                             os.remove(filename)
 
-    def _aux_to(self, device, dtype):
+    def _aux_to(self, use_gpu, dtype):
         """
         Move the optimizers and schedulers to device before training.
         """
@@ -143,13 +143,19 @@ class Trainer:
             for state in opt.state.values():
                 for k, v in state.items():
                     if torch.is_tensor(v):
-                        state[k] = v.to(device).type(dtype)
+                        if use_gpu:
+                            state[k] = v.type(dtype).cuda()
+                        else:
+                            state[k] = v.type(dtype)
 
         for sched in self.schedulers:
             for state in opt.state.values():
                 for k, v in state.items():
                     if torch.is_tensor(v):
-                        state[k] = v.to(device).type(dtype)
+                        if use_gpu:
+                            state[k] = v.type(dtype).cuda()
+                        else:
+                            state[k] = v.type(dtype)
 
     def restore_checkpoint(self):
         checkpoint = torch.load(os.path.join(
@@ -181,19 +187,21 @@ class Trainer:
                 self.exponential_moving_average = None
                 self.ema_params = None
 
-    def run(self, n_steps, device='cpu', dtype=torch.float64):
+    def run(self, n_steps, use_gpu=False, dtype=torch.float64):
 
-        self._model.to(device)
         self._model.to(dtype)
-        self._aux_to(device, dtype)
+        if use_gpu:
+            self._model.cuda()
 
-        if 'cuda' in device and torch.cuda.device_count() > 1:
+        self._aux_to(use_gpu, dtype)
+
+        if use_gpu and torch.cuda.device_count() > 1:
             self._model = torch.nn.DataParallel(self._model)
             self._module = self._model.module
         else:
             self._module = self._model
 
-        if device != 'cpu':
+        if use_gpu:
             print("Training on " + str(torch.cuda.device_count()) + " GPUs:")
         else:
             print("Training on the CPU:")
@@ -215,7 +223,7 @@ class Trainer:
         while self.step < n_steps + 1:
             # get the next batch
 
-            self._train_step(device)
+            self._train_step(use_gpu)
             # run validation each validation_interval
             if self.step % self.validation_interval == 0:
                 if self.verbose > 0:
@@ -224,10 +232,10 @@ class Trainer:
                 self._module.eval()
                 for i, valid_data_loader in enumerate(self.validation_loaders):
                     if self._module.calculate_forces:
-                        self.valid_errors[i], is_best = self._validate(valid_data_loader, device, check_best=self.valid_check_best[i])
+                        self.valid_errors[i], is_best = self._validate(valid_data_loader, use_gpu, check_best=self.valid_check_best[i])
                     else:
                         with torch.no_grad():
-                            self.valid_errors[i], is_best = self._validate(valid_data_loader, device, check_best=self.valid_check_best[i])
+                            self.valid_errors[i], is_best = self._validate(valid_data_loader, use_gpu, check_best=self.valid_check_best[i])
                     if self.valid_check_best[i]:
                         new_best = is_best
                 self._module.train()
@@ -276,7 +284,7 @@ class Trainer:
         # close summary writer
         self.summary.close()
 
-    def _train_step(self, device):
+    def _train_step(self, use_gpu):
         start = time.time()
         try:
             data = next(self.train_iterator)
@@ -288,9 +296,10 @@ class Trainer:
         # print('train loading time', time.time() - start_load)
 
         # send data to GPU
-        for key in data.keys():
-            if isinstance(data[key], torch.Tensor):
-                data[key] = data[key].to(device)
+        if use_gpu:
+            for key in data.keys():
+                if isinstance(data[key], torch.Tensor):
+                    data[key] = data[key].cuda()
         if self.timing:
             print('train load time', time.time() - start)
         # zero the parameter gradients
@@ -298,7 +307,6 @@ class Trainer:
             optimizer.zero_grad()
 
         predictions = self._model(data)
-        print('pred L dict', predictions['L_dict'])
         if self.verbose > 0:
             if 'density' in predictions.keys():
                 print('train density intergal', torch.sum(predictions['density'] * predictions['coord_weights'], dim=1))
@@ -382,7 +390,7 @@ class Trainer:
         if self.timing:
             print('train step time', time.time() - start)
 
-    def _validate(self, valid_data_loader, device, check_best=False):
+    def _validate(self, valid_data_loader, use_gpu, check_best=False):
         is_best = False
         # swap to exponentially averaged parameters for validation
         if self.exponential_moving_average is not None:
@@ -393,9 +401,10 @@ class Trainer:
         for valid_batch_num, data in enumerate(valid_data_loader):
             start = time.time()
             # send data to GPU
-            for key in data.keys():
-                if isinstance(data[key], torch.Tensor):
-                    data[key] = data[key].to(device)
+            if use_gpu:
+                for key in data.keys():
+                    if isinstance(data[key], torch.Tensor):
+                        data[key] = data[key].cuda()
             if self.timing:
                 print('valid load time', time.time() - start)
 

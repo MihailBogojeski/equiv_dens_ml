@@ -233,7 +233,6 @@ class SimpleEnergyNetwork(nn.Module):
         self.energy_output = nn.Linear(self.num_features, 1)
 
     def forward(self, atoms):
-        print('energy Ldict', atoms['L_dict'])
         start = time.time()
         # initialize atomic features to embeddings
         # print('sph coeffs', atoms['spherical_coeffs'][0][(8, 0)])

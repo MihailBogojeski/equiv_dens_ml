@@ -11,7 +11,6 @@ from equiv_dens.training.parse_command_line_arguments import parse_command_line_
 from equiv_dens.training.errors import ErrorDict
 from equiv_dens.data.density_dataset import AtomsDensityData
 from equiv_dens.data.hamiltonian_dataset import seeded_random_split
-from equiv_dens.data.batch_loader import BatchLoader
 from equiv_dens.utils.grids import cubical_grid, cubical_sampling,\
     dftpy_grid, CubicalGrid, spherical_grid, rot_spherical_sampling
 from equiv_dens.density_functionals.LDA import LDAFunctional
@@ -68,11 +67,6 @@ print('model code:', model_code)
 # determine whether GPU is used for training
 print('args use gpu', args.use_gpu)
 use_gpu = args.use_gpu and torch.cuda.is_available()
-
-if use_gpu:
-    device = 'cuda'
-else:
-    device = 'cpu'
 
 # load dataset(s)
 print("loading density from" + str(args.dens_dataset) + "...")
@@ -163,7 +157,7 @@ if loss_weights['energy_min']:
     grid_origin = args.cube_origin
     grid_extent = np.array([args.cube_extent] * 3)
     grid_cl = CubicalGrid(dataset.atoms, nx=args.cube_size, ny=args.cube_size, nz=args.cube_size,
-                          origin=[0, 0, 0], extent=utils.angstrom_to_bohr(grid_extent), device=device, dtype=args.dtype)
+                          origin=[0, 0, 0], extent=utils.angstrom_to_bohr(grid_extent), use_gpu=use_gpu, dtype=args.dtype)
 
     cube_gap = utils.angstrom_to_bohr(args.cube_extent) / args.cube_size
     print('cube_extent', utils.angstrom_to_bohr(args.cube_extent))
@@ -207,11 +201,10 @@ if not hasattr(args, 'test_batch_size'):
     args.test_batch_size = args.valid_batch_size
 
 print('test dataset size', len(test_dataset))
-test_sampler = torch.utils.data.BatchSampler(torch.utils.data.RandomSampler(test_dataset),
-                                             batch_size=args.test_batch_size, drop_last=False)
-
-test_data_loader = BatchLoader(test_dataset, batch_sampler=test_sampler,
-                               num_workers=args.num_workers, pin_memory=use_gpu)
+test_data_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.train_batch_size,
+                                               num_workers=args.num_workers, pin_memory=use_gpu,
+                                               shuffle=True,
+                                               collate_fn=lambda batch: dataset.get_properties(batch))
 
 # define model
 clebsch_gordan = ClebschGordanMatrix()
@@ -323,18 +316,28 @@ state_dict_path = os.path.join(args.restart, best_model_path)
 print('state_dict_path', state_dict_path)
 state_dict = torch.load(state_dict_path, map_location='cpu')
 model.load_state_dict(state_dict)
-model.to(device)
 model.to(args.dtype)
+if use_gpu:
+    model.cuda()
 # if there are multiple GPUs, wrap the model in DataParallel
 # "module" is used whenever direct access is needed, e.g. for parameters,
 # whereas "model" may be DataParallel and is used for inference only
 
+if use_gpu and torch.cuda.device_count() > 1:
+    model = torch.nn.DataParallel(model)
+
+if use_gpu:
+    print("Testing on " + str(torch.cuda.device_count()) + " GPUs:")
+else:
+    print("Testing on the CPU:")
+
 test_errors = error_dict.empty()
 for test_batch_num, data in enumerate(test_data_loader):
     # send data to GPU
-    for key in data.keys():
-        if isinstance(data[key], torch.Tensor):
-            data[key] = data[key].to(device)
+    if use_gpu:
+        for key in data.keys():
+            if isinstance(data[key], torch.Tensor):
+                data[key] = data[key].cuda()
 
     # forward step
     print('step')

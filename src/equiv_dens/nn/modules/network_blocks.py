@@ -221,8 +221,6 @@ class InteractionBlock(nn.Module):
             idx = idx_j.view(*(1,) * len(yj[L].shape[:-3]), -1, 1, 1).repeat(
                 *yj[L].shape[:-3], 1, *yj[L].shape[-2:]
             )
-            print('yj[L] shape', yj[L].shape)
-            print('idx shape', idx.shape)
             yj[L] = torch.gather(yj[L], 1, idx)
 
         vs = self.mixing(yj, self.angular_fn1(sph), rbf)
