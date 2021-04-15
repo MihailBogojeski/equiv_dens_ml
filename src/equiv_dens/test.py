@@ -45,10 +45,17 @@ for arg in vars(checkpoint['args']):
     setattr(args, arg, getattr(checkpoint['args'], arg))
 step = checkpoint['step']
 args.restart = old_args.restart
+args.np_dataset = old_args.np_dataset
+args.dens_dataset = old_args.dens_dataset
+args.orbitals_file = old_args.orbitals_file
+args.radial_coeffs_file = old_args.radial_coeffs_file
 args.np_dataset_test = old_args.np_dataset_test
 args.dens_dataset_test = old_args.dens_dataset_test
+args.pseudo_pot_path = old_args.pseudo_pot_path
 args.num_test = old_args.num_test
 args.test_batch_size = old_args.test_batch_size
+args.spherical_grid_level = old_args.spherical_grid_level
+args.cube_size = old_args.cube_size
 restore = True
 if 'data_split_indices' in checkpoint.keys():
     data_split_indices = checkpoint['data_split_indices']
@@ -230,7 +237,7 @@ repr_model = EquivariantSphericalHarmonics(
 )
 dens_model = DensityCoeffsNetwork(
     orbitals=dataset.orbitals,
-    order=args.order,
+    order=args.order[-1],
     num_features=args.num_features,
     positive_coeffs=args.positive_coeffs,
     clebsch_gordan=clebsch_gordan,
@@ -250,11 +257,14 @@ expansion_model = DensityExpansion(dataset.orbitals, radial_coeffs=dataset.radia
 calculate_forces = loss_weights['forces'] > 0
 
 
+if args.num_energy_features is None:
+    args.num_energy_features = args.num_features
+
 if args.energy_model == 'complex':
     print('building complex energy model')
     en_model = ComplexEnergyNetwork(
         orbitals=dataset.orbitals,
-        num_features=args.num_features,
+        num_features=args.num_energy_features,
         num_basis_functions=args.num_basis_functions,
         num_modules=args.num_modules,
         num_residual_pre_x=args.num_residual_pre_x,
@@ -275,7 +285,7 @@ elif args.energy_model == 'simple':
     print('building simple energy model')
     en_model = SimpleEnergyNetwork(
         orbitals=dataset.orbitals,
-        num_features=args.num_features,
+        num_features=args.num_energy_features,
         num_layers=args.num_energy_output,
         activation=args.activation,
         calculate_forces=calculate_forces,

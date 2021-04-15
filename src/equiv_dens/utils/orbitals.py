@@ -110,8 +110,8 @@ def coeffs_dict_to_tensors(coeffs):
         for key in sph_coeffs[i].keys():
             L = key[1]
             # print(i, L)
-            if L_dict[key].stop > max_num_coeffs[L]:
-                max_num_coeffs[L] = L_dict[key].stop
+            if L_dict[key][-1] >= max_num_coeffs[L]:
+                max_num_coeffs[L] = L_dict[key][-1] + 1
             if rad_scale[i][key].shape[-2] > max_num_radial[L]:
                 max_num_radial[L] = rad_scale[i][key].shape[-2]
     # print('max num coeffs', max_num_coeffs)

@@ -73,6 +73,10 @@ class ModularBlock(nn.Module):
         )
 
     def forward(self, xs, rbf, sph, idx_i, idx_j):
+        # print('xs[0] shape', xs[0].shape)
+        # print('rbf shape', rbf.shape)
+        # print('sph[0] shape', sph[0].shape)
+        # print(lakjsdflkajsflaksjd)
         xs = self.residual_pre_x(xs)
         xs = self.interaction(xs, rbf, sph, idx_i, idx_j)
         xs = self.residual_post_x(xs)
@@ -217,11 +221,14 @@ class InteractionBlock(nn.Module):
             idx = idx_j.view(*(1,) * len(yj[L].shape[:-3]), -1, 1, 1).repeat(
                 *yj[L].shape[:-3], 1, *yj[L].shape[-2:]
             )
+            print('yj[L] shape', yj[L].shape)
+            print('idx shape', idx.shape)
             yj[L] = torch.gather(yj[L], 1, idx)
 
         vs = self.mixing(yj, self.angular_fn1(sph), rbf)
         a = self.angular_fn2(sph)
         for L in range(self.order + 1):
+            # print('yi[L] shape', yi[L].shape)
             vs[L] = yi[L].index_add(
                 1, idx_i, vs[L] + self.radial_fn[L](rbf) * a[L] * yj[0]
             )

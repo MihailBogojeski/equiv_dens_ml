@@ -42,8 +42,8 @@ max_steps = args.max_steps
 if args.restart is None:
     # generate "unique" id for the run (very unlikely that two runs will have the same ID)
     model_code = generate_id()
-    directory = datetime.utcnow().strftime("%Y-%m-%d_") + \
-        model_code  # generate directory name
+    directory = os.path.join(args.save_dir, datetime.utcnow().strftime("%Y-%m-%d_") +
+                             model_code)  # generate directory name
     # create directories
     if not os.path.exists(directory):
         os.makedirs(directory)
@@ -142,15 +142,15 @@ if args.cube_grid_valid:
     cube_sampling_fn = cubical_sampling
 
     cube_dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_dataset,
-                                          orbitals_path=args.orbitals_file,
-                                          density_n_samp=10000000000,
-                                          required_properties=['density', 'energy', 'forces'],
-                                          center_positions=False,
-                                          radial_coeffs_file=args.radial_coeffs_file,
-                                          dtype=args.dtype,
-                                          grid_fn=cube_grid_fn,
-                                          sampling_fn=cube_sampling_fn,
-                                          verbose=args.verbose)
+                                    orbitals_path=args.orbitals_file,
+                                    density_n_samp=10000000000,
+                                    required_properties=['density', 'energy', 'forces'],
+                                    center_positions=False,
+                                    radial_coeffs_file=args.radial_coeffs_file,
+                                    dtype=args.dtype,
+                                    grid_fn=cube_grid_fn,
+                                    sampling_fn=cube_sampling_fn,
+                                    verbose=args.verbose)
 
     valid_cube_dataset = torch.utils.data.Subset(cube_dataset, valid_dataset.indices)
 
@@ -177,9 +177,16 @@ weights_min['density'] = args.density_weight_min
 weights_min['energy'] = args.energy_weight_min
 weights_min['forces'] = args.forces_weight_min
 weights_min['energy_min'] = args.energy_min_weight_min
+loss_comp = {}
+loss_comp['density'] = args.density_loss_comp
+loss_comp['energy'] = args.energy_loss_comp
+loss_comp['forces'] = args.forces_loss_comp
 
 error_dict = ErrorDict(loss_weights, weights_balance=args.weights_balance,
-                       percentage_error=args.percentage_error, weights_decay=weights_decay, weights_min=weights_min)
+                       percentage_error=args.percentage_error,
+                       weights_decay=weights_decay, weights_min=weights_min,
+                       loss_comp=loss_comp, 
+                       )
 
 z_vals = dataset.atoms['atom_numbers']
 if loss_weights['energy_min']:
@@ -284,12 +291,14 @@ expansion_model = DensityExpansion(dataset.orbitals, radial_coeffs=dataset.radia
 
 calculate_forces = loss_weights['forces'] > 0
 
+if args.num_energy_features is None:
+    args.num_energy_features = args.num_features
 
 if args.energy_model == 'complex':
     print('building complex energy model')
     en_model = ComplexEnergyNetwork(
         orbitals=dataset.orbitals,
-        num_features=args.num_features,
+        num_features=args.num_energy_features,
         num_basis_functions=args.num_basis_functions,
         num_modules=args.num_modules,
         num_residual_pre_x=args.num_residual_pre_x,
@@ -310,7 +319,7 @@ elif args.energy_model == 'simple':
     print('building simple energy model')
     en_model = SimpleEnergyNetwork(
         orbitals=dataset.orbitals,
-        num_features=args.num_features,
+        num_features=args.num_energy_features,
         num_layers=args.num_energy_output,
         activation=args.activation,
         calculate_forces=calculate_forces,

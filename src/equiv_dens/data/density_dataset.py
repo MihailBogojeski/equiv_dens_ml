@@ -194,13 +194,14 @@ class AtomsDensityData(Dataset):
                 properties[pname] = self.sample_density(idx, sample_coords)
                 # print('density nans', torch.sum(torch.isnan(properties[pname])))
                 properties['coords'] = torch.from_numpy(sample_coords).type(self.dtype)
-                properties['coord_weights'] = torch.from_numpy(coord_weights).type(self.dtype)
+                properties['coord_weights'] = torch.from_numpy(coord_weights).type(self.dtype).\
+                    unsqueeze(0).repeat(properties['coords'].shape[0], 1)
 
         # extract/calculate structure
-        properties['atom_numbers'] = torch.LongTensor(self.atoms['atom_numbers'])
+        properties['atom_numbers'] = torch.LongTensor(self.atoms['atom_numbers']).unsqueeze(0).repeat(len(idx), 1)
         positions = self.atoms['positions'][idx]
-        properties['idx'] = idx
-        properties['ions'] = [self.ions[i] for i in idx]
+        properties['idx'] = torch.LongTensor(idx).unsqueeze(-1)
+        # properties['ions'] = [self.ions[i] for i in idx]
         # print('positions', positions)
         if self.centered_positions:
             # print('atom center', positions.mean(axis=0))

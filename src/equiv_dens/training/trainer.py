@@ -5,7 +5,6 @@ import math
 import time
 from equiv_dens.training.exponential_moving_average import ExponentialMovingAverage
 import sys
-import numpy as np
 
 
 class Trainer:
@@ -299,6 +298,7 @@ class Trainer:
             optimizer.zero_grad()
 
         predictions = self._model(data)
+        print('pred L dict', predictions['L_dict'])
         if self.verbose > 0:
             if 'density' in predictions.keys():
                 print('train density intergal', torch.sum(predictions['density'] * predictions['coord_weights'], dim=1))
@@ -527,11 +527,13 @@ class Trainer:
             if self.error_dict.loss_weights[key] > 0:
                 progress_string += "\n  " + key + ":\n"
                 progress_string += "    train mae: %10.6f" % self.train_errors[key + '_mae']
+                progress_string += "    train rmse: %10.6f" % self.train_errors[key + '_rmse']
                 progress_string += "    train loss: %10.6f" % self.train_errors['loss']
                 for i in range(len(self.valid_errors)):
                     progress_string += "    valid " + str(i) + " mae: %10.6f" % self.valid_errors[i][key + '_mae']
                     if self.valid_check_best[i]:
                         progress_string += "    valid " + str(i) + " loss: %10.6f" % self.valid_errors[i][key + '_loss']
                 progress_string += "     best mae: %10.6f" % self.best_errors[key + '_mae']
+                progress_string += "     best rmse: %10.6f" % self.best_errors[key + '_rmse']
                 progress_string += "    best loss: %10.6f" % self.best_errors['loss']
         print(progress_string)

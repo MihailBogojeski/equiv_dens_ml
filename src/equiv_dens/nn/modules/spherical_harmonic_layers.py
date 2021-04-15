@@ -157,6 +157,13 @@ class SelfMixing(nn.Module):
                         *(1,) * len(tp.shape[:-4]), 1, -1
                     )
                     # contract and add
+                    # print('cg shape', (cg).shape)
+                    # print('tp shape', (tp).shape)
+                    # print('cg*tp shape', (cg * tp).shape)
+                    # print('self.order_in', self.order_in)
+                    # print('self.order_out', self.order_out)
+                    # print('len ys', len(ys))
+                    # print('L', L)
                     ys[L] = ys[L] + coeff * ((cg * tp).sum(-3).sum(-3))
         return ys
 

@@ -49,6 +49,7 @@ class SphericalEmbedding(nn.Module):
         self.embedding = Embedding(self.num_features, self.Zmax)
 
     def forward(self, Z):
+        # print('Z.shape', Z.shape)
         xs = []
         for L in range(self.order + 1):
             if L == 0:

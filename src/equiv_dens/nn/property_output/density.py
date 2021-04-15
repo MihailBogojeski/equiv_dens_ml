@@ -139,7 +139,7 @@ class DensityCoeffsNetwork(nn.Module):
                 key = (z, L)
                 if key not in orbital_dict:
                     # print('lcounts range', L_counts[L], L_counts[L] + n)
-                    orbital_dict[key] = range(L_counts[L], L_counts[L] + n)
+                    orbital_dict[key] = torch.arange(L_counts[L], L_counts[L] + n)
                     L_counts[L] += n
                     # print('rmax L', r_max[L])
                     # print('rad_c L', rad_c[L])
@@ -220,7 +220,7 @@ class DensityCoeffsNetwork(nn.Module):
         # print('spherical_coeffs[1][0]', atoms['spherical_coeffs'][0][(8, 1)])
         # print('out sph[1][0]', out_sph[1][:, 1, :])
         # print('spherical_coeffs[1][0]', atoms['spherical_coeffs'][1][(1, 1)])
-        atoms['L_dict'] = self.L_dict
+        atoms['L_dict'] = {key: self.L_dict[key].to(fs[0].get_device()) for key in self.L_dict.keys()}
         if self.timing:
             print('density coeffs time:', time.time() - start)
 

@@ -12,12 +12,15 @@ class ErrorDict:
                  percentage_error=True,
                  max_errors=None,
                  weights_decay=None,
-                 weights_min=None):
+                 weights_min=None,
+                 loss_comp=None,
+                 ):
         self.loss_weights = loss_weights
         self.weights_balance = weights_balance
         self.percentage_error = percentage_error
         self.weights_decay = weights_decay
         self.weights_min = weights_min
+        self.loss_comp = loss_comp
         if self.weights_decay is None:
             self.weights_decay = {}
             for key in self.loss_weights.keys():
@@ -30,6 +33,8 @@ class ErrorDict:
             self.max_errors = {key: np.inf for key in self.loss_weights.keys()}
         else:
             self.max_errors = max_errors
+        if self.loss_comp is None:
+            self.loss_comp = {key: 'mae+rmse' for key in self.loss_weights.keys()}
 
     def compute(self, predictions, data, exclude_energy_min=False):
         error_dict = {}
@@ -47,6 +52,9 @@ class ErrorDict:
                     error_dict[key + "_mae"] = loss
                     error_dict[key + "_rmse"] = loss
                 else:
+                    print('key', key)
+                    print('predictions shape', predictions[key].shape)
+                    print('data shape', data[key].shape)
                     diff = predictions[key] - (data[key])
                     # print('error key', key)
                     # print('pred.shape', predictions[key].shape)
@@ -81,7 +89,14 @@ class ErrorDict:
                     else:
                         error_dict[key + "_mae"] = mae
                         error_dict[key + "_rmse"] = rmse
-                    loss = mae + rmse
+                    if self.loss_comp[key] == 'mae+rmse':
+                        loss = mae + rmse
+                    elif self.loss_comp[key] == 'mae':
+                        loss = mae
+                    elif self.loss_comp[key] == 'rmse':
+                        loss = rmse
+                    else:
+                        raise Exception("Unsupported loss composition.")
                 error_dict[key + '_loss'] = loss
                 error_dict["loss"] = error_dict["loss"] + self.loss_weights[key] * loss
         return error_dict

@@ -94,7 +94,8 @@ class ComplexEnergyNetwork(nn.Module):
                     self.dens_features += curr_feats
                     seen_zs.append(orb[0])
         self.dens_features *= 3
-
+        if self.num_features is None:
+            self.num_features = self.dens_features
         # extract nuclear charges from orbitals, determine maximum order, and
         # build the occupation mask (for extracting occupied orbitals in energy prediction)
         if self.basis_functions == 'exp-gaussian':
@@ -143,7 +144,8 @@ class ComplexEnergyNetwork(nn.Module):
 
         if self.num_features != self.dens_features:
             xs = self.input_layer(xs)
-        xs = [xs]
+        xs = [xs.unsqueeze(-2)]
+        print('xs[0] shape', xs[0].shape)
 
         # perform iterations over modular building blocks to get environment - dependent features
         fs = [torch.zeros_like(x) for x in xs]  # output features
@@ -231,6 +233,7 @@ class SimpleEnergyNetwork(nn.Module):
         self.energy_output = nn.Linear(self.num_features, 1)
 
     def forward(self, atoms):
+        print('energy Ldict', atoms['L_dict'])
         start = time.time()
         # initialize atomic features to embeddings
         # print('sph coeffs', atoms['spherical_coeffs'][0][(8, 0)])

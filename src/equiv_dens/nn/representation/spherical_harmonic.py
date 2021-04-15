@@ -158,6 +158,12 @@ class EquivariantSphericalHarmonics(nn.Module):
             C: Spherical harmonics coefficients
         """
         start = time.time()
+        # for key in atoms.keys():
+        #     print('prop', key)
+        #     if hasattr(atoms[key], 'shape'):
+        #         print('shape:', atoms[key].shape)
+        #     else:
+        #         print(atoms[key])
         R = atoms['positions']
         # compute radial basis functions and spherical harmonics
         # print('idx_i', self.idx_i)
@@ -169,10 +175,6 @@ class EquivariantSphericalHarmonics(nn.Module):
         rbf = self.radial_basis_functions(dij).unsqueeze_(-2)  # unsqueeze for broadcasting
         # print('rbf shape', rbf.shape)
         # print('rbf', rbf)
-        rbf = rbf**10
-        # print('rbf power', rbf)
-        rbf = rbf / torch.sum(rbf, dim=-1, keepdim=True)
-        # print('rbf power scale', rbf)
         # print('rbf shape', rbf.shape)
         # print('rbf sum', torch.sum(rbf, dim=-1))
         # print('rbf softmax', F.softmax(rbf, dim=-1))
@@ -187,8 +189,9 @@ class EquivariantSphericalHarmonics(nn.Module):
         atoms['sph'] = sph
         # initialize atomic features to embeddings
         # repeat Z along batch dimension
-        xs = self.embedding(atoms['atom_numbers'].repeat(R.size(0), 1))
-
+        # print('atom numbers shape', atoms['atom_numbers'].shape)
+        xs = self.embedding(atoms['atom_numbers'])
+        # print('xs 0 shape', xs[0].shape)
         # perform iterations over modular building blocks to get environment - dependent features
         fs = [torch.zeros_like(x) for x in xs]  # output features
         for i, module in enumerate(self.module):

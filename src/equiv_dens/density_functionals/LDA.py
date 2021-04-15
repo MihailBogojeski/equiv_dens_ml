@@ -49,7 +49,7 @@ def prepare_functional_vars(atoms):
     pos = angstrom_to_bohr(atoms['shifted_positions'])
     pseudo_pot = atoms['pseudo_pot']
     v_real = []
-    for i in range(rho.shape[0]):
+    for i in atoms['idx']:
         pseudo_pot.restart(grid=dftpy_grid, ions=atoms['ions'][i])
         pseudo_pot(rho[i].detach().cpu().numpy())
         v_real.append(torch.from_numpy(pseudo_pot.vreal))
