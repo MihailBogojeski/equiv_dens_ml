@@ -19,6 +19,7 @@ class EquivariantSphericalHarmonics(nn.Module):
     def __init__(self,
                  orbitals=None,  # orbitals of atoms, defines layout and shape of output matrix
                  order=1,  # maximum order of spherical harmonics features
+                 mixing_order=None,   # maximum order of spherical harmonics features during interactions
                  num_features=32,  # dimensionality of the feature space
                  num_basis_functions=32,  # number of basis functions for featurizing distances
                  num_radial_components=32,  # number of basis functions for the radial component of the density
@@ -54,6 +55,9 @@ class EquivariantSphericalHarmonics(nn.Module):
 
         self.orbitals = orbitals
         self.order = order
+        self.mixing_order = mixing_order
+        if self.mixing_order is None:
+            self.mixing_order = self.order
         self.num_features = num_features
         self.num_basis_functions = num_basis_functions
         self.num_modules = num_modules
@@ -75,10 +79,20 @@ class EquivariantSphericalHarmonics(nn.Module):
             self.order = [self.order] * self.num_modules
         print('self order', self.order)
 
+        print('self mixing_order', self.mixing_order)
+        if not isinstance(self.mixing_order, list):
+            self.mixing_order = [self.mixing_order] * self.num_modules
+        print('self mixing_order', self.mixing_order)
+
         if len(self.order) != self.num_modules:
             print('Order needs to be an integer or a list of integers with length equal to num_modules.' +
                   ' Taking last order element and using it for all modules.')
             self.order = [self.order[-1]] * self.num_modules
+
+        if len(self.mixing_order) != self.num_modules:
+            print('Mixing order needs to be an integer or a list of integers with length equal to num_modules.' +
+                  ' Taking last order element and using it for all modules.')
+            self.mixing_order = [self.mixing_order[-1]] * self.num_modules
 
         N = len(self.orbitals)
         idx_i = torch.arange(N, dtype=torch.int64).view(-1, 1).repeat(1, N).view(-1)
@@ -110,7 +124,7 @@ class EquivariantSphericalHarmonics(nn.Module):
             print("The neural network MUST have at least the same order as all orbitals!")
             quit()
 
-        self.order_max = max(self.order)
+        self.order_max = max(self.mixing_order)
         # declare modules and parameters
         if clebsch_gordan is None:
             self.clebsch_gordan = ClebschGordanMatrix()
@@ -133,10 +147,16 @@ class EquivariantSphericalHarmonics(nn.Module):
         else:
             print("basis function type:",
                   basis_functions, "is not supported")
-        self.module = nn.ModuleList([ModularBlock(self.order[i], self.num_features, self.num_basis_functions,
-                                                  self.num_residual_pre_x, self.num_residual_post_x, self.num_residual_pre_vi,
-                                                  self.num_residual_pre_vj, self.num_residual_post_v, self.num_residual_output,
-                                                  self.clebsch_gordan, True, self.activation) for i in range(self.num_modules)])
+        modules = [ModularBlock(self.order[0], self.num_features, self.num_basis_functions,
+                                self.num_residual_pre_x, self.num_residual_post_x, self.num_residual_pre_vi,
+                                self.num_residual_pre_vj, self.num_residual_post_v, self.num_residual_output,
+                                self.clebsch_gordan, True, self.mixing_order[0], 0, self.activation)]
+        modules.extend([ModularBlock(self.order[i], self.num_features, self.num_basis_functions,
+                                     self.num_residual_pre_x, self.num_residual_post_x, self.num_residual_pre_vi,
+                                     self.num_residual_pre_vj, self.num_residual_post_v, self.num_residual_output,
+                                     self.clebsch_gordan, True, self.mixing_order[i], self.order[i - 1],
+                                     self.activation) for i in range(1, self.num_modules)])
+        self.module = nn.ModuleList(modules)
         self.order_change = [nn.Identity()]
         for i in range(1, self.num_modules):
             if self.order[i] != self.order[i - 1]:

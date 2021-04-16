@@ -30,6 +30,11 @@ def parse_command_line_arguments():
     args_hyperparams.add_argument("--activation", metavar='STR', type=str, default='swish',
                                   choices=['ssp', 'swish'], help="which activation function to use (shifted softplus (ssp) or swish))")
     args_hyperparams.add_argument("--order", metavar='INT', type=int, default=[2], nargs='+', help="angular order of the feature vectors")
+    args_hyperparams.add_argument("--mixing_order", metavar='INT', type=int, default=None, nargs='+', help="angular order for interactions")
+    args_hyperparams.add_argument("--order_en", metavar='INT', type=int, default=[2], nargs='+',
+                                  help="angular order of the feature vectors for energy prediction")
+    args_hyperparams.add_argument("--mixing_order_en", metavar='INT', type=int, default=None, nargs='+',
+                                  help="angular order for interactions for energy prediction")
     args_hyperparams.add_argument("--num_features", metavar='INT', type=int, default=32, help="dimensionality of feature vectors")
     args_hyperparams.add_argument("--num_basis_functions", metavar='INT', type=int, default=32, help="number of radial basis functions")
     args_hyperparams.add_argument("--num_radial_components", metavar='INT', type=int, default=32,

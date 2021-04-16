@@ -22,6 +22,8 @@ class ModularBlock(nn.Module):
         num_residual_output,
         clebsch_gordan=None,
         mix_orders=True,
+        mixing_order=None,
+        input_order=None,
         activation="swish",
     ):
         super(ModularBlock, self).__init__()
@@ -35,6 +37,12 @@ class ModularBlock(nn.Module):
         self.num_residual_pre_vj = num_residual_pre_vj
         self.num_residual_post_v = num_residual_post_v
         self.num_residual_output = num_residual_output
+        self.mixing_order = mixing_order
+        if self.mixing_order is None:
+            self.mixing_order = self.order
+        self.input_order = input_order
+        if self.input_order is None:
+            self.input_order = self.order
         # initialize modules
         self.interaction = InteractionBlock(
             self.order,
@@ -45,11 +53,13 @@ class ModularBlock(nn.Module):
             self.num_residual_post_v,
             clebsch_gordan,
             mix_orders,
+            self.mixing_order,
+            self.input_order,
             activation,
         )
         self.residual_pre_x = ResidualStack(
             self.num_residual_pre_x,
-            self.order,
+            min(2 * self.input_order, self.order),
             self.num_features,
             clebsch_gordan,
             mix_orders,
@@ -73,10 +83,6 @@ class ModularBlock(nn.Module):
         )
 
     def forward(self, xs, rbf, sph, idx_i, idx_j):
-        # print('xs[0] shape', xs[0].shape)
-        # print('rbf shape', rbf.shape)
-        # print('sph[0] shape', sph[0].shape)
-        # print(lakjsdflkajsflaksjd)
         xs = self.residual_pre_x(xs)
         xs = self.interaction(xs, rbf, sph, idx_i, idx_j)
         xs = self.residual_post_x(xs)
@@ -99,6 +105,8 @@ class InteractionBlock(nn.Module):
         num_residual_post_v,
         clebsch_gordan=None,
         mix_orders=True,
+        mixing_order=None,
+        input_order=None,
         activation="swish",
     ):
         super(InteractionBlock, self).__init__()
@@ -109,6 +117,12 @@ class InteractionBlock(nn.Module):
         self.num_residual_pre_vi = num_residual_pre_vi
         self.num_residual_pre_vj = num_residual_pre_vj
         self.num_residual_post_v = num_residual_post_v
+        self.mixing_order = mixing_order
+        if self.mixing_order is None:
+            self.mixing_order = self.order
+        self.input_order = input_order
+        if self.input_order is None:
+            self.input_order = self.order
         # initialize activation function
         if activation == "swish":
             self.activation_i = Swish(self.num_features)
@@ -123,17 +137,17 @@ class InteractionBlock(nn.Module):
             quit()
         # initialize modules
         self.angular_fn1 = SphericalLinear(
-            self.order,
+            self.mixing_order,
             1,
-            self.order,
+            self.mixing_order,
             self.num_features,
             clebsch_gordan,
             mix_orders=False,
         )
         self.angular_fn2 = SphericalLinear(
-            self.order,
+            self.mixing_order,
             1,
-            self.order,
+            self.mixing_order,
             self.num_features,
             clebsch_gordan,
             mix_orders=False,
@@ -141,29 +155,29 @@ class InteractionBlock(nn.Module):
         self.radial_fn = nn.ModuleList(
             [
                 nn.Linear(self.num_basis_functions, self.num_features, bias=False)
-                for L in range(self.order + 1)
+                for L in range(self.mixing_order + 1)
             ]
         )
         self.mixing = PairMixing(
-            self.order,
-            self.order,
-            self.order,
+            min(2 * self.input_order, self.order),
+            self.mixing_order,
+            self.mixing_order,
             self.num_basis_functions,
             self.num_features,
             clebsch_gordan,
         )
         self.linear_i = SphericalLinear(
-            self.order,
+            min(2 * self.input_order, self.order),
             self.num_features,
-            self.order,
+            min(2 * self.input_order, self.order),
             self.num_features,
             clebsch_gordan,
             mix_orders,
         )
         self.linear_j = SphericalLinear(
-            self.order,
+            min(2 * self.input_order, self.order),
             self.num_features,
-            self.order,
+            min(2 * self.input_order, self.order),
             self.num_features,
             clebsch_gordan,
             mix_orders,
@@ -176,9 +190,18 @@ class InteractionBlock(nn.Module):
             clebsch_gordan,
             mix_orders,
         )
+        if self.mixing_order != self.order:
+            self.linear_contract = SphericalLinear(
+                self.mixing_order,
+                self.num_features,
+                self.order,
+                self.num_features,
+                clebsch_gordan,
+                mix_orders,
+            )
         self.residual_pre_vi = ResidualStack(
             self.num_residual_pre_vi,
-            self.order,
+            min(2 * self.input_order, self.order),
             self.num_features,
             clebsch_gordan,
             mix_orders,
@@ -186,7 +209,7 @@ class InteractionBlock(nn.Module):
         )
         self.residual_pre_vj = ResidualStack(
             self.num_residual_pre_vj,
-            self.order,
+            min(2 * self.input_order, self.order),
             self.num_features,
             clebsch_gordan,
             mix_orders,
@@ -200,6 +223,7 @@ class InteractionBlock(nn.Module):
             mix_orders,
             activation,
         )
+
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -212,12 +236,16 @@ class InteractionBlock(nn.Module):
         yi = self.residual_pre_vi(ys)
         yi[0] = self.activation_i(yi[0])
         yi = self.linear_i(yi)
+
+        for L in range(len(yi), self.mixing_order + 1):
+            yi.append(torch.zeros(*yi[0].shape[:2], (2 * L) + 1, yi[0].shape[-1]).to(yi[0]))
+
         # path for atoms j
         yj = self.residual_pre_vj(ys)
         yj[0] = self.activation_j(yj[0])
         yj = self.linear_j(yj)
         # interaction function
-        for L in range(self.order + 1):
+        for L in range(min(2 * self.input_order, self.order) + 1):
             idx = idx_j.view(*(1,) * len(yj[L].shape[:-3]), -1, 1, 1).repeat(
                 *yj[L].shape[:-3], 1, *yj[L].shape[-2:]
             )
@@ -225,15 +253,19 @@ class InteractionBlock(nn.Module):
 
         vs = self.mixing(yj, self.angular_fn1(sph), rbf)
         a = self.angular_fn2(sph)
-        for L in range(self.order + 1):
-            # print('yi[L] shape', yi[L].shape)
+        for L in range(self.mixing_order + 1):
             vs[L] = yi[L].index_add(
                 1, idx_i, vs[L] + self.radial_fn[L](rbf) * a[L] * yj[0]
             )
-        # interaction refinement
+
+        if self.mixing_order != self.order:
+            vs = self.linear_contract(vs)        # interaction refinement
+
         vs = self.residual_post_v(vs)
         vs[0] = self.activation_v(vs[0])
         vs = self.linear_v(vs)
+        for L in range(len(xs), len(vs)):
+            xs.append(torch.zeros_like(vs[L]))
         return [x + v for x, v in zip(xs, vs)]
 
 

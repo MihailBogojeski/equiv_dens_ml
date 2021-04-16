@@ -6,7 +6,8 @@ from datetime import datetime
 from tensorboardX import SummaryWriter
 from equiv_dens.nn.dft_network import DFTNetwork
 from equiv_dens.nn.representation.spherical_harmonic import EquivariantSphericalHarmonics
-from equiv_dens.nn.property_output.energy import ComplexEnergyNetwork, SimpleEnergyNetwork
+from equiv_dens.nn.property_output.energy import ComplexEnergyNetwork, SimpleEnergyNetwork,\
+    SphericalHarmonicsEnergyNetwork
 from equiv_dens.nn.property_output.density import DensityCoeffsNetwork, DensityExpansion
 from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
 from equiv_dens.training.parse_command_line_arguments import parse_command_line_arguments
@@ -247,6 +248,7 @@ clebsch_gordan = ClebschGordanMatrix()
 repr_model = EquivariantSphericalHarmonics(
     orbitals=dataset.orbitals,
     order=args.order,
+    mixing_order=args.mixing_order,
     num_features=args.num_features,
     num_basis_functions=args.num_basis_functions,
     num_modules=args.num_modules,
@@ -288,7 +290,31 @@ calculate_forces = loss_weights['forces'] > 0
 if args.num_energy_features is None:
     args.num_energy_features = args.num_features
 
-if args.energy_model == 'complex':
+if args.energy_model == 'spherical':
+    print('building spherical harmonic energy model')
+    en_model = SphericalHarmonicsEnergyNetwork(
+        orbitals=dataset.orbitals,
+        order=args.order_en,
+        mixing_order=args.mixing_order_en,
+        num_features=args.num_energy_features,
+        num_basis_functions=args.num_basis_functions,
+        num_modules=args.num_modules,
+        num_residual_pre_x=args.num_residual_pre_x,
+        num_residual_post_x=args.num_residual_post_x,
+        num_residual_pre_vi=args.num_residual_pre_vi,
+        num_residual_pre_vj=args.num_residual_pre_vj,
+        num_residual_post_v=args.num_residual_post_v,
+        num_residual_output=args.num_residual_output,
+        num_radial_components=args.num_radial_components,
+        basis_functions=args.basis_functions,
+        cutoff=args.cutoff,
+        activation=args.activation,
+        clebsch_gordan=clebsch_gordan,
+        calculate_forces=calculate_forces,
+        verbose=args.verbose,
+        timing=args.timing,
+    )
+elif args.energy_model == 'complex':
     print('building complex energy model')
     en_model = ComplexEnergyNetwork(
         orbitals=dataset.orbitals,
