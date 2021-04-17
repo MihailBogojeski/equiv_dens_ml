@@ -401,8 +401,13 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
             print("basis function type:",
                   self.basis_functions, "is not supported")
 
-        self.radial_scale_filters = nn.ParameterList([nn.Parameter(torch.ones(1, df_num)) for df_num in self.dens_features])
-        self.radial_width_filters = nn.ParameterList([nn.Parameter(torch.ones(1, df_num)) for df_num in self.dens_features])
+        for L in range(len(self.dens_features)):
+            name = "radial_scale_filters_{}".format(L)
+            self.register_parameter(name, nn.Parameter(torch.ones(1, self.dens_features[L])))
+            name = "radial_width_filters_{}".format(L)
+            self.register_parameter(name, nn.Parameter(torch.ones(1, self.dens_features[L])))
+        # self.radial_scale_filters = nn.ParameterList([nn.Parameter(torch.ones(1, df_num)) for df_num in self.dens_features])
+        # self.radial_width_filters = nn.ParameterList([nn.Parameter(torch.ones(1, df_num)) for df_num in self.dens_features])
         self.input_layer = nn.ModuleList([nn.Linear(df_num, self.num_features) for df_num in self.dens_features])
 
         modules = [ModularBlock(self.order[0], self.num_features, self.num_basis_functions,
@@ -439,6 +444,12 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
 
         self.energy_output = SphericalLinear(self.order[-1], self.num_features, 0, 1, self.clebsch_gordan)
 
+    def radial_scale_filters(self, L):
+        return getattr(self, "radial_scale_filters_{}".format(L))
+
+    def radial_width_filters(self, L):
+        return getattr(self, "radial_width_filters_{}".format(L))
+
     def forward(self, atoms):
         start = time.time()
         # initialize atomic features to embeddings
@@ -450,9 +461,13 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
         # print('R shape', R.shape)
         rbf = self.radial_basis_functions(dij).unsqueeze_(-2)  # unsqueeze for broadcasting
         xs = []
+        print('dens features', self.dens_features)
         for L in range(len(scale_fs)):
-            scale_fs[L] = scale_fs[L] * self.radial_scale_filters[L]
-            width_fs[L] = width_fs[L] * self.radial_width_filters[L]
+            print('L', L)
+            print('scale fs L', scale_fs[L].shape)
+            print('self.radial_scale_filters[L]', self.radial_scale_filters(L).shape)
+            scale_fs[L] = scale_fs[L] * self.radial_scale_filters(L)
+            width_fs[L] = width_fs[L] * self.radial_width_filters(L)
             radial_comb = self.coeff_activation[L](scale_fs[L] * width_fs[L])
             xs.append(sph_fs[L] * radial_comb)
 
