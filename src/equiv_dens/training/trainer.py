@@ -64,7 +64,6 @@ class Trainer:
         self.exponential_moving_average = None
         self.args = args
         self.max_steps = max_steps
-        print('max steps', self.max_steps)
         self.clip_norm = clip_norm
         self.stop_at_learning_rate = stop_at_learning_rate
         self.verbose = verbose
@@ -156,6 +155,12 @@ class Trainer:
                             state[k] = v.type(dtype).cuda()
                         else:
                             state[k] = v.type(dtype)
+        if self.exponential_moving_average is not None:
+            for key in self.exponential_moving_average.ema.keys():
+                if use_gpu:
+                    self.exponential_moving_average.ema[key] = self.exponential_moving_average.ema[key].type(dtype).cuda()
+                else:
+                    self.exponential_moving_average.ema[key] = self.exponential_moving_average.ema[key].type(dtype)
 
     def restore_checkpoint(self):
         checkpoint = torch.load(os.path.join(
@@ -323,6 +328,7 @@ class Trainer:
             print('Nans found in label density, skipping batch')
             return
         elif 'density' in predictions.keys() and torch.any(torch.isnan(predictions['density'])):
+            print('num nans', torch.sum(torch.isnan(predictions['density'])))
             raise Exception('Nans found in predicted density')
             sys.exit()
         elif 'energy' in data.keys() and torch.any(torch.isnan(data['energy'])):
@@ -429,6 +435,7 @@ class Trainer:
                 print('Nans found in label density, skipping batch')
                 continue
             elif 'density' in predictions.keys() and torch.any(torch.isnan(predictions['density'])):
+                print('num nans', torch.sum(torch.isnan(predictions['density'])))
                 raise Exception('Nans found in predicted density')
                 sys.exit()
             if 'energy' in data.keys() and torch.any(torch.isnan(data['energy'])):

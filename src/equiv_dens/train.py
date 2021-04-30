@@ -7,7 +7,7 @@ from tensorboardX import SummaryWriter
 from equiv_dens.nn.dft_network import DFTNetwork
 from equiv_dens.nn.representation.spherical_harmonic import EquivariantSphericalHarmonics
 from equiv_dens.nn.property_output.energy import ComplexEnergyNetwork, SimpleEnergyNetwork,\
-    SphericalHarmonicsEnergyNetwork
+    SphericalHarmonicsEnergyNetwork, SimpleEnergyNetworkv2
 from equiv_dens.nn.property_output.density import DensityCoeffsNetwork, DensityExpansion
 from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
 from equiv_dens.training.parse_command_line_arguments import parse_command_line_arguments
@@ -26,6 +26,7 @@ import numpy as np
 from functools import partial
 
 from dftpy.pseudo import LocalPseudo
+import copy
 # from torch import autograd
 
 """
@@ -63,6 +64,7 @@ if args.restart is None:
     data_split_indices = None
 # restarts run from latest checkpoint
 else:
+    old_args = copy.copy(args)
     directory = args.restart  # load directory name
     # load latest checkpoint
     checkpoint_path = os.path.join(directory, 'checkpoints')  # checkpoint directory
@@ -72,6 +74,18 @@ else:
     model_code = checkpoint['ID']  # load ID
     for arg in vars(checkpoint['args']):
         setattr(args, arg, getattr(checkpoint['args'], arg))
+    args.num_train = old_args.num_train
+    args.num_valid = old_args.num_valid
+    args.train_batch_size = old_args.train_batch_size
+    args.valid_batch_size = old_args.valid_batch_size
+    args.spherical_grid_level = old_args.spherical_grid_level
+    args.cube_size = old_args.cube_size
+    args.validation_interval = old_args.validation_interval
+    args.summary_interval = old_args.summary_interval
+    args.checkpoint_interval = old_args.checkpoint_interval
+    args.verbose = old_args.verbose
+    args.timing = old_args.timing
+    args.max_step = old_args.max_steps
     step = checkpoint['step']
     restore = True
     data_split_indices = checkpoint['data_split_indices']
@@ -344,6 +358,18 @@ elif args.energy_model == 'simple':
         activation=args.activation,
         calculate_forces=calculate_forces,
         verbose=args.verbose,
+        timing=args.timing,
+    )
+elif args.energy_model == 'simple2':
+    print('building simple energy model')
+    en_model = SimpleEnergyNetworkv2(
+        order=args.order[-1],
+        orbitals=dataset.orbitals,
+        num_features=args.num_energy_features,
+        activation=args.activation,
+        calculate_forces=calculate_forces,
+        verbose=args.verbose,
+        clebsch_gordan=clebsch_gordan,
         timing=args.timing,
     )
 else:

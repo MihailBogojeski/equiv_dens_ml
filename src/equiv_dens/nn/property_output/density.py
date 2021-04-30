@@ -352,6 +352,7 @@ class DensityExpansion(nn.Module):
                     atoms['density'] += torch.sum(rbf * sph, dim=(-2, -1))
         L0_coeffs_comb = torch.cat([coeff.view((coeff.shape[0], -1)) for coeff in L0_coeffs], dim=1)
         atoms['L0_coeffs'] = L0_coeffs_comb
+        # print('num electrons', self.n_electrons)
         if self.integral_constraint:
             if self.softmax_norm:
                 L0_coeffs_comb = F.softmax(L0_coeffs_comb, dim=1)

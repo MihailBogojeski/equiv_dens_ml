@@ -171,7 +171,9 @@ class AtomsDensityData(Dataset):
         return idx
 
     def center_energy(self, energy_mean):
+        print('pre centering:', self.atoms['energy'][:20])
         self.atoms['energy'] -= energy_mean
+        print('post centering:', self.atoms['energy'][:20])
 
     # collects the molecular properties for the batch, should be used as collate_fn
     def get_properties(self, idx):
@@ -187,18 +189,14 @@ class AtomsDensityData(Dataset):
             if pname != 'density':
                 properties[pname] = torch.from_numpy(self.atoms[pname][idx])
             else:
-                start = time.time()
                 sample_coords, coord_weights = self.sampling_fn(self.grid_spec, self.density_n_samp,
                                                                 self.atoms['atom_types'],
                                                                 self.atoms['positions'][idx])
-                print('coords time', time.time() - start)
                 properties[pname] = self.sample_density(idx, sample_coords)
                 # print('density nans', torch.sum(torch.isnan(properties[pname])))
-                print('density sample time', time.time() - start)
                 properties['coords'] = torch.from_numpy(sample_coords).type(self.dtype)
                 properties['coord_weights'] = torch.from_numpy(coord_weights).type(self.dtype).\
                     unsqueeze(0).repeat(properties['coords'].shape[0], 1)
-                print('total density time', time.time() - start)
 
         # extract/calculate structure
         properties['atom_numbers'] = torch.LongTensor(self.atoms['atom_numbers']).unsqueeze(0).repeat(len(idx), 1)
@@ -222,24 +220,24 @@ class AtomsDensityData(Dataset):
         dens = torch.zeros((sample_coords.shape[0], sample_coords.shape[1]), dtype=self.dtype)
         if len(self.mols) > 0:
             for c, i in enumerate(idx):
-                mol_start = time.time()
+                # mol_start = time.time()
                 # print('c, i', c, i)
                 mol = self.mols[i]
                 if not mol._built:
-                    build_start = time.time()
+                    # build_start = time.time()
                     if self.verbose > 3:
                         print('building mol', i)
                     mol.build()
-                    print('build time', time.time() - build_start)
+                    # print('build time', time.time() - build_start)
                 coeff_dict = self.coeffs[i]
-                ao_start = time.time()
+                # ao_start = time.time()
                 ao = numint.eval_ao(mol, scaled_sample_coords[c])
-                print('ao time', time.time() - ao_start)
-                rho_start = time.time()
+                # print('ao time', time.time() - ao_start)
+                # rho_start = time.time()
                 rho = numint.eval_rho2(mol, ao, **coeff_dict)
-                print('rho time', time.time() - rho_start)
+                # print('rho time', time.time() - rho_start)
                 dens[c, :] = torch.from_numpy(rho).type(self.dtype)
-                print('mol_time', time.time() - mol_start)
+                # print('mol_time', time.time() - mol_start)
 
         return dens
 

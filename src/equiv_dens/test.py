@@ -4,7 +4,8 @@ import torch
 import torch.nn as nn
 from equiv_dens.nn.dft_network import DFTNetwork
 from equiv_dens.nn.representation.spherical_harmonic import EquivariantSphericalHarmonics
-from equiv_dens.nn.property_output.energy import ComplexEnergyNetwork, SimpleEnergyNetwork
+from equiv_dens.nn.property_output.energy import ComplexEnergyNetwork, SimpleEnergyNetwork,\
+    SphericalHarmonicsEnergyNetwork, SimpleEnergyNetworkv2
 from equiv_dens.nn.property_output.density import DensityCoeffsNetwork, DensityExpansion
 from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
 from equiv_dens.training.parse_command_line_arguments import parse_command_line_arguments
@@ -55,6 +56,7 @@ args.num_test = old_args.num_test
 args.test_batch_size = old_args.test_batch_size
 args.spherical_grid_level = old_args.spherical_grid_level
 args.cube_size = old_args.cube_size
+args.verbose = old_args.verbose
 restore = True
 if 'data_split_indices' in checkpoint.keys():
     data_split_indices = checkpoint['data_split_indices']
@@ -133,21 +135,24 @@ if args.np_dataset_test is not None:
     else:
         test_size = len(test_dataset)
 
-    test_dataset = torch.utils.data.Subset(dataset, np.arange(test_size))
+    test_dataset = torch.utils.data.Subset(test_dataset, np.arange(test_size))
 
+print('args center energy')
 if args.center_energy:
     train_ind = train_dataset.indices
     energy_mean = dataset.atoms['energy'][train_ind].mean()
     dataset.center_energy(energy_mean)
+    print('centering training energy')
     if args.np_dataset_test is not None:
+        print('centering test energy')
         test_dataset.dataset.center_energy(energy_mean)
 
 # determine weights of different quantities for scaling loss
 loss_weights = {}
-loss_weights['density'] = old_args.density_weight
-loss_weights['energy'] = old_args.energy_weight
-loss_weights['forces'] = old_args.forces_weight
-loss_weights['energy_min'] = old_args.energy_min_weight
+loss_weights['density'] = args.density_weight
+loss_weights['energy'] = args.energy_weight
+loss_weights['forces'] = args.forces_weight
+loss_weights['energy_min'] = args.energy_min_weight
 
 error_dict = ErrorDict(loss_weights, weights_balance=args.weights_balance,
                        percentage_error=args.percentage_error)
@@ -196,15 +201,24 @@ if loss_weights['energy_min']:
 # reason gradients are only allowed to flow through loss terms
 # if the MAE is smaller than a certain threshold.
 
+print('train + valid mean', np.mean(train_dataset))
+print('train + valid std')
+print('test mean')
+print('test std')
 # prepare data loaders
 if not hasattr(args, 'test_batch_size'):
     args.test_batch_size = args.valid_batch_size
 
+if isinstance(test_dataset, torch.utils.data.Subset):
+    collate_fn = lambda batch: test_dataset.dataset.get_properties(batch)
+else:
+    collate_fn = lambda batch: test_dataset.get_properties(batch)
+
 print('test dataset size', len(test_dataset))
-test_data_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.train_batch_size,
+test_data_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.test_batch_size,
                                                num_workers=args.num_workers, pin_memory=use_gpu,
                                                shuffle=True,
-                                               collate_fn=lambda batch: dataset.get_properties(batch))
+                                               collate_fn=collate_fn)
 
 # define model
 clebsch_gordan = ClebschGordanMatrix()
@@ -253,7 +267,31 @@ calculate_forces = loss_weights['forces'] > 0
 if args.num_energy_features is None:
     args.num_energy_features = args.num_features
 
-if args.energy_model == 'complex':
+if args.energy_model == 'spherical':
+    print('building spherical harmonic energy model')
+    en_model = SphericalHarmonicsEnergyNetwork(
+        orbitals=dataset.orbitals,
+        order=args.order_en,
+        mixing_order=args.mixing_order_en,
+        num_features=args.num_energy_features,
+        num_basis_functions=args.num_basis_functions,
+        num_modules=args.num_modules,
+        num_residual_pre_x=args.num_residual_pre_x,
+        num_residual_post_x=args.num_residual_post_x,
+        num_residual_pre_vi=args.num_residual_pre_vi,
+        num_residual_pre_vj=args.num_residual_pre_vj,
+        num_residual_post_v=args.num_residual_post_v,
+        num_residual_output=args.num_residual_output,
+        num_radial_components=args.num_radial_components,
+        basis_functions=args.basis_functions,
+        cutoff=args.cutoff,
+        activation=args.activation,
+        clebsch_gordan=clebsch_gordan,
+        calculate_forces=calculate_forces,
+        verbose=args.verbose,
+        timing=args.timing,
+    )
+elif args.energy_model == 'complex':
     print('building complex energy model')
     en_model = ComplexEnergyNetwork(
         orbitals=dataset.orbitals,
@@ -283,6 +321,18 @@ elif args.energy_model == 'simple':
         activation=args.activation,
         calculate_forces=calculate_forces,
         verbose=args.verbose,
+        timing=args.timing,
+    )
+elif args.energy_model == 'simple2':
+    print('building simple energy model')
+    en_model = SimpleEnergyNetworkv2(
+        order=args.order[-1],
+        orbitals=dataset.orbitals,
+        num_features=args.num_energy_features,
+        activation=args.activation,
+        calculate_forces=calculate_forces,
+        verbose=args.verbose,
+        clebsch_gordan=clebsch_gordan,
         timing=args.timing,
     )
 else:
