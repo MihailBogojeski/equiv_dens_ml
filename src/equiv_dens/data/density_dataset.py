@@ -25,7 +25,7 @@ from pyscf.lib import param
 from equiv_dens.utils.grids import spherical_grid, rot_spherical_sampling
 import equiv_dens.utils.base as utils
 from dftpy.formats import ase_io
-import time
+# import time
 
 logger = logging.getLogger(__name__)
 

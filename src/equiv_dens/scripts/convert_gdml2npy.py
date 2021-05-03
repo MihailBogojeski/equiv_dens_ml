@@ -24,7 +24,7 @@ if __name__ == "__main__":
             np_data['energy'] = gdml_data['E'].reshape(-1, 1)
             np_data['forces'] = gdml_data['F']
             np_data['atom_numbers'] = gdml_data['z']
-            symbols = utils.numbers_to_symbols(np_data['atom_numbers'])
+            symbols = utils.numbers_to_symbols(gdml_data['z'])
             np_data['atom_types'] = np.array([symb for symb in symbols])
         else:
             np_data['positions'] = np.concatenate([np_data['positions'], gdml_data['R']], axis=0)
@@ -33,14 +33,14 @@ if __name__ == "__main__":
 
         if 'mo_coeff' in gdml_data.keys():
             print('basis', gdml_data['basis'].item())
-            mol = gto.M(atom=[(np_data['atom_types'][i], np_data['positions'][0, i, :])
+            mol = gto.M(atom=[(np_data['atom_types'][i], gdml_data['R'][0, i, :])
                               for i in range(len(gdml_data['z']))], basis=gdml_data['basis'].item())
             for i in range(gdml_data['mo_coeff'].shape[0]):
                 # print('i', i)
                 # print(lslakjdflasdf)
                 calc_pyscf = []
                 mol_dict = mol.pack()
-                pyscf_atoms = [(np_data['atom_types'][j], np_data['positions'][i, j, :])
+                pyscf_atoms = [(np_data['atom_types'][j], gdml_data['R'][i, j, :])
                                for j in range(len(gdml_data['z']))]
                 mol_dict['atom'] = pyscf_atoms
                 calc_dict = {'mo_coeff': gdml_data['mo_coeff'][i], 'mo_occ': gdml_data['mo_occ'][i]}
