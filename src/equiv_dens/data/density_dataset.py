@@ -186,9 +186,7 @@ class AtomsDensityData(Dataset):
         for pname in self.required_properties:
             # fallback for properties stored directly
             # in the row
-            if pname != 'density':
-                properties[pname] = torch.from_numpy(self.atoms[pname][idx])
-            else:
+            if pname == 'density':
                 sample_coords, coord_weights = self.sampling_fn(self.grid_spec, self.density_n_samp,
                                                                 self.atoms['atom_types'],
                                                                 self.atoms['positions'][idx])
@@ -197,6 +195,15 @@ class AtomsDensityData(Dataset):
                 properties['coords'] = torch.from_numpy(sample_coords).type(self.dtype)
                 properties['coord_weights'] = torch.from_numpy(coord_weights).type(self.dtype).\
                     unsqueeze(0).repeat(properties['coords'].shape[0], 1)
+            elif pname == 'coords':
+                sample_coords, coord_weights = self.sampling_fn(self.grid_spec, self.density_n_samp,
+                                                                self.atoms['atom_types'],
+                                                                self.atoms['positions'][idx])
+                properties['coords'] = torch.from_numpy(sample_coords).type(self.dtype)
+                properties['coord_weights'] = torch.from_numpy(coord_weights).type(self.dtype).\
+                    unsqueeze(0).repeat(properties['coords'].shape[0], 1)
+            else:
+                properties[pname] = torch.from_numpy(self.atoms[pname][idx])
 
         # extract/calculate structure
         properties['atom_numbers'] = torch.LongTensor(self.atoms['atom_numbers']).unsqueeze(0).repeat(len(idx), 1)

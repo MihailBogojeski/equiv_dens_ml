@@ -37,8 +37,6 @@ import copy
 # read arguments
 args = parse_command_line_arguments()
 
-max_steps = args.max_steps
-
 # no restart directory specified
 if args.restart is None:
     # generate "unique" id for the run (very unlikely that two runs will have the same ID)
@@ -85,12 +83,13 @@ else:
     args.checkpoint_interval = old_args.checkpoint_interval
     args.verbose = old_args.verbose
     args.timing = old_args.timing
-    args.max_step = old_args.max_steps
+    args.max_steps = old_args.max_steps
     step = checkpoint['step']
     restore = True
     data_split_indices = checkpoint['data_split_indices']
 
 print('model code:', model_code)
+print('max steps:', args.max_steps)
 # determine whether GPU is used for training
 print('args use gpu', args.use_gpu)
 use_gpu = args.use_gpu and torch.cuda.is_available()

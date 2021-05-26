@@ -124,33 +124,53 @@ def parse_command_line_arguments():
                                help="beta1 for the optimizer (only relevant for Adam/AMSGrad)")
     args_training.add_argument("--beta2", metavar='FLOAT', type=float, default=0.999,
                                help="beta2 for the optimizer (only relevant for Adam/AMSGrad)")
-    args_training.add_argument("--momentum", metavar='FLOAT', type=float, default=0.0, help="momentum for the optimizer (only relevant for SGD)")
-    args_training.add_argument("--density_weight", metavar='FLOAT', type=float, default=1.0, help="weight of the density in the loss function")
-    args_training.add_argument("--energy_weight", metavar='FLOAT', type=float, default=0.0, help="weight of the energy in the loss function")
-    args_training.add_argument("--forces_weight", metavar='FLOAT', type=float, default=0.0, help="weight of the forces in the loss function")
-    args_training.add_argument("--energy_min_weight", metavar='FLOAT', type=float, default=0.0, help="weight of the energy minimization loss")
-    args_training.add_argument("--density_loss_comp", metavar='STR', type=str, default='mae+rmse', choices=['mae', 'rmse', 'mae+rmse'], help="composition of the density loss")
-    args_training.add_argument("--energy_loss_comp", metavar='STR', type=str, default='mae+rmse', choices=['mae', 'rmse', 'mae+rmse'], help="composition of the energy loss")
-    args_training.add_argument("--forces_loss_comp", metavar='STR', type=str, default='mae+rmse', choices=['mae', 'rmse', 'mae+rmse'], help="composition of the forces loss")
-    args_training.add_argument("--density_weight_min", metavar='FLOAT', type=float, default=0.0, help="minimum weight of the density in the loss function")
-    args_training.add_argument("--energy_weight_min", metavar='FLOAT', type=float, default=0.0, help="minimum weight of the energy in the loss function")
-    args_training.add_argument("--forces_weight_min", metavar='FLOAT', type=float, default=0.0, help="minimum weight of the forces in the loss function")
-    args_training.add_argument("--energy_min_weight_min", metavar='FLOAT', type=float, default=0.0, help="minimum weight of the energy minimization loss")
-    args_training.add_argument("--density_weight_decay", metavar='FLOAT', type=float, default=1.0, help="decay of the weight of the density in the loss function")
-    args_training.add_argument("--energy_weight_decay", metavar='FLOAT', type=float, default=1.0, help="decay of the weight of the energy in the loss function")
-    args_training.add_argument("--forces_weight_decay", metavar='FLOAT', type=float, default=1.0, help="decay of the weight of the forces in the loss function")
-    args_training.add_argument("--energy_min_weight_decay", metavar='FLOAT', type=float, default=1.0, help="decay of the weight of the energy minimization loss")
+    args_training.add_argument("--momentum", metavar='FLOAT', type=float, default=0.0,
+                               help="momentum for the optimizer (only relevant for SGD)")
+    args_training.add_argument("--density_weight", metavar='FLOAT', type=float, default=1.0,
+                               help="weight of the density in the loss function")
+    args_training.add_argument("--energy_weight", metavar='FLOAT', type=float, default=0.0,
+                               help="weight of the energy in the loss function")
+    args_training.add_argument("--forces_weight", metavar='FLOAT', type=float, default=0.0,
+                               help="weight of the forces in the loss function")
+    args_training.add_argument("--energy_min_weight", metavar='FLOAT', type=float, default=0.0,
+                               help="weight of the energy minimization loss")
+    args_training.add_argument("--density_loss_comp", metavar='STR', type=str, default='mae+rmse',
+                               choices=['mae', 'rmse', 'mae+rmse'], help="composition of the density loss")
+    args_training.add_argument("--energy_loss_comp", metavar='STR', type=str, default='mae+rmse',
+                               choices=['mae', 'rmse', 'mae+rmse'], help="composition of the energy loss")
+    args_training.add_argument("--forces_loss_comp", metavar='STR', type=str, default='mae+rmse',
+                               choices=['mae', 'rmse', 'mae+rmse'], help="composition of the forces loss")
+    args_training.add_argument("--density_weight_min", metavar='FLOAT', type=float, default=0.0,
+                               help="minimum weight of the density in the loss function")
+    args_training.add_argument("--energy_weight_min", metavar='FLOAT', type=float, default=0.0,
+                               help="minimum weight of the energy in the loss function")
+    args_training.add_argument("--forces_weight_min", metavar='FLOAT', type=float, default=0.0,
+                               help="minimum weight of the forces in the loss function")
+    args_training.add_argument("--energy_min_weight_min", metavar='FLOAT', type=float, default=0.0,
+                               help="minimum weight of the energy minimization loss")
+    args_training.add_argument("--density_weight_decay", metavar='FLOAT', type=float, default=1.0,
+                               help="decay of the weight of the density in the loss function")
+    args_training.add_argument("--energy_weight_decay", metavar='FLOAT', type=float, default=1.0,
+                               help="decay of the weight of the energy in the loss function")
+    args_training.add_argument("--forces_weight_decay", metavar='FLOAT', type=float, default=1.0,
+                               help="decay of the weight of the forces in the loss function")
+    args_training.add_argument("--energy_min_weight_decay", metavar='FLOAT', type=float, default=1.0,
+                               help="decay of the weight of the energy minimization loss")
     args_training.add_argument("--max_energy_error", metavar='FLOAT', type=float, default=0.1,
-                               help="for better stability at beginning of training: maximum allowed MAE in energy (higher errors are clamped)")
+                               help="for better stability at beginning of training: maximum allowed MAE" +
+                               "in energy (higher errors are clamped)")
     args_training.add_argument("--max_forces_error", metavar='FLOAT', type=float, default=0.1,
-                               help="for better stability at beginning of training: maximum allowed MAE in forces (higher errors are clamped)")
+                               help="for better stability at beginning of training: maximum allowed MAE" +
+                               "in forces (higher errors are clamped)")
     args_training.add_argument("--center_energy", metavar='True|False', type=str2bool, default=True,
                                choices=[True, False], help="set energy mean to zero.")
     args_training.add_argument("--clip_norm", metavar='FLOAT', type=float, default=0.0,
                                help="gradient clip norm (only when --use_gradient_clipping is active)")
     args_training.add_argument("--use_parameter_averaging", metavar='True|False', type=str2bool, default=True,
-                               choices=[True, False], help="keep exponential moving average of model parameters (might boost convergence speed)")
-    args_training.add_argument("--ema_decay", metavar='FLOAT', type=float, default=0.999, help="decay rate used for exponential moving average of parameters")
+                               choices=[True, False], help="keep exponential moving average of" +
+                               " model parameters (might boost convergence speed)")
+    args_training.add_argument("--ema_decay", metavar='FLOAT', type=float, default=0.999,
+                               help="decay rate used for exponential moving average of parameters")
     args_training.add_argument("--ema_start_epoch", metavar='INT', type=int, default=0,
                                help="starts exponential moving average of parameters only after the specified epoch is reached")
     args_training.add_argument("--weight_decay", metavar='FLOAT', type=float, default=0.0, help="regularization term for weights")
@@ -165,24 +185,41 @@ def parse_command_line_arguments():
     args_training.add_argument("--percentage_error", metavar='True|False', type=str2bool, default=True,
                                choices=[True, False], help="Measure error as a percentage of the density integral.")
     args_training.add_argument("--cube_grid", metavar='True|False', type=str2bool, default=False,
-                                  choices=[True, False], help="Use cubical densty grid for training.")
+                               choices=[True, False], help="Use cubical densty grid for training.")
     args_training.add_argument("--cube_grid_valid", metavar='True|False', type=str2bool, default=False,
-                                  choices=[True, False], help="also use cube densty grid for validation.")
+                               choices=[True, False], help="also use cube densty grid for validation.")
     args_training.add_argument("--cube_size", metavar='INT', type=int, default=50,
-                                  help="Size of the cubical grid")
+                               help="Size of the cubical grid")
     args_training.add_argument("--cube_extent", metavar='FLOAT', type=float, default=4.1483,
-                                  help="Extent of the cubical grid.")
+                               help="Extent of the cubical grid.")
     args_training.add_argument("--cube_origin", metavar='FLOAT', type=float, default=-2.0318,
-                                  help="Origin of the cubical grid.")
+                               help="Origin of the cubical grid.")
     args_training.add_argument("--spherical_grid_level", metavar='INT', type=int, default=2,
-                                  help="Size of the spherical grid")
+                               help="Size of the spherical grid")
+    args_training.add_argument("--verbose", metavar='INT', type=int, default=0, help="Verbosity level.")
+    args_training.add_argument("--timing", metavar='True|False', type=str2bool, default=False,
+                               choices=[True, False], help="Timing runtime.")
+
+    # arguments for simulations
+    args_simulation = parser.add_argument_group("simulation hyperparameters")
+    args_simulation.add_argument()
+    args_simulation.add_argument("--temperature", metavar='INT', type=int, default=300,
+                                 help="Temperature in Kelvin for the simulation.")
+    args_simulation.add_argument("--new_run", metavar='True|False', type=str2bool, default=False,
+                                 choices=[True, False],
+                                 help="If true start new simulation, otherwise continue previous one.")
+    args_simulation.add_argument("--log_dir", metavar='STR', default='.', type=str, help="Path to simulation and logs directory.")
+    args_simulation.add_argument("--log_suffix", metavar='STR', default='.', type=str, help="Suffix for the log file.")
+    args_simulation.add_argument("--md_steps", metavar='INT', type=int, default=100,
+                                 help="Number of molecular dynamic steps.")
 
     # arguments for logging and checkpoints
     args_logging = parser.add_argument_group("logging and checkpoints")
     args_logging.add_argument("--save_dir", metavar='STR', default='.', type=str, help="Path to model and logs directory.")
     args_logging.add_argument("--write_parameter_summaries", metavar='True|False', type=str2bool,
                               default=False, choices=[True, False], help="write summaries for parameters")
-    args_logging.add_argument("--validation_interval", metavar='INT', type=int, default=1, help="perform model validation after every INT steps")
+    args_logging.add_argument("--validation_interval", metavar='INT', type=int, default=1,
+                              help="perform model validation after every INT steps")
     args_logging.add_argument("--summary_interval", metavar='INT', type=int, default=1, help="log summaries after every INT steps")
     args_logging.add_argument("--checkpoint_interval", metavar='INT', type=int, default=1, help="write checkpoints after every INT steps")
     args_logging.add_argument("--keep_checkpoints", metavar='INT', type=int, default=0,
@@ -192,9 +229,6 @@ def parse_command_line_arguments():
     args_misc = parser.add_argument_group("miscelleaneous")
     args_misc.add_argument("--dtype", metavar='torch.float32|torch.float64', type=str, default='torch.float32',
                            choices=['torch.float32', 'torch.float64'], help="floating point type used during training")
-    args_training.add_argument("--verbose", metavar='INT', type=int, default=0, help="Verbosity level.")
-    args_training.add_argument("--timing", metavar='True|False', type=str2bool, default=False,
-                               choices=[True, False], help="Timing runtime.")
 
     # actually parse command line arguments
     if len(sys.argv) == 1:  # no arguments were specified, print help message
