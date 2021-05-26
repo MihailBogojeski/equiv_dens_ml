@@ -202,7 +202,6 @@ def parse_command_line_arguments():
 
     # arguments for simulations
     args_simulation = parser.add_argument_group("simulation hyperparameters")
-    args_simulation.add_argument()
     args_simulation.add_argument("--temperature", metavar='INT', type=int, default=300,
                                  help="Temperature in Kelvin for the simulation.")
     args_simulation.add_argument("--new_run", metavar='True|False', type=str2bool, default=False,
