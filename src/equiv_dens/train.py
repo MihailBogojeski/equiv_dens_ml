@@ -35,7 +35,7 @@ import copy
 ################################################
 """
 # read arguments
-args = parse_command_line_arguments()
+args, hyperparam_args = parse_command_line_arguments()
 
 # no restart directory specified
 if args.restart is None:
@@ -62,7 +62,6 @@ if args.restart is None:
     data_split_indices = None
 # restarts run from latest checkpoint
 else:
-    old_args = copy.copy(args)
     directory = args.restart  # load directory name
     # load latest checkpoint
     checkpoint_path = os.path.join(directory, 'checkpoints')  # checkpoint directory
@@ -71,19 +70,14 @@ else:
     latest_checkpoint = checkpoint['step']
     model_code = checkpoint['ID']  # load ID
     for arg in vars(checkpoint['args']):
-        setattr(args, arg, getattr(checkpoint['args'], arg))
-    args.num_train = old_args.num_train
-    args.num_valid = old_args.num_valid
-    args.train_batch_size = old_args.train_batch_size
-    args.valid_batch_size = old_args.valid_batch_size
-    args.spherical_grid_level = old_args.spherical_grid_level
-    args.cube_size = old_args.cube_size
-    args.validation_interval = old_args.validation_interval
-    args.summary_interval = old_args.summary_interval
-    args.checkpoint_interval = old_args.checkpoint_interval
-    args.verbose = old_args.verbose
-    args.timing = old_args.timing
-    args.max_steps = old_args.max_steps
+        if args.fix_arguments:
+            if arg in hyperparam_args:
+                print('loading hyperparam arg', arg)
+                setattr(args, arg, getattr(checkpoint['args'], arg))
+        else:
+            print('loading all arg', arg)
+            setattr(args, arg, getattr(checkpoint['args'], arg))
+
     step = checkpoint['step']
     restore = True
     data_split_indices = checkpoint['data_split_indices']
@@ -484,6 +478,7 @@ trainer = Trainer(model_path=directory, model=model, error_dict=error_dict,
                   summary_interval=args.summary_interval,
                   ema_params=ema_params,
                   args=args,
+                  hyperparam_args=hyperparam_args,
                   restore=restore,
                   max_steps=args.max_steps,
                   clip_norm=args.clip_norm,
