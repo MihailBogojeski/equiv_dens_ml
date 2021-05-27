@@ -87,11 +87,15 @@ else:
     step = checkpoint['step']
     restore = True
     data_split_indices = checkpoint['data_split_indices']
+    
+for g in parser._action_groups:
+    print('group name', g.name)
 
 print('model code:', model_code)
 print('max steps:', args.max_steps)
 print('num train:', args.num_train)
 print('num valid:', args.num_valid)
+print(alksjdflaksjfdlaskjdflaskjdfl)
 # determine whether GPU is used for training
 print('args use gpu', args.use_gpu)
 use_gpu = args.use_gpu and torch.cuda.is_available()
