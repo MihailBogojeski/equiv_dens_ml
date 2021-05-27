@@ -72,6 +72,7 @@ class MLCalculator(Calculator):
         self.model = model
         # density prediction model
         self.data_atoms = data_atoms
+        self.atom_types = self.data_atoms['atom_numbers']
         self.atoms = atoms
         self.calc = None
         self.mylog = []
@@ -83,143 +84,29 @@ class MLCalculator(Calculator):
         self.energy_loaded = False
         self.density_expansion = density_expansion
 
-    def get_density(self, potential):
-        return self.model_n.predict(potential)
-
-    def get_energy(self, density, atom_pos, alt_model=False):
-        # if alt_model:
-        #     print('we are using alt model')
-        #     model = self.model_E_alt
-        # else:
-        #     model = self.model_E
-        #
-        # # Apply delta-learning if the model requires it
-        # if model.delta_learning:
-        #     print('positions', atom_pos[0,:])
-        #     print('predicted density', density[0, :20])
-        #     pbe_energy, pbe_density = self._delta_learning_correction(atom_pos)
-        #     print('pbe density', pbe_density[0, :20])
-        #     print('pbe energy', pbe_energy[0])
-        #     if self.use_true_densities:
-        #         density = pbe_density
-        #         # print('true density', density[0, :20])
-        #
-        return energy_model.predict(density)
-
-    def _get_energy_torch(self, density, energy_model):
-        energy_pred = energy_model.predict_torch(density, device=self.device[1])
-        if self.verbose > 1:
-            print('energy_pred', energy_pred)
-
-        if self.analytic_forces:
-            # print('test gradients', self.model_E.dual_coefs_torch.grad)
-            energy_pred.backward()
-
-        return np.array(energy_pred.data)
-
-    # def _get_RESPA_energy(self, density, atom_pos):
-    #     # if self.verbose > 0:
-    #     print('RESPA slow step calculation')
-    #     energy = self.get_energy(density, atom_pos)
-    #     # save fast energy for logger output
-    #     self.fast_energy = energy / 23.061
-    #
-    #     alt_energy = self.get_energy(density, atom_pos, alt_model=True)
-    #     energy = alt_energy - energy
-    #     return energy
-
-    def get_energy_via_ML(self, atom_pos, atom_types):
+    def get_energy_via_ML(self, atoms):
         """ Computes energy
 
         Input is atom_pos  and atom_types of a single molecule geometry.
 
         """
-        assert np.all(atom_types == self.atom_types)
+        assert np.all(atoms['atom_numbers'] == self.atom_types)
 
         start_total = time.time()
-        # 0. rearange positions
-        pos = []
-        for i in range(atom_pos.shape[0]):
-            pos.append(atom_pos[i].reshape(-1, 3))
-        atom_pos = np.array(pos) * dft_utils.to_bohr  # From Angstrom to Bohr
 
-        # 1. normalize positions
-        atom_pos = self.normalize_positions(atom_pos, atom_types)
-
-        start_pot = time.time()
-        # 2. create potential
-        potential = self.get_potential(atom_pos, atom_types)
-        if self.verbose > 1:
-            print('Potentials shape:', potential.shape)
-
-        # 3. calculate energy
+        # pass inputs through model
         start = time.time()
-
-        print('potential', potential[0, :])
-
-        density = self.get_density(potential)
-        print('density', density[0, :])
-        var = 0
-        var_over_threshold = False
-        self.fast_energy = None
-        self.fast_forces = None
-        # If needed, calculate the predicted variance of the model and check if it passes the threshold
-        if self.variance_check:
-            var = self.get_variance(density)
-            print('Predicted variance:', var)
-            var_over_threshold = var >= self.variance_threshold
-            if var_over_threshold:
-                print('Variance {} is over threshold {}'.format(var, self.variance_threshold))
-
-        try:
-            # Predict the energies for the multiple timestep MD
-            if self.respa:
-                energy = self._get_RESPA_energy(density, atom_pos)
-
-            # If we want to correct our run with true PBE calculation, do the calculation if the variance threshold is passed
-            # If no variance check is required, the perform PBE calculation for every step
-            elif self.pbe_calculation and (not self.variance_check or var_over_threshold):
-                if self.verbose > 0:
-                    print('Running DFT calculation')
-                pbe_energy, pbe_density = dft_utils.calculate_PBE(atom_pos, self.molecule_system, self.atom_symbols, self.n_jobs)
-                energy = pbe_energy
-
-            # If the varance is too high and we have an alternative model, do the prediction with the alternative
-            elif var_over_threshold and self.model_E_alt is not None:
-                if self.verbose > 0:
-                    print('Correcting prediction using alternative model')
-                energy = self.get_energy(density, atom_pos, alt_model=True)
-
-            # No special cases, predict energy normally
-            else:
-                energy = self.get_energy(density, atom_pos)
-        except RuntimeError:
-            print('Error in PBE calculation: rolling back simulation')
-            energy = 23.061
-
-        forces = None
-        if self.analytic_forces:
-            forces = self.atom_pos_torch.grad
-            forces = -np.array(forces.data)
-            forces *= dft_utils.to_angstrom
-            forces *= 1e-1
-            # print('forces', forces)
+        atoms = self.model(atoms)
 
         end = time.time()
         if self.verbose > 0:
-                print('Predict time', end - start)
-        end_pot = time.time()
-        if self.verbose > 0:
-                print('Potential time', end_pot - start_pot)
+            print('Predict time', end - start)
         end_total = time.time()
         if self.verbose > 0:
-                print('Total predict time', end_total - start_total)
+            print('Total predict time', end_total - start_total)
 
-        self.density_pred = None
-
-        # print(energy.shape)
         print('Predicted energy', energy.reshape(1, -1)[0, 0])
-        return energy / 23.061, forces  # from kcal/mol to eV
+        return atoms['energy'] / 23.061, atoms['forces'] / 23.061  # from kcal/mol to eV
 
     def calculation_required(self, atoms, quantities=None):
         return (self.calc is None) or (self.calc['atoms'] != atoms)
@@ -230,7 +117,9 @@ class MLCalculator(Calculator):
         if not np.all(atoms.get_atomic_numbers() == self.atom_types):
             raise RuntimeError('ASE switched atom types around.')
 
-        energy, forces = self.get_energy_via_ML()
+        in_atoms = {key: self.data_atoms[key] for key in self.data_atoms.keys()}
+        in_atoms['positions'] = atoms.get_positions()
+        energy, forces = self.get_energy_via_ML(in_atoms)
 
         if self.verbose > 0:
             print('forces', forces)
@@ -308,17 +197,15 @@ class MDLogger:
         with open(os.path.join(self.log_dir, 'temperature' + self.log_suffix), open_mode) as f:
             f.write('%.18e\n' % self.atoms.get_temperature())
 
-        if self.atoms._calc.fast_energy is None:
-            forces = self.atoms.get_forces()
-        else:
-            forces = self.atoms._calc.fast_forces
-            print('Multistep forces shape', forces.shape)
-        print('Regular forces shape', forces.shape)
+        # if self.atoms._calc.fast_energy is None:
+        forces = self.atoms.get_forces()
+        # else:
+        #     forces = self.atoms._calc.fast_forces
         with open(os.path.join(self.log_dir, 'forces' + self.log_suffix + '.xyz'), open_mode) as f:
             f.write('%d\n' % len(forces))
             f.write(' generated by ML\n')
             for j in range(len(forces)):
-                f.write(' %s %.18e %.18e %.18e\n' % (charge_to_str[self.atoms.get_calculator().atom_types[j]], forces[j][0],
+                f.write(' %s %.18e %.18e %.18e\n' % (self.atoms.get_calculator().data_atoms['atom_types'][j], forces[j][0],
                                                      forces[j][1], forces[j][2]))
         velocities = self.atoms.get_velocities()
         if velocities is not None:
@@ -326,7 +213,7 @@ class MDLogger:
                 f.write('%d\n' % len(velocities))
                 f.write(' generated by ML\n')
                 for j in range(len(velocities)):
-                    f.write(' %s %.18e %.18e %.18e\n' % (charge_to_str[self.atoms.get_calculator().atom_types[j]], velocities[j][0],
+                    f.write(' %s %.18e %.18e %.18e\n' % (self.atoms.get_calculator().data_atoms['atom_types'][j], velocities[j][0],
                                                          velocities[j][1], velocities[j][2]))
 
         pos = self.atoms.get_positions()
@@ -334,65 +221,8 @@ class MDLogger:
             f.write('%d\n' % len(pos))
             f.write(' generated by ML\n')
             for j in range(len(pos)):
-                f.write(' %s %.18e %.18e %.18e\n' % (charge_to_str[self.atoms.get_calculator().atom_types[j]], pos[j][0],
+                f.write(' %s %.18e %.18e %.18e\n' % (self.atoms.get_calculator().data_atoms['atom_types'][j], pos[j][0],
                                                      pos[j][1], pos[j][2]))
-        heavy = self.atoms.get_calculator().atom_types > 1
-        if len(self.atoms.get_calculator().atom_types) == 3:
-            heavy = [True, True, True]
-        if len(self.atoms.get_calculator().atom_types) > 10:
-            heavy = self.atoms.get_calculator().atom_types == 6
-
-        pos_aligned = transform_molecule(pos * dft_utils.to_bohr, self.atoms.get_calculator().base_pos,
-                                         heavy) / dft_utils.to_bohr
-        with open(os.path.join(self.log_dir, 'positions_aligned' + self.log_suffix + '.xyz'), open_mode) as f:
-            f.write('%d\n' % len(pos_aligned))
-            f.write(' generated by ML\n')
-            for j in range(len(pos_aligned)):
-                f.write(' %s %.18e %.18e %.18e\n' % (charge_to_str[self.atoms.get_calculator().atom_types[j]], pos_aligned[j][0],
-                                                     pos_aligned[j][1], pos_aligned[j][2]))
-        print(self.atoms.get_potential_energy(), self.atoms.get_temperature())
-
-        if self.atoms.get_potential_energy == 1:
-            rollback_pos = self.get_prev_position()
-            self.atoms.set_positions(rollback_pos.get_positions())
-            randint = np.random.randint(10000)
-            random_state = np.random.RandomState(randint)
-            myMaxwellBoltzmannDistribution(self.atoms, random_state=random_state)
-            self.log_suffix = self.log_suffix + '_' + str(randint)
-
-        if self.rollback_criterion == 'temperature' and self.atoms.get_temperature() > self.temp_threshold:
-            if not self.rollback:
-                print('Temperature exceeded threshold, not rolling back!')
-                sys.exit()
-            print("Temperature threshold passed, rolling back {} steps!".format(self.rollback_steps))
-
-            rollback_pos = self.get_prev_position()
-
-            self.atoms.set_positions(rollback_pos.get_positions())
-            randint = np.random.randint(10000)
-            random_state = np.random.RandomState(randint)
-            myMaxwellBoltzmannDistribution(self.atoms, random_state=random_state)
-            self.log_suffix = self.log_suffix + '_' + str(randint)
-
-        if self.rollback_criterion == 'variance' and\
-                (np.any(self.max_pos - self.atoms.get_positions() < 0) or
-                 np.any(self.min_pos - self.atoms.get_positions() > 0)):
-            if not self.rollback:
-                print('Atom positions outside of deviation bounds, not rolling back!')
-                sys.exit()
-            print("Atom position outside of deviation bounds, rolling back {} steps!".format(self.rollback_steps))
-            print(self.max_pos - self.atoms.get_positions())
-            print(self.min_pos - self.atoms.get_positions())
-            print(self.min_pos)
-            print(self.max_pos)
-
-            rollback_pos = self.get_prev_position()
-
-            self.atoms.set_positions(rollback_pos.get_positions())
-            randint = np.random.randint(10000)
-            random_state = np.random.RandomState(randint)
-            myMaxwellBoltzmannDistribution(self.atoms, random_state=random_state)
-            self.log_suffix = self.log_suffix + '_' + str(randint)
 
     def get_prev_position(self):
         pos_list = list(ase.io.iread(os.path.join(self.log_dir, 'positions' + self.log_suffix + '.xyz')))

@@ -90,6 +90,8 @@ else:
 
 print('model code:', model_code)
 print('max steps:', args.max_steps)
+print('num train:', args.num_train)
+print('num valid:', args.num_valid)
 # determine whether GPU is used for training
 print('args use gpu', args.use_gpu)
 use_gpu = args.use_gpu and torch.cuda.is_available()
@@ -130,16 +132,19 @@ dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_datas
 # split into train / valid / test
 if data_split_indices is None:
     train_dataset, valid_dataset, test_dataset = seeded_random_split(
-        dataset, [args.num_train, args.num_valid, len(dataset) - (args.num_train + args.num_valid)], seed=args.split_seed)
+        [args.num_train, args.num_valid, len(dataset) - (args.num_train + args.num_valid)],
+        dataset, seed=args.split_seed
+    )
 
     data_split_indices = {'train': train_dataset.indices,
                           'valid': valid_dataset.indices,
-                          'test': test_dataset.indices,
-                          }
+                          'test': test_dataset.indices}
 else:
-    train_dataset = torch.utils.data.Subset(dataset, data_split_indices['train'])
-    valid_dataset = torch.utils.data.Subset(dataset, data_split_indices['valid'])
+    train_dataset = torch.utils.data.Subset(dataset, data_split_indices['train'][:args.num_train])
+    valid_dataset = torch.utils.data.Subset(dataset, data_split_indices['valid'][:args.num_valid])
     test_dataset = torch.utils.data.Subset(dataset, data_split_indices['test'])
+
+print('valid dataset size', len(valid_dataset))
 
 if args.cube_grid_valid:
     grid_origin = args.cube_origin
@@ -488,6 +493,6 @@ trainer = Trainer(model_path=directory, model=model, error_dict=error_dict,
                   timing=args.timing,
                   data_split_indices=data_split_indices,
                   )
-
+print('args.max_steps', args.max_steps)
 # with torch.autograd.detect_anomaly():
 trainer.run(args.max_steps, use_gpu=use_gpu, dtype=args.dtype)

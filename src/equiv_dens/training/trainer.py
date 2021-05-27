@@ -167,7 +167,8 @@ class Trainer:
             self.checkpoint_path, 'latest_checkpoint.pth'), map_location='cpu')
         # self.args = checkpoint['args']  # overwrite args
         for arg in vars(checkpoint['args']):
-            setattr(self.args, arg, getattr(checkpoint['args'], arg))
+            if arg not in vars(self.args):
+                setattr(self.args, arg, getattr(checkpoint['args'], arg))
         self.step = checkpoint['step']
         self.epoch = checkpoint['epoch']
         self.best_errors = checkpoint['best_errors']
@@ -225,6 +226,8 @@ class Trainer:
         new_best = False
         start_time = time.time()
 
+        print('self.step', self.step)
+        print('n_steps', n_steps)
         while self.step < n_steps + 1:
             # get the next batch
 
@@ -285,7 +288,8 @@ class Trainer:
                 print("Learning rate is smaller than " +
                       str(self.stop_at_learning_rate) + "! Training stopped.")
                 break
-
+            print('self.step before loop end', self.step)
+            print('n_steps before loop end', n_steps)
         # close summary writer
         self.summary.close()
 
@@ -405,6 +409,7 @@ class Trainer:
         # run once over the validation set
         valid_errors = self.error_dict.empty()
         for valid_batch_num, data in enumerate(valid_data_loader):
+            print('valid batch :', valid_batch_num)
             start = time.time()
             # send data to GPU
             if use_gpu:
