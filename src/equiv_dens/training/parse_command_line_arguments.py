@@ -22,11 +22,14 @@ def parse_command_line_arguments():
     args_restart = parser.add_argument_group("specification of a restart folder")
     args_restart.add_argument("--restart", metavar='FOLDER', type=str, default=None,
                               help="restart training from the given folder (all other arguments are ignored)")
+    args_restart.add_argument("--load_from", metavar='STR', type=str, default=None,
+                              help="initialize model from given pth file (other architecture hyperparameters are ignored)")
+    args_restart.add_argument("--fix_arguments", metavar='True|False', type=str2bool, default=False,
+                              choices=[True, False],
+                              help="Do not change arguments after loading checkpoint (except hyperparams).")
 
     # arguments for neural network architecture hyperparameters
     args_hyperparams = parser.add_argument_group("neural network architecture hyperparameters")
-    args_hyperparams.add_argument("--load_from", metavar='STR', type=str, default=None,
-                                  help="initialize model from given pth file (other architecture hyperparameters are ignored)")
     args_hyperparams.add_argument("--activation", metavar='STR', type=str, default='swish',
                                   choices=['ssp', 'swish'], help="which activation function to use (shifted softplus (ssp) or swish))")
     args_hyperparams.add_argument("--order", metavar='INT', type=int, default=[2], nargs='+', help="angular order of the feature vectors")
@@ -84,6 +87,8 @@ def parse_command_line_arguments():
                                   help="Extract the spherical harmonic coefficients from the features in a more compresesd way.")
     args_hyperparams.add_argument("--energy_model", metavar='STR', type=str, default=None,
                                   help="Use a neural network for energy prediction instead of functional.")
+    hyperparam_args = [act.dest for act in args_hyperparams._group_actions]
+
     # arguments for training
     args_training = parser.add_argument_group("training hyperparameters")
     args_training.add_argument("--max_steps", metavar='INT', type=int, help="maximum number of training steps")
@@ -258,4 +263,4 @@ def parse_command_line_arguments():
         if args.energy_model == 'None':
             args.energy_model = None
 
-    return args
+    return args, hyperparam_args

@@ -41,6 +41,7 @@ class Trainer:
         hooks=[],
         ema_params=None,
         args=None,
+        hyperparam_args=None,
         restore=False,
         max_steps=100000,
         clip_norm=0,
@@ -167,8 +168,14 @@ class Trainer:
             self.checkpoint_path, 'latest_checkpoint.pth'), map_location='cpu')
         # self.args = checkpoint['args']  # overwrite args
         for arg in vars(checkpoint['args']):
-            if arg not in vars(self.args):
+            if self.args.fix_arguments:
+                if arg in self.hyperparam_args:
+                    print('loading hyperparam arg', arg)
+                    setattr(self.args, arg, getattr(checkpoint['args'], arg))
+            else:
+                print('loading all arg', arg)
                 setattr(self.args, arg, getattr(checkpoint['args'], arg))
+
         self.step = checkpoint['step']
         self.epoch = checkpoint['epoch']
         self.best_errors = checkpoint['best_errors']
