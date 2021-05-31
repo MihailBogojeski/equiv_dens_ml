@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+# !/usr/bin/env python3
 import os
 import torch
 import torch.nn as nn
@@ -9,21 +9,16 @@ from equiv_dens.nn.property_output.energy import ComplexEnergyNetwork, SimpleEne
 from equiv_dens.nn.property_output.density import DensityCoeffsNetwork, DensityExpansion
 from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
 from equiv_dens.training.parse_command_line_arguments import parse_command_line_arguments
-from equiv_dens.training.errors import ErrorDict
 from equiv_dens.data.density_dataset import AtomsDensityData
-from equiv_dens.data.hamiltonian_dataset import seeded_random_split
 from equiv_dens.utils.grids import cubical_grid, cubical_sampling,\
-    dftpy_grid, CubicalGrid, spherical_grid, rot_spherical_sampling
-from equiv_dens.density_functionals.LDA import LDAFunctional
-import equiv_dens.utils.base as utils
+    spherical_grid, spherical_sampling
+# import equiv_dens.utils.base as utils
 import copy
 
 import numpy as np
 from functools import partial
 
-from dftpy.pseudo import LocalPseudo
-import numpy as np
-import sys
+from ase.optimize import BFGS
 import time
 from ase import Atoms
 import ase.io
@@ -64,7 +59,7 @@ def get_gpu_memory_map():
 
 # MD calculator class
 class MLCalculator(Calculator):
-    def __init__(self, model, data_atoms=data_atoms,
+    def __init__(self, model, data_atoms=None,
                  atoms=None, verbose=0,
                  gpu=False, n_jobs=10,
                  density_expansion=False):
@@ -105,7 +100,7 @@ class MLCalculator(Calculator):
         if self.verbose > 0:
             print('Total predict time', end_total - start_total)
 
-        print('Predicted energy', energy.reshape(1, -1)[0, 0])
+        print('Predicted energy', atoms['energy'].reshape(1, -1))
         return atoms['energy'] / 23.061, atoms['forces'] / 23.061  # from kcal/mol to eV
 
     def calculation_required(self, atoms, quantities=None):
@@ -399,8 +394,6 @@ class MDLogger:
 #         return last_velocities
 
 
-
-@ex.config
 def config():
     md_steps = 200
     results_dir = '/home/ml-dft/md/'
@@ -658,17 +651,16 @@ def load_model(args, dataset):
         model = torch.nn.DataParallel(model)
 
     return model
-    
+
 
 def run_optimization(args):
-    random_state = np.random.RandomState(seed=args.split_seed)
     start_ind = 10
     # start_ind = np.randint(len(dataset))
     data_atoms = dataset.get_properties(start_ind)
 
-    calculator = MLCalculator(model=model, data_atoms=data_atoms
-                              verbose=verbose, n_jobs=n_jobs,
-                              gpu=args.use_gpu and torch.cuda.is_available()
+    calculator = MLCalculator(model=model, data_atoms=data_atoms,
+                              verbose=args.verbose, n_jobs=args.n_jobs,
+                              gpu=args.use_gpu and torch.cuda.is_available(),
                               density_expansion=args.density_weight > 0)
 
     atoms = Atoms(positions=data_atoms['positions'],  # from Bohr to Angstrom
@@ -677,8 +669,8 @@ def run_optimization(args):
 
     dyn = BFGS(atoms, maxstep=0.01)
 
-    dyn.attach(MDLogger(atoms, results_dir=args.log_dir, work_dir=,args.restart, reset_log=args.new_run,
-                        log_suffix=log_suffix, run_type='opt', interval=1)
+    dyn.attach(MDLogger(atoms, results_dir=args.log_dir, work_dir=args.restart, reset_log=args.new_run,
+                        log_suffix=args.log_suffix, run_type='opt', interval=1))
     dyn.run(fmax=0.01)
 
 
@@ -689,9 +681,9 @@ def run_molecular_dynamics(args, dataset, model):
     # start_ind = np.randint(len(dataset))
     data_atoms = dataset.get_properties(start_ind)
 
-    calculator = MLCalculator(model=model, data_atoms=data_atoms
-                              verbose=verbose, n_jobs=n_jobs,
-                              gpu=args.use_gpu and torch.cuda.is_available()
+    calculator = MLCalculator(model=model, data_atoms=data_atoms,
+                              verbose=args.verbose, n_jobs=args.n_jobs,
+                              gpu=args.use_gpu and torch.cuda.is_available(),
                               density_expansion=args.density_weight > 0)
 
     atoms = Atoms(positions=data_atoms['positions'],  # from Bohr to Angstrom
@@ -716,13 +708,14 @@ def run_molecular_dynamics(args, dataset, model):
     # pos_mean = np.mean(train_pos, axis=0) * dft_utils.to_angstrom
     # pos_std = np.std(train_pos, axis=0) * dft_utils.to_angstrom
 
-    dyn.attach(MDLogger(atoms, results_dir=args.log_dir, work_dir=,args.restart, reset_log=args.new_run,
-                        log_suffix=log_suffix, run_type='md', interval=1)
+    dyn.attach(MDLogger(atoms, results_dir=args.log_dir, work_dir=args.restart, reset_log=args.new_run,
+                        log_suffix=args.log_suffix, run_type='md', interval=1))
     dyn.run(args.md_steps)
+
 
 if __name__ == "__main__":
     # read arguments
-    args = parse_command_line_arguments()
+    args, hyperparam_args = parse_command_line_arguments()
 
     old_args = copy.copy(args)
     # no restart directory specified
@@ -736,19 +729,14 @@ if __name__ == "__main__":
     for arg in vars(checkpoint['args']):
         setattr(args, arg, getattr(checkpoint['args'], arg))
     step = checkpoint['step']
-    args.restart = old_args.restart
-    args.np_dataset = old_args.np_dataset
-    args.dens_dataset = old_args.dens_dataset
-    args.orbitals_file = old_args.orbitals_file
-    args.radial_coeffs_file = old_args.radial_coeffs_file
-    args.np_dataset_test = old_args.np_dataset_test
-    args.dens_dataset_test = old_args.dens_dataset_test
-    args.pseudo_pot_path = old_args.pseudo_pot_path
-    args.num_test = old_args.num_test
-    args.test_batch_size = old_args.test_batch_size
-    args.spherical_grid_level = old_args.spherical_grid_level
-    args.cube_size = old_args.cube_size
-    args.verbose = old_args.verbose
+    for arg in vars(checkpoint['args']):
+        if args.fix_arguments:
+            if arg in hyperparam_args:
+                print('loading hyperparam arg', arg)
+                setattr(args, arg, getattr(checkpoint['args'], arg))
+        else:
+            print('loading all arg', arg)
+            setattr(args, arg, getattr(checkpoint['args'], arg))
     restore = True
 
     best_model_path = 'best_' + model_code + '.pth'
@@ -791,9 +779,9 @@ if __name__ == "__main__":
 
     model = load_model(args, dataset)
 
-    if args.simulation = 'md':
+    if args.simulation == 'md':
         run_molecular_dynamics(args, dataset, model)
-    elif args.simulation = 'opt':
+    elif args.simulation == 'opt':
         run_optimization(args, dataset, model)
     else:
         raise('Simulation type "' + args.simulation + '" is not supported!')

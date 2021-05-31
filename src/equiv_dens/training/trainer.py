@@ -64,6 +64,7 @@ class Trainer:
         self.ema_params = ema_params
         self.exponential_moving_average = None
         self.args = args
+        self.hyperparam_args = hyperparam_args
         self.max_steps = max_steps
         self.clip_norm = clip_norm
         self.stop_at_learning_rate = stop_at_learning_rate
@@ -233,8 +234,6 @@ class Trainer:
         new_best = False
         start_time = time.time()
 
-        print('self.step', self.step)
-        print('n_steps', n_steps)
         while self.step < n_steps + 1:
             # get the next batch
 
@@ -295,8 +294,6 @@ class Trainer:
                 print("Learning rate is smaller than " +
                       str(self.stop_at_learning_rate) + "! Training stopped.")
                 break
-            print('self.step before loop end', self.step)
-            print('n_steps before loop end', n_steps)
         # close summary writer
         self.summary.close()
 
@@ -416,7 +413,6 @@ class Trainer:
         # run once over the validation set
         valid_errors = self.error_dict.empty()
         for valid_batch_num, data in enumerate(valid_data_loader):
-            print('valid batch :', valid_batch_num)
             start = time.time()
             # send data to GPU
             if use_gpu:

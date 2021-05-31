@@ -216,6 +216,8 @@ def parse_command_line_arguments():
     args_simulation.add_argument("--log_suffix", metavar='STR', default='.', type=str, help="Suffix for the log file.")
     args_simulation.add_argument("--md_steps", metavar='INT', type=int, default=100,
                                  help="Number of molecular dynamic steps.")
+    args_simulation.add_argument("--langevin", metavar='True|False', type=str2bool, default=True,
+                                 choices=[True, False], help="If true use Langevin dynamics, else use velocity Verlet.")
 
     # arguments for logging and checkpoints
     args_logging = parser.add_argument_group("logging and checkpoints")

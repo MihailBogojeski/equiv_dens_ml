@@ -26,7 +26,6 @@ import numpy as np
 from functools import partial
 
 from dftpy.pseudo import LocalPseudo
-import copy
 # from torch import autograd
 
 """
@@ -60,7 +59,7 @@ if args.restart is None:
     step = 0
     restore = False
     data_split_indices = None
-# restarts run from latest checkpoint
+    # restarts run from latest checkpoint
 else:
     directory = args.restart  # load directory name
     # load latest checkpoint
@@ -81,15 +80,11 @@ else:
     step = checkpoint['step']
     restore = True
     data_split_indices = checkpoint['data_split_indices']
-    
-for g in parser._action_groups:
-    print('group name', g.name)
 
 print('model code:', model_code)
 print('max steps:', args.max_steps)
 print('num train:', args.num_train)
 print('num valid:', args.num_valid)
-print(alksjdflaksjfdlaskjdflaskjdfl)
 # determine whether GPU is used for training
 print('args use gpu', args.use_gpu)
 use_gpu = args.use_gpu and torch.cuda.is_available()
@@ -395,7 +390,7 @@ if args.energy_model is not None:
     property_models['energy'] = en_model
     calculate_forces_dict['energy'] = calculate_forces
 
-print('property models', property_models)
+# print('property models', property_models)
 model = DFTNetwork(density_model, property_models, calculate_forces_dict=calculate_forces_dict, verbose=args.verbose)
 # print('dft network', model)
 
@@ -492,6 +487,5 @@ trainer = Trainer(model_path=directory, model=model, error_dict=error_dict,
                   timing=args.timing,
                   data_split_indices=data_split_indices,
                   )
-print('args.max_steps', args.max_steps)
 # with torch.autograd.detect_anomaly():
 trainer.run(args.max_steps, use_gpu=use_gpu, dtype=args.dtype)
