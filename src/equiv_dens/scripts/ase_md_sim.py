@@ -86,16 +86,14 @@ class MLCalculator(Calculator):
         Input is atom_pos  and atom_numbers of a single molecule geometry.
 
         """
-        print('atoms', atoms['atom_numbers'])
-        print('data atoms', self.data_atoms['atom_numbers'])
+        # print('atoms', atoms['atom_numbers'])
+        # print('data atoms', self.data_atoms['atom_numbers'])
         assert torch.all(atoms['atom_numbers'] == self.data_atoms['atom_numbers'])
 
         start_total = time.time()
 
         # pass inputs through model
         start = time.time()
-        for key in atoms.keys():
-            print(key, 'type', atoms[key].type())
         atoms = self.model(atoms)
 
         end = time.time()
@@ -105,7 +103,7 @@ class MLCalculator(Calculator):
         if self.verbose > 0:
             print('Total predict time', end_total - start_total)
 
-        print('Predicted energy', atoms['energy'].reshape(1, -1))
+        # print('Predicted energy', atoms['energy'].reshape(1, -1))
         return atoms['energy'].detach().cpu().numpy() / 23.061, atoms['forces'].detach().cpu().numpy() / 23.061  # from kcal/mol to eV
 
     def calculation_required(self, atoms, quantities=None):
@@ -113,13 +111,13 @@ class MLCalculator(Calculator):
 
     def _make_calc(self, atoms):
         # Calculate both energy and forces via one call to the ML models
-        print('Calculating forces using ML')
+        # print('Calculating forces using ML')
         if not np.all(atoms.get_atomic_numbers() == self.atom_numbers.detach().cpu().numpy()):
             raise RuntimeError('ASE switched atom types around.')
 
         in_atoms = {key: self.data_atoms[key] for key in self.data_atoms.keys()}
         in_atoms['positions'] = torch.Tensor(atoms.get_positions()).unsqueeze(0)
-        print('in atoms positions shape', in_atoms['positions'].shape)
+        # print('in atoms positions shape', in_atoms['positions'].shape)
         in_atoms['positions'] = in_atoms['positions'].to(self.data_atoms['positions'])
         energy, forces = self.get_energy_via_ML(in_atoms)
 
@@ -181,7 +179,7 @@ class MDLogger:
             atoms.set_velocities(last_velocities.get_positions())
 
     def __call__(self):  # store a reference to atoms in the definition.
-        print('Calling logger to ', os.path.join(self.log_dir, 'potential_energy' + self.log_suffix))
+        # print('Calling logger to ', os.path.join(self.log_dir, 'potential_energy' + self.log_suffix))
         if self.reset_log:
             open_mode = 'w'
             self.reset_log = False
@@ -409,7 +407,7 @@ def load_model(args, dataset):
     return model
 
 
-def run_optimization(args):
+def run_optimization(args, dataset, model):
     start_ind = 10
     # start_ind = np.randint(len(dataset))
     data_atoms = dataset.get_properties(start_ind)
@@ -442,7 +440,6 @@ def run_molecular_dynamics(args, dataset, model):
                               gpu=args.use_gpu and torch.cuda.is_available(),
                               density_expansion=args.density_weight > 0)
 
-    print('positions', data_atoms['positions'])
     atoms = Atoms(positions=data_atoms['positions'].squeeze(0).detach().cpu().numpy(),  # from Bohr to Angstrom
                   numbers=data_atoms['atom_numbers'].squeeze().detach().cpu().numpy(),
                   calculator=calculator)
