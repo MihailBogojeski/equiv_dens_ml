@@ -220,7 +220,10 @@ class DensityCoeffsNetwork(nn.Module):
         # print('spherical_coeffs[1][0]', atoms['spherical_coeffs'][0][(8, 1)])
         # print('out sph[1][0]', out_sph[1][:, 1, :])
         # print('spherical_coeffs[1][0]', atoms['spherical_coeffs'][1][(1, 1)])
-        atoms['L_dict'] = {key: self.L_dict[key].to(fs[0].get_device()) for key in self.L_dict.keys()}
+        if fs[0].get_device() >= 0:
+            atoms['L_dict'] = {key: self.L_dict[key].to(fs[0].get_device()) for key in self.L_dict.keys()}
+        else:
+            atoms['L_dict'] = {key: self.L_dict[key].to('cpu') for key in self.L_dict.keys()}
         if self.timing:
             print('density coeffs time:', time.time() - start)
 
