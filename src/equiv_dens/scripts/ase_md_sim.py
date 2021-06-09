@@ -13,7 +13,6 @@ from equiv_dens.data.density_dataset import AtomsDensityData
 from equiv_dens.utils.grids import cubical_grid, cubical_sampling,\
     spherical_grid, spherical_sampling
 import equiv_dens.utils.base as utils
-import copy
 
 import numpy as np
 from functools import partial
@@ -62,7 +61,9 @@ class MLCalculator(Calculator):
     def __init__(self, model, data_atoms=None,
                  atoms=None, verbose=0,
                  gpu=False, n_jobs=10,
-                 density_expansion=False):
+                 density_expansion=False,
+                 grid_sampling_fn=None,
+                 grid_spec=None):
         # energy prediction model
         self.model = model
         # density prediction model
@@ -70,6 +71,8 @@ class MLCalculator(Calculator):
         self.atom_numbers = self.data_atoms['atom_numbers'].squeeze()
         self.atom_symbols = utils.numbers_to_symbols(self.atom_numbers)
         self.atoms = atoms
+        self.grid_spec = grid_spec
+        self.grid_sampling_fn = grid_sampling_fn
         self.calc = None
         self.mylog = []
         self.verbose = verbose
@@ -91,6 +94,10 @@ class MLCalculator(Calculator):
         assert torch.all(atoms['atom_numbers'] == self.data_atoms['atom_numbers'])
 
         start_total = time.time()
+        if self.gpu:
+            for key in atoms.keys():
+                if isinstance(atoms[key], torch.Tensor):
+                    atoms[key] = atoms[key].cuda()
 
         # pass inputs through model
         start = time.time()
@@ -119,6 +126,11 @@ class MLCalculator(Calculator):
         in_atoms['positions'] = torch.Tensor(atoms.get_positions()).unsqueeze(0)
         # print('in atoms positions shape', in_atoms['positions'].shape)
         in_atoms['positions'] = in_atoms['positions'].to(self.data_atoms['positions'])
+        if self.density_expansion:
+            sample_coords, _ = self.grid_sampling_fn(self.grid_spec, 10000000000,
+                                                     self.atom_symbols,
+                                                     in_atoms['positions'])
+            in_atoms['coords'] = sample_coords
         energy, forces = self.get_energy_via_ML(in_atoms)
 
         if self.verbose > 0:
@@ -394,14 +406,14 @@ def load_model(args, dataset):
     state_dict = torch.load(state_dict_path, map_location='cpu')
     model.load_state_dict(state_dict)
     model.to(args.dtype)
-    if use_gpu:
+    if args.use_gpu:
         print('using GPU')
         model.cuda()
     # if there are multiple GPUs, wrap the model in DataParallel
     # "module" is used whenever direct access is needed, e.g. for parameters,
     # whereas "model" may be DataParallel and is used for inference only
 
-    if use_gpu and torch.cuda.device_count() > 1:
+    if args.use_gpu and torch.cuda.device_count() > 1:
         model = torch.nn.DataParallel(model)
 
     return model
@@ -415,7 +427,9 @@ def run_optimization(args, dataset, model):
     calculator = MLCalculator(model=model, data_atoms=data_atoms,
                               verbose=args.verbose, n_jobs=args.num_workers,
                               gpu=args.use_gpu and torch.cuda.is_available(),
-                              density_expansion=args.density_weight > 0)
+                              density_expansion=args.density_weight > 0,
+                              grid_sampling_fn=dataset.sampling_fn,
+                              grid_spec=dataset.grid_spec)
 
     atoms = Atoms(positions=data_atoms['positions'].squeeze(0).detach().cpu().numpy(),  # from Bohr to Angstrom
                   numbers=data_atoms['atom_numbers'].squeeze().detach().cpu().numpy(),
@@ -431,14 +445,18 @@ def run_optimization(args, dataset, model):
 # The actual Simulation
 def run_molecular_dynamics(args, dataset, model):
     random_state = np.random.RandomState(seed=args.split_seed)
-    start_ind = 10
-    # start_ind = np.randint(len(dataset))
-    data_atoms = dataset.get_properties(start_ind)
+    # start_ind = 10
+
+    start_idx = np.random.randint(len(dataset), size=(args.test_batch_size,))
+    data_atoms = dataset.get_properties(start_idx)
+    print('positions shape', data_atoms['positions'].shape)
 
     calculator = MLCalculator(model=model, data_atoms=data_atoms,
                               verbose=args.verbose, n_jobs=args.num_workers,
                               gpu=args.use_gpu and torch.cuda.is_available(),
-                              density_expansion=args.density_weight > 0)
+                              density_expansion=args.density_weight > 0,
+                              grid_sampling_fn=dataset.sampling_fn,
+                              grid_spec=dataset.grid_spec)
 
     atoms = Atoms(positions=data_atoms['positions'].squeeze(0).detach().cpu().numpy(),  # from Bohr to Angstrom
                   numbers=data_atoms['atom_numbers'].squeeze().detach().cpu().numpy(),
@@ -497,7 +515,7 @@ if __name__ == "__main__":
     print('model code:', model_code)
     # determine whether GPU is used for training
     print('args use gpu', args.use_gpu)
-    use_gpu = args.use_gpu and torch.cuda.is_available()
+    args.use_gpu = args.use_gpu and torch.cuda.is_available()
 
     # load dataset(s)
     print("loading density from" + str(args.dens_dataset) + "...")

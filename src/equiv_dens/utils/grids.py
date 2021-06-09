@@ -81,8 +81,12 @@ def rot_spherical_sampling(grid_spec, n_samp, atom_types, pos):
 
 
 def collect_and_sample_grid(grid_coords, grid_weights, n_samp):
-    grid_coords = np.concatenate(grid_coords, axis=1)
-    grid_weights = np.concatenate(grid_weights)
+    if isinstance(grid_coords[0], torch.Tensor):
+        grid_coords = torch.cat(grid_coords, dim=1)
+        grid_weights = torch.cat(grid_weights)
+    else:
+        grid_coords = np.concatenate(grid_coords, axis=1)
+        grid_weights = np.concatenate(grid_weights)
 
     if n_samp > grid_coords.shape[1]:
         return grid_coords, grid_weights
