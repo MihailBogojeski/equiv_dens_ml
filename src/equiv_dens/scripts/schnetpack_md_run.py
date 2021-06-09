@@ -478,7 +478,7 @@ if __name__ == "__main__":
 
     args.md_log_dir = os.path.join(args.log_dir, 'md_logs', args.restart.split('/')[-1])
     if not os.path.exists(args.md_log_dir):
-        os.mkdirs(args.md_log_dir)
+        os.makedirs(args.md_log_dir)
 
     if args.simulation_type == 'md':
         run_molecular_dynamics(args, dataset, model)
