@@ -13,7 +13,7 @@ def str2bool(s):
         return s
 
 
-def parse_command_line_arguments():
+def parse_command_line_arguments(arg_file=None):
     # declare parser
     parser = argparse.ArgumentParser(fromfile_prefix_chars='@')
     parser._action_groups.pop()
@@ -243,6 +243,10 @@ def parse_command_line_arguments():
     # actually parse command line arguments
     if len(sys.argv) == 1:  # no arguments were specified, print help message
         args = parser.parse_args(["--help"])
+    elif arg_file is not None:
+        with open(arg_file, 'r') as f:
+            args_str = f.read()
+            args = parser.parse_args(args_str.split())
     else:
         args = parser.parse_args()
         # convert dtype argument to the proper torch type
