@@ -167,6 +167,8 @@ def parse_command_line_arguments():
     args_training.add_argument("--max_forces_error", metavar='FLOAT', type=float, default=0.1,
                                help="for better stability at beginning of training: maximum allowed MAE" +
                                "in forces (higher errors are clamped)")
+    args_training.add_argument("--dipole_moment_weight", metavar='FLOAT', type=float, default=0.0,
+                               help="weight of the dipole moment in the loss function")
     args_training.add_argument("--center_energy", metavar='True|False', type=str2bool, default=True,
                                choices=[True, False], help="set energy mean to zero.")
     args_training.add_argument("--clip_norm", metavar='FLOAT', type=float, default=0.0,

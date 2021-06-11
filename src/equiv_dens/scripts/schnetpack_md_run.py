@@ -1,18 +1,12 @@
 # !/usr/bin/env python3
 import os
 import torch
-import torch.nn as nn
-from equiv_dens.nn.dft_network import DFTNetwork
-from equiv_dens.nn.representation.spherical_harmonic import EquivariantSphericalHarmonics
-from equiv_dens.nn.property_output.energy import ComplexEnergyNetwork, SimpleEnergyNetwork,\
-    SphericalHarmonicsEnergyNetwork, SimpleEnergyNetworkv2
-from equiv_dens.nn.property_output.density import DensityCoeffsNetwork, DensityExpansion
-from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
 from equiv_dens.training.parse_command_line_arguments import parse_command_line_arguments
 from equiv_dens.data.density_dataset import AtomsDensityData
 from equiv_dens.utils.grids import cubical_grid, cubical_sampling,\
     spherical_grid, spherical_sampling
 import equiv_dens.utils.base as utils
+from equiv_dens.training.model_loader import load_model
 
 import numpy as np
 from functools import partial
@@ -22,172 +16,10 @@ from schnetpack.md import System
 # from respa_md import RESPAVerlet, RESPALangevin
 from schnetpack.md import MaxwellBoltzmannInit
 from schnetpack.md.integrators import VelocityVerlet
-from schnetpack import Properties
-from schnetpack.md.calculators import MDCalculator
+from schnetpack.md.calculators import MDCalculator, MDCalculatorError
 from schnetpack.md import Simulator
 from schnetpack.md.simulation_hooks import thermostats
 from schnetpack.md.simulation_hooks import logging_hooks
-
-
-def load_model(args, dataset):
-    z_vals = dataset.atoms['atom_numbers']
-    # define model
-    clebsch_gordan = ClebschGordanMatrix()
-    repr_model = EquivariantSphericalHarmonics(
-        orbitals=dataset.orbitals,
-        order=args.order,
-        num_features=args.num_features,
-        num_basis_functions=args.num_basis_functions,
-        num_modules=args.num_modules,
-        num_residual_pre_x=args.num_residual_pre_x,
-        num_residual_post_x=args.num_residual_post_x,
-        num_residual_pre_vi=args.num_residual_pre_vi,
-        num_residual_pre_vj=args.num_residual_pre_vj,
-        num_residual_post_v=args.num_residual_post_v,
-        num_residual_output=args.num_residual_output,
-        num_radial_components=args.num_radial_components,
-        basis_functions=args.basis_functions,
-        cutoff=args.cutoff,
-        activation=args.activation,
-        clebsch_gordan=clebsch_gordan,
-        verbose=args.verbose,
-        timing=args.timing,
-    )
-    dens_model = DensityCoeffsNetwork(
-        orbitals=dataset.orbitals,
-        order=args.order[-1],
-        num_features=args.num_features,
-        positive_coeffs=args.positive_coeffs,
-        clebsch_gordan=clebsch_gordan,
-        verbose=args.verbose,
-        timing=args.timing,
-    )
-
-    expansion_model = DensityExpansion(dataset.orbitals, radial_coeffs=dataset.radial_coeffs,
-                                       expansion_constraint=args.expansion_constraint,
-                                       integral_constraint=args.integral_constraint,
-                                       integral_scale=args.integral_scale,
-                                       softmax_norm=args.softmax_norm, n_electrons=sum(z_vals),
-                                       verbose=args.verbose,
-                                       timing=args.timing,
-                                       )
-
-    calculate_forces = True
-
-    if args.num_energy_features is None:
-        args.num_energy_features = args.num_features
-
-    if args.energy_model == 'spherical':
-        print('building spherical harmonic energy model')
-        en_model = SphericalHarmonicsEnergyNetwork(
-            orbitals=dataset.orbitals,
-            order=args.order_en,
-            mixing_order=args.mixing_order_en,
-            num_features=args.num_energy_features,
-            num_basis_functions=args.num_basis_functions,
-            num_modules=args.num_modules,
-            num_residual_pre_x=args.num_residual_pre_x,
-            num_residual_post_x=args.num_residual_post_x,
-            num_residual_pre_vi=args.num_residual_pre_vi,
-            num_residual_pre_vj=args.num_residual_pre_vj,
-            num_residual_post_v=args.num_residual_post_v,
-            num_residual_output=args.num_residual_output,
-            num_radial_components=args.num_radial_components,
-            basis_functions=args.basis_functions,
-            cutoff=args.cutoff,
-            activation=args.activation,
-            clebsch_gordan=clebsch_gordan,
-            calculate_forces=calculate_forces,
-            verbose=args.verbose,
-            timing=args.timing,
-        )
-    elif args.energy_model == 'complex':
-        print('building complex energy model')
-        en_model = ComplexEnergyNetwork(
-            orbitals=dataset.orbitals,
-            num_features=args.num_energy_features,
-            num_basis_functions=args.num_basis_functions,
-            num_modules=args.num_modules,
-            num_residual_pre_x=args.num_residual_pre_x,
-            num_residual_post_x=args.num_residual_post_x,
-            num_residual_pre_vi=args.num_residual_pre_vi,
-            num_residual_pre_vj=args.num_residual_pre_vj,
-            num_residual_post_v=args.num_residual_post_v,
-            num_residual_output=args.num_residual_output,
-            num_radial_components=args.num_radial_components,
-            basis_functions=args.basis_functions,
-            cutoff=args.cutoff,
-            activation=args.activation,
-            calculate_forces=calculate_forces,
-            verbose=args.verbose,
-            timing=args.timing,
-        )
-    elif args.energy_model == 'simple':
-        print('building simple energy model')
-        en_model = SimpleEnergyNetwork(
-            orbitals=dataset.orbitals,
-            num_features=args.num_energy_features,
-            num_layers=args.num_energy_output,
-            activation=args.activation,
-            calculate_forces=calculate_forces,
-            verbose=args.verbose,
-            timing=args.timing,
-        )
-    elif args.energy_model == 'simple2':
-        print('building simple energy model')
-        en_model = SimpleEnergyNetworkv2(
-            order=args.order[-1],
-            orbitals=dataset.orbitals,
-            num_features=args.num_energy_features,
-            activation=args.activation,
-            calculate_forces=calculate_forces,
-            verbose=args.verbose,
-            clebsch_gordan=clebsch_gordan,
-            timing=args.timing,
-        )
-    else:
-        args.energy_model = None
-
-    # if loss_weights['energy_min'] > 0:
-    #     functional = LDAFunctional(z_vals, verbose=args.verbose,
-    #                                energy_offset=args.energy_offset,
-    #                                store_energy=(args.energy_model is None))
-    #     functional_en_model = nn.Sequential(expansion_model, functional)
-    density_model = nn.Sequential(repr_model, dens_model)
-
-    property_models = {}
-    calculate_forces_dict = {}
-    if args.density_weight > 0:
-        property_models['density'] = expansion_model
-        calculate_forces_dict['density'] = False
-    # if loss_weights['energy_min'] > 0:
-    #     property_models['energy_min'] = functional_en_model
-    #     calculate_forces_dict['energy_min'] = False
-    if args.energy_model is not None:
-        property_models['energy'] = en_model
-        calculate_forces_dict['energy'] = calculate_forces
-
-    model = DFTNetwork(density_model, property_models, calculate_forces_dict=calculate_forces_dict, verbose=args.verbose)
-    # print('dft network', model)
-
-    print('args restart', args.restart)
-    print('best_model_path', best_model_path)
-    state_dict_path = os.path.join(args.restart, best_model_path)
-    print('state_dict_path', state_dict_path)
-    state_dict = torch.load(state_dict_path, map_location='cpu')
-    model.load_state_dict(state_dict)
-    model.to(args.dtype)
-    if args.use_gpu:
-        print('using GPU')
-        model.cuda()
-    # if there are multiple GPUs, wrap the model in DataParallel
-    # "module" is used whenever direct access is needed, e.g. for parameters,
-    # whereas "model" may be DataParallel and is used for inference only
-
-    if args.use_gpu and torch.cuda.device_count() > 1:
-        model = torch.nn.DataParallel(model)
-
-    return model
 
 
 # MD calculator class
@@ -216,8 +48,6 @@ class DFTNetworkCalculator(MDCalculator):
             force_conversion=force_conversion,
             property_conversion=property_conversion,
         )
-        print('position conversion', self.position_conversion)
-        print('force conversion', self.force_conversion)
         self.model = model
         # density prediction model
         self.grid_sampling_fn = grid_sampling_fn
@@ -243,7 +73,16 @@ class DFTNetworkCalculator(MDCalculator):
         self.model.eval()
 
         inputs = self._generate_input(system)
-        self.results = self.model(inputs)
+        results = self.model(inputs)
+        self.results = {}
+        for p in self.required_properties:
+            if p not in results:
+                raise MDCalculatorError(
+                    "Requested property {:s} not in " "results".format(p)
+                )
+            else:
+                # Detach properties if requested
+                self.results[p] = results[p].detach()
         self._update_system(system)
         print('Step time:', time.time() - start)
 
@@ -261,14 +100,20 @@ class DFTNetworkCalculator(MDCalculator):
         positions, atom_types, atom_masks, cells, pbc = self._get_system_molecules(
             system
         )
-        inputs = {'positions': positions,
+        center = torch.sum(positions * system.masses, 2) / torch.sum(system.masses, 2)
+        print('center of mass', center)
+        # inputs = {'positions': positions + 10,
+        inputs = {'positions': positions - center.permute(1, 0, 2),
                   'atom_numbers': atom_types
                   }
+        print('positions center of mass after', torch.sum(inputs['positions'] * system.masses, 2) / torch.sum(system.masses, 2))
+        print('positions', inputs['positions'])
         if self.density_expansion:
-            sample_coords, _ = self.grid_sampling_fn(self.grid_spec, 10000000000,
-                                                     utils.numbers_to_symbols(atom_types[0].squeeze().detach().cpu().numpy()),
-                                                     inputs['positions'])
+            sample_coords, coord_weights = self.grid_sampling_fn(self.grid_spec, 10000000000,
+                                                                 utils.numbers_to_symbols(atom_types[0].squeeze().detach().cpu().numpy()),
+                                                                 inputs['positions'])
             inputs['coords'] = sample_coords
+            inputs['coord_weights'] = coord_weights
 
         return inputs
 
@@ -318,7 +163,8 @@ def run_molecular_dynamics(args, dataset, model):
 
     start_idx = np.random.randint(len(dataset), size=(args.test_batch_size,))
     atoms_data = dataset.get_properties(start_idx)
-    mols = utils.npy_to_ase(atoms_data['positions'].detach().cpu().numpy(), utils.numbers_to_symbols(atoms_data['atom_numbers'][0].squeeze()))
+    mols = utils.npy_to_ase(atoms_data['positions'].detach().cpu().numpy(),
+                            utils.numbers_to_symbols(atoms_data['atom_numbers'][0].squeeze()))
     print('positions shape', atoms_data['positions'].shape)
     # Check if a GPU is available and use a CPU otherwise
     if args.use_gpu:
@@ -350,10 +196,13 @@ def run_molecular_dynamics(args, dataset, model):
     # Setup the integrator
     md_integrator = VelocityVerlet(time_step)
 
+    required_properties = ['energy', 'forces']
+    if args.dipole_moment_weight > 0:
+        required_properties.append('dipole_moment')
     # Generate the calculator
     md_calculator = DFTNetworkCalculator(
         model,
-        required_properties=[Properties.energy, Properties.forces],
+        required_properties=required_properties,
         force_handle='forces',
         atoms_data=atoms_data,
         position_conversion="A",
@@ -363,6 +212,7 @@ def run_molecular_dynamics(args, dataset, model):
         grid_spec=dataset.grid_spec,
         grid_sampling_fn=dataset.sampling_fn,
         device=md_device,
+        detach=False,
     )
 
     # Set temperature and thermostat constant
@@ -436,8 +286,8 @@ if __name__ == "__main__":
             setattr(args, arg, getattr(checkpoint['args'], arg))
     restore = True
 
-    best_model_path = 'best_' + model_code + '.pth'
-    print('best_model_path', best_model_path)
+    args.best_model_path = 'best_' + model_code + '.pth'
+    print('best_model_path', args.best_model_path)
 
     print('model code:', model_code)
     # determine whether GPU is used for training
@@ -464,7 +314,7 @@ if __name__ == "__main__":
     dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_dataset,
                                orbitals_path=args.orbitals_file,
                                density_n_samp=10000000000,
-                               required_properties=['coords'],
+                               required_properties=['density'],
                                center_positions=False,
                                radial_coeffs_file=args.radial_coeffs_file,
                                dtype=args.dtype,

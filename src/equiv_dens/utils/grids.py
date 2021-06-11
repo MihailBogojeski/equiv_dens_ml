@@ -16,7 +16,7 @@ def spherical_grid(atoms, level=2):
     print('mol_dict', mol_dict)
     mol = gto.M(atom=mol_dict)
     print('level', level)
-    grid_spec = gen_grid.gen_atomic_grids(mol, radi_method=radi.treutler_ahlrichs, level=level)
+    grid_spec = gen_grid.gen_atomic_grids(mol, radi_method=radi.gauss_legendre, level=level)
     for key in grid_spec.keys():
         grid_spec[key] = (grid_spec[key][0] * utils.to_angstrom, grid_spec[key][1])  # convert Bohr grid to Angstrom
 
