@@ -83,13 +83,10 @@ class DFTNetworkCalculator(MDCalculator):
             system
         )
         center = torch.sum(positions * system.masses, 2) / torch.sum(system.masses, 2)
-        print('center of mass', center)
         # inputs = {'positions': positions + 10,
         inputs = {'positions': positions - center.permute(1, 0, 2),
                   'atom_numbers': atom_types
                   }
-        print('positions center of mass after', torch.sum(inputs['positions'] * system.masses, 2) / torch.sum(system.masses, 2))
-        print('positions', inputs['positions'])
         if self.density_expansion:
             sample_coords, coord_weights = self.grid_sampling_fn(self.grid_spec, 10000000000,
                                                                  utils.numbers_to_symbols(atom_types[0].squeeze().detach().cpu().numpy()),
