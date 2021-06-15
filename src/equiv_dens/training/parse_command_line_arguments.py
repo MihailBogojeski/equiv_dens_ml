@@ -243,12 +243,13 @@ def parse_command_line_arguments(arg_file=None):
     # actually parse command line arguments
     if len(sys.argv) == 1:  # no arguments were specified, print help message
         args = parser.parse_args(["--help"])
-    elif arg_file is not None:
-        with open(arg_file, 'r') as f:
-            args_str = f.read()
-            args = parser.parse_args(args_str.split())
     else:
-        args = parser.parse_args()
+        if arg_file is not None:
+            with open(arg_file, 'r') as f:
+                args_str = f.read()
+                args = parser.parse_args(args_str.split())
+        else:
+            args = parser.parse_args()
         # convert dtype argument to the proper torch type
         if args.dtype == 'torch.float32':
             args.dtype = torch.float32
