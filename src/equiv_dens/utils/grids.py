@@ -13,12 +13,12 @@ def spherical_grid(atoms, level=2):
     symbols = atoms['atom_types']
     positions = atoms['positions'][0]
     mol_dict = list(zip(symbols, positions))
-    print('mol_dict', mol_dict)
     mol = gto.M(atom=mol_dict)
     print('level', level)
-    grid_spec = gen_grid.gen_atomic_grids(mol, radi_method=radi.gauss_legendre, level=level)
+    grid_spec = gen_grid.gen_atomic_grids(mol, radi_method=radi.treutler, level=level, prune=None)
     for key in grid_spec.keys():
-        grid_spec[key] = (grid_spec[key][0] * utils.to_angstrom, grid_spec[key][1])  # convert Bohr grid to Angstrom
+        grid_spec[key] = (torch.tensor(grid_spec[key][0] * utils.to_angstrom),
+                          torch.tensor(grid_spec[key][1]))  # convert Bohr grid to Angstrom
 
     return grid_spec
 
@@ -59,6 +59,74 @@ def cubical_grid(atoms, nx=125, ny=125, nz=125, resolution=None,
     return (coords, sample_volume)
 
 
+def becke_scheme(g):
+    '''Becke, JCP 88, 2547 (1988); DOI:10.1063/1.454033'''
+#    This funciton has been optimized in the C code VXCgen_grid
+    g = (3 - g**2) * g * .5
+    g = (3 - g**2) * g * .5
+    g = (3 - g**2) * g * .5
+
+    return g
+
+
+def treutler_atomic_radii_adjust(charges, atomic_radii):
+    rad = np.sqrt(atomic_radii[charges]) + 1e-200
+    rr = rad.reshape(-1, 1) * (1.0 / rad)
+    a = .25 * (rr.T - rr)
+    a[a < -0.5] = -0.5
+    a[a > 0.5] = 0.5
+
+    def fadjust(i, j, g):
+        g1 = g**2
+        g1 -= 1.
+        g1 *= -a[i, j]
+        g1 += g
+        return g1
+
+    return fadjust
+
+
+def gen_grid_partition(positions, atom_types, coords, becke_scheme, f_radii_adjust=None):
+    ngrids = coords.shape[1]
+    natm = positions.shape[1]
+    nbatch = positions.shape[0]
+    atm_dist, _ = utils.calculate_distances_and_directions(positions)
+    # print('atm dist shape', atm_dist.shape)
+    dc = coords[:, None] - positions[:, :, None]
+    # print('dc shape', dc.shape)
+    grid_dist = torch.sqrt(torch.sum(dc**2, dim=-1))
+    pbecke = torch.ones((nbatch, natm, ngrids)).to(positions)
+    for i in range(natm):
+        for j in range(i):
+            g = 1 / atm_dist[:, i, j] * (grid_dist[:, i] - grid_dist[:, j])
+            if f_radii_adjust is not None:
+                g = f_radii_adjust(i, j, g)
+            g = becke_scheme(g)
+            pbecke[:, i] *= .5 * (1 - g)
+            pbecke[:, j] *= .5 * (1 + g)
+    return pbecke
+
+
+def spherical_radial_sampling(grid_spec, n_samp, atom_types, pos,
+                              radii_adjust=None,
+                              rotate=False):
+    grid_coords = []
+    grid_weights = []
+    for i, t in enumerate(atom_types):
+        if rotate:
+            rot_mat = torch.tensor(random_rotation_matrix()).to(pos)
+        else:
+            rot_mat = torch.eye(3).to(pos)
+        coords = pos[:, [i], :] + (grid_spec[t][0].unsqueeze(0) @ rot_mat)
+        weights = grid_spec[t][1]
+        pbecke = gen_grid_partition(pos, atom_types, coords, becke_scheme, radii_adjust)
+        weights = weights * pbecke[:, i] * (1.0 / pbecke.sum(1))
+        grid_coords.append(coords)
+        grid_weights.append(weights)
+
+    return collect_and_sample_grid(grid_coords, grid_weights, n_samp)
+
+
 def spherical_sampling(grid_spec, n_samp, atom_types, pos):
     grid_coords = []
     grid_weights = []
@@ -83,10 +151,10 @@ def rot_spherical_sampling(grid_spec, n_samp, atom_types, pos):
 def collect_and_sample_grid(grid_coords, grid_weights, n_samp):
     if isinstance(grid_coords[0], torch.Tensor):
         grid_coords = torch.cat(grid_coords, dim=1)
-        grid_weights = torch.cat(grid_weights)
+        grid_weights = torch.cat(grid_weights, dim=1)
     else:
         grid_coords = np.concatenate(grid_coords, axis=1)
-        grid_weights = np.concatenate(grid_weights)
+        grid_weights = np.concatenate(grid_weights, axis=1)
 
     if n_samp > grid_coords.shape[1]:
         return grid_coords, grid_weights

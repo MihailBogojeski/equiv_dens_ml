@@ -125,8 +125,8 @@ dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_datas
 # split into train / valid / test
 if data_split_indices is None:
     train_dataset, valid_dataset, test_dataset = seeded_random_split(
-        [args.num_train, args.num_valid, len(dataset) - (args.num_train + args.num_valid)],
-        dataset, seed=args.split_seed
+        lengths=[args.num_train, args.num_valid, len(dataset) - (args.num_train + args.num_valid)],
+        dataset=dataset, seed=args.split_seed
     )
 
     data_split_indices = {'train': train_dataset.indices,

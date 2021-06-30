@@ -22,9 +22,11 @@ from schnetpack.data.partitioning import train_test_split
 from pyscf import gto
 from pyscf.dft import numint
 from pyscf.lib import param
-from equiv_dens.utils.grids import spherical_grid, rot_spherical_sampling
+from equiv_dens.utils.grids import spherical_grid,\
+    spherical_radial_sampling, treutler_atomic_radii_adjust 
 import equiv_dens.utils.base as utils
 from dftpy.formats import ase_io
+from pyscf.dft import radi
 # import time
 
 logger = logging.getLogger(__name__)
@@ -49,12 +51,14 @@ class AtomsDensityData(Dataset):
         center_positions=True,
         radial_coeffs_file=None,
         grid_fn=spherical_grid,
-        sampling_fn=rot_spherical_sampling,
+        sampling_fn=spherical_radial_sampling,
         dtype=torch.float32,
         grid_extent=None,
         grid_origin=0,
         fixed_properties={},
         verbose=0,
+        use_gpu=False,
+        radii_adjust=True,
     ):
         print('Starting atomsdata density init')
         self.density_path = density_path
@@ -70,6 +74,8 @@ class AtomsDensityData(Dataset):
         self.grid_extent = grid_extent
         self.grid_origin = grid_origin
         self.verbose = verbose
+        self.use_gpu = use_gpu
+        self.radii_adjust = radii_adjust
         print('Some variables')
         if required_properties is None:
             self.required_properties = self.available_properties
@@ -110,6 +116,11 @@ class AtomsDensityData(Dataset):
             self.radial_coeffs = None
 
         self.grid_spec = grid_fn(self.atoms)
+
+        if self.use_gpu:
+            for key in self.grid_spec.keys():
+                self.grid_spec[key] = (self.grid_spec[key][0].type(self.dtype).cuda(),
+                                       self.grid_spec[key][1].type(self.dtype).cuda())  # convert Bohr grid to Angstrom
         self.fixed_properties = fixed_properties
 
         print('finished init')
@@ -183,38 +194,42 @@ class AtomsDensityData(Dataset):
 
         # extract properties
         properties = {}
+        positions = torch.from_numpy(self.atoms['positions'][idx])
         for pname in self.required_properties:
             # fallback for properties stored directly
             # in the row
-            if pname == 'density':
-                sample_coords, coord_weights = self.sampling_fn(self.grid_spec, self.density_n_samp,
-                                                                self.atoms['atom_types'],
-                                                                self.atoms['positions'][idx])
-                properties[pname] = self.sample_density(idx, sample_coords)
+            if pname == 'density' or pname == 'density':
+                if self.use_gpu:
+                    positions = positions.cuda()
+                if self.radii_adjust:
+                    f_radii_adjust = treutler_atomic_radii_adjust(utils.symbols_to_numbers(self.atoms['atom_types']),
+                                                                  radi.BRAGG_RADII)
+                    sample_coords, coord_weights = self.sampling_fn(self.grid_spec, self.density_n_samp,
+                                                                    self.atoms['atom_types'],
+                                                                    positions, radii_adjust=f_radii_adjust)
+                else:
+                    sample_coords, coord_weights = self.sampling_fn(self.grid_spec, self.density_n_samp,
+                                                                    self.atoms['atom_types'],
+                                                                    positions)
                 # print('density nans', torch.sum(torch.isnan(properties[pname])))
-                properties['coords'] = torch.from_numpy(sample_coords).type(self.dtype)
-                properties['coord_weights'] = torch.from_numpy(coord_weights).type(self.dtype).\
-                    unsqueeze(0).repeat(properties['coords'].shape[0], 1)
-            elif pname == 'coords':
-                sample_coords, coord_weights = self.sampling_fn(self.grid_spec, self.density_n_samp,
-                                                                self.atoms['atom_types'],
-                                                                self.atoms['positions'][idx])
-                properties['coords'] = torch.from_numpy(sample_coords).type(self.dtype)
-                properties['coord_weights'] = torch.from_numpy(coord_weights).type(self.dtype).\
-                    unsqueeze(0).repeat(properties['coords'].shape[0], 1)
+                print('sample coords.shape', sample_coords.shape)
+                print('coord weights.shape', coord_weights.shape)
+                properties['coords'] = sample_coords.type(self.dtype)
+                properties['coord_weights'] = coord_weights.type(self.dtype)
+                if pname == 'density':
+                    properties[pname] = self.sample_density(idx, sample_coords)
             else:
                 properties[pname] = torch.from_numpy(self.atoms[pname][idx])
 
         # extract/calculate structure
         properties['atom_numbers'] = torch.LongTensor(self.atoms['atom_numbers']).unsqueeze(0).repeat(len(idx), 1)
-        positions = self.atoms['positions'][idx]
         properties['idx'] = torch.LongTensor(idx).unsqueeze(-1)
         # properties['ions'] = [self.ions[i] for i in idx]
         # print('positions', positions)
         if self.centered_positions:
             # print('atom center', positions.mean(axis=0))
-            positions -= positions.mean(axis=0)
-        properties['positions'] = torch.from_numpy(positions).type(self.dtype)
+            positions -= positions.mean(0)
+        properties['positions'] = positions.type(self.dtype)
         properties['shifted_positions'] = torch.from_numpy(self.atoms['shifted_positions'][idx]).type(self.dtype)
         properties["_idx"] = torch.LongTensor(np.array(idx, dtype=np.int))
         for prop in self.fixed_properties.keys():
@@ -223,7 +238,7 @@ class AtomsDensityData(Dataset):
         return properties
 
     def sample_density(self, idx, sample_coords):
-        scaled_sample_coords = sample_coords / param.BOHR  # convert Angstrom grid to Bohr
+        scaled_sample_coords = sample_coords.detach().cpu().numpy() / param.BOHR  # convert Angstrom grid to Bohr
         dens = torch.zeros((sample_coords.shape[0], sample_coords.shape[1]), dtype=self.dtype)
         if len(self.mols) > 0:
             for c, i in enumerate(idx):
