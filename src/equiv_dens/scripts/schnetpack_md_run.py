@@ -179,7 +179,7 @@ if __name__ == "__main__":
     dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_dataset,
                                orbitals_path=args.orbitals_file,
                                density_n_samp=10000000000,
-                               required_properties=['density'],
+                               required_properties=['coords'],
                                center_positions=False,
                                radial_coeffs_file=args.radial_coeffs_file,
                                dtype=args.dtype,
