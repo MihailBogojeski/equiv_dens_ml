@@ -18,7 +18,7 @@ from equiv_dens.data.density_dataset import AtomsDensityData
 from equiv_dens.data.hamiltonian_dataset import seeded_random_split
 from equiv_dens.training.lookahead import Lookahead
 from equiv_dens.utils.grids import cubical_grid, cubical_sampling,\
-    dftpy_grid, CubicalGrid, spherical_grid, rot_spherical_sampling
+    dftpy_grid, CubicalGrid, spherical_grid, spherical_radial_sampling
 from equiv_dens.density_functionals.LDA import LDAFunctional
 import equiv_dens.utils.base as utils
 
@@ -104,7 +104,7 @@ if args.cube_grid:
     sampling_fn = cubical_sampling
 else:
     grid_fn = partial(spherical_grid, level=args.spherical_grid_level)
-    sampling_fn = rot_spherical_sampling
+    sampling_fn = partial(spherical_radial_sampling, rotate=True)
     grid_origin = 0
     grid_extent = None
 

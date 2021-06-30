@@ -13,7 +13,7 @@ from equiv_dens.training.errors import ErrorDict
 from equiv_dens.data.density_dataset import AtomsDensityData
 from equiv_dens.data.hamiltonian_dataset import seeded_random_split
 from equiv_dens.utils.grids import cubical_grid, cubical_sampling,\
-    dftpy_grid, CubicalGrid, spherical_grid, rot_spherical_sampling
+    dftpy_grid, CubicalGrid, spherical_grid, spherical_radial_sampling
 from equiv_dens.density_functionals.LDA import LDAFunctional
 import equiv_dens.utils.base as utils
 import copy
@@ -83,7 +83,7 @@ if args.cube_grid:
     sampling_fn = cubical_sampling
 else:
     grid_fn = partial(spherical_grid, level=args.spherical_grid_level)
-    sampling_fn = rot_spherical_sampling
+    sampling_fn = spherical_radial_sampling
     grid_origin = 0
     grid_extent = None
 
@@ -210,9 +210,11 @@ if not hasattr(args, 'test_batch_size'):
     args.test_batch_size = args.valid_batch_size
 
 if isinstance(test_dataset, torch.utils.data.Subset):
-    collate_fn = lambda batch: test_dataset.dataset.get_properties(batch)
+    def collate_fn(batch):
+        return test_dataset.dataset.get_properties(batch)
 else:
-    collate_fn = lambda batch: test_dataset.get_properties(batch)
+    def collate_fn(batch):
+        return test_dataset.get_properties(batch)
 
 print('test dataset size', len(test_dataset))
 test_data_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.test_batch_size,
