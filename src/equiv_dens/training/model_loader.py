@@ -154,13 +154,13 @@ def load_model(args, dataset):
 
     model = DFTNetwork(density_model, property_models, calculate_forces_dict=calculate_forces_dict, verbose=args.verbose)
     # print('dft network', model)
-
-    print('args restart', args.restart)
-    print('best_model_path', args.best_model_path)
-    state_dict_path = os.path.join(args.restart, args.best_model_path)
-    print('state_dict_path', state_dict_path)
-    state_dict = torch.load(state_dict_path, map_location='cpu')
-    model.load_state_dict(state_dict)
+    if args.restart is not None:
+        print('args restart', args.restart)
+        print('best_model_path', args.best_model_path)
+        state_dict_path = os.path.join(args.restart, args.best_model_path)
+        print('state_dict_path', state_dict_path)
+        state_dict = torch.load(state_dict_path, map_location='cpu')
+        model.load_state_dict(state_dict)
     print('dtype type', type(args.dtype))
     model.to(args.dtype)
     if args.use_gpu:

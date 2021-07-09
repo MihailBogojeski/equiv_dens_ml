@@ -108,11 +108,19 @@ else:
     grid_origin = 0
     grid_extent = None
 
+required_properties = []
+if args.density_weight > 0:
+    required_properties.append('density')
+if args.energy_weight > 0:
+    required_properties.append('energy')
+if args.forces_weight > 0:
+    required_properties.append('forces')
+
 
 dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_dataset,
                            orbitals_path=args.orbitals_file,
                            density_n_samp=10000000000,
-                           required_properties=['density', 'energy', 'forces'],
+                           required_properties=required_properties,
                            center_positions=False,
                            radial_coeffs_file=args.radial_coeffs_file,
                            dtype=args.dtype,
@@ -153,6 +161,7 @@ if args.cube_grid_valid:
                                     required_properties=['density', 'energy', 'forces'],
                                     center_positions=False,
                                     radial_coeffs_file=args.radial_coeffs_file,
+                                    L0_coeffs_file=args.L0_coeffs_file,
                                     dtype=args.dtype,
                                     grid_fn=cube_grid_fn,
                                     sampling_fn=cube_sampling_fn,
@@ -285,6 +294,7 @@ dens_model = DensityCoeffsNetwork(
     clebsch_gordan=clebsch_gordan,
     verbose=args.verbose,
     timing=args.timing,
+    init_coeffs=dataset.L0_coeffs,
 )
 
 expansion_model = DensityExpansion(dataset.orbitals, radial_coeffs=dataset.radial_coeffs,

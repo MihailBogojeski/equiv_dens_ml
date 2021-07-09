@@ -24,6 +24,7 @@ class DensityCoeffsNetwork(nn.Module):
                  verbose=0,
                  compressed_extraction=False,
                  timing=False,
+                 init_coeffs=None,
                  ):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
         super().__init__()
 
@@ -39,6 +40,7 @@ class DensityCoeffsNetwork(nn.Module):
         self.verbose = verbose
         self.compressed_extraction = compressed_extraction
         self.timing = timing
+        self.init_coeffs = init_coeffs
 
         # extract nuclear charges from orbitals, determine maximum order, and
         # build the occupation mask (for extracting occupied orbitals in energy prediction)
@@ -67,14 +69,76 @@ class DensityCoeffsNetwork(nn.Module):
         print('L_counts', self.L_counts)
         print('L_dict', self.L_dict)
         print('max lcounts', max(self.L_counts))
+        if self.init_coeffs is not None:
+            self.output_bias = False
+            self.output_zero_init = True
+        else:
+            self.output_bias = True
+            self.output_zero_init = False
+
         self.spherical_output = SphericalLinear(self.order, self.num_features,
                                                 self.orbitals_max_order + 1,
-                                                max(self.L_counts), self.clebsch_gordan)
+                                                max(self.L_counts), self.clebsch_gordan, bias=self.output_bias,
+                                                zero_init=self.output_zero_init)
         self.radial_width = nn.ModuleList([nn.Linear(self.num_features, self.L_counts[L] * self.r_max[L])
                                            for L in range(self.orbitals_max_order + 2)])
         self.radial_scale = nn.ModuleList([nn.Linear(self.num_features, self.L_counts[L] * self.r_max[L])
                                            for L in range(self.orbitals_max_order + 2)])
+        self.init_L0_coeffs()
 
+    """
+    Sets the initial L=0 coefficients for the model, which are used as baseline for the
+    predicted coefficients to speed up convergence
+
+    outputs:
+        init_sph: Initial L=0 spherical harmonic coefficients
+        init_scale: Initial L=0 radial scale coefficients
+        init_width: Initial L=0 radial width coefficients
+    """
+
+    def init_L0_coeffs(self):
+        init_sph = [None] * len(self.orbitals)
+        init_width = [None] * len(self.orbitals)
+        init_scale = [None] * len(self.orbitals)
+        if self.init_coeffs is not None:
+            init_sph = self.init_coeffs['spherical_coeffs']
+            init_width = self.init_coeffs['radial_width']
+            init_scale = self.init_coeffs['radial_scale']
+        for i in range(len(self.orbitals)):
+            init_sph[i] = {}
+            init_width[i] = {}
+            init_scale[i] = {}
+            z = self.orbitals[i][0][0]
+            for j in range(len(self.orbitals[i])):
+                orb = self.orbitals[i][j]
+                L = orb[2]
+                key = (z, L)
+                if L == 0:
+                    if self.init_coeffs is not None:
+                        init_sph[i][key] = self.init_coeffs['spherical_coeffs'][i][key]
+                        init_width[i][key] = self.init_coeffs['radial_width'][i][key]
+                        init_scale[i][key] = self.init_coeffs['radial_scale'][i][key]
+                        self.register_buffer('init_sph_{}_{}_{}'.format(i, key[0], key[1]), init_sph[i][key])
+                        self.register_buffer('init_width_{}_{}_{}'.format(i, key[0], key[1]), init_width[i][key])
+                        self.register_buffer('init_scale_{}_{}_{}'.format(i, key[0], key[1]), init_scale[i][key])
+                    else:
+                        init_sph[i][key] = 0
+                        init_width[i][key] = 0
+                        init_scale[i][key] = 0
+                        self.register_buffer('init_sph_{}_{}_{}'.format(i, key[0], key[1]), 0)
+                        self.register_buffer('init_width_{}_{}_{}'.format(i, key[0], key[1]), 0)
+                        self.register_buffer('init_scale_{}_{}_{}'.format(i, key[0], key[1]), 0)
+
+        return init_sph, init_width, init_scale
+
+    def init_sph(self, i, key):
+        return getattr(self, 'init_sph_{}_{}_{}'.format(i, key[0], key[1]))
+
+    def init_width(self, i, key):
+        return getattr(self, 'init_width_{}_{}_{}'.format(i, key[0], key[1]))
+
+    def init_scale(self, i, key):
+        return getattr(self, 'init_scale_{}_{}_{}'.format(i, key[0], key[1]))
     """
     Collects spherical harmonics features into orbital coefficients of the appropriate size
 

@@ -319,6 +319,9 @@ class Trainer:
         for optimizer in self.optimizers:
             optimizer.zero_grad()
 
+        # for name, param in self._model.named_parameters():
+        #     print('param grad', name, param)
+
         predictions = self._model(data)
         if self.verbose > 0:
             if 'density' in predictions.keys():
@@ -352,7 +355,6 @@ class Trainer:
             raise Exception('Nans found in predicted forces')
             sys.exit()
         errors = self.error_dict.compute(predictions, data)
-
         # check for nans
         found_nans = False
         for key in errors.keys():

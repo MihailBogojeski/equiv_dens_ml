@@ -50,6 +50,7 @@ class AtomsDensityData(Dataset):
         required_properties=[],
         center_positions=True,
         radial_coeffs_file=None,
+        L0_coeffs_file=None,
         grid_fn=spherical_grid,
         sampling_fn=spherical_radial_sampling,
         dtype=torch.float32,
@@ -68,6 +69,7 @@ class AtomsDensityData(Dataset):
         self.subset = subset
         self.required_properties = required_properties
         self.radial_coeffs_file = radial_coeffs_file
+        self.L0_coeffs_file = L0_coeffs_file
         self.grid_rn = grid_fn
         self.sampling_fn = sampling_fn
         self.dtype = dtype
@@ -114,6 +116,11 @@ class AtomsDensityData(Dataset):
                 self.radial_coeffs.append(radial_coeffs_atoms[t])
         else:
             self.radial_coeffs = None
+
+        if L0_coeffs_file is not None:
+            self.L0_coeffs = np.load(L0_coeffs_file, allow_pickle=True).item()
+        else:
+            self.L0_coeffs = None
 
         self.grid_spec = grid_fn(self.atoms)
 
@@ -212,8 +219,6 @@ class AtomsDensityData(Dataset):
                                                                     self.atoms['atom_types'],
                                                                     positions)
                 # print('density nans', torch.sum(torch.isnan(properties[pname])))
-                print('sample coords.shape', sample_coords.shape)
-                print('coord weights.shape', coord_weights.shape)
                 properties['coords'] = sample_coords.type(self.dtype)
                 properties['coord_weights'] = coord_weights.type(self.dtype)
                 if pname == 'density':

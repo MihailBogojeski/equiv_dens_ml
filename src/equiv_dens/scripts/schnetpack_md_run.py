@@ -80,13 +80,13 @@ def run_molecular_dynamics(args, dataset, model):
     )
 
     # Set temperature and thermostat constant
-    bath_temperature = 300  # K
-    time_constant = 100  # fs
+    # bath_temperature = 300  # K
+    # time_constant = 100  # fs
 
     # Initialize the thermostat
-    langevin = thermostats.LangevinThermostat(bath_temperature, time_constant)
+    # langevin = thermostats.LangevinThermostat(bath_temperature, time_constant)
 
-    simulation_hooks = [langevin]
+    # simulation_hooks = [langevin]
     if args.log_suffix != '':
         args.log_suffix = '_' + args.log_suffix
     log_file = os.path.join(args.md_log_dir, 'simulation' + args.log_suffix + '.hdf5')
