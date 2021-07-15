@@ -19,7 +19,7 @@ class SphericalLinear(nn.Module):
         bias=True,
         zero_init=False,
     ):
-        super(SphericalLinear, self).__init__()
+        super().__init__()
         self.order_in = order_in
         self.num_in = num_in
         self.order_out = order_out
@@ -72,7 +72,7 @@ class SelfMixing(nn.Module):
     """
 
     def __init__(self, order_in, order_out, num_features, clebsch_gordan):
-        super(SelfMixing, self).__init__()
+        super().__init__()
         self.order_in = order_in
         self.order_out = order_out
         self.num_features = num_features
@@ -176,7 +176,7 @@ class PairMixing(nn.Module):
         num_features,
         clebsch_gordan,
     ):
-        super(PairMixing, self).__init__()
+        super().__init__()
         self.order_in1 = order_in1
         self.order_in2 = order_in2
         self.order_out = order_out

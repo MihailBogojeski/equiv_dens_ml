@@ -85,7 +85,8 @@ class DensityCoeffsNetwork(nn.Module):
         self.radial_scale = nn.ModuleList([nn.Linear(self.num_features, self.L_counts[L] * self.r_max[L])
                                            for L in range(self.orbitals_max_order + 2)])
         print('self.init_coeffs', init_coeffs)
-        self.init_L0_coeffs()
+        if init_coeffs is not None:
+            self.init_L0_coeffs()
 
     """
     Sets the initial L=0 coefficients for the model, which are used as baseline for the
@@ -115,20 +116,12 @@ class DensityCoeffsNetwork(nn.Module):
                 L = orb[2]
                 key = (z, L)
                 if L == 0:
-                    if self.init_coeffs is not None:
-                        init_sph[i][key] = self.init_coeffs['spherical_coeffs'][i][key]
-                        init_width[i][key] = self.init_coeffs['radial_width'][i][key]
-                        init_scale[i][key] = self.init_coeffs['radial_scale'][i][key]
-                        self.register_buffer('init_sph_{}_{}_{}'.format(i, key[0], key[1]), init_sph[i][key])
-                        self.register_buffer('init_width_{}_{}_{}'.format(i, key[0], key[1]), init_width[i][key])
-                        self.register_buffer('init_scale_{}_{}_{}'.format(i, key[0], key[1]), init_scale[i][key])
-                    else:
-                        init_sph[i][key] = 0
-                        init_width[i][key] = 0
-                        init_scale[i][key] = 0
-                        self.register_buffer('init_sph_{}_{}_{}'.format(i, key[0], key[1]), torch.Tensor([0]))
-                        self.register_buffer('init_width_{}_{}_{}'.format(i, key[0], key[1]), torch.Tensor([0]))
-                        self.register_buffer('init_scale_{}_{}_{}'.format(i, key[0], key[1]), torch.Tensor([0]))
+                    init_sph[i][key] = self.init_coeffs['spherical_coeffs'][i][key]
+                    init_width[i][key] = self.init_coeffs['radial_width'][i][key]
+                    init_scale[i][key] = self.init_coeffs['radial_scale'][i][key]
+                    self.register_buffer('init_sph_{}_{}_{}'.format(i, key[0], key[1]), init_sph[i][key])
+                    self.register_buffer('init_width_{}_{}_{}'.format(i, key[0], key[1]), init_width[i][key])
+                    self.register_buffer('init_scale_{}_{}_{}'.format(i, key[0], key[1]), init_scale[i][key])
 
         return init_sph, init_width, init_scale
 

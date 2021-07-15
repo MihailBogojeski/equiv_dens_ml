@@ -150,11 +150,11 @@ class EquivariantSphericalHarmonics(nn.Module):
         modules = [ModularBlock(self.order[0], self.num_features, self.num_basis_functions,
                                 self.num_residual_pre_x, self.num_residual_post_x, self.num_residual_pre_vi,
                                 self.num_residual_pre_vj, self.num_residual_post_v, self.num_residual_output,
-                                self.clebsch_gordan, True, self.mixing_order[0], self.order[0], self.activation)]
+                                self.clebsch_gordan, True, self.mixing_order[0], 0, self.activation)]
         modules.extend([ModularBlock(self.order[i], self.num_features, self.num_basis_functions,
                                      self.num_residual_pre_x, self.num_residual_post_x, self.num_residual_pre_vi,
                                      self.num_residual_pre_vj, self.num_residual_post_v, self.num_residual_output,
-                                     self.clebsch_gordan, True, self.mixing_order[i], self.order[i],
+                                     self.clebsch_gordan, True, self.mixing_order[i], self.order[i - 1],
                                      self.activation) for i in range(1, self.num_modules)])
         self.module = nn.ModuleList(modules)
         self.order_change = [nn.Identity()]
