@@ -84,6 +84,7 @@ class DensityCoeffsNetwork(nn.Module):
                                            for L in range(self.orbitals_max_order + 2)])
         self.radial_scale = nn.ModuleList([nn.Linear(self.num_features, self.L_counts[L] * self.r_max[L])
                                            for L in range(self.orbitals_max_order + 2)])
+        print('self.init_coeffs', init_coeffs)
         self.init_L0_coeffs()
 
     """
@@ -125,9 +126,9 @@ class DensityCoeffsNetwork(nn.Module):
                         init_sph[i][key] = 0
                         init_width[i][key] = 0
                         init_scale[i][key] = 0
-                        self.register_buffer('init_sph_{}_{}_{}'.format(i, key[0], key[1]), 0)
-                        self.register_buffer('init_width_{}_{}_{}'.format(i, key[0], key[1]), 0)
-                        self.register_buffer('init_scale_{}_{}_{}'.format(i, key[0], key[1]), 0)
+                        self.register_buffer('init_sph_{}_{}_{}'.format(i, key[0], key[1]), torch.Tensor([0]))
+                        self.register_buffer('init_width_{}_{}_{}'.format(i, key[0], key[1]), torch.Tensor([0]))
+                        self.register_buffer('init_scale_{}_{}_{}'.format(i, key[0], key[1]), torch.Tensor([0]))
 
         return init_sph, init_width, init_scale
 

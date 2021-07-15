@@ -160,6 +160,7 @@ def load_model(args, dataset):
         state_dict_path = os.path.join(args.restart, args.best_model_path)
         print('state_dict_path', state_dict_path)
         state_dict = torch.load(state_dict_path, map_location='cpu')
+        print('state dict keys', [key for key in state_dict.keys() if 'density_repr_model.0.module.0.interaction.' in key])
         model.load_state_dict(state_dict)
     print('dtype type', type(args.dtype))
     model.to(args.dtype)
