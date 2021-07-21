@@ -65,6 +65,11 @@ def run_molecular_dynamics(args, dataset, model):
     required_properties = ['energy', 'forces']
     if args.dipole_moment_weight > 0:
         required_properties.append('dipole_moment')
+    if args.density_weight > 0:
+        # required_properties.append('spherical_coeffs')
+        # required_properties.append('radial_width')
+        # required_properties.append('radial_scale')
+        required_properties.append('density')
     # Generate the calculator
     md_calculator = DFTNetworkCalculator(
         model,
@@ -99,9 +104,10 @@ def run_molecular_dynamics(args, dataset, model):
     buffer_size = 100
 
     # Set up data streams to store positions, momenta and all properties
+    target_properties = [p for p in required_properties]
     data_streams = [
         logging_hooks.MoleculeStream(),
-        logging_hooks.PropertyStream(target_properties=['energy', 'forces', 'density']),
+        logging_hooks.PropertyStream(target_properties=target_properties),
     ]
 
     # Create the file logger

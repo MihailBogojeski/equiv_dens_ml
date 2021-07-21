@@ -112,14 +112,14 @@ def spherical_radial_sampling(grid_spec, n_samp, atom_types, pos,
                               rotate=False):
     grid_coords = []
     grid_weights = []
-    print('pos type', pos.type())
+    # print('pos type', pos.type())
     for i, t in enumerate(atom_types):
         if rotate:
             rot_mat = torch.tensor(random_rotation_matrix()).to(pos)
         else:
             rot_mat = torch.eye(3).to(pos)
-        print('rot_mat type', rot_mat.type())
-        print('grid spec type', grid_spec[t][0].type())
+        # print('rot_mat type', rot_mat.type())
+        # print('grid spec type', grid_spec[t][0].type())
         coords = pos[:, [i], :] + (grid_spec[t][0].unsqueeze(0) @ rot_mat)
         weights = grid_spec[t][1]
         pbecke = gen_grid_partition(pos, atom_types, coords, becke_scheme, radii_adjust)

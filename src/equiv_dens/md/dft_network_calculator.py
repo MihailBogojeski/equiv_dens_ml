@@ -1,6 +1,7 @@
 import time
 import torch
 import equiv_dens.utils.base as utils
+import equiv_dens.utils.orbitals as orbitals
 from schnetpack.md.calculators import MDCalculator, MDCalculatorError
 
 
@@ -59,8 +60,18 @@ class DFTNetworkCalculator(MDCalculator):
         inputs = self._generate_input(system)
         results = self.model(inputs)
         print('density integral', torch.sum(results['density'] * results['coord_weights'], -1))
+        sph_coeffs, rad_width, rad_scale = orbitals.coeffs_dict_to_tensors(results)
+        coeffs = {}
+        coeffs['spherical_coeffs'] = sph_coeffs
+        coeffs['radial_width'] = rad_width 
+        coeffs['radial_scale'] = rad_scale 
         self.results = {}
         for p in self.required_properties:
+            # if p in ['spherical_coeffs', 'radial_width', 'radial_scale']:
+            #     self.results[p] = []
+            #     for L in range(len(coeffs[p])):
+            #         self.results[p].append(coeffs[p][L].detach())
+            # elif p not in results:
             if p not in results:
                 raise MDCalculatorError(
                     "Requested property {:s} not in " "results".format(p)
