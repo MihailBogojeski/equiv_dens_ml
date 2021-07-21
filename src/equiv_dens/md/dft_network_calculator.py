@@ -19,7 +19,7 @@ class DFTNetworkCalculator(MDCalculator):
                  grid_spec=None,
                  grid_sampling_fn=None,
                  property_conversion={},
-                 device='cpu',
+                 use_gpu=False,
                  detach=True):
         # energy prediction model
         super().__init__(
@@ -35,11 +35,13 @@ class DFTNetworkCalculator(MDCalculator):
         self.grid_sampling_fn = grid_sampling_fn
         self.verbose = verbose
         self.n_jobs = n_jobs
-        self.device = device
         self.grid_spec = {}
-        for key in grid_spec.keys():
-            self.grid_spec[key] = (torch.Tensor(grid_spec[key][0]).to(device),
-                                   torch.Tensor(grid_spec[key][1]).to(device))  # convert Bohr grid to Angstrom
+        print('grid_spec type', grid_spec['H'][0].type())
+        print('grid_spec type', grid_spec['H'][1].type())
+        if use_gpu:
+            for key in grid_spec.keys():
+                self.grid_spec[key] = (grid_spec[key][0].cuda(),
+                                       grid_spec[key][1].cuda())
         self.density_expansion = density_expansion
 
     def calculate(self, system):
@@ -56,6 +58,7 @@ class DFTNetworkCalculator(MDCalculator):
 
         inputs = self._generate_input(system)
         results = self.model(inputs)
+        print('density integral', torch.sum(results['density'] * results['coord_weights'], -1))
         self.results = {}
         for p in self.required_properties:
             if p not in results:

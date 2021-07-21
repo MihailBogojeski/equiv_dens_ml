@@ -124,11 +124,15 @@ class AtomsDensityData(Dataset):
 
         self.grid_spec = grid_fn(self.atoms)
 
+        for key in self.grid_spec.keys():
+            self.grid_spec[key] = (self.grid_spec[key][0].type(self.dtype),
+                                   self.grid_spec[key][1].type(self.dtype))
         if self.use_gpu:
             for key in self.grid_spec.keys():
-                self.grid_spec[key] = (self.grid_spec[key][0].type(self.dtype).cuda(),
-                                       self.grid_spec[key][1].type(self.dtype).cuda())  # convert Bohr grid to Angstrom
+                self.grid_spec[key] = (self.grid_spec[key][0].cuda(),
+                                       self.grid_spec[key][1].cuda())  # convert Bohr grid to Angstrom
         self.fixed_properties = fixed_properties
+        print('dataset init grid_spec type', self.grid_spec['H'][0].type())
 
         print('finished init')
 
@@ -201,11 +205,11 @@ class AtomsDensityData(Dataset):
 
         # extract properties
         properties = {}
-        positions = torch.from_numpy(self.atoms['positions'][idx])
+        positions = torch.from_numpy(self.atoms['positions'][idx]).type(self.dtype)
         for pname in self.required_properties:
             # fallback for properties stored directly
             # in the row
-            if pname == 'density' or pname == 'density':
+            if pname == 'coords' or pname == 'density':
                 if self.use_gpu:
                     positions = positions.cuda()
                 if self.radii_adjust:
@@ -234,7 +238,8 @@ class AtomsDensityData(Dataset):
         if self.centered_positions:
             # print('atom center', positions.mean(axis=0))
             positions -= positions.mean(0)
-        properties['positions'] = positions.type(self.dtype)
+        properties['positions'] = positions
+        print('properties positions type', properties['positions'].type())
         properties['shifted_positions'] = torch.from_numpy(self.atoms['shifted_positions'][idx]).type(self.dtype)
         properties["_idx"] = torch.LongTensor(np.array(idx, dtype=np.int))
         for prop in self.fixed_properties.keys():

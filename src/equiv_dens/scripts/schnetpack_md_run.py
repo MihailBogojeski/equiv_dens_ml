@@ -4,7 +4,7 @@ import torch
 from equiv_dens.training.parse_command_line_arguments import parse_command_line_arguments
 from equiv_dens.data.density_dataset import AtomsDensityData
 from equiv_dens.utils.grids import cubical_grid, cubical_sampling,\
-    spherical_grid, spherical_sampling
+    spherical_grid, spherical_radial_sampling
 import equiv_dens.utils.base as utils
 from equiv_dens.training.model_loader import load_model
 from equiv_dens.md.dft_network_calculator import DFTNetworkCalculator
@@ -26,7 +26,9 @@ def run_molecular_dynamics(args, dataset, model):
     # start_ind = 10
 
     start_idx = np.random.randint(len(dataset), size=(args.test_batch_size,))
+    print('dataset atoms positions type', dataset.atoms['positions'].dtype)
     atoms_data = dataset.get_properties(start_idx)
+    print('data positions type', type(atoms_data['positions']))
     mols = utils.npy_to_ase(atoms_data['positions'].detach().cpu().numpy(),
                             utils.numbers_to_symbols(atoms_data['atom_numbers'][0].squeeze()))
     print('positions shape', atoms_data['positions'].shape)
@@ -75,7 +77,7 @@ def run_molecular_dynamics(args, dataset, model):
         density_expansion=args.density_weight > 0,
         grid_spec=dataset.grid_spec,
         grid_sampling_fn=dataset.sampling_fn,
-        device=md_device,
+        use_gpu=args.use_gpu,
         detach=False,
     )
 
@@ -83,10 +85,12 @@ def run_molecular_dynamics(args, dataset, model):
     # bath_temperature = 300  # K
     # time_constant = 100  # fs
 
+    simulation_hooks = []
+
     # Initialize the thermostat
     # langevin = thermostats.LangevinThermostat(bath_temperature, time_constant)
+    # simulation_hooks.append(langevin)
 
-    # simulation_hooks = [langevin]
     if args.log_suffix != '':
         args.log_suffix = '_' + args.log_suffix
     log_file = os.path.join(args.md_log_dir, 'simulation' + args.log_suffix + '.hdf5')
@@ -132,6 +136,7 @@ if __name__ == "__main__":
 
     print('type dtype', type(args.dtype))
     print('args np md_initializer', args.np_dataset)
+    print('dtype', args.dtype)
     # no restart directory specified
     directory = args.restart  # load directory name
     # load latest checkpoint
@@ -150,6 +155,7 @@ if __name__ == "__main__":
             print('loading all arg', arg)
             setattr(args, arg, getattr(checkpoint['args'], arg))
     restore = True
+    print('dtype', args.dtype)
 
     args.best_model_path = 'best_' + model_code + '.pth'
     print('best_model_path', args.best_model_path)
@@ -172,7 +178,7 @@ if __name__ == "__main__":
         sampling_fn = cubical_sampling
     else:
         grid_fn = partial(spherical_grid, level=args.spherical_grid_level)
-        sampling_fn = spherical_sampling
+        sampling_fn = partial(spherical_radial_sampling, rotate=False)
         grid_origin = 0
         grid_extent = None
 
@@ -189,8 +195,10 @@ if __name__ == "__main__":
                                grid_origin=grid_origin,
                                verbose=args.verbose)
 
+    print('dataset grid_spec type', dataset.grid_spec['H'][0].type())
     model = load_model(args, dataset)
 
+    print('model is loaded')
     args.md_log_dir = os.path.join(args.log_dir, 'md_logs', args.restart.split('/')[-1])
     if not os.path.exists(args.md_log_dir):
         os.makedirs(args.md_log_dir)
