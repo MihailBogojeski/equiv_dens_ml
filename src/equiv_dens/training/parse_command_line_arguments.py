@@ -100,6 +100,8 @@ def parse_command_line_arguments(arg_file=None):
     args_training.add_argument("--orbitals_file", metavar='STR', type=str, help="filepath to orbital basis")
     args_training.add_argument("--radial_coeffs_file", metavar='STR', type=str, default=None,
                                help="filepath to initial radial coefficients")
+    args_training.add_argument("--L0_coeffs_file", metavar='STR', type=str, default=None,
+                               help="filepath to initial s-orbital coefficients")
     args_training.add_argument("--num_train", metavar='INT', type=int, help="size of training set")
     args_training.add_argument("--num_valid", metavar='INT', type=int, help="size of validation set")
     args_training.add_argument("--num_test", metavar='INT', default=None, type=int, help="size of validation set")

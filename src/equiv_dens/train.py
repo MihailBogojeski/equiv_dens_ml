@@ -123,6 +123,7 @@ dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_datas
                            required_properties=required_properties,
                            center_positions=False,
                            radial_coeffs_file=args.radial_coeffs_file,
+                           L0_coeffs_file=args.L0_coeffs_file,
                            dtype=args.dtype,
                            grid_fn=grid_fn,
                            sampling_fn=sampling_fn,

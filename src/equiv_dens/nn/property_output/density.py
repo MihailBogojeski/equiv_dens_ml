@@ -168,6 +168,10 @@ class DensityCoeffsNetwork(nn.Module):
                 # print('L', L)
                 radial_width[i][key] = rad_w_i[..., inds]
                 radial_scale[i][key] = rad_s_i[..., inds]
+                if self.init_coeffs is not None:
+                    spherical_coeffs[i][key] = spherical_coeffs[i][key] + self.init_sph(i, key)
+                    radial_width[i][key] = radial_width[i][key] + self.init_width(i, key)
+                    radial_scale[i][key] = radial_scale[i][key] + self.init_scale(i, key)
 
         return spherical_coeffs, radial_width, radial_scale
 
@@ -413,6 +417,7 @@ class DensityExpansion(nn.Module):
                     atoms['density'] += torch.sum(rbf * sph, dim=(-2, -1))
         L0_coeffs_comb = torch.cat([coeff.view((coeff.shape[0], -1)) for coeff in L0_coeffs], dim=1)
         atoms['L0_coeffs'] = L0_coeffs_comb
+        print('L0_coeffs comb sum before', torch.sum(L0_coeffs_comb, 1))
         # print('num electrons', self.n_electrons)
         if self.integral_constraint:
             if self.softmax_norm:
@@ -427,6 +432,8 @@ class DensityExpansion(nn.Module):
                 L0_coeffs_comb = L0_coeffs_comb * torch.clamp(self.integral_scale, 0.5, 1.5)
                 # print('coeffs_sum', torch.sum(L0_coeffs_comb, dim=1, keepdim=True))
         coeffs_pointer = 0
+        print('integral scale', self.integral_scale)
+        print('L0_coeffs comb sum after', torch.sum(L0_coeffs_comb, 1))
         if 0 in eval_L:
             for i in range(len(L0_coeffs)):
                 coeffs_size = np.prod(list(L0_coeffs[i].shape[1:]))
