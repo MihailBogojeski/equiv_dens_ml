@@ -124,7 +124,7 @@ def run_molecular_dynamics(args, dataset, model):
     chk_file = os.path.join(args.md_log_dir, 'simulation.chk')
 
     # Create the checkpoint logger
-    checkpoint = logging_hooks.Checkpoint(chk_file, every_n_steps=100)
+    checkpoint = logging_hooks.Checkpoint(chk_file, every_n_steps=10000)
 
     # Update the simulation hooks
     simulation_hooks.append(checkpoint)

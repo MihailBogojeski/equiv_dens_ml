@@ -37,8 +37,6 @@ class DFTNetworkCalculator(MDCalculator):
         self.verbose = verbose
         self.n_jobs = n_jobs
         self.grid_spec = {}
-        print('grid_spec type', grid_spec['H'][0].type())
-        print('grid_spec type', grid_spec['H'][1].type())
         if use_gpu:
             for key in grid_spec.keys():
                 self.grid_spec[key] = (grid_spec[key][0].cuda(),
@@ -59,7 +57,7 @@ class DFTNetworkCalculator(MDCalculator):
 
         inputs = self._generate_input(system)
         results = self.model(inputs)
-        print('density integral', torch.sum(results['density'] * results['coord_weights'], -1))
+        # print('density integral', torch.sum(results['density'] * results['coord_weights'], -1))
         sph_coeffs, rad_width, rad_scale = orbitals.coeffs_dict_to_tensors(results)
         coeffs = {}
         coeffs['spherical_coeffs'] = sph_coeffs
