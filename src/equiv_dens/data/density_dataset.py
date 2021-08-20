@@ -118,7 +118,13 @@ class AtomsDensityData(Dataset):
             self.radial_coeffs = None
 
         if L0_coeffs_file is not None:
-            self.L0_coeffs = np.load(L0_coeffs_file, allow_pickle=True).item()
+            self.L0_coeffs = {}
+            L0_coeffs_types = np.load(L0_coeffs_file, allow_pickle=True).item()
+            for coeff_type in L0_coeffs_types.keys():
+                self.L0_coeffs[coeff_type] = []
+                for t in self.atoms['atom_types']:
+                    L0_atom = L0_coeffs_types[coeff_type][t]
+                    self.L0_coeffs[coeff_type].append(L0_atom)
         else:
             self.L0_coeffs = None
 

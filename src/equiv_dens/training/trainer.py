@@ -326,7 +326,6 @@ class Trainer:
         if self.verbose > 0:
             if 'density' in predictions.keys():
                 print('train density intergal', torch.sum(predictions['density'] * predictions['coord_weights'], dim=1))
-                print('data[density]', data['density'])
                 print('true density intergal', torch.sum(data['density'] * data['coord_weights'], dim=1))
             if 'energy' in predictions.keys():
                 print('pred energy', predictions['energy'].view((-1, )))

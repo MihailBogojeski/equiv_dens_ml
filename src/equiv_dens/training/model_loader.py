@@ -43,6 +43,7 @@ def load_model(args, dataset):
         clebsch_gordan=clebsch_gordan,
         verbose=args.verbose,
         timing=args.timing,
+        init_coeffs=dataset.L0_coeffs,
     )
 
     expansion_model = DensityExpansion(dataset.orbitals, radial_coeffs=dataset.radial_coeffs,
