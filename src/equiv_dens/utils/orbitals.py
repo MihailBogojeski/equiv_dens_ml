@@ -9,13 +9,13 @@ def combine_orbitals(orbitals, order_max):
     for i in range(len(orbitals)):
         orbital_L_count = [0] * (order_max + 2)
         orbital_spec[i] = []
-        radial_counts[i] = [[]] * (order_max + 2)
+        radial_counts[i] = [[] for i in range(order_max + 2)]
         # print('density L count len', len(density_L_count))
         z = orbitals[i][0][0]
         for j in range(len(orbitals[i])):
             orb = orbitals[i][j]
             L = orb[2]
-            orbital_L_count[L] += 1
+            orbital_L_count[L] += orb[1]
             radial_counts[i][L].append(orb[1])
         for L, c in enumerate(orbital_L_count):
             if c == 0:

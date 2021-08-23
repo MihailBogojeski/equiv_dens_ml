@@ -47,6 +47,7 @@ class DensityCoeffsNetwork(nn.Module):
         self.orbitals_max_order = get_max_order(orbitals)
         # for calculating nucleus - nucleus repulsion
 
+        print('orbitals', self.orbitals)
         if clebsch_gordan is None:
             self.clebsch_gordan = ClebschGordanMatrix()
         else:
@@ -61,12 +62,14 @@ class DensityCoeffsNetwork(nn.Module):
 
         self.orbital_spec, self.radial_count = combine_orbitals(self.orbitals, self.orbitals_max_order)
         print('orbital_spec', self.orbital_spec)
+        print('radial count', self.radial_count)
 
         if self.compressed_extraction:
-            self.L_counts, self.r_max, self.L_dict = self.compute_orbital_features_num_compressed()
+            self.L_counts, self.sph_counts, self.L_dict = self.compute_orbital_features_num_compressed()
         else:
-            self.L_counts, self.r_max, self.L_dict = self.compute_orbital_features_num()
+            self.L_counts, self.sph_counts, self.L_dict = self.compute_orbital_features_num()
         print('L_counts', self.L_counts)
+        print('sph counts', self.sph_counts)
         print('L_dict', self.L_dict)
         print('max lcounts', max(self.L_counts))
         if self.init_coeffs is not None:
@@ -78,11 +81,11 @@ class DensityCoeffsNetwork(nn.Module):
 
         self.spherical_output = SphericalLinear(self.order, self.num_features,
                                                 self.orbitals_max_order + 1,
-                                                max(self.L_counts), self.clebsch_gordan, bias=self.output_bias,
+                                                max(self.sph_counts), self.clebsch_gordan, bias=self.output_bias,
                                                 zero_init=self.output_zero_init)
-        self.radial_width = nn.ModuleList([nn.Linear(self.num_features, self.L_counts[L] * self.r_max[L])
+        self.radial_width = nn.ModuleList([nn.Linear(self.num_features, self.L_counts[L])
                                            for L in range(self.orbitals_max_order + 2)])
-        self.radial_scale = nn.ModuleList([nn.Linear(self.num_features, self.L_counts[L] * self.r_max[L])
+        self.radial_scale = nn.ModuleList([nn.Linear(self.num_features, self.L_counts[L])
                                            for L in range(self.orbitals_max_order + 2)])
         if init_coeffs is not None:
             self.init_L0_coeffs()
@@ -155,8 +158,8 @@ class DensityCoeffsNetwork(nn.Module):
                 sph_fs_i = sph_fs[L][:, [i], :, :]
                 rad_w_i = rad_width[L][:, [i], :, :]
                 rad_s_i = rad_scale[L][:, [i], :, :]
-                # print('fs l=', L, 'shape:', sph_fs[L].shape)
-                # print('inds', inds)
+                print('fs l=', L, 'shape:', sph_fs[L].shape)
+                print('inds', inds)
                 spherical_coeffs[i][key] = sph_fs_i[..., inds]
                 # print('spherical coeffs shape', spherical_coeffs[i][key].shape)
                 # print('i', i)
@@ -184,15 +187,17 @@ class DensityCoeffsNetwork(nn.Module):
         print('using expanded extraction')
         # counts the number of orbitals of each order across all atoms for the given basis
         L_counts = [0 for L in range(2 * self.order + 1)]
+        sph_counts = [0 for L in range(2 * self.order + 1)]
         # contains maximum number of radial components for each order across all atoms for the given basis
         r_max = [0 for L in range(2 * self.order + 1)]
         orbital_dict = {}
+        atom_types_list = []
         # radial_dict = {}
         for i in range(len(self.orbital_spec)):
             z = self.orbital_spec[i][0][0]
+            rad_c = self.radial_count[i]
             for j in range(len(self.orbital_spec[i])):
                 orb = self.orbital_spec[i][j]
-                rad_c = self.radial_count[i][j]
                 L = orb[2]
                 n = orb[1]
                 # print('L', L)
@@ -202,12 +207,20 @@ class DensityCoeffsNetwork(nn.Module):
                     # print('lcounts range', L_counts[L], L_counts[L] + n)
                     orbital_dict[key] = torch.arange(L_counts[L], L_counts[L] + n)
                     L_counts[L] += n
-                    # print('rmax L', r_max[L])
-                    # print('rad_c L', rad_c[L])
-                    r_max[L] = max(rad_c[L], r_max[L])
+                    if len(rad_c[L]) < 1:
+                        max_rad_c = 0
+                    else:
+                        max_rad_c = max(rad_c[L])
+                    r_max[L] = max(max_rad_c, r_max[L])
                     # return one radial function per orbital
                     # radial function consists of multiple gaussians each with width and factor
-        return L_counts, r_max, orbital_dict
+            if z not in atom_types_list:
+                for j in range(len(self.orbitals[i])):
+                    L = self.orbitals[i][j][2]
+                    sph_counts[L] += 1
+                atom_types_list.append(z)
+
+        return L_counts, sph_counts, orbital_dict
 
     """
     Counts how many features of each order are needed to collect the orbital coefficients
@@ -275,6 +288,9 @@ class DensityCoeffsNetwork(nn.Module):
             else:
                 out_scale.append(self.radial_scale[L](fs[0]))
             out_scale[L] = out_scale[L].view(*out_scale[L].shape[:-2], self.r_max[L], self.L_counts[L])
+        print('out sph shape', out_sph[1].shape)
+        print('out width shape', out_width[1].shape)
+        print('out scale shape', out_scale[1].shape)
         atoms['spherical_coeffs'], atoms['radial_width'], atoms['radial_scale'] =\
             self.extract_coefficients(out_sph, out_width, out_scale)
         # print('out sph[1][0]', out_sph[1][:, 0, :])
@@ -434,7 +450,7 @@ class DensityExpansion(nn.Module):
         print('integral scale', self.integral_scale)
         # print('L0_coeffs comb sum after', torch.sum(L0_coeffs_comb, 1))
         # print('L0_coeffs after', L0_coeffs_comb)
-        print('density nan', torch.sum(torch.isnan(atoms['density'])))
+        # print('density nan', torch.sum(torch.isnan(atoms['density'])))
         if 0 in eval_L:
             for i in range(len(L0_coeffs)):
                 coeffs_size = np.prod(list(L0_coeffs[i].shape[1:]))
