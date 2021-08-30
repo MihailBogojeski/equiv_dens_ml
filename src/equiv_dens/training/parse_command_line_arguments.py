@@ -87,6 +87,8 @@ def parse_command_line_arguments(arg_file=None):
                                   help="Extract the spherical harmonic coefficients from the features in a more compresesd way.")
     args_hyperparams.add_argument("--energy_model", metavar='STR', type=str, default=None,
                                   help="Use a neural network for energy prediction instead of functional.")
+    args_hyperparams.add_argument("--pred_radial_coeffs", metavar='True|False', type=str2bool, default=True,
+                                  choices=[True, False], help="Output predictions for the radial coefficients as well.")
     hyperparam_args = [act.dest for act in args_hyperparams._group_actions]
 
     # arguments for training

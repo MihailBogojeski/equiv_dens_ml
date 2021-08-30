@@ -54,6 +54,7 @@ def load_model(args, dataset):
         verbose=args.verbose,
         timing=args.timing,
         init_coeffs=dataset.L0_coeffs,
+        pred_radial_coeffs=args.pred_radial_coeffs,
     )
 
     expansion_model = density_expansion(dataset.orbitals, radial_coeffs=dataset.radial_coeffs,

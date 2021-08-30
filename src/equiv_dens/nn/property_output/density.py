@@ -25,6 +25,7 @@ class DensityCoeffsNetwork(nn.Module):
                  compressed_extraction=False,
                  timing=False,
                  init_coeffs=None,
+                 pred_radial_coeffs=True,
                  ):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
         super().__init__()
 
@@ -41,6 +42,7 @@ class DensityCoeffsNetwork(nn.Module):
         self.compressed_extraction = compressed_extraction
         self.timing = timing
         self.init_coeffs = init_coeffs
+        self.pred_radial_coeffs = pred_radial_coeffs
 
         # extract nuclear charges from orbitals, determine maximum order, and
         # build the occupation mask (for extracting occupied orbitals in energy prediction)
@@ -87,10 +89,11 @@ class DensityCoeffsNetwork(nn.Module):
                                                 self.orbitals_max_order + 1,
                                                 max(self.sph_counts), self.clebsch_gordan, bias=self.output_bias,
                                                 zero_init=self.output_zero_init)
-        self.radial_width = nn.ModuleList([nn.Linear(self.num_features, self.rad_counts[L])
-                                           for L in range(self.orbitals_max_order + 1)])
-        self.radial_scale = nn.ModuleList([nn.Linear(self.num_features, self.rad_counts[L])
-                                           for L in range(self.orbitals_max_order + 1)])
+        if self.pred_radial_coeffs:
+            self.radial_width = nn.ModuleList([nn.Linear(self.num_features, self.rad_counts[L])
+                                               for L in range(self.orbitals_max_order + 1)])
+            self.radial_scale = nn.ModuleList([nn.Linear(self.num_features, self.rad_counts[L])
+                                               for L in range(self.orbitals_max_order + 1)])
         if init_coeffs is not None:
             self.init_L0_coeffs()
 
@@ -167,20 +170,21 @@ class DensityCoeffsNetwork(nn.Module):
                 # print('spherical coeffs shape', spherical_coeffs[i][key].shape)
                 # print('i', i)
                 # print('L', L)
-                inds = self.rad_dict[key]
-                rad_w_i = rad_width[L][:, [i], :, :]
-                rad_s_i = rad_scale[L][:, [i], :, :]
-                # print('rad fs l=', L, 'shape:', rad_w_i.shape)
-                # print('inds', inds)
-                radial_width[i][key] = torch.zeros(*rad_w_i.shape[:2], self.r_max[key], orb[1]).to(rad_width[0])
-                radial_scale[i][key] = torch.zeros(*rad_s_i.shape[:2], self.r_max[key], orb[1]).to(rad_scale[0])
-                r_curr = 0
-                for k, r_num in enumerate(self.radial_count[i][L]):
-                    # print('radial width ', i, key, 'shape', radial_width[i][key].shape)
-                    rad_inds = inds[r_curr: r_curr + r_num]
-                    r_curr += r_num
-                    radial_width[i][key][..., :r_num, k] = rad_w_i[..., 0, rad_inds]
-                    radial_scale[i][key][..., :r_num, k] = rad_s_i[..., 0, rad_inds]
+                radial_width[i][key] = torch.zeros(*sph_fs_i.shape[:2], self.r_max[key], orb[1]).to(sph_fs_i)
+                radial_scale[i][key] = torch.zeros(*sph_fs_i.shape[:2], self.r_max[key], orb[1]).to(sph_fs_i)
+                if self.pred_radial_coeffs:
+                    inds = self.rad_dict[key]
+                    rad_w_i = rad_width[L][:, [i], :, :]
+                    rad_s_i = rad_scale[L][:, [i], :, :]
+                    # print('rad fs l=', L, 'shape:', rad_w_i.shape)
+                    # print('inds', inds)
+                    r_curr = 0
+                    for k, r_num in enumerate(self.radial_count[i][L]):
+                        # print('radial width ', i, key, 'shape', radial_width[i][key].shape)
+                        rad_inds = inds[r_curr: r_curr + r_num]
+                        r_curr += r_num
+                        radial_width[i][key][..., :r_num, k] = rad_w_i[..., 0, rad_inds]
+                        radial_scale[i][key][..., :r_num, k] = rad_s_i[..., 0, rad_inds]
                 # print('radial width shape', radial_width[i][key].shape)
                 # print('radial width', radial_width[i][key][0])
                 # print('self.init coeffs', self.init_coeffs)
@@ -188,8 +192,9 @@ class DensityCoeffsNetwork(nn.Module):
                     # print('spherical_coeffs[i][key] before shape', spherical_coeffs[i][key].shape)
                     # print('self.init_sph(i, key)', self.init_sph(i, key))
                     spherical_coeffs[i][key] = spherical_coeffs[i][key] + self.init_sph(i, key)
-                    radial_width[i][key] = torch.clamp(radial_width[i][key] + self.init_width(i, key), -0.999999, 0.99999)
-                    radial_scale[i][key] = radial_scale[i][key] + self.init_scale(i, key)
+                    if self.pred_radial_coeffs:
+                        radial_width[i][key] = torch.clamp(radial_width[i][key] + self.init_width(i, key), -0.999999, 0.99999)
+                        radial_scale[i][key] = radial_scale[i][key] + self.init_scale(i, key)
                     # print('spherical_coeffs[i][key] after shape', spherical_coeffs[i][key].shape)
 
         return spherical_coeffs, radial_width, radial_scale
@@ -308,13 +313,14 @@ class DensityCoeffsNetwork(nn.Module):
             out_sph[0] = F.softplus(out_sph[0])
         out_width = []
         out_scale = []
-        for L in range(len(self.radial_width)):
-            out_width.append(torch.tanh(self.radial_width[L](fs[0])))
-            # out_width[L] = out_width[L].view(*out_width[L].shape[:-2], self.r_max[L], self.L_counts[L])
-            if self.positive_coeffs:
-                out_scale.append(F.softplus(self.radial_scale[L](fs[0])))
-            else:
-                out_scale.append(self.radial_scale[L](fs[0]))
+        if self.pred_raidal_coeffs:
+            for L in range(len(self.radial_width)):
+                out_width.append(torch.tanh(self.radial_width[L](fs[0])))
+                # out_width[L] = out_width[L].view(*out_width[L].shape[:-2], self.r_max[L], self.L_counts[L])
+                if self.positive_coeffs:
+                    out_scale.append(F.softplus(self.radial_scale[L](fs[0])))
+                else:
+                    out_scale.append(self.radial_scale[L](fs[0]))
             # out_scale[L] = out_scale[L].view(*out_scale[L].shape[:-2], self.r_max[L], self.L_counts[L])
         # print('out sph shape', out_sph[1].shape)
         # print('out width shape', out_width[1].shape)

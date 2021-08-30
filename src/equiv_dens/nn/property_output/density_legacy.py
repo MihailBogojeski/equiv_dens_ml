@@ -25,6 +25,7 @@ class DensityCoeffsNetwork(nn.Module):
                  compressed_extraction=False,
                  timing=False,
                  init_coeffs=None,
+                 pred_radial_coeffs=True,
                  ):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
         super().__init__()
 
@@ -41,6 +42,7 @@ class DensityCoeffsNetwork(nn.Module):
         self.compressed_extraction = compressed_extraction
         self.timing = timing
         self.init_coeffs = init_coeffs
+        self.pred_radial_coeffs = pred_radial_coeffs
 
         # extract nuclear charges from orbitals, determine maximum order, and
         # build the occupation mask (for extracting occupied orbitals in energy prediction)
