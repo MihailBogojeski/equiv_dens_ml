@@ -4,32 +4,24 @@ import scipy as sp
 
 
 def combine_orbitals(orbitals, order_max):
-    radial_spec = [None] * len(orbitals)
-    spherical_spec = [None] * len(orbitals)
+    orbital_spec = [None] * len(orbitals)
     radial_counts = [None] * len(orbitals)
     for i in range(len(orbitals)):
-        radial_L_count = [0] * (order_max + 2)
-        spherical_L_count = [0] * (order_max + 2)
-        radial_spec[i] = []
-        spherical_spec[i] = []
-        radial_counts[i] = [[] for i in range(order_max + 2)]
+        orbital_L_count = [0] * (order_max + 2)
+        orbital_spec[i] = []
+        radial_counts[i] = [[]] * (order_max + 2)
         # print('density L count len', len(density_L_count))
         z = orbitals[i][0][0]
         for j in range(len(orbitals[i])):
             orb = orbitals[i][j]
             L = orb[2]
-            radial_L_count[L] += orb[1]
-            spherical_L_count[L] += 1
+            orbital_L_count[L] += 1
             radial_counts[i][L].append(orb[1])
-        for L, c in enumerate(radial_L_count):
+        for L, c in enumerate(orbital_L_count):
             if c == 0:
                 continue
-            radial_spec[i].append((z, c, L))
-        for L, c in enumerate(spherical_L_count):
-            if c == 0:
-                continue
-            spherical_spec[i].append((z, c, L))
-    return spherical_spec, radial_spec, radial_counts
+            orbital_spec[i].append((z, c, L))
+    return orbital_spec, radial_counts
 
 
 def get_max_order(orbitals):

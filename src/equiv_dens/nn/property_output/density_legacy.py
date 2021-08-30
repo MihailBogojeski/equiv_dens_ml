@@ -4,7 +4,7 @@ import torch.nn as nn
 from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
 from equiv_dens.nn.modules.spherical_harmonic_layers import SphericalLinear
 from equiv_dens.utils.spherical_harmonics import spherical_harmonics
-from equiv_dens.utils.orbitals import combine_orbitals, gaussian_rbf, get_max_order, get_n_electrons
+from equiv_dens.utils.orbitals_legacy import combine_orbitals, gaussian_rbf, get_max_order, get_n_electrons
 from equiv_dens.utils.base import calculate_distances_and_directions
 import numpy as np
 import time
@@ -47,7 +47,6 @@ class DensityCoeffsNetwork(nn.Module):
         self.orbitals_max_order = get_max_order(orbitals)
         # for calculating nucleus - nucleus repulsion
 
-        print('orbitals', self.orbitals)
         if clebsch_gordan is None:
             self.clebsch_gordan = ClebschGordanMatrix()
         else:
@@ -60,22 +59,16 @@ class DensityCoeffsNetwork(nn.Module):
             print("The neural network MUST have at least the same order as all orbitals!")
             quit()
 
-        self.spherical_spec, self.radial_spec, self.radial_count = combine_orbitals(self.orbitals, self.orbitals_max_order)
-        if self.verbose > 0:
-            print('spherical_spec', self.spherical_spec)
-            print('radial_spec', self.radial_spec)
-            print('radial count', self.radial_count)
+        self.orbital_spec, self.radial_count = combine_orbitals(self.orbitals, self.orbitals_max_order)
+        print('orbital_spec', self.orbital_spec)
 
         if self.compressed_extraction:
-            self.sph_counts, self.rad_counts, self.r_max, self.sph_dict, self.rad_dict = self.compute_orbital_features_num_compressed()
+            self.L_counts, self.r_max, self.L_dict = self.compute_orbital_features_num_compressed()
         else:
-            self.sph_counts, self.rad_counts, self.r_max, self.sph_dict, self.rad_dict = self.compute_orbital_features_num()
-        if self.verbose > 0:
-            print('rad_counts', self.rad_counts)
-            print('sph counts', self.sph_counts)
-            print('rad_dict', self.rad_dict)
-            print('sph_dict', self.sph_dict)
-            print('max rad_counts', max(self.rad_counts))
+            self.L_counts, self.r_max, self.L_dict = self.compute_orbital_features_num()
+        print('L_counts', self.L_counts)
+        print('L_dict', self.L_dict)
+        print('max lcounts', max(self.L_counts))
         if self.init_coeffs is not None:
             self.output_bias = False
             self.output_zero_init = True
@@ -85,12 +78,12 @@ class DensityCoeffsNetwork(nn.Module):
 
         self.spherical_output = SphericalLinear(self.order, self.num_features,
                                                 self.orbitals_max_order + 1,
-                                                max(self.sph_counts), self.clebsch_gordan, bias=self.output_bias,
+                                                max(self.L_counts), self.clebsch_gordan, bias=self.output_bias,
                                                 zero_init=self.output_zero_init)
-        self.radial_width = nn.ModuleList([nn.Linear(self.num_features, self.rad_counts[L])
-                                           for L in range(self.orbitals_max_order + 1)])
-        self.radial_scale = nn.ModuleList([nn.Linear(self.num_features, self.rad_counts[L])
-                                           for L in range(self.orbitals_max_order + 1)])
+        self.radial_width = nn.ModuleList([nn.Linear(self.num_features, self.L_counts[L] * self.r_max[L])
+                                           for L in range(self.orbitals_max_order + 2)])
+        self.radial_scale = nn.ModuleList([nn.Linear(self.num_features, self.L_counts[L] * self.r_max[L])
+                                           for L in range(self.orbitals_max_order + 2)])
         if init_coeffs is not None:
             self.init_L0_coeffs()
 
@@ -145,44 +138,31 @@ class DensityCoeffsNetwork(nn.Module):
     """
 
     def extract_coefficients(self, sph_fs, rad_width, rad_scale):
-        spherical_coeffs = [None] * len(self.spherical_spec)
-        radial_width = [None] * len(self.spherical_spec)
-        radial_scale = [None] * len(self.spherical_spec)
+        spherical_coeffs = [None] * len(self.orbital_spec)
+        radial_width = [None] * len(self.orbital_spec)
+        radial_scale = [None] * len(self.orbital_spec)
         # print('len radial width', len(radial_width))
         # print('len rad width', len(rad_width))
-        for i in range(len(self.spherical_spec)):
-            z = self.spherical_spec[i][0][0]
+        for i in range(len(self.orbital_spec)):
+            z = self.orbital_spec[i][0][0]
             spherical_coeffs[i] = {}
             radial_width[i] = {}
             radial_scale[i] = {}
-            for orb in self.spherical_spec[i]:
+            for orb in self.orbital_spec[i]:
                 L = orb[2]
                 key = (z, L)
-                inds = self.sph_dict[key]
+                inds = self.L_dict[key]
                 sph_fs_i = sph_fs[L][:, [i], :, :]
-                # print('sph l=', L, 'shape:', sph_fs[L].shape)
+                rad_w_i = rad_width[L][:, [i], :, :]
+                rad_s_i = rad_scale[L][:, [i], :, :]
+                # print('fs l=', L, 'shape:', sph_fs[L].shape)
                 # print('inds', inds)
                 spherical_coeffs[i][key] = sph_fs_i[..., inds]
-                # spherical_coeffs[i][key] = torch.ones_like(sph_fs_i[..., inds])
                 # print('spherical coeffs shape', spherical_coeffs[i][key].shape)
                 # print('i', i)
                 # print('L', L)
-                inds = self.rad_dict[key]
-                rad_w_i = rad_width[L][:, [i], :, :]
-                rad_s_i = rad_scale[L][:, [i], :, :]
-                # print('rad fs l=', L, 'shape:', rad_w_i.shape)
-                # print('inds', inds)
-                radial_width[i][key] = torch.zeros(*rad_w_i.shape[:2], self.r_max[key], orb[1]).to(rad_width[0])
-                radial_scale[i][key] = torch.zeros(*rad_s_i.shape[:2], self.r_max[key], orb[1]).to(rad_scale[0])
-                r_curr = 0
-                for k, r_num in enumerate(self.radial_count[i][L]):
-                    # print('radial width ', i, key, 'shape', radial_width[i][key].shape)
-                    rad_inds = inds[r_curr: r_curr + r_num]
-                    r_curr += r_num
-                    radial_width[i][key][..., :r_num, k] = rad_w_i[..., 0, rad_inds]
-                    radial_scale[i][key][..., :r_num, k] = rad_s_i[..., 0, rad_inds]
-                # print('radial width shape', radial_width[i][key].shape)
-                # print('radial width', radial_width[i][key][0])
+                radial_width[i][key] = rad_w_i[..., inds]
+                radial_scale[i][key] = rad_s_i[..., inds]
                 # print('self.init coeffs', self.init_coeffs)
                 if self.init_coeffs is not None and L == 0:
                     # print('spherical_coeffs[i][key] before shape', spherical_coeffs[i][key].shape)
@@ -203,48 +183,31 @@ class DensityCoeffsNetwork(nn.Module):
     def compute_orbital_features_num(self):
         print('using expanded extraction')
         # counts the number of orbitals of each order across all atoms for the given basis
-        sph_counts = [0 for L in range(self.orbitals_max_order + 1)]
-        rad_counts = [0 for L in range(self.orbitals_max_order + 1)]
+        L_counts = [0 for L in range(2 * self.order + 1)]
         # contains maximum number of radial components for each order across all atoms for the given basis
-        r_max = {}
-        spherical_dict = {}
-        radial_dict = {}
+        r_max = [0 for L in range(2 * self.order + 1)]
+        orbital_dict = {}
         # radial_dict = {}
-        for i in range(len(self.spherical_spec)):
-            z = self.spherical_spec[i][0][0]
-            rad_c = self.radial_count[i]
-            for j in range(len(self.spherical_spec[i])):
-                orb = self.spherical_spec[i][j]
-                L = orb[2]
-                n = orb[1]
-                key = (z, L)
-                if key not in spherical_dict:
-                    # print('lcounts range', rad_counts[L], rad_counts[L] + n)
-                    spherical_dict[key] = torch.arange(sph_counts[L], sph_counts[L] + n)
-                    sph_counts[L] += n
-            for j in range(len(self.radial_spec[i])):
-                orb = self.radial_spec[i][j]
+        for i in range(len(self.orbital_spec)):
+            z = self.orbital_spec[i][0][0]
+            for j in range(len(self.orbital_spec[i])):
+                orb = self.orbital_spec[i][j]
+                rad_c = self.radial_count[i][j]
                 L = orb[2]
                 n = orb[1]
                 # print('L', L)
                 # print('n', n)
                 key = (z, L)
-                if key not in radial_dict:
-                    # print('lcounts range', rad_counts[L], rad_counts[L] + n)
-                    radial_dict[key] = torch.arange(rad_counts[L], rad_counts[L] + n)
-                    rad_counts[L] += n
-                    if len(rad_c[L]) < 1:
-                        max_rad_c = 0
-                    else:
-                        max_rad_c = max(rad_c[L])
-                    if key in r_max.keys():
-                        r_max[key] = max(max_rad_c, r_max[key])
-                    else:
-                        r_max[key] = max_rad_c
+                if key not in orbital_dict:
+                    # print('lcounts range', L_counts[L], L_counts[L] + n)
+                    orbital_dict[key] = torch.arange(L_counts[L], L_counts[L] + n)
+                    L_counts[L] += n
+                    # print('rmax L', r_max[L])
+                    # print('rad_c L', rad_c[L])
+                    r_max[L] = max(rad_c[L], r_max[L])
                     # return one radial function per orbital
                     # radial function consists of multiple gaussians each with width and factor
-
-        return sph_counts, rad_counts, r_max, spherical_dict, radial_dict
+        return L_counts, r_max, orbital_dict
 
     """
     Counts how many features of each order are needed to collect the orbital coefficients
@@ -255,15 +218,15 @@ class DensityCoeffsNetwork(nn.Module):
     def compute_orbital_features_num_compressed(self):
         print('using compressed extraction')
         # counts the number of orbitals of each order across all atoms for the given basis
-        L_counts = [0 for L in range(self.orbitals_max_order + 1)]
+        L_counts = [0 for L in range(2 * self.order + 1)]
         # contains maximum number of radial components for each order across all atoms for the given basis
-        r_max = [0 for L in range(self.orbitals_max_order + 1)]
+        r_max = [0 for L in range(2 * self.order + 1)]
         orbital_dict = {}
         # radial_dict = {}
-        for i in range(len(self.radial_spec)):
-            z = self.radial_spec[i][0][0]
-            for j in range(len(self.radial_spec[i])):
-                orb = self.radial_spec[i][j]
+        for i in range(len(self.orbital_spec)):
+            z = self.orbital_spec[i][0][0]
+            for j in range(len(self.orbital_spec[i])):
+                orb = self.orbital_spec[i][j]
                 rad_c = self.radial_count[i][j]
                 L = orb[2]
                 n = orb[1]
@@ -310,15 +273,12 @@ class DensityCoeffsNetwork(nn.Module):
         out_scale = []
         for L in range(len(self.radial_width)):
             out_width.append(torch.tanh(self.radial_width[L](fs[0])))
-            # out_width[L] = out_width[L].view(*out_width[L].shape[:-2], self.r_max[L], self.L_counts[L])
+            out_width[L] = out_width[L].view(*out_width[L].shape[:-2], self.r_max[L], self.L_counts[L])
             if self.positive_coeffs:
                 out_scale.append(F.softplus(self.radial_scale[L](fs[0])))
             else:
                 out_scale.append(self.radial_scale[L](fs[0]))
-            # out_scale[L] = out_scale[L].view(*out_scale[L].shape[:-2], self.r_max[L], self.L_counts[L])
-        # print('out sph shape', out_sph[1].shape)
-        # print('out width shape', out_width[1].shape)
-        # print('out scale shape', out_scale[1].shape)
+            out_scale[L] = out_scale[L].view(*out_scale[L].shape[:-2], self.r_max[L], self.L_counts[L])
         if self.verbose > 2:
             print('density coeffs forward outputs:')
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
@@ -334,11 +294,9 @@ class DensityCoeffsNetwork(nn.Module):
         # print('out sph[1][0]', out_sph[1][:, 1, :])
         # print('spherical_coeffs[1][0]', atoms['spherical_coeffs'][1][(1, 1)])
         if fs[0].get_device() >= 0:
-            atoms['rad_dict'] = {key: self.rad_dict[key].to(fs[0].get_device()) for key in self.rad_dict.keys()}
-            atoms['sph_dict'] = {key: self.sph_dict[key].to(fs[0].get_device()) for key in self.sph_dict.keys()}
+            atoms['L_dict'] = {key: self.L_dict[key].to(fs[0].get_device()) for key in self.L_dict.keys()}
         else:
-            atoms['rad_dict'] = {key: self.rad_dict[key].to('cpu') for key in self.rad_dict.keys()}
-            atoms['sph_dict'] = {key: self.sph_dict[key].to('cpu') for key in self.sph_dict.keys()}
+            atoms['L_dict'] = {key: self.L_dict[key].to('cpu') for key in self.L_dict.keys()}
         if self.timing:
             print('density coeffs time:', time.time() - start)
         if self.verbose > 2:
@@ -385,63 +343,32 @@ class DensityExpansion(nn.Module):
             self.n_electrons = n_electrons
 
         self.radial_coeffs = radial_coeffs
-        self.spherical_spec, self.radial_spec, radial_counts = combine_orbitals(self.orbitals, self.orbitals_max_order)
-        self.r_max = {}
-        radial_dict = {}
-        for i in range(len(self.spherical_spec)):
-            z = self.spherical_spec[i][0][0]
-            rad_c = radial_counts[i]
-            for j in range(len(self.radial_spec[i])):
-                orb = self.radial_spec[i][j]
-                L = orb[2]
-                key = (z, L)
-                if key not in radial_dict:
-                    if len(rad_c[L]) < 1:
-                        max_rad_c = 0
-                    else:
-                        max_rad_c = max(rad_c[L])
-                    if key in self.r_max.keys():
-                        self.r_max[key] = max(max_rad_c, self.r_max[key])
-                    else:
-                        self.r_max[key] = max_rad_c
-
+        self.orbital_spec, self.radial_counts = combine_orbitals(self.orbitals, self.orbitals_max_order)
         self.init_radial_coeffs()
 
     def init_radial_coeffs(self):
         init_width = [None] * len(self.orbitals)
         init_scale = [None] * len(self.orbitals)
         for i in range(len(self.orbitals)):
-            # print('init coeffs i', i)
             z = self.orbitals[i][0][0]
             init_width[i] = {}
             init_scale[i] = {}
-            rad_count = [0] * (self.orbitals_max_order + 1)
-            for j in range(len(self.spherical_spec[i])):
-                orb = self.spherical_spec[i][j]
-                L = orb[2]
-                key = (z, L)
-                init_width[i][key] = torch.zeros(1, 1, self.r_max[key], orb[1])
-                init_scale[i][key] = torch.zeros(1, 1, self.r_max[key], orb[1])
             for j in range(len(self.orbitals[i])):
-                # print('init coeffs j', j)
                 orb = self.orbitals[i][j]
                 L = orb[2]
                 key = (z, L)
-                # print('init coeffs orb', orb)
+                width_coeff = torch.zeros((1, 1, max(self.radial_counts[i][L]), 1))
+                scale_coeff = torch.zeros((1, 1, max(self.radial_counts[i][L]), 1))
                 if self.radial_coeffs is not None:
                     n_coeff = len(self.radial_coeffs[i][j][0])
-                    # print('rad_count L', rad_count[L])
-                    # print('init coeffs ncoeff', n_coeff)
-                    init_width[i][key][..., :n_coeff, rad_count[L]] += torch.Tensor(self.radial_coeffs[i][j][0])
-                    init_scale[i][key][..., :n_coeff, rad_count[L]] += torch.Tensor(self.radial_coeffs[i][j][1])
-                    rad_count[L] += 1
-                # if key in init_width[i].keys():
-                #     init_width[i][key] = torch.cat((init_width[i][key], width_coeff), dim=-1)
-                #     init_scale[i][key] = torch.cat((init_scale[i][key], scale_coeff), dim=-1)
-                # else:
-                #     init_width[i][key] = width_coeff
-                #     init_scale[i][key] = scale_coeff
-                # print('init_width', i, key, init_width[i][key][0])
+                    width_coeff[..., :n_coeff, 0] += torch.Tensor(self.radial_coeffs[i][j][0])
+                    scale_coeff[..., :n_coeff, 0] += torch.Tensor(self.radial_coeffs[i][j][1])
+                if key in init_width[i].keys():
+                    init_width[i][key] = torch.cat((init_width[i][key], width_coeff), dim=-1)
+                    init_scale[i][key] = torch.cat((init_scale[i][key], scale_coeff), dim=-1)
+                else:
+                    init_width[i][key] = width_coeff
+                    init_scale[i][key] = scale_coeff
 
             for key in init_width[i].keys():
                 self.register_buffer('init_width_{}_{}_{}'.format(i, key[0], key[1]), init_width[i][key])
@@ -466,10 +393,10 @@ class DensityExpansion(nn.Module):
         L0_sph = []
         L0_d = []
         L0_width = []
-        for i in range(len(self.spherical_spec)):
-            z = self.spherical_spec[i][0][0]
+        for i in range(len(self.orbital_spec)):
+            z = self.orbital_spec[i][0][0]
             # print('atom num', z)
-            # print('orbitals i', self.spherical_spec[i])
+            # print('orbitals i', self.orbital_spec[i])
             d, u = calculate_distances_and_directions(atoms['coords'], center=atoms['positions'][:, [i]])
             s = spherical_harmonics(self.orbitals_max_order, u)
             # print('atom[i]', i)
@@ -479,23 +406,19 @@ class DensityExpansion(nn.Module):
             for L in range(len(s)):
                 zeros = torch.zeros_like(s[L])
                 s[L] = torch.where(torch.isnan(s[L]), zeros, s[L])  # making sure there are no nans to avoid NaNs
-            for j in range(len(self.spherical_spec[i])):
+            for orb in self.orbital_spec[i]:
                 # print('orbital', orb)
-                orb = self.spherical_spec[i][j]
                 L = orb[2]
                 key = (z, L)
                 width = (atoms['radial_width'][i][key] + 1) * self.init_width(i, key)
                 zero_scale = (self.init_scale(i, key) != 0).to(atoms['radial_scale'][i][key])
                 scale = (atoms['radial_scale'][i][key] + self.init_scale(i, key)) * zero_scale
-                # width = width.unsqueeze(-3)
-                # scale = scale.unsqueeze(-3)
                 if self.verbose > 3:
                     print('init_width', self.init_width(i, key))
                     print('init_scale', self.init_scale(i, key))
                     print('width', width)
                     print('scale', scale)
                 sph_coeff = atoms['spherical_coeffs'][i][key]
-                # sph_coeff = sph_coeff.unsqueeze(-1)
                 if L == 0:
                     L0_coeff = sph_coeff * scale
                     L0_coeffs.append(L0_coeff)
@@ -524,10 +447,10 @@ class DensityExpansion(nn.Module):
                 L0_coeffs_comb = L0_coeffs_comb * torch.clamp(self.integral_scale, 0.5, 1.5)
                 # print('coeffs_sum', torch.sum(L0_coeffs_comb, dim=1, keepdim=True))
         coeffs_pointer = 0
-        # print('integral scale', self.integral_scale)
+        print('integral scale', self.integral_scale)
         # print('L0_coeffs comb sum after', torch.sum(L0_coeffs_comb, 1))
         # print('L0_coeffs after', L0_coeffs_comb)
-        # print('density nan', torch.sum(torch.isnan(atoms['density'])))
+        print('density nan', torch.sum(torch.isnan(atoms['density'])))
         if 0 in eval_L:
             for i in range(len(L0_coeffs)):
                 coeffs_size = np.prod(list(L0_coeffs[i].shape[1:]))

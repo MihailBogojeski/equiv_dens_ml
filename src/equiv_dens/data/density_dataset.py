@@ -138,7 +138,10 @@ class AtomsDensityData(Dataset):
                 self.grid_spec[key] = (self.grid_spec[key][0].cuda(),
                                        self.grid_spec[key][1].cuda())  # convert Bohr grid to Angstrom
         self.fixed_properties = fixed_properties
-        print('dataset init grid_spec type', self.grid_spec['H'][0].type())
+        if self.verbose > 1:
+            print('dataset init grid_spec type', self.grid_spec['H'][0].type())
+            print('dataset radial coeffs', self.radial_coeffs)
+            print('dataset L0 coeffs', self.L0_coeffs)
 
         print('finished init')
 

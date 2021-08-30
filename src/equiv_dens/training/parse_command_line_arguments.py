@@ -241,6 +241,8 @@ def parse_command_line_arguments(arg_file=None):
     args_misc = parser.add_argument_group("miscelleaneous")
     args_misc.add_argument("--dtype", metavar='torch.float32|torch.float64', type=str, default='torch.float32',
                            choices=['torch.float32', 'torch.float64'], help="floating point type used during training")
+    args_misc.add_argument('--legacy', metavar='True|False', type=str2bool, default=False,
+                           choices=[True, False], help="If true use old density network code, else use the most recent version.")
 
     # actually parse command line arguments
     if len(sys.argv) == 1:  # no arguments were specified, print help message

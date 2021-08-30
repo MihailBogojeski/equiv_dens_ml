@@ -7,6 +7,8 @@ from equiv_dens.nn.representation.spherical_harmonic import EquivariantSpherical
 from equiv_dens.nn.property_output.energy import ComplexEnergyNetwork, SimpleEnergyNetwork,\
     SphericalHarmonicsEnergyNetwork, SimpleEnergyNetworkv2
 from equiv_dens.nn.property_output.density import DensityCoeffsNetwork, DensityExpansion
+from equiv_dens.nn.property_output.density_legacy import DensityCoeffsNetwork as LegacyDensityCoeffsNetwork
+from equiv_dens.nn.property_output.density_legacy import DensityExpansion as LegacyDensityExpansion
 from equiv_dens.nn.property_output.dipole_moment import DipoleMomentCalc
 from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
 
@@ -35,7 +37,15 @@ def load_model(args, dataset):
         verbose=args.verbose,
         timing=args.timing,
     )
-    dens_model = DensityCoeffsNetwork(
+
+    if args.legacy:
+        density_coeffs_network = LegacyDensityCoeffsNetwork
+        density_expansion = LegacyDensityExpansion
+    else:
+        density_coeffs_network = DensityCoeffsNetwork
+        density_expansion = DensityExpansion
+
+    dens_model = density_coeffs_network(
         orbitals=dataset.orbitals,
         order=args.order[-1],
         num_features=args.num_features,
@@ -46,14 +56,14 @@ def load_model(args, dataset):
         init_coeffs=dataset.L0_coeffs,
     )
 
-    expansion_model = DensityExpansion(dataset.orbitals, radial_coeffs=dataset.radial_coeffs,
-                                       expansion_constraint=args.expansion_constraint,
-                                       integral_constraint=args.integral_constraint,
-                                       integral_scale=args.integral_scale,
-                                       softmax_norm=args.softmax_norm, n_electrons=sum(z_vals),
-                                       verbose=args.verbose,
-                                       timing=args.timing,
-                                       )
+    expansion_model = density_expansion(dataset.orbitals, radial_coeffs=dataset.radial_coeffs,
+                                        expansion_constraint=args.expansion_constraint,
+                                        integral_constraint=args.integral_constraint,
+                                        integral_scale=args.integral_scale,
+                                        softmax_norm=args.softmax_norm, n_electrons=sum(z_vals),
+                                        verbose=args.verbose,
+                                        timing=args.timing,
+                                        )
 
     calculate_forces = True
 

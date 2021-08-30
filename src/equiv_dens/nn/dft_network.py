@@ -40,7 +40,7 @@ class DFTNetwork(nn.Module):
         """
 
         if self.verbose > 2:
-            # print('dft network forward:', torch.cuda.memory_summary())
+            print('dft network forward start:')
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
             print('Memory cached', torch.cuda.memory_cached() / 1024**2)
         atoms = {}
@@ -58,21 +58,21 @@ class DFTNetwork(nn.Module):
         # run the models that require forces first, then turn off gradient for the positions
         for key in self.force_props:
             atoms = self.property_models[key](atoms)
+            if self.verbose > 2:
+                print('dft network forward', key, ':')
+                print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
+                print('Memory cached', torch.cuda.memory_cached() / 1024**2)
             # if self.verbose > 2:
             #     print('dft network forward after prop:', key, torch.cuda.memory_summary())
-        if self.verbose > 2:
-            # print('dft network forward:', torch.cuda.memory_summary())
-            print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
-            print('Memory cached', torch.cuda.memory_cached() / 1024**2)
 
         atoms['positions'].requires_grad = False
         for key in self.no_force_props:
             atoms = self.property_models[key](atoms)
+            if self.verbose > 2:
+                print('dft network forward', key, ':')
+                print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
+                print('Memory cached', torch.cuda.memory_cached() / 1024**2)
             # if self.verbose > 2:
             #     print('dft network forward after prop:', key, torch.cuda.memory_summary())
-        if self.verbose > 2:
-            # print('dft network forward:', torch.cuda.memory_summary())
-            print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
-            print('Memory cached', torch.cuda.memory_cached() / 1024**2)
 
         return atoms

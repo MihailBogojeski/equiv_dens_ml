@@ -177,6 +177,10 @@ class EquivariantSphericalHarmonics(nn.Module):
         outputs:
             C: Spherical harmonics coefficients
         """
+        if self.verbose > 2:
+            print('repr forward start:')
+            print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
+            print('Memory cached', torch.cuda.memory_cached() / 1024**2)
         start = time.time()
         # for key in atoms.keys():
         #     print('prop', key)
@@ -192,6 +196,10 @@ class EquivariantSphericalHarmonics(nn.Module):
         # print('uij shape', uij.shape)
         # print('R shape', R.shape)
         # print('dij', dij)
+        if self.verbose > 2:
+            print('repr forward distances:')
+            print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
+            print('Memory cached', torch.cuda.memory_cached() / 1024**2)
         rbf = self.radial_basis_functions(dij).unsqueeze_(-2)  # unsqueeze for broadcasting
         # print('rbf shape', rbf.shape)
         # print('rbf', rbf)
@@ -213,14 +221,26 @@ class EquivariantSphericalHarmonics(nn.Module):
         xs = self.embedding(atoms['atom_numbers'])
         # print('xs 0 shape', xs[0].shape)
         # perform iterations over modular building blocks to get environment - dependent features
+        if self.verbose > 2:
+            print('repr forward before module blocks:')
+            print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
+            print('Memory cached', torch.cuda.memory_cached() / 1024**2)
         fs = [torch.zeros_like(x) for x in xs]  # output features
         for i, module in enumerate(self.module):
             xs = self.order_change[i](xs)
             xs, ys = module(xs, rbf, sph, self.idx_i, self.idx_j)
             for L in range(self.order[i] + 1):
                 fs[L] += ys[L]  # add contributions to output features
+            if self.verbose > 2:
+                print('repr forward after module', i, ':')
+                print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
+                print('Memory cached', torch.cuda.memory_cached() / 1024**2)
 
         atoms['sph_repr'] = fs
         if self.timing:
             print('sph repr time', time.time() - start)
+        if self.verbose > 2:
+            print('repr forward end:')
+            print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
+            print('Memory cached', torch.cuda.memory_cached() / 1024**2)
         return atoms
