@@ -313,7 +313,7 @@ class DensityCoeffsNetwork(nn.Module):
             out_sph[0] = F.softplus(out_sph[0])
         out_width = []
         out_scale = []
-        if self.pred_raidal_coeffs:
+        if self.pred_radial_coeffs:
             for L in range(len(self.radial_width)):
                 out_width.append(torch.tanh(self.radial_width[L](fs[0])))
                 # out_width[L] = out_width[L].view(*out_width[L].shape[:-2], self.r_max[L], self.L_counts[L])
