@@ -77,7 +77,10 @@ class DFTNetworkCalculator(MDCalculator):
             else:
                 # Detach properties if requested
                 self.results[p] = results[p].detach()
+        print('system before', system.properties)
         self._update_system(system)
+        print('system after', system.properties)
+
         print('Step time:', time.time() - start)
 
     def _generate_input(self, system):

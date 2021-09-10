@@ -3,7 +3,8 @@ import json
 import time
 import numpy as np
 
-data = HDF5Loader('/home/ml-dft/equiv_dens/md_logs/2021-06-21_UAD77s3O/simulation_gpu_dipole_test_new_lvl4.hdf5', load_properties=False)
+# data = HDF5Loader('/home/ml-dft/equiv_dens/md_logs/2021-06-21_UAD77s3O/simulation_gpu_dipole_test_new_lvl4.hdf5', load_properties=False)
+data = HDF5Loader('simulation_gpu_dipole_test_new_lvl4_313000.hdf5', load_properties=False)
 
 # {'energy': [0, 1],                                                    
 #  'forces': [1, 28],                                                   
@@ -38,3 +39,4 @@ for prop in prop_list:
     print(prop, 'shape', props[prop].shape)
 
 # np.savez('/home/ml-dft/equiv_dens/md_logs/2021-06-21_UAD77s3O/simulation_gpu_dipole_test_new_lvl4_313000.npz', **props)
+np.savez('simulation_gpu_dipole_test_new_lvl4_313000_test.npz', **props)
