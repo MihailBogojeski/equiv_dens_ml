@@ -79,7 +79,7 @@ class ComplexEnergyNetwork(nn.Module):
         self.register_buffer('idx_j', idx_j)
 
         self.orbitals_max_order = get_max_order(self.orbitals)
-        self.orbital_spec, _ = combine_orbitals(self.orbitals, self.orbitals_max_order)
+        self.orbital_spec, _, _ = combine_orbitals(self.orbitals, self.orbitals_max_order)
         self.dens_features = 0
         seen_zs = []
         for i in range(len(self.orbital_spec)):
@@ -197,7 +197,7 @@ class SimpleEnergyNetwork(nn.Module):
         self.orbitals_max_order = get_max_order(self.orbitals)
         self.activation = activation
 
-        self.orbital_spec, _ = combine_orbitals(self.orbitals, self.orbitals_max_order)
+        self.orbital_spec, _, _ = combine_orbitals(self.orbitals, self.orbitals_max_order)
         self.dens_features = 0
         self.verbose = verbose
         self.timing = timing
@@ -358,7 +358,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
         self.register_buffer('idx_j', idx_j)
 
         self.orbitals_max_order = get_max_order(self.orbitals)
-        self.orbital_spec, _ = combine_orbitals(self.orbitals, self.orbitals_max_order)
+        self.orbital_spec, _, _ = combine_orbitals(self.orbitals, self.orbitals_max_order)
         self.dens_features = [0] * (self.orbitals_max_order + 1)
         seen_z = []
         for i in range(len(self.orbital_spec)):
@@ -530,7 +530,7 @@ class SimpleEnergyNetworkv2(nn.Module):
         self.orbitals_max_order = get_max_order(self.orbitals)
         self.activation = activation
 
-        self.orbital_spec, _ = combine_orbitals(self.orbitals, self.orbitals_max_order)
+        self.orbital_spec, _, _ = combine_orbitals(self.orbitals, self.orbitals_max_order)
         self.dens_features = 0
         self.verbose = verbose
         self.timing = timing
@@ -745,7 +745,7 @@ class RepresentationEnergyNetwork(nn.Module):
         self.register_buffer('idx_j', idx_j)
 
         self.orbitals_max_order = get_max_order(self.orbitals)
-        self.orbital_spec, _ = combine_orbitals(self.orbitals, self.orbitals_max_order)
+        self.orbital_spec, _, _ = combine_orbitals(self.orbitals, self.orbitals_max_order)
 
         self.order_max = max(self.mixing_order)
         if clebsch_gordan is None:
@@ -889,7 +889,7 @@ class SimpleRepresentationEnergyNetwork(nn.Module):
         self.register_buffer('idx_j', idx_j)
 
         self.orbitals_max_order = get_max_order(self.orbitals)
-        self.orbital_spec, _ = combine_orbitals(self.orbitals, self.orbitals_max_order)
+        self.orbital_spec, _, _ = combine_orbitals(self.orbitals, self.orbitals_max_order)
 
         self.order_max = max(self.mixing_order)
         if clebsch_gordan is None:
