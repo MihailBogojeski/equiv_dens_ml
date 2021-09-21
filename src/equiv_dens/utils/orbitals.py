@@ -103,7 +103,7 @@ def coeffs_dict_to_tensors(coeffs, radial_coeffs=True):
     sph_coeffs = coeffs['spherical_coeffs']
     rad_width = coeffs['radial_width']
     rad_scale = coeffs['radial_scale']
-    L_dict = coeffs['L_dict']
+    sph_dict = coeffs['sph_dict']
 
     max_order = 0
     for i in range(len(sph_coeffs)):
@@ -121,8 +121,8 @@ def coeffs_dict_to_tensors(coeffs, radial_coeffs=True):
         for key in sph_coeffs[i].keys():
             L = key[1]
             # print(i, L)
-            if L_dict[key][-1] >= max_num_coeffs[L]:
-                max_num_coeffs[L] = L_dict[key][-1] + 1
+            if sph_dict[key][-1] >= max_num_coeffs[L]:
+                max_num_coeffs[L] = sph_dict[key][-1] + 1
             if rad_scale[i][key].shape[-2] > max_num_radial[L]:
                 max_num_radial[L] = rad_scale[i][key].shape[-2]
     # print('max num coeffs', max_num_coeffs)
@@ -145,7 +145,7 @@ def coeffs_dict_to_tensors(coeffs, radial_coeffs=True):
     for i in range(len(sph_coeffs)):
         for key in sph_coeffs[i].keys():
             L = key[1]
-            inds = L_dict[key]
+            inds = sph_dict[key]
             # print('i, ', i, ', key', key)
             # print('padding', padding)
             all_sph[L][i][..., inds] = sph_coeffs[i][key]

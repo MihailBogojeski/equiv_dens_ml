@@ -483,6 +483,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
                 scale_fs[L] = scale_fs[L] * self.radial_scale_filters(L)
                 width_fs[L] = width_fs[L] * self.radial_width_filters(L)
                 radial_comb = self.coeff_activation[L](scale_fs[L] * width_fs[L])
+                radial_comb = radial_comb.sum(-2, keepdim=True)
                 xs.append(sph_fs[L] * radial_comb)
         else:
             xs = sph_fs
@@ -645,9 +646,10 @@ class SimpleEnergyNetworkv2(nn.Module):
                 # print('L', L)
                 # print('scale fs L', scale_fs[L].shape)
                 # print('self.radial_scale_filters[L]', self.radial_scale_filters(L).shape)
-                scale_fs[L] = scale_fs[L] * self.radial_scale_filters(L)
-                width_fs[L] = width_fs[L] * self.radial_width_filters(L)
+                scale_fs[L] = (scale_fs[L] * self.radial_scale_filters(L))
+                width_fs[L] = (width_fs[L] * self.radial_width_filters(L))
                 radial_comb = self.coeff_activation[L](scale_fs[L] * width_fs[L])
+                radial_comb = radial_comb.sum(-2, keepdim=True) 
                 xs.append(sph_fs[L] * radial_comb)
         else:
             xs = sph_fs
