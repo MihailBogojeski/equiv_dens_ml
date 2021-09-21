@@ -83,8 +83,8 @@ class DummyCalculator(MDCalculator):
         self.step += 1
 
 
-props = dict(np.load('simulation_gpu_dipole_test_new_lvl4_313000.npz', allow_pickle=True))
-log_file = 'simulation_gpu_dipole_test_new_lvl4_313000.hdf5'
+props = dict(np.load('simulation_gpu_dipole_test_new_lvl4_all.npz', allow_pickle=True))
+log_file = 'simulation_gpu_dipole_test_new_lvl4_all.hdf5'
 if os.path.exists(log_file):
     os.remove(log_file)
 n_replicas = 1

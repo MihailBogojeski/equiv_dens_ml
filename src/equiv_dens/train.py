@@ -7,8 +7,9 @@ from tensorboardX import SummaryWriter
 from equiv_dens.nn.dft_network import DFTNetwork
 from equiv_dens.nn.representation.spherical_harmonic import EquivariantSphericalHarmonics
 from equiv_dens.nn.property_output.energy import ComplexEnergyNetwork, SimpleEnergyNetwork,\
-    SphericalHarmonicsEnergyNetwork, SimpleEnergyNetworkv2
-from equiv_dens.nn.property_output.density import DensityCoeffsNetwork, DensityExpansion
+    SphericalHarmonicsEnergyNetwork, SimpleEnergyNetworkv2, SimpleRepresentationEnergyNetwork,\
+    RepresentationEnergyNetwork
+from equiv_dens.nn.property_output.density import DensityCoeffsNetwork, DensityExpansion, DummyCoeffsNetwork
 from equiv_dens.nn.property_output.density_legacy import DensityCoeffsNetwork as LegacyDensityCoeffsNetwork
 from equiv_dens.nn.property_output.density_legacy import DensityExpansion as LegacyDensityExpansion
 from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
@@ -380,13 +381,49 @@ elif args.energy_model == 'simple':
 elif args.energy_model == 'simple2':
     print('building simple energy model')
     en_model = SimpleEnergyNetworkv2(
-        order=args.order[-1],
+        order=args.order,
         orbitals=dataset.orbitals,
         num_features=args.num_energy_features,
         activation=args.activation,
         calculate_forces=calculate_forces,
         verbose=args.verbose,
         clebsch_gordan=clebsch_gordan,
+        timing=args.timing,
+    )
+elif args.energy_model == 'repr':
+    print('building representation energy model')
+    en_model = RepresentationEnergyNetwork(
+        orbitals=dataset.orbitals,
+        order=args.order_en,
+        mixing_order=args.mixing_order_en,
+        num_features=args.num_energy_features,
+        num_basis_functions=args.num_basis_functions,
+        num_modules=args.num_modules,
+        num_residual_pre_x=args.num_residual_pre_x,
+        num_residual_post_x=args.num_residual_post_x,
+        num_residual_pre_vi=args.num_residual_pre_vi,
+        num_residual_pre_vj=args.num_residual_pre_vj,
+        num_residual_post_v=args.num_residual_post_v,
+        num_residual_output=args.num_residual_output,
+        num_radial_components=args.num_radial_components,
+        basis_functions=args.basis_functions,
+        cutoff=args.cutoff,
+        activation=args.activation,
+        clebsch_gordan=clebsch_gordan,
+        calculate_forces=calculate_forces,
+        verbose=args.verbose,
+        timing=args.timing,
+    )
+elif args.energy_model == 'simple_repr':
+    print('building simple representation energy model')
+    en_model = SimpleRepresentationEnergyNetwork(
+        orbitals=dataset.orbitals,
+        order=args.order,
+        num_features=args.num_energy_features,
+        activation=args.activation,
+        clebsch_gordan=clebsch_gordan,
+        calculate_forces=calculate_forces,
+        verbose=args.verbose,
         timing=args.timing,
     )
 else:
@@ -397,6 +434,17 @@ if loss_weights['energy_min'] > 0:
     functional_en_model = nn.Sequential(expansion_model, functional)
 
 density_model = nn.Sequential(repr_model, dens_model)
+if args.dummy_coeff_model:
+    density_model = DummyCoeffsNetwork(orbitals=dataset.orbitals,
+                                       order=args.order[-1],
+                                       num_features=args.num_features,
+                                       positive_coeffs=args.positive_coeffs,
+                                       clebsch_gordan=clebsch_gordan,
+                                       verbose=args.verbose,
+                                       timing=args.timing,
+                                       init_coeffs=dataset.L0_coeffs,
+                                       pred_radial_coeffs=args.pred_radial_coeffs,
+                                       )
 
 property_models = {}
 calculate_forces_dict = {}

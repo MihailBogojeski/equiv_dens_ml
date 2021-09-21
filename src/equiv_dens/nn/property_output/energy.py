@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from equiv_dens.nn.modules.network_blocks import ModularBlock
+from equiv_dens.nn.modules.network_blocks import ModularBlock, ResidualBlock
 from equiv_dens.nn.modules.radial_basis_functions import BernsteinRadialBasisFunctions,\
     GaussianRadialBasisFunctions, ExponentialBernsteinRadialBasisFunctions, ExponentialGaussianRadialBasisFunctions
 from equiv_dens.nn.modules.activations import Swish, ShiftedSoftplus
@@ -523,6 +523,10 @@ class SimpleEnergyNetworkv2(nn.Module):
         self.order = order
         self.compressed_extraction = compressed_extraction
 
+        print('self order', self.order)
+        if isinstance(self.order, list):
+            self.order = self.order[-1]
+        print('self order', self.order)
         # store hyperparameter values
         self.orbitals = orbitals
         self.num_features = num_features
@@ -849,7 +853,6 @@ class SimpleRepresentationEnergyNetwork(nn.Module):
     def __init__(self,
                  orbitals=None,
                  order=1,  # maximum order of spherical harmonics features
-                 mixing_order=None,
                  num_features=32,  # dimensionality of the feature space
                  # number of residual blocks applied to atomic features before interaction layer
                  activation='swish',
@@ -877,7 +880,7 @@ class SimpleRepresentationEnergyNetwork(nn.Module):
 
         print('self order', self.order)
         if not isinstance(self.order, list):
-            self.order = [self.order] * self.num_modules
+            self.order = [self.order]
         print('self order', self.order)
 
         N = len(self.orbitals)
@@ -891,7 +894,6 @@ class SimpleRepresentationEnergyNetwork(nn.Module):
         self.orbitals_max_order = get_max_order(self.orbitals)
         self.orbital_spec, _, _ = combine_orbitals(self.orbitals, self.orbitals_max_order)
 
-        self.order_max = max(self.mixing_order)
         if clebsch_gordan is None:
             self.clebsch_gordan = ClebschGordanMatrix()
         else:
@@ -903,6 +905,8 @@ class SimpleRepresentationEnergyNetwork(nn.Module):
         else:
             print("Unsupported activation function:", self.activation)
             quit()
+
+        self.residual_block = ResidualBlock(self.order[-1], self.num_features, clebsch_gordan=self.clebsch_gordan)
 
         self.energy_output = SphericalLinear(self.order[-1], self.num_features, 0, 1, self.clebsch_gordan)
 
@@ -916,9 +920,12 @@ class SimpleRepresentationEnergyNetwork(nn.Module):
         start = time.time()
         # initialize atomic features to embeddings
         xs = atoms['sph_repr']
+        print('order', self.order)
+        print('len sph_repr', len(atoms['sph_repr']))
 
         # perform iterations over modular building blocks to get environment - dependent features
-        xs = self.out_activation(xs[0])
+        xs = self.residual_block(xs)
+        xs[0] = self.out_activation(xs[0])
 
         atom_en = self.energy_output(xs)[0].squeeze(-1).squeeze(-1)
 

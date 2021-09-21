@@ -89,6 +89,9 @@ def parse_command_line_arguments(arg_file=None):
                                   help="Use a neural network for energy prediction instead of functional.")
     args_hyperparams.add_argument("--pred_radial_coeffs", metavar='True|False', type=str2bool, default=True,
                                   choices=[True, False], help="Output predictions for the radial coefficients as well.")
+    args_hyperparams.add_argument("--dummy_coeff_model", metavar='True|False', type=str2bool, default=False,
+                                  choices=[True, False], help="Optimize coefficients directly without a neural network.")
+
     hyperparam_args = [act.dest for act in args_hyperparams._group_actions]
 
     # arguments for training
