@@ -11,8 +11,9 @@ data = HDF5Loader('simulation_gpu_dipole_test_new_lvl4_313000.hdf5', load_proper
 #  'dipole_moment': [28, 31],                                           
 #  'density': [31, 181747]}                                             
 
-slc = slice(6999)
+slc = slice(313000, 313010)
 
+print('data', data.properties)
 shapes = json.loads(data.database['properties'].attrs['shapes'])
 positions = json.loads(data.database['properties'].attrs['positions'])
 props = {key: data.properties[key] for key in data.properties.keys()}
@@ -37,4 +38,5 @@ for prop in prop_list:
     props[prop] = all[..., slice(*positions[prop])].reshape(*all.shape[:-1], *shapes[prop])
     print(prop, 'shape', props[prop].shape)
 
+# np.savez('/home/ml-dft/equiv_dens/md_logs/2021-06-21_UAD77s3O/simulation_gpu_dipole_test_new_lvl4_313000.npz', **props)
 np.savez('simulation_gpu_dipole_test_new_lvl4_313000_test.npz', **props)
