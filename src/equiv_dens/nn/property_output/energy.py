@@ -43,6 +43,7 @@ class ComplexEnergyNetwork(nn.Module):
                  compressed_extraction=False,
                  verbose=0,
                  timing=False,
+                 pred_radial_coeffs=True,
                  ):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
         super().__init__()
 
@@ -69,6 +70,7 @@ class ComplexEnergyNetwork(nn.Module):
         self.compressed_extraction = compressed_extraction
         self.verbose = verbose
         self.timing = timing
+        self.pred_radial_coeffs = pred_radial_coeffs
 
         N = len(self.orbitals)
         idx_i = torch.arange(N, dtype=torch.int64).view(-1, 1).repeat(1, N).view(-1)
@@ -93,7 +95,8 @@ class ComplexEnergyNetwork(nn.Module):
                 if orb[0] not in seen_zs:
                     self.dens_features += curr_feats
                     seen_zs.append(orb[0])
-        self.dens_features *= 3
+        if self.pred_radial_coeffs:
+            self.dens_features *= 3
         if self.num_features is None:
             self.num_features = self.dens_features
         # extract nuclear charges from orbitals, determine maximum order, and
@@ -134,7 +137,8 @@ class ComplexEnergyNetwork(nn.Module):
     def forward(self, atoms):
         # initialize atomic features to embeddings
         start = time.time()
-        xs = get_invariant_features(atoms, permutational_invariance=False, keep_dims=True)
+        xs = get_invariant_features(atoms, permutational_invariance=False,
+                                    keep_dims=True, radial_coeffs=self.pred_radial_coeffs)
         dij = atoms['distances']
         sph = atoms['sph']
         # print('dij shape', dij.shape)
@@ -181,6 +185,7 @@ class SimpleEnergyNetwork(nn.Module):
                  compressed_extraction=False,
                  verbose=0,
                  timing=False,
+                 pred_radial_coeffs=True,
                  ):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
         super().__init__()
 
@@ -201,6 +206,8 @@ class SimpleEnergyNetwork(nn.Module):
         self.dens_features = 0
         self.verbose = verbose
         self.timing = timing
+        self.pred_radial_coeffs = pred_radial_coeffs
+
         seen_zs = []
         for i in range(len(self.orbital_spec)):
             curr_feats = 0
@@ -213,14 +220,15 @@ class SimpleEnergyNetwork(nn.Module):
                 if orb[0] not in seen_zs:
                     self.dens_features += curr_feats
                     seen_zs.append(orb[0])
-        self.dens_features *= 3
+        if self.pred_radial_coeffs:
+            self.dens_features *= 3
         if self.num_features is None:
             self.num_features = self.dens_features
 
         if self.num_features != self.dens_features:
             self.input_layer = nn.Linear(self.dens_features, self.num_features)
 
-        self.transofrmation_layers = nn.ModuleList([nn.Linear(self.num_features, self.num_features) for i in range(num_layers)])
+        self.transformation_layers = nn.ModuleList([nn.Linear(self.num_features, self.num_features) for i in range(num_layers)])
 
         if self.activation == 'swish':
             self.out_activation = Swish(self.num_features)
@@ -236,13 +244,14 @@ class SimpleEnergyNetwork(nn.Module):
         start = time.time()
         # initialize atomic features to embeddings
         # print('sph coeffs', atoms['spherical_coeffs'][0][(8, 0)])
-        fs = get_invariant_features(atoms, permutational_invariance=False, keep_dims=True)
+        fs = get_invariant_features(atoms, permutational_invariance=False,
+                                    keep_dims=True, radial_coeffs=self.pred_radial_coeffs)
         if self.verbose > 3:
             print('fs.shape', fs.shape)
 
         if self.num_features != self.dens_features:
             fs = self.input_layer(fs)
-        for layer in self.transofrmation_layers:
+        for layer in self.transformation_layers:
             # print('fs intermediate', fs)
             fs = self.out_activation(layer(fs))
         atom_en = self.energy_output(self.out_activation(fs)).squeeze(-1)
@@ -298,6 +307,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
                  compressed_extraction=False,
                  verbose=0,
                  timing=False,
+                 pred_radial_coeffs=True,
                  ):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
         super().__init__()
 
@@ -326,6 +336,8 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
         self.verbose = verbose
         self.timing = timing
         self.mixing_order = mixing_order
+        self.pred_radial_coeffs = pred_radial_coeffs
+
         if self.mixing_order is None:
             self.mixing_order = self.order
 
@@ -401,13 +413,14 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
             print("basis function type:",
                   self.basis_functions, "is not supported")
 
-        for L in range(len(self.dens_features)):
-            name = "radial_scale_filters_{}".format(L)
-            self.register_parameter(name, nn.Parameter(torch.ones(1, self.dens_features[L])))
-            name = "radial_width_filters_{}".format(L)
-            self.register_parameter(name, nn.Parameter(torch.ones(1, self.dens_features[L])))
-        # self.radial_scale_filters = nn.ParameterList([nn.Parameter(torch.ones(1, df_num)) for df_num in self.dens_features])
-        # self.radial_width_filters = nn.ParameterList([nn.Parameter(torch.ones(1, df_num)) for df_num in self.dens_features])
+        if self.pred_radial_coeffs:
+            for L in range(len(self.dens_features)):
+                name = "radial_scale_filters_{}".format(L)
+                self.register_parameter(name, nn.Parameter(torch.ones(1, self.dens_features[L])))
+                name = "radial_width_filters_{}".format(L)
+                self.register_parameter(name, nn.Parameter(torch.ones(1, self.dens_features[L])))
+            # self.radial_scale_filters = nn.ParameterList([nn.Parameter(torch.ones(1, df_num)) for df_num in self.dens_features])
+            # self.radial_width_filters = nn.ParameterList([nn.Parameter(torch.ones(1, df_num)) for df_num in self.dens_features])
         self.input_layer = nn.ModuleList([nn.Linear(df_num, self.num_features) for df_num in self.dens_features])
 
         modules = [ModularBlock(self.order[0], self.num_features, self.num_basis_functions,
@@ -453,7 +466,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
     def forward(self, atoms):
         start = time.time()
         # initialize atomic features to embeddings
-        sph_fs, scale_fs, width_fs = coeffs_dict_to_tensors(atoms)
+        sph_fs, scale_fs, width_fs = coeffs_dict_to_tensors(atoms, radial_coeffs=self.pred_radial_coeffs)
         dij = atoms['distances']
         sph = atoms['sph']
         # print('dij shape', dij.shape)
@@ -462,14 +475,17 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
         rbf = self.radial_basis_functions(dij).unsqueeze_(-2)  # unsqueeze for broadcasting
         xs = []
         # print('dens features', self.dens_features)
-        for L in range(len(scale_fs)):
-            # print('L', L)
-            # print('scale fs L', scale_fs[L].shape)
-            # print('self.radial_scale_filters[L]', self.radial_scale_filters(L).shape)
-            scale_fs[L] = scale_fs[L] * self.radial_scale_filters(L)
-            width_fs[L] = width_fs[L] * self.radial_width_filters(L)
-            radial_comb = self.coeff_activation[L](scale_fs[L] * width_fs[L])
-            xs.append(sph_fs[L] * radial_comb)
+        if self.pred_radial_coeffs:
+            for L in range(len(scale_fs)):
+                # print('L', L)
+                # print('scale fs L', scale_fs[L].shape)
+                # print('self.radial_scale_filters[L]', self.radial_scale_filters(L).shape)
+                scale_fs[L] = scale_fs[L] * self.radial_scale_filters(L)
+                width_fs[L] = width_fs[L] * self.radial_width_filters(L)
+                radial_comb = self.coeff_activation[L](scale_fs[L] * width_fs[L])
+                xs.append(sph_fs[L] * radial_comb)
+        else:
+            xs = sph_fs
 
         for L in range(len(xs)):
             xs[L] = self.input_layer[L](xs[L])
@@ -513,6 +529,7 @@ class SimpleEnergyNetworkv2(nn.Module):
                  verbose=0,
                  timing=False,
                  clebsch_gordan=None,
+                 pred_radial_coeffs=True,
                  ):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
         super().__init__()
 
@@ -538,6 +555,8 @@ class SimpleEnergyNetworkv2(nn.Module):
         self.dens_features = 0
         self.verbose = verbose
         self.timing = timing
+        self.pred_radial_coeffs = pred_radial_coeffs
+
         self.dens_features = [0] * (self.orbitals_max_order + 1)
         seen_z = []
         for i in range(len(self.orbital_spec)):
@@ -562,11 +581,12 @@ class SimpleEnergyNetworkv2(nn.Module):
         else:
             self.clebsch_gordan = clebsch_gordan
 
-        for L in range(len(self.dens_features)):
-            name = "radial_scale_filters_{}".format(L)
-            self.register_parameter(name, nn.Parameter(torch.ones(1, self.dens_features[L])))
-            name = "radial_width_filters_{}".format(L)
-            self.register_parameter(name, nn.Parameter(torch.ones(1, self.dens_features[L])))
+        if self.pred_radial_coeffs:
+            for L in range(len(self.dens_features)):
+                name = "radial_scale_filters_{}".format(L)
+                self.register_parameter(name, nn.Parameter(torch.ones(1, self.dens_features[L])))
+                name = "radial_width_filters_{}".format(L)
+                self.register_parameter(name, nn.Parameter(torch.ones(1, self.dens_features[L])))
 
         # self.radial_scale_filters = nn.ParameterList([nn.Parameter(torch.ones(1, df_num)) for df_num in self.dens_features])
         # self.radial_width_filters = nn.ParameterList([nn.Parameter(torch.ones(1, df_num)) for df_num in self.dens_features])
@@ -614,20 +634,23 @@ class SimpleEnergyNetworkv2(nn.Module):
         start = time.time()
         # initialize atomic features to embeddings
         # print('sph coeffs', atoms['spherical_coeffs'][0][(8, 0)])
-        sph_fs, scale_fs, width_fs = coeffs_dict_to_tensors(atoms)
+        sph_fs, scale_fs, width_fs = coeffs_dict_to_tensors(atoms, radial_coeffs=self.pred_radial_coeffs)
         # print('dij shape', dij.shape)
         # print('uij shape', uij.shape)
         # print('R shape', R.shape)
         xs = []
         # print('dens features', self.dens_features)
-        for L in range(len(scale_fs)):
-            # print('L', L)
-            # print('scale fs L', scale_fs[L].shape)
-            # print('self.radial_scale_filters[L]', self.radial_scale_filters(L).shape)
-            scale_fs[L] = scale_fs[L] * self.radial_scale_filters(L)
-            width_fs[L] = width_fs[L] * self.radial_width_filters(L)
-            radial_comb = self.coeff_activation[L](scale_fs[L] * width_fs[L])
-            xs.append(sph_fs[L] * radial_comb)
+        if self.pred_radial_coeffs:
+            for L in range(len(scale_fs)):
+                # print('L', L)
+                # print('scale fs L', scale_fs[L].shape)
+                # print('self.radial_scale_filters[L]', self.radial_scale_filters(L).shape)
+                scale_fs[L] = scale_fs[L] * self.radial_scale_filters(L)
+                width_fs[L] = width_fs[L] * self.radial_width_filters(L)
+                radial_comb = self.coeff_activation[L](scale_fs[L] * width_fs[L])
+                xs.append(sph_fs[L] * radial_comb)
+        else:
+            xs = sph_fs
 
         for L in range(len(xs)):
             xs[L] = self.input_layer[L](xs[L])
