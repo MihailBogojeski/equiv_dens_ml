@@ -32,13 +32,19 @@ def combine_orbitals(orbitals, order_max):
     return spherical_spec, radial_spec, radial_counts
 
 
-def get_max_order(orbitals):
-    order_max = 0
+def get_max_order(orbitals, per_atom=False):
+    order_max = {}
     for i in range(len(orbitals)):
         for z, _, l in orbitals[i]:
-            if l > order_max:
-                order_max = l
-    return order_max
+            if z in order_max.keys():
+                if l > order_max[z]:
+                    order_max[z] = l
+            else:
+                order_max[z] = l
+    if per_atom:
+        return order_max
+    else:
+        return max(order_max.values())
 
 
 def get_n_electrons(orbitals):

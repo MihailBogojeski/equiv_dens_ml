@@ -70,7 +70,7 @@ class AtomsDensityData(Dataset):
         self.required_properties = required_properties
         self.radial_coeffs_file = radial_coeffs_file
         self.L0_coeffs_file = L0_coeffs_file
-        self.grid_rn = grid_fn
+        self.grid_fn = grid_fn
         self.sampling_fn = sampling_fn
         self.dtype = dtype
         self.grid_extent = grid_extent

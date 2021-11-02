@@ -384,7 +384,8 @@ class DensityExpansion(nn.Module):
             print('expansion constraint', self.expansion_constraint)
             print('integral constraint', self.integral_constraint)
 
-        self.orbitals_max_order = get_max_order(self.orbitals)
+        self.orbitals_max_order_dict = get_max_order(self.orbitals, per_atom=True)
+        self.orbitals_max_order = max(self.orbitals_max_order_dict.values())
         if n_electrons is None:
             self.n_electrons = get_n_electrons(self.orbitals)
         else:
@@ -477,7 +478,7 @@ class DensityExpansion(nn.Module):
             # print('atom num', z)
             # print('orbitals i', self.spherical_spec[i])
             d, u = calculate_distances_and_directions(atoms['coords'], center=atoms['positions'][:, [i]])
-            s = spherical_harmonics(self.orbitals_max_order, u)
+            s = spherical_harmonics(self.orbitals_max_order_dict[z], u)
             # print('atom[i]', i)
             # print('dists', d)
             # print('dists shape', d.shape)

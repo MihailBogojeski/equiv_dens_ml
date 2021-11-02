@@ -5,16 +5,55 @@ import torch.nn as nn
 from equiv_dens.nn.dft_network import DFTNetwork
 from equiv_dens.nn.representation.spherical_harmonic import EquivariantSphericalHarmonics
 from equiv_dens.nn.property_output.energy import ComplexEnergyNetwork, SimpleEnergyNetwork,\
-    SphericalHarmonicsEnergyNetwork, SimpleEnergyNetworkv2
+    SphericalHarmonicsEnergyNetwork, SimpleEnergyNetworkv2, SimpleRepresentationEnergyNetwork,\
+    RepresentationEnergyNetwork
 from equiv_dens.nn.property_output.density import DensityCoeffsNetwork, DensityExpansion
 from equiv_dens.nn.property_output.density_legacy import DensityCoeffsNetwork as LegacyDensityCoeffsNetwork
 from equiv_dens.nn.property_output.density_legacy import DensityExpansion as LegacyDensityExpansion
 from equiv_dens.nn.property_output.dipole_moment import DipoleMomentCalc
 from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
+import equiv_dens.utils.base as utils
+from equiv_dens.utils.grids import dftpy_grid, CubicalGrid
+from dftpy.pseudo import LocalPseudo
+from equiv_dens.density_functionals.LDA import LDAFunctional
+
+import numpy as np
 
 
-def load_model(args, dataset):
+def load_model(args, dataset, train=False):
+    use_gpu = args.use_gpu and torch.cuda.is_available()
     z_vals = dataset.atoms['atom_numbers']
+    if args.energy_min_weight > 0:
+        grid_extent = np.array([args.cube_extent] * 3)
+        grid_cl = CubicalGrid(dataset.atoms, nx=args.cube_size, ny=args.cube_size, nz=args.cube_size,
+                              origin=[0, 0, 0], extent=utils.angstrom_to_bohr(grid_extent),
+                              use_gpu=use_gpu, dtype=args.dtype)
+
+        cube_gap = utils.angstrom_to_bohr(args.cube_extent) / args.cube_size
+        print('cube_extent', utils.angstrom_to_bohr(args.cube_extent))
+        print('cube_size', args.cube_size)
+        print('cube_gap', cube_gap)
+        grid = dftpy_grid(np.diag(utils.angstrom_to_bohr(grid_extent)), cube_gap)
+        # print('grid.lattice', grid.lattice)
+        # print('grid size', grid.r.shape)
+        # print('ions lattice', dataset.ions[0].pos.cell.lattice)
+
+        file_names = {'H': 'H.pbe-kjpaw_psl.0.1.UPF', 'C': 'C.pbe-kjpaw_psl.0.1.UPF',
+                      'O': 'O.pbe-n-kjpaw_psl.0.1.UPF'}
+        PP_list = {key: os.path.join(args.pseudo_pot_path, file_names[key]) for key in file_names.keys()}
+        # print('pseudo potentials', PP_list)
+        pseudo_pot = LocalPseudo(grid=grid, ions=None, PP_list=PP_list, PME=True)
+        pseudo_pot.restart(grid=grid, ions=dataset.ions[0])
+
+        dataset.add_fixed_properties({'grid': grid_cl, 'dftpy_grid': grid, 'pseudo_pot': pseudo_pot})
+
+        z_vals = []
+        print('ions0', dataset.ions[0])
+        for t in dataset.atoms['atom_types']:
+            z_vals.append(dataset.ions[0].Zval[t])
+        z_vals = np.array(z_vals)
+        print(dataset.atoms['atom_numbers'])
+        print(z_vals)
     # define model
     clebsch_gordan = ClebschGordanMatrix()
     repr_model = EquivariantSphericalHarmonics(
@@ -66,7 +105,7 @@ def load_model(args, dataset):
                                         timing=args.timing,
                                         )
 
-    calculate_forces = True
+    calculate_forces = args.forces_weight > 0
 
     if args.num_energy_features is None:
         args.num_energy_features = args.num_features
@@ -139,24 +178,72 @@ def load_model(args, dataset):
             clebsch_gordan=clebsch_gordan,
             timing=args.timing,
         )
+    elif args.energy_model == 'repr':
+        print('building representation energy model')
+        en_model = RepresentationEnergyNetwork(
+            orbitals=dataset.orbitals,
+            order=args.order_en,
+            mixing_order=args.mixing_order_en,
+            num_features=args.num_energy_features,
+            num_basis_functions=args.num_basis_functions,
+            num_modules=args.num_modules,
+            num_residual_pre_x=args.num_residual_pre_x,
+            num_residual_post_x=args.num_residual_post_x,
+            num_residual_pre_vi=args.num_residual_pre_vi,
+            num_residual_pre_vj=args.num_residual_pre_vj,
+            num_residual_post_v=args.num_residual_post_v,
+            num_residual_output=args.num_residual_output,
+            num_radial_components=args.num_radial_components,
+            basis_functions=args.basis_functions,
+            cutoff=args.cutoff,
+            activation=args.activation,
+            clebsch_gordan=clebsch_gordan,
+            calculate_forces=calculate_forces,
+            verbose=args.verbose,
+            timing=args.timing,
+        )
+    elif args.energy_model == 'simple_repr':
+        print('building simple representation energy model')
+        en_model = SimpleRepresentationEnergyNetwork(
+            orbitals=dataset.orbitals,
+            order=args.order,
+            num_features=args.num_energy_features,
+            activation=args.activation,
+            clebsch_gordan=clebsch_gordan,
+            calculate_forces=calculate_forces,
+            verbose=args.verbose,
+            timing=args.timing,
+        )
     else:
         args.energy_model = None
 
-    # if loss_weights['energy_min'] > 0:
-    #     functional = LDAFunctional(z_vals, verbose=args.verbose,
-    #                                energy_offset=args.energy_offset,
-    #                                store_energy=(args.energy_model is None))
-    #     functional_en_model = nn.Sequential(expansion_model, functional)
+    if args.energy_min_weight > 0:
+        functional = LDAFunctional(z_vals, verbose=args.verbose,
+                                   energy_offset=args.energy_offset,
+                                   store_energy=(args.energy_model is None))
+        functional_en_model = nn.Sequential(expansion_model, functional)
+
     density_model = nn.Sequential(repr_model, dens_model)
+    if args.dummy_coeff_model:
+        density_model = DummyCoeffsNetwork(orbitals=dataset.orbitals,
+                                           order=args.order[-1],
+                                           num_features=args.num_features,
+                                           positive_coeffs=args.positive_coeffs,
+                                           clebsch_gordan=clebsch_gordan,
+                                           verbose=args.verbose,
+                                           timing=args.timing,
+                                           init_coeffs=dataset.L0_coeffs,
+                                           pred_radial_coeffs=args.pred_radial_coeffs,
+                                           )
 
     property_models = {}
     calculate_forces_dict = {}
     if args.density_weight > 0:
         property_models['density'] = expansion_model
         calculate_forces_dict['density'] = False
-    # if loss_weights['energy_min'] > 0:
-    #     property_models['energy_min'] = functional_en_model
-    #     calculate_forces_dict['energy_min'] = False
+    if args.energy_min_weight > 0:
+        property_models['energy_min'] = functional_en_model
+        calculate_forces_dict['energy_min'] = False
     if args.energy_model is not None:
         property_models['energy'] = en_model
         calculate_forces_dict['energy'] = calculate_forces
@@ -173,16 +260,17 @@ def load_model(args, dataset):
         print('state_dict_path', state_dict_path)
         state_dict = torch.load(state_dict_path, map_location='cpu')
         model.load_state_dict(state_dict)
-    print('dtype type', type(args.dtype))
-    model.to(args.dtype)
-    if args.use_gpu:
-        print('using GPU')
-        model.cuda()
-    # if there are multiple GPUs, wrap the model in DataParallel
-    # "module" is used whenever direct access is needed, e.g. for parameters,
-    # whereas "model" may be DataParallel and is used for inference only
+    if not train:
+        print('dtype type', type(args.dtype))
+        model.to(args.dtype)
+        if args.use_gpu:
+            print('using GPU')
+            model.cuda()
+        # if there are multiple GPUs, wrap the model in DataParallel
+        # "module" is used whenever direct access is needed, e.g. for parameters,
+        # whereas "model" may be DataParallel and is used for inference only
 
-    if args.use_gpu and torch.cuda.device_count() > 1:
-        model = torch.nn.DataParallel(model)
+        if args.use_gpu and torch.cuda.device_count() > 1:
+            model = torch.nn.DataParallel(model)
 
     return model

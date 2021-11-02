@@ -209,7 +209,6 @@ error_dict = ErrorDict(loss_weights, weights_balance=args.weights_balance,
 
 z_vals = dataset.atoms['atom_numbers']
 if loss_weights['energy_min']:
-    grid_origin = args.cube_origin
     grid_extent = np.array([args.cube_extent] * 3)
     grid_cl = CubicalGrid(dataset.atoms, nx=args.cube_size, ny=args.cube_size, nz=args.cube_size,
                           origin=[0, 0, 0], extent=utils.angstrom_to_bohr(grid_extent),
@@ -457,6 +456,9 @@ if loss_weights['energy_min'] > 0:
 if args.energy_model is not None:
     property_models['energy'] = en_model
     calculate_forces_dict['energy'] = calculate_forces
+if args.dipole_moment_weight:
+    property_models['dipole_moment'] = DipoleMomentCalc()
+    calculate_forces_dict['dipole_moment'] = False
 
 # print('property models', property_models)
 model = DFTNetwork(density_model, property_models, calculate_forces_dict=calculate_forces_dict, verbose=args.verbose)
