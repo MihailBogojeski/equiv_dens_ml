@@ -109,7 +109,10 @@ def coeffs_dict_to_tensors(coeffs, radial_coeffs=True):
     sph_coeffs = coeffs['spherical_coeffs']
     rad_width = coeffs['radial_width']
     rad_scale = coeffs['radial_scale']
-    sph_dict = coeffs['sph_dict']
+    if 'sph_dict' in coeffs:
+        sph_dict = coeffs['sph_dict']
+    else:
+        sph_dict = coeffs['L_dict']
 
     max_order = 0
     for i in range(len(sph_coeffs)):

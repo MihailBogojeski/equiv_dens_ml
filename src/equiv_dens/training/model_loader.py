@@ -7,7 +7,7 @@ from equiv_dens.nn.representation.spherical_harmonic import EquivariantSpherical
 from equiv_dens.nn.property_output.energy import ComplexEnergyNetwork, SimpleEnergyNetwork,\
     SphericalHarmonicsEnergyNetwork, SimpleEnergyNetworkv2, SimpleRepresentationEnergyNetwork,\
     RepresentationEnergyNetwork
-from equiv_dens.nn.property_output.density import DensityCoeffsNetwork, DensityExpansion
+from equiv_dens.nn.property_output.density import DensityCoeffsNetwork, DensityExpansion, DummyCoeffsNetwork
 from equiv_dens.nn.property_output.density_legacy import DensityCoeffsNetwork as LegacyDensityCoeffsNetwork
 from equiv_dens.nn.property_output.density_legacy import DensityExpansion as LegacyDensityExpansion
 from equiv_dens.nn.property_output.dipole_moment import DipoleMomentCalc
@@ -254,9 +254,17 @@ def load_model(args, dataset, train=False):
     model = DFTNetwork(density_model, property_models, calculate_forces_dict=calculate_forces_dict, verbose=args.verbose)
     # print('dft network', model)
     if args.restart is not None:
+        directory = args.restart  # load directory name
+    # load latest checkpoint
+        checkpoint_path = os.path.join(directory, 'checkpoints')  # checkpoint directory
+        checkpoint = torch.load(os.path.join(
+            checkpoint_path, 'latest_checkpoint.pth'), map_location='cpu')
+        model_code = checkpoint['ID']
+        best_model_path = 'best_' + model_code + '.pth'
+        print('best_model_path', best_model_path)
         print('args restart', args.restart)
-        print('best_model_path', args.best_model_path)
-        state_dict_path = os.path.join(args.restart, args.best_model_path)
+        print('best_model_path', best_model_path)
+        state_dict_path = os.path.join(args.restart, best_model_path)
         print('state_dict_path', state_dict_path)
         state_dict = torch.load(state_dict_path, map_location='cpu')
         model.load_state_dict(state_dict)

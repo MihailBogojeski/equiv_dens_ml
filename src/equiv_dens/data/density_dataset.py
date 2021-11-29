@@ -215,27 +215,14 @@ class AtomsDensityData(Dataset):
         # extract properties
         properties = {}
         positions = torch.from_numpy(self.atoms['positions'][idx]).type(self.dtype)
+        print('required properties', self.required_properties)
         for pname in self.required_properties:
             # fallback for properties stored directly
             # in the row
             if pname == 'coords' or pname == 'density':
-                if self.use_gpu:
-                    positions = positions.cuda()
-                if self.radii_adjust:
-                    f_radii_adjust = treutler_atomic_radii_adjust(utils.symbols_to_numbers(self.atoms['atom_types']),
-                                                                  radi.BRAGG_RADII)
-                    sample_coords, coord_weights = self.sampling_fn(self.grid_spec, self.density_n_samp,
-                                                                    self.atoms['atom_types'],
-                                                                    positions, radii_adjust=f_radii_adjust)
-                else:
-                    sample_coords, coord_weights = self.sampling_fn(self.grid_spec, self.density_n_samp,
-                                                                    self.atoms['atom_types'],
-                                                                    positions)
-                # print('density nans', torch.sum(torch.isnan(properties[pname])))
-                properties['coords'] = sample_coords.type(self.dtype)
-                properties['coord_weights'] = coord_weights.type(self.dtype)
+                properties['coords'], properties['coord_weights'] = self.get_coords(positions, self.atoms['atom_types'])
                 if pname == 'density':
-                    properties[pname] = self.sample_density(idx, sample_coords)
+                    properties[pname] = self.sample_density(idx, properties['coords'])
             else:
                 properties[pname] = torch.from_numpy(self.atoms[pname][idx])
 
@@ -255,6 +242,25 @@ class AtomsDensityData(Dataset):
             properties[prop] = self.fixed_properties[prop]
 
         return properties
+
+    def get_coords(self, positions, atom_types):
+        if self.use_gpu:
+            positions = positions.cuda()
+        if self.radii_adjust:
+            f_radii_adjust = treutler_atomic_radii_adjust(utils.symbols_to_numbers(atom_types),
+                                                          radi.BRAGG_RADII)
+            sample_coords, coord_weights = self.sampling_fn(self.grid_spec, self.density_n_samp,
+                                                            atom_types,
+                                                            positions, radii_adjust=f_radii_adjust)
+        else:
+            sample_coords, coord_weights = self.sampling_fn(self.grid_spec, self.density_n_samp,
+                                                            atom_types,
+                                                            positions)
+        # print('density nans', torch.sum(torch.isnan(properties[pname])))
+        coords = sample_coords.type(self.dtype)
+        coord_weights = coord_weights.type(self.dtype)
+
+        return coords, coord_weights
 
     def sample_density(self, idx, sample_coords):
         scaled_sample_coords = sample_coords.detach().cpu().numpy() / param.BOHR  # convert Angstrom grid to Bohr

@@ -110,6 +110,8 @@ def parse_command_line_arguments(arg_file=None):
     args_training.add_argument("--num_train", metavar='INT', type=int, help="size of training set")
     args_training.add_argument("--num_valid", metavar='INT', type=int, help="size of validation set")
     args_training.add_argument("--num_test", metavar='INT', default=None, type=int, help="size of validation set")
+    args_training.add_argument("--ignore_split_indices", metavar='True|False', type=str2bool, default=False,
+                               choices=[True, False], help="Ignore data splitting indices if they are present.")
     args_training.add_argument("--density_subsamples", metavar='INT', type=int, default=10000,
                                help="number of grid samples used for evaluating density")
     args_training.add_argument("--train_batch_size", metavar='INT', type=int, default=1, help="batch size for training")

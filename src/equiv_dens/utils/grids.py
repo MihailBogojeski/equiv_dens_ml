@@ -13,7 +13,7 @@ def spherical_grid(atoms, level=2):
     symbols = atoms['atom_types']
     positions = atoms['positions'][0]
     mol_dict = list(zip(symbols, positions))
-    if atoms['atom_types'] == ['H']:
+    if np.all(atoms['atom_types'] == ['H']):
         mol = gto.M(atom=mol_dict, spin=1)
     else:
         mol = gto.M(atom=mol_dict)
