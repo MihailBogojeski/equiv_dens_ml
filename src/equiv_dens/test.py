@@ -31,6 +31,7 @@ checkpoint = torch.load(os.path.join(
     checkpoint_path, 'latest_checkpoint.pth'), map_location='cpu')
 latest_checkpoint = checkpoint['step']
 model_code = checkpoint['ID']  # load ID
+
 for arg in vars(checkpoint['args']):
     if args.fix_arguments:
         if arg in hyperparam_args:
@@ -91,16 +92,14 @@ dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_datas
                            verbose=args.verbose)
 
 if data_split_indices is None or args.ignore_split_indices:
-    train_dataset, valid_dataset, test_dataset = seeded_random_split(
-        dataset, [args.num_train, args.num_valid, len(dataset) - (args.num_train + args.num_valid)], seed=args.split_seed)
+    train_dataset, _, test_dataset = seeded_random_split(
+        dataset, [args.num_train, 0, args.num_test], seed=args.split_seed)
 
     data_split_indices = {'train': train_dataset.indices,
-                          'valid': valid_dataset.indices,
                           'test': test_dataset.indices,
                           }
 else:
     train_dataset = torch.utils.data.Subset(dataset, data_split_indices['train'])
-    valid_dataset = torch.utils.data.Subset(dataset, data_split_indices['valid'])
     test_dataset = torch.utils.data.Subset(dataset, data_split_indices['test'])
 
 if args.num_test is not None:

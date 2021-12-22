@@ -125,7 +125,7 @@ dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_datas
                            verbose=args.verbose)
 
 # split into train / valid / test
-if data_split_indices is None:
+if data_split_indices is None and args.np_datasets_valid is None:
     train_dataset, valid_dataset, test_dataset = seeded_random_split(
         lengths=[args.num_train, args.num_valid, len(dataset) - (args.num_train + args.num_valid)],
         dataset=dataset, seed=args.split_seed
@@ -134,6 +134,35 @@ if data_split_indices is None:
     data_split_indices = {'train': train_dataset.indices,
                           'valid': valid_dataset.indices,
                           'test': test_dataset.indices}
+elif args.np_dataset_valid is not None:
+    valid_dataset = AtomsDensityData(np_path=args.np_dataset_valid, density_path=args.dens_dataset_valid,
+                                     orbitals_path=args.orbitals_file,
+                                     density_n_samp=10000000000,
+                                     required_properties=required_properties,
+                                     center_positions=False,
+                                     radial_coeffs_file=args.radial_coeffs_file,
+                                     L0_coeffs_file=args.L0_coeffs_file,
+                                     dtype=args.dtype,
+                                     grid_fn=grid_fn,
+                                     sampling_fn=sampling_fn,
+                                     grid_extent=grid_extent,
+                                     grid_origin=grid_origin,
+                                     verbose=args.verbose)
+    if data_split_indices is None:
+        train_inds = np.random.choice(np.arange(len(dataset)), args.num_train, replace=False)
+        valid_inds = np.random.choice(np.arange(len(valid_dataset)), args.num_valid, replace=False)
+        valid_dataset = torch.utils.data.Subset(valid_dataset, valid_inds)
+        train_dataset, _, test_dataset = seeded_random_split(
+            lengths=[args.num_train, 0, len(dataset) - args.num_train],
+            dataset=dataset, seed=args.split_seed
+        )
+        data_split_indices = {'train': train_dataset.indices,
+                              'valid': valid_dataset.indices,
+                              'test': test_dataset.indices}
+    else:
+        train_dataset = torch.utils.data.Subset(dataset, data_split_indices['train'][:args.num_train])
+        valid_dataset = torch.utils.data.Subset(valid_dataset, data_split_indices['valid'][:args.num_valid])
+        test_dataset = torch.utils.data.Subset(dataset, data_split_indices['test'])
 else:
     train_dataset = torch.utils.data.Subset(dataset, data_split_indices['train'][:args.num_train])
     valid_dataset = torch.utils.data.Subset(dataset, data_split_indices['valid'][:args.num_valid])

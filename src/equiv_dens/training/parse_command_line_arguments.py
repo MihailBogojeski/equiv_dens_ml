@@ -101,6 +101,8 @@ def parse_command_line_arguments(arg_file=None):
     args_training.add_argument("--dens_dataset", metavar='STR', type=str, help="filepath to density dataset")
     args_training.add_argument("--np_dataset_test", metavar='STR', type=str, help="filepath to atoms test dataset")
     args_training.add_argument("--dens_dataset_test", metavar='STR', type=str, help="filepath to density test dataset")
+    args_training.add_argument("--np_dataset_valid", metavar='STR', type=str, help="filepath to atoms validation dataset")
+    args_training.add_argument("--dens_dataset_valid", metavar='STR', type=str, help="filepath to density validation dataset")
     args_training.add_argument("--pseudo_pot_path", metavar='STR', type=str, help="filepath to pseudo potentials")
     args_training.add_argument("--orbitals_file", metavar='STR', type=str, help="filepath to orbital basis")
     args_training.add_argument("--radial_coeffs_file", metavar='STR', type=str, default=None,
@@ -276,6 +278,10 @@ def parse_command_line_arguments(arg_file=None):
             args.dens_dataset_test = None
         if args.np_dataset_test == 'None':
             args.np_dataset_test = None
+        if args.dens_dataset_valid == 'None':
+            args.dens_dataset_valid = None
+        if args.np_dataset_valid == 'None':
+            args.np_dataset_valid = None
         if args.radial_coeffs_file == 'None':
             args.args.radial_coeffs_file = None
         if args.load_from == 'None':
