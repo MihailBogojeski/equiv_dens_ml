@@ -228,6 +228,8 @@ for test_batch_num, data in enumerate(test_data_loader):
     # forward step
     print('step')
     predictions = model(data)
+    data = model.conversions_in(data)
+    data = model.conversions_out(data)
     # print(lkajsdlkjasfd)
     # print('energy pred', predictions['energy'])
     if args.verbose > 0:

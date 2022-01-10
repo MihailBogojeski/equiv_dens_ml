@@ -91,7 +91,6 @@ def parse_command_line_arguments(arg_file=None):
                                   choices=[True, False], help="Output predictions for the radial coefficients as well.")
     args_hyperparams.add_argument("--dummy_coeff_model", metavar='True|False', type=str2bool, default=False,
                                   choices=[True, False], help="Optimize coefficients directly without a neural network.")
-
     hyperparam_args = [act.dest for act in args_hyperparams._group_actions]
 
     # arguments for training
@@ -217,6 +216,20 @@ def parse_command_line_arguments(arg_file=None):
     args_training.add_argument("--verbose", metavar='INT', type=int, default=0, help="Verbosity level.")
     args_training.add_argument("--timing", metavar='True|False', type=str2bool, default=False,
                                choices=[True, False], help="Timing runtime.")
+    args_training.add_argument("--energy_unit_in", metavar='STR', type=str, default='kcal/mol',
+                               choices=['kcal/mol', 'hartree', 'eV', 'kelvin', 'millihartree'],
+                               help="energy input unit")
+    args_training.add_argument("--energy_unit_out", metavar='STR', type=str, default='kcal/mol',
+                               choices=['kcal/mol', 'hartree', 'eV', 'kelvin', 'millihartree'],
+                               help="energy output unit")
+    args_training.add_argument("--distance_unit_in", metavar='STR', type=str, default='angstrom',
+                               choices=['angstrom', 'bohr'], help="distance input unit")
+    args_training.add_argument("--distance_unit_out", metavar='STR', type=str, default='angstrom',
+                               choices=['angstrom', 'bohr'], help="distance output unit")
+    args_training.add_argument("--energy_out_factor", metavar='FLOAT', type=float, default=1.0,
+                               help="Conversion factor applied to energy on output")
+    args_training.add_argument("--forces_out_factor", metavar='FLOAT', type=float, default=1.0,
+                               help="Conversion factor applied to forces on output")
 
     # arguments for simulations
     args_simulation = parser.add_argument_group("simulation hyperparameters")
@@ -290,5 +303,8 @@ def parse_command_line_arguments(arg_file=None):
             args.expansion_constraint = None
         if args.energy_model == 'None':
             args.energy_model = None
+
+        args.energy_unit_in = args.energy_unit_in.split('/')[0]
+        args.energy_unit_out = args.energy_unit_out.split('/')[0]
 
     return args, hyperparam_args

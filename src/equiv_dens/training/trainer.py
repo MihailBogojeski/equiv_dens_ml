@@ -323,6 +323,9 @@ class Trainer:
         #     print('param grad', name, param)
 
         predictions = self._model(data)
+        data = self._module.conversions_in(data)
+        data = self._module.conversions_out(data)
+
         if self.verbose > 0:
             if 'density' in predictions.keys():
                 print('train density intergal', torch.sum(predictions['density'] * predictions['coord_weights'], dim=1))
@@ -427,6 +430,8 @@ class Trainer:
             # if self.verbose > 2:
             #     print('validate before prediction:', torch.cuda.memory_summary())
             predictions = self._model(data)
+            data = self._module.conversions_in(data)
+            data = self._module.conversions_out(data)
             # if self.verbose > 2:
             #     print('validate after prediction:', torch.cuda.memory_summary())
             # print('energy pred', predictions['energy'])

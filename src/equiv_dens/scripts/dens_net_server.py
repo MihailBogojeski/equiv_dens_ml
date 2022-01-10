@@ -120,8 +120,8 @@ while(True):
         print('atoms ', key, 'type:', atoms[key].type())
 
     results = model(atoms)
-    results['energy'] = utils.kcal_to_hartree(results['energy'])
-    results['forces'] = utils.kcal_to_hartree(results['forces'])
+    results['energy'] = utils.millihartree_to_kcal(results['energy'])
+    results['forces'] = utils.millihartree_to_kcal(results['forces'])
     data_out = {key: results[key] for key in output_values}
     for key in data_out.keys():
         data_out[key] = data_out[key].detach().cpu().numpy().tolist()
@@ -131,8 +131,9 @@ while(True):
     print('output length', data_len)
     conn.sendall(data_len.encode('ascii'))
     client_resp = conn.recv(64)
-    client_resp = client_resp.decode('ascii')
     print('client_response:', client_resp)
+    client_resp = client_resp.decode('ascii')
+    print('client_response decoded:', client_resp)
     conn.sendall(data_out_json.encode('ascii'))
     print('Sent output data')
 

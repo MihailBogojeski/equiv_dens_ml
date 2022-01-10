@@ -17,28 +17,52 @@ def bohr_to_angstrom(pos):
     return pos * to_angstrom
 
 
+def angstrom_to_angstrom(pos):
+    return pos
+
+
 def hartree_to_kcal(en):
-    return en * 627.509
+    return en * 627.5096080305927
+
+
+def millihartree_to_kcal(en):
+    return en * 0.6275096080305927
 
 
 def eV_to_kcal(en):
-    return en * 23.061
+    return en * 23.060541945329334
 
 
-def hartree_to_eV(en):
-    return en * 27.2116
+def kelvin_to_kcal(en):
+    return en * 0.001987191686485529
 
 
-def eV_to_hartree(en):
-    return en / 27.2116
+# def hartree_to_eV(en):
+#     return en * 27.2116
+#
+#
+# def eV_to_hartree(en):
+#     return en / 27.2116
+
+
+def kcal_to_kcal(en):
+    return en
 
 
 def kcal_to_hartree(en):
-    return en / 627.509
+    return en / 627.5096080305927
+
+
+def kcal_to_millihartree(en):
+    return en / 0.6275096080305927
 
 
 def kcal_to_eV(en):
-    return en / 23.061
+    return en / 23.060541945329334
+
+
+def kcal_to_kelvin(en):
+    return en / 0.001987191686485529
 
 
 def random_rotation_matrix():

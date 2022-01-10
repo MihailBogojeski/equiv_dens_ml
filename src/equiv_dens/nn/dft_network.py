@@ -1,6 +1,7 @@
 import torch.nn as nn
 import numpy as np
 import torch
+from equiv_dens.nn.modules.unit_conversion import UnitConversion
 
 
 class DFTNetwork(nn.Module):
@@ -11,11 +12,15 @@ class DFTNetwork(nn.Module):
     def __init__(self, density_repr_model,
                  property_model_dict,
                  calculate_forces_dict=None,
-                 verbose=0):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
+                 verbose=0,
+                 conversions_in=UnitConversion(),
+                 conversions_out=UnitConversion()):
         super().__init__()
         self.density_repr_model = density_repr_model
         self.property_models = nn.ModuleDict(property_model_dict)
         self.verbose = verbose
+        self.conversions_in = conversions_in
+        self.conversions_out = conversions_out
         if calculate_forces_dict is None:
             calculate_forces_dict = {key: False for key in property_model_dict.keys()}
             self.calculate_forces = False
@@ -49,6 +54,8 @@ class DFTNetwork(nn.Module):
                 atoms[key] = data[key].clone()
             else:
                 atoms[key] = data[key]
+
+        atoms = self.conversions_in(atoms)
         if self.calculate_forces:
             atoms['positions'].requires_grad = True
 
@@ -74,5 +81,6 @@ class DFTNetwork(nn.Module):
                 print('Memory cached', torch.cuda.memory_cached() / 1024**2)
             # if self.verbose > 2:
             #     print('dft network forward after prop:', key, torch.cuda.memory_summary())
+        atoms = self.conversions_out(atoms)
 
         return atoms

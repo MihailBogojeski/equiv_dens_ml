@@ -12,6 +12,7 @@ from equiv_dens.nn.property_output.density_legacy import DensityCoeffsNetwork as
 from equiv_dens.nn.property_output.density_legacy import DensityExpansion as LegacyDensityExpansion
 from equiv_dens.nn.property_output.dipole_moment import DipoleMomentCalc
 from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
+from equiv_dens.nn.modules.unit_conversion import UnitConversion
 import equiv_dens.utils.base as utils
 from equiv_dens.utils.grids import dftpy_grid, CubicalGrid
 from dftpy.pseudo import LocalPseudo
@@ -56,6 +57,13 @@ def load_model(args, dataset, train=False):
         print(z_vals)
     # define model
     clebsch_gordan = ClebschGordanMatrix()
+    conversions_in = UnitConversion(
+        en_conversion_func=getattr(utils, args.energy_unit_in + '_to_kcal'),
+        dist_conversion_func=getattr(utils, args.distance_unit_in + '_to_angstrom'))
+    conversions_out = UnitConversion(
+        en_conversion_func=getattr(utils, 'kcal_to_' + args.energy_unit_out),
+        dist_conversion_func=getattr(utils, 'angstrom_to_' + args.distance_unit_out))
+
     repr_model = EquivariantSphericalHarmonics(
         orbitals=dataset.orbitals,
         order=args.order,
@@ -251,7 +259,11 @@ def load_model(args, dataset, train=False):
         property_models['dipole_moment'] = DipoleMomentCalc()
         calculate_forces_dict['dipole_moment'] = False
 
-    model = DFTNetwork(density_model, property_models, calculate_forces_dict=calculate_forces_dict, verbose=args.verbose)
+    model = DFTNetwork(density_model, property_models,
+                       calculate_forces_dict=calculate_forces_dict,
+                       verbose=args.verbose,
+                       conversions_in=conversions_in,
+                       conversions_out=conversions_out)
     # print('dft network', model)
     if args.restart is not None:
         directory = args.restart  # load directory name
