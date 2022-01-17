@@ -246,6 +246,8 @@ def parse_command_line_arguments(arg_file=None):
                                  choices=[True, False], help="If true use Langevin dynamics, else use velocity Verlet.")
     args_simulation.add_argument("--simulation_type", metavar='STR', type=str, default='md',
                                  choices=['md', 'opt'], help="type of simulation to run.")
+    args_simulation.add_argument("--port_num", metavar='INT', type=int, default=50007,
+                                 help="Port number for communication.")
 
     # arguments for logging and checkpoints
     args_logging = parser.add_argument_group("logging and checkpoints")

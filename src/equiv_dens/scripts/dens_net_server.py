@@ -67,7 +67,8 @@ print('max distance', torch.max(distances))
 print('min distance', torch.min(distances[distances > 0]))
 
 HOST = ''
-PORT = 50007
+PORT = args.port_num
+print('PORT IS', PORT)
 print('atom types:', dataset.atoms['atom_types'])
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.bind((HOST, PORT))
