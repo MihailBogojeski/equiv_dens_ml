@@ -22,6 +22,10 @@ output_values = ['energy', 'forces']
 # read arguments
 args, hyperparam_args = parse_command_line_arguments()
 
+print('args dipole moment', args.dipole_moment_weight)
+if args.dipole_moment_weight > 0:
+    print('Calculating dipole moment!')
+    output_values.append('dipole_moment')
 directory = args.restart  # load directory name
 # load latest checkpoint
 checkpoint_path = os.path.join(directory, 'checkpoints')  # checkpoint directory
