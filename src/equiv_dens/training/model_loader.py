@@ -3,7 +3,8 @@ import os
 import torch
 import torch.nn as nn
 from equiv_dens.nn.dft_network import DFTNetwork
-from equiv_dens.nn.representation.spherical_harmonic import EquivariantSphericalHarmonics
+from equiv_dens.nn.representation.spherical_harmonic import EquivariantSphericalHarmonics,\
+    TransferableEquivariantSphericalHarmonics
 from equiv_dens.nn.property_output.energy import ComplexEnergyNetwork, SimpleEnergyNetwork,\
     SphericalHarmonicsEnergyNetwork, SimpleEnergyNetworkv2, SimpleRepresentationEnergyNetwork,\
     RepresentationEnergyNetwork
@@ -57,14 +58,21 @@ def load_model(args, dataset, train=False):
         print(z_vals)
     # define model
     clebsch_gordan = ClebschGordanMatrix()
+    print('args energy_unit_in', args.energy_unit_in)
+    print('args energy_unit_out', args.energy_unit_out)
     conversions_in = UnitConversion(
         en_conversion_func=getattr(utils, args.energy_unit_in + '_to_kcal'),
         dist_conversion_func=getattr(utils, args.distance_unit_in + '_to_angstrom'))
     conversions_out = UnitConversion(
         en_conversion_func=getattr(utils, 'kcal_to_' + args.energy_unit_out),
         dist_conversion_func=getattr(utils, 'angstrom_to_' + args.distance_unit_out))
+    
+    if args.transferable_model:
+        repr_class = TransferableEquivariantSphericalHarmonics
+    else:
+        repr_class = EquivariantSphericalHarmonics
 
-    repr_model = EquivariantSphericalHarmonics(
+    repr_model = repr_class(
         orbitals=dataset.orbitals,
         order=args.order,
         num_features=args.num_features,

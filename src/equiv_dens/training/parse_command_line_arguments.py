@@ -71,8 +71,8 @@ def parse_command_line_arguments(arg_file=None):
                                   " (will only work with appropriate reference data)")
     args_hyperparams.add_argument("--expansion_constraint", metavar='STR', type=str, default=None,
                                   help="type of constraint used on density to ensure positivity")
-    args_hyperparams.add_argument("--integral_constraint", metavar='True|False', type=str2bool, default=False,
-                                  choices=[True, False], help="constrain density integral to number of electrons")
+    args_hyperparams.add_argument("--integral_constraint", metavar='STR', type=str, default=None,
+                                  choices=['None', 'grid', 'coeffs', 'True'], help="constrain density integral to number of electrons")
     args_hyperparams.add_argument("--integral_scale", metavar='True|False', type=str2bool, default=False,
                                   choices=[True, False], help="scale density integral by a limited amount")
     args_hyperparams.add_argument("--integral_min", metavar='FLOAT', type=float, default=None,
@@ -91,6 +91,8 @@ def parse_command_line_arguments(arg_file=None):
                                   choices=[True, False], help="Output predictions for the radial coefficients as well.")
     args_hyperparams.add_argument("--dummy_coeff_model", metavar='True|False', type=str2bool, default=False,
                                   choices=[True, False], help="Optimize coefficients directly without a neural network.")
+    args_hyperparams.add_argument("--transferable_model", metavar='True|False', type=str2bool, default=False,
+                                  choices=[True, False], help="Make model transferable across different molecules.")
     hyperparam_args = [act.dest for act in args_hyperparams._group_actions]
 
     # arguments for training
@@ -303,6 +305,10 @@ def parse_command_line_arguments(arg_file=None):
             args.load_from = None
         if args.expansion_constraint == 'None':
             args.expansion_constraint = None
+        if args.integral_constraint == 'None':
+            args.integral_constraint = None
+        if args.integral_constraint == 'True':
+            args.integral_constraint = True
         if args.energy_model == 'None':
             args.energy_model = None
 

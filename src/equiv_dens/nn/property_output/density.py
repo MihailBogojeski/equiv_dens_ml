@@ -362,7 +362,7 @@ class DensityExpansion(nn.Module):
 
     def __init__(self, orbitals, radial_coeffs=None,
                  expansion_constraint=None,
-                 integral_constraint=False,
+                 integral_constraint=None,
                  softmax_norm=False,
                  n_electrons=None,
                  integral_scale=False,
@@ -518,7 +518,7 @@ class DensityExpansion(nn.Module):
         atoms['L0_coeffs'] = L0_coeffs_comb
         # print('L0_coeffs comb sum before', torch.sum(L0_coeffs_comb, 1))
         # print('num electrons', self.n_electrons)
-        if self.integral_constraint:
+        if self.integral_constraint is True or self.integral_constraint == 'coeffs':
             if self.softmax_norm:
                 L0_coeffs_comb = F.softmax(L0_coeffs_comb, dim=1)
                 L0_coeffs_comb = L0_coeffs_comb * self.n_electrons
@@ -558,14 +558,9 @@ class DensityExpansion(nn.Module):
         if self.expansion_constraint == 'abs':
             atoms['density'] = torch.sqrt(atoms['density']**2)
         if self.expansion_constraint == 'sp':
-            dens = atoms['density']
-            if self.verbose > 3:
-                print('dens int pos before', torch.sum(atoms['density'][dens > 0] * 0.06021670784495335))
-                print('dens int neg before', torch.sum(atoms['density'][dens < 0] * 0.06021670784495335))
             atoms['density'] = F.softplus(atoms['density'], beta=100000000) + 1e-30
-            if self.verbose > 3:
-                print('dens int pos after', torch.sum(atoms['density'][dens > 0] * 0.06021670784495335))
-                print('dens int neg after', torch.sum(atoms['density'][dens < 0] * 0.06021670784495335))
+        if self.integral_constraint == 'grid':
+            atoms['density'] = atoms['density'] * self.n_electrons / torch.sum(atoms['density'] * atoms['coord_weights'], dim=1, keepdim=True)
 
         if self.timing:
             print('density expansion time:', time.time() - start)

@@ -83,11 +83,11 @@ class AtomsDensityData(Dataset):
             self.required_properties = self.available_properties
         self.centered_positions = center_positions
         self.atoms = np.load(np_path, allow_pickle=True).item()
-        orbital_basis = np.load(orbitals_path, allow_pickle=True).item()
+        self.orbital_basis = np.load(orbitals_path, allow_pickle=True).item()
         self.orbitals = []
         print('atoms keys', self.atoms.keys())
         for t in self.atoms['atom_types']:
-            self.orbitals.append(orbital_basis[t])
+            self.orbitals.append(self.orbital_basis[t])
         self.atoms['shifted_positions'] = self.atoms['positions'] - grid_origin
         if self.density_path is not None:
             calc_results = np.load(density_path, allow_pickle=True)

@@ -501,6 +501,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
         fs[0] = self.out_activation(fs[0])
 
         atom_en = self.energy_output(fs)[0].squeeze(-1).squeeze(-1)
+        print('atomic energies', atom_en)
 
         energy = torch.sum(atom_en, dim=1, keepdim=True)
 
