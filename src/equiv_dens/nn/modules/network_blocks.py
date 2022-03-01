@@ -82,9 +82,9 @@ class ModularBlock(nn.Module):
             activation,
         )
 
-    def forward(self, xs, rbf, sph, idx_i, idx_j):
+    def forward(self, xs, rbf, sph, idx_i, idx_j, neighbor_mask=1):
         xs = self.residual_pre_x(xs)
-        xs = self.interaction(xs, rbf, sph, idx_i, idx_j)
+        xs = self.interaction(xs, rbf, sph, idx_i, idx_j, neighbor_mask=neighbor_mask)
         xs = self.residual_post_x(xs)
         ys = self.residual_out(xs)
         return xs, ys
@@ -230,7 +230,7 @@ class InteractionBlock(nn.Module):
         for L in range(self.order + 1):
             nn.init.orthogonal_(self.radial_fn[L].weight)
 
-    def forward(self, xs, rbf, sph, idx_i, idx_j):
+    def forward(self, xs, rbf, sph, idx_i, idx_j, neighbor_mask=1):
         ys = [1 * x for x in xs]
         # path for atoms i
         yi = self.residual_pre_vi(ys)
@@ -249,8 +249,7 @@ class InteractionBlock(nn.Module):
             idx = idx_j.view(*(1,) * len(yj[L].shape[:-3]), -1, 1, 1).repeat(
                 *yj[L].shape[:-3], 1, *yj[L].shape[-2:]
             )
-            yj[L] = torch.gather(yj[L], 1, idx)
-            # print('yj shape', yj[L].shape)
+            yj[L] = torch.gather(yj[L], 1, idx) * neighbor_mask
 
         vs = self.mixing(yj, self.angular_fn1(sph), rbf)
         a = self.angular_fn2(sph)

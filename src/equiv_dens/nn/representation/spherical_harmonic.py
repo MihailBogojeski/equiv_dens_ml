@@ -219,7 +219,7 @@ class EquivariantSphericalHarmonics(nn.Module):
         # repeat Z along batch dimension
         # print('atom numbers shape', atoms['atom_numbers'].shape)
         xs = self.embedding(atoms['atom_numbers'])
-        print('xs 0 shape', xs[0].shape)
+        # print('xs 0 shape', xs[0].shape)
         # perform iterations over modular building blocks to get environment - dependent features
         if self.verbose > 2:
             print('repr forward before module blocks:')
@@ -355,6 +355,7 @@ class TransferableEquivariantSphericalHarmonics(nn.Module):
             self.clebsch_gordan = ClebschGordanMatrix()
         else:
             self.clebsch_gordan = clebsch_gordan
+        print('creating embedding')
         self.embedding = SphericalEmbedding(
             self.order_max, self.num_features, self.Zmax)
         if basis_functions == 'exp-gaussian':
@@ -403,12 +404,20 @@ class TransferableEquivariantSphericalHarmonics(nn.Module):
             C: Spherical harmonics coefficients
         """
 
+        atom_mask = atoms['atom_numbers'] != 0
         N = atoms['positions'].shape[1]
+        batch_size = atoms['positions'].shape[0]
         idx_i = torch.arange(N, dtype=torch.int64).view(-1, 1).repeat(1, N).view(-1)
         idx_j = torch.arange(N, dtype=torch.int64).view(1, -1).repeat(N, 1).view(-1)
+        neighbor_mask = atom_mask.view(batch_size, 1, -1).repeat(1, N, 1).view(batch_size, -1)
         # exclude self - interactions
+        neighbor_mask = neighbor_mask[:, idx_i != idx_j]
         idx_i, idx_j = idx_i[idx_i != idx_j], idx_j[idx_i != idx_j]
-        print(idx_j)
+        print('atom numbers', atoms['atom_numbers'])
+        print('atom mask', atom_mask)
+        print('idx_i', idx_i)
+        print('idx_j', idx_j)
+        print('neighbor_mask', neighbor_mask)
 
         # extract nuclear charges from orbitals, determine maximum order, and
         # build the occupation mask (for extracting occupied orbitals in energy prediction)
@@ -455,7 +464,10 @@ class TransferableEquivariantSphericalHarmonics(nn.Module):
         # repeat Z along batch dimension
         # print('atom numbers shape', atoms['atom_numbers'].shape)
         xs = self.embedding(atoms['atom_numbers'])
-        # print('xs 0 shape', xs[0].shape)
+        mask_dim = neighbor_mask.dim()
+        dim_diff = xs[0].dim() - mask_dim
+        neighbor_mask = neighbor_mask.to(xs[0]).reshape(rbf.shape[:mask_dim] + (1,) * dim_diff)
+
         # perform iterations over modular building blocks to get environment - dependent features
         if self.verbose > 2:
             print('repr forward before module blocks:')
@@ -464,7 +476,7 @@ class TransferableEquivariantSphericalHarmonics(nn.Module):
         fs = [torch.zeros_like(x) for x in xs]  # output features
         for i, module in enumerate(self.module):
             xs = self.order_change[i](xs)
-            xs, ys = module(xs, rbf, sph, idx_i, idx_j)
+            xs, ys = module(xs, rbf, sph, idx_i, idx_j, neighbor_mask=neighbor_mask)
             for L in range(self.order[i] + 1):
                 fs[L] += ys[L]  # add contributions to output features
             if self.verbose > 2:
