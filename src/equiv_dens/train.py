@@ -112,7 +112,7 @@ if args.forces_weight > 0:
 
 dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_dataset,
                            orbitals_path=args.orbitals_file,
-                           density_n_samp=10000000000,
+                           density_n_samp=args.density_subsamples,
                            required_properties=required_properties,
                            center_positions=False,
                            radial_coeffs_file=args.radial_coeffs_file,
@@ -137,7 +137,7 @@ if data_split_indices is None and args.np_dataset_valid is None:
 elif args.np_dataset_valid is not None:
     valid_dataset = AtomsDensityData(np_path=args.np_dataset_valid, density_path=args.dens_dataset_valid,
                                      orbitals_path=args.orbitals_file,
-                                     density_n_samp=10000000000,
+                                     density_n_samp=args.density_subsamples,
                                      required_properties=required_properties,
                                      center_positions=False,
                                      radial_coeffs_file=args.radial_coeffs_file,
@@ -148,7 +148,7 @@ elif args.np_dataset_valid is not None:
                                      grid_extent=grid_extent,
                                      grid_origin=grid_origin,
                                      verbose=args.verbose)
-    if data_split_indices is None:
+    if data_split_indices is None or args.ignore_split_indices:
         train_inds = np.random.choice(np.arange(len(dataset)), args.num_train, replace=False)
         valid_inds = np.random.choice(np.arange(len(valid_dataset)), args.num_valid, replace=False)
         valid_dataset = torch.utils.data.Subset(valid_dataset, valid_inds)
@@ -180,7 +180,7 @@ if args.cube_grid_valid:
 
     cube_dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_dataset,
                                     orbitals_path=args.orbitals_file,
-                                    density_n_samp=10000000000,
+                                    density_n_samp=args.density_subsamples,
                                     required_properties=['density', 'energy', 'forces'],
                                     center_positions=False,
                                     radial_coeffs_file=args.radial_coeffs_file,

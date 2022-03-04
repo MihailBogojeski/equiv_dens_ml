@@ -80,7 +80,7 @@ if args.forces_weight > 0:
 
 dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_dataset,
                            orbitals_path=args.orbitals_file,
-                           density_n_samp=10000000000,
+                           density_n_samp=args.density_subsamples,
                            required_properties=required_properties,
                            center_positions=False,
                            radial_coeffs_file=args.radial_coeffs_file,
@@ -108,7 +108,7 @@ if args.num_test is not None:
 if args.np_dataset_test is not None:
     test_dataset = AtomsDensityData(np_path=args.np_dataset_test, density_path=args.dens_dataset_test,
                                     orbitals_path=args.orbitals_file,
-                                    density_n_samp=10000000000,
+                                    density_n_samp=args.density_subsamples,
                                     required_properties=required_properties,
                                     center_positions=False,
                                     radial_coeffs_file=args.radial_coeffs_file,
@@ -219,6 +219,7 @@ else:
 
 test_errors = error_dict.empty()
 for test_batch_num, data in enumerate(test_data_loader):
+    model.eval()
     # send data to GPU
     if use_gpu:
         for key in data.keys():
@@ -227,8 +228,8 @@ for test_batch_num, data in enumerate(test_data_loader):
 
     # forward step
     print('step')
-    predictions = model(data)
     data = model.conversions_in(data)
+    predictions = model(data)
     data = model.conversions_out(data)
     # print(lkajsdlkjasfd)
     # print('energy pred', predictions['energy'])
@@ -245,7 +246,12 @@ for test_batch_num, data in enumerate(test_data_loader):
 
     # update test_errors (running average)
     for key in errors.keys():
+        print('errors', key, type(errors[key]))
         test_errors[key] += (errors[key].item() -
                              test_errors[key]) / (test_batch_num + 1)
+        print('test errors', key, type(test_errors[key]))
+    predictions = None
+    data = None
+    errors = None
 
 print(test_errors)

@@ -73,12 +73,21 @@ class DFTNetwork(nn.Module):
             #     print('dft network forward after prop:', key, torch.cuda.memory_summary())
 
         atoms['positions'].requires_grad = False
-        for key in self.no_force_props:
-            atoms = self.property_models[key](atoms)
-            if self.verbose > 2:
-                print('dft network forward', key, ':')
-                print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
-                print('Memory cached', torch.cuda.memory_cached() / 1024**2)
+        if self.training:
+            for key in self.no_force_props:
+                    atoms = self.property_models[key](atoms)
+                    if self.verbose > 2:
+                        print('dft network forward', key, ':')
+                        print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
+                        print('Memory cached', torch.cuda.memory_cached() / 1024**2)
+        else:
+            with torch.no_grad():
+                for key in self.no_force_props:
+                        atoms = self.property_models[key](atoms)
+                        if self.verbose > 2:
+                            print('dft network forward', key, ':')
+                            print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
+                            print('Memory cached', torch.cuda.memory_cached() / 1024**2)
             # if self.verbose > 2:
             #     print('dft network forward after prop:', key, torch.cuda.memory_summary())
         atoms = self.conversions_out(atoms)

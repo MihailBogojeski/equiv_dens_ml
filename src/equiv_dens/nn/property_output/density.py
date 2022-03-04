@@ -473,7 +473,13 @@ class DensityExpansion(nn.Module):
         L0_sph = []
         L0_d = []
         L0_width = []
+        print('num grid points', atoms['coords'].shape)
         for i in range(len(self.spherical_spec)):
+            if self.verbose > 2:
+                print('Atom', i)
+                print('density density expansion:')
+                print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
+                print('Memory cached', torch.cuda.memory_cached() / 1024**2)
             z = self.spherical_spec[i][0][0]
             # print('atom num', z)
             # print('orbitals i', self.spherical_spec[i])
@@ -514,6 +520,7 @@ class DensityExpansion(nn.Module):
                 rbf = gaussian_rbf(d.unsqueeze(-1), width, scale)
                 if i in eval_atoms and L in eval_L:
                     atoms['density'] += torch.sum(rbf * sph, dim=(-2, -1))
+        print('Density shape', atoms['density'].shape)
         L0_coeffs_comb = torch.cat([coeff.view((coeff.shape[0], -1)) for coeff in L0_coeffs], dim=1)
         atoms['L0_coeffs'] = L0_coeffs_comb
         # print('L0_coeffs comb sum before', torch.sum(L0_coeffs_comb, 1))

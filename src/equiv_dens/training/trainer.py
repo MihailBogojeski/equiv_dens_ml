@@ -244,7 +244,11 @@ class Trainer:
                     print('validation')
                 new_valid = True
                 self._module.eval()
+                for param in self._module.parameters():
+                    param.requires_grad = False
                 for i, valid_data_loader in enumerate(self.validation_loaders):
+                    if self.verbose > 0:
+                        print('validation for', valid_data_loader)
                     if self._module.calculate_forces:
                         self.valid_errors[i], is_best = self._validate(valid_data_loader, use_gpu, check_best=self.valid_check_best[i])
                     else:
@@ -253,6 +257,8 @@ class Trainer:
                     if self.valid_check_best[i]:
                         new_best = is_best
                 self._module.train()
+                for param in self._module.parameters():
+                    param.requires_grad = True
 
             # write summary to console
             if self.step % self.summary_interval == 0:
@@ -322,8 +328,8 @@ class Trainer:
         # for name, param in self._model.named_parameters():
         #     print('param grad', name, param)
 
-        predictions = self._model(data)
         data = self._module.conversions_in(data)
+        predictions = self._model(data)
         data = self._module.conversions_out(data)
 
         if self.verbose > 0:
@@ -417,6 +423,8 @@ class Trainer:
         # run once over the validation set
         valid_errors = self.error_dict.empty()
         for valid_batch_num, data in enumerate(valid_data_loader):
+            for key in valid_errors.keys():
+                print('valid errors', key, type(valid_errors[key]))
             start = time.time()
             # send data to GPU
             if use_gpu:
@@ -429,8 +437,8 @@ class Trainer:
             # forward step
             # if self.verbose > 2:
             #     print('validate before prediction:', torch.cuda.memory_summary())
-            predictions = self._model(data)
             data = self._module.conversions_in(data)
+            predictions = self._model(data)
             data = self._module.conversions_out(data)
             # if self.verbose > 2:
             #     print('validate after prediction:', torch.cuda.memory_summary())
@@ -494,6 +502,9 @@ class Trainer:
                                       valid_errors[key]) / (valid_batch_num + 1)
             if self.timing:
                 print('valid step time:', time.time() - start)
+            predictions = None
+            data = None
+            errors = None
 
         # pass validation loss to learning rate scheduler
         if check_best:
