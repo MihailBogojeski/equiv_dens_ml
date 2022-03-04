@@ -32,6 +32,34 @@ def combine_orbitals(orbitals, order_max):
     return spherical_spec, radial_spec, radial_counts
 
 
+def combine_orbital_basis(orbital_basis, order_max):
+    radial_spec = {}
+    spherical_spec = {}
+    radial_counts = {}
+    for z in orbital_basis.keys():
+        radial_L_count = [0] * (order_max + 2)
+        spherical_L_count = [0] * (order_max + 2)
+        radial_spec[z] = []
+        spherical_spec[z] = []
+        radial_counts[z] = [[] for i in range(order_max + 2)]
+        # print('density L count len', len(density_L_count))
+        for j in range(len(orbital_basis[z])):
+            orb = orbital_basis[z][j]
+            L = orb[2]
+            radial_L_count[L] += orb[1]
+            spherical_L_count[L] += 1
+            radial_counts[z][L].append(orb[1])
+        for L, c in enumerate(radial_L_count):
+            if c == 0:
+                continue
+            radial_spec[z].append((z, c, L))
+        for L, c in enumerate(spherical_L_count):
+            if c == 0:
+                continue
+            spherical_spec[z].append((z, c, L))
+    return spherical_spec, radial_spec, radial_counts
+
+
 def get_max_order(orbitals, per_atom=False):
     order_max = {}
     for i in range(len(orbitals)):
@@ -45,6 +73,10 @@ def get_max_order(orbitals, per_atom=False):
         return order_max
     else:
         return max(order_max.values())
+
+
+def get_n_electrons_transfer(atom_numbers):
+    return torch.sum(atom_numbers, -1)
 
 
 def get_n_electrons(orbitals):
