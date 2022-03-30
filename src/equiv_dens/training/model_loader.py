@@ -7,8 +7,9 @@ from equiv_dens.nn.representation.spherical_harmonic import EquivariantSpherical
     TransferableEquivariantSphericalHarmonics
 from equiv_dens.nn.property_output.energy import ComplexEnergyNetwork, SimpleEnergyNetwork,\
     SphericalHarmonicsEnergyNetwork, SimpleEnergyNetworkv2, SimpleRepresentationEnergyNetwork,\
-    RepresentationEnergyNetwork
-from equiv_dens.nn.property_output.density import DensityCoeffsNetwork, DensityExpansion, DummyCoeffsNetwork
+    RepresentationEnergyNetwork, TransferableSphericalHarmonicsEnergyNetwork
+from equiv_dens.nn.property_output.density import DensityCoeffsNetwork, DensityExpansion,\
+    DummyCoeffsNetwork, TransferableDensityCoeffsNetwork, TransferableDensityExpansion
 from equiv_dens.nn.property_output.density_legacy import DensityCoeffsNetwork as LegacyDensityCoeffsNetwork
 from equiv_dens.nn.property_output.density_legacy import DensityExpansion as LegacyDensityExpansion
 from equiv_dens.nn.property_output.dipole_moment import DipoleMomentCalc
@@ -97,8 +98,12 @@ def load_model(args, dataset, train=False):
         density_coeffs_network = LegacyDensityCoeffsNetwork
         density_expansion = LegacyDensityExpansion
     else:
-        density_coeffs_network = DensityCoeffsNetwork
-        density_expansion = DensityExpansion
+        if args.transferable_model:
+            density_coeffs_network = TransferableDensityCoeffsNetwork
+            density_expansion = TransferableDensityExpansion
+        else:
+            density_coeffs_network = DensityCoeffsNetwork
+            density_expansion = DensityExpansion
 
     dens_model = density_coeffs_network(
         orbitals=dataset.orbitals,
@@ -127,8 +132,12 @@ def load_model(args, dataset, train=False):
         args.num_energy_features = args.num_features
 
     if args.energy_model == 'spherical':
+        if args.transferable_model:
+            en_class = TransferableSphericalHarmonicsEnergyNetwork
+        else:
+            en_class = SphericalHarmonicsEnergyNetwork
         print('building spherical harmonic energy model')
-        en_model = SphericalHarmonicsEnergyNetwork(
+        en_model = en_class(
             orbitals=dataset.orbitals,
             order=args.order_en,
             mixing_order=args.mixing_order_en,

@@ -128,7 +128,9 @@ class AtomsDensityData(Dataset):
         else:
             self.L0_coeffs = None
 
+        print('grid fn', grid_fn)
         self.grid_spec = grid_fn(self.atoms)
+        print('grid spec sizes', [self.grid_spec[z][1].shape for z in self.grid_spec.keys()])
 
         for key in self.grid_spec.keys():
             self.grid_spec[key] = (self.grid_spec[key][0].type(self.dtype),
@@ -221,6 +223,7 @@ class AtomsDensityData(Dataset):
             # in the row
             if pname == 'coords' or pname == 'density':
                 properties['coords'], properties['coord_weights'] = self.get_coords(positions, self.atoms['atom_types'])
+                print('coords shape', properties['coords'].shape)
                 if pname == 'density':
                     properties[pname] = self.sample_density(idx, properties['coords'])
             else:
@@ -228,6 +231,7 @@ class AtomsDensityData(Dataset):
 
         # extract/calculate structure
         properties['atom_numbers'] = torch.LongTensor(self.atoms['atom_numbers']).unsqueeze(0).repeat(len(idx), 1)
+        properties['atom_mask'] = properties['atom_numbers'] != 0
         properties['idx'] = torch.LongTensor(idx).unsqueeze(-1)
         # properties['ions'] = [self.ions[i] for i in idx]
         # print('positions', positions)

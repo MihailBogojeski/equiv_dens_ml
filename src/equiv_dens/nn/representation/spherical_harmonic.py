@@ -74,6 +74,8 @@ class EquivariantSphericalHarmonics(nn.Module):
         self.timing = timing
         self.verbose = verbose
 
+        print('self num modules', self.num_modules)
+
         print('self order', self.order)
         if not isinstance(self.order, list):
             self.order = [self.order] * self.num_modules
@@ -215,6 +217,7 @@ class EquivariantSphericalHarmonics(nn.Module):
             sph[L].unsqueeze_(-1)  # unsqueeze for broadcasting
         # print('sph shape', sph[0].shape)
         atoms['sph'] = sph
+        # print('sph[0]', sph[1])
         # initialize atomic features to embeddings
         # repeat Z along batch dimension
         # print('atom numbers shape', atoms['atom_numbers'].shape)
@@ -404,17 +407,16 @@ class TransferableEquivariantSphericalHarmonics(nn.Module):
             C: Spherical harmonics coefficients
         """
 
-        atom_mask = atoms['atom_numbers'] != 0
         N = atoms['positions'].shape[1]
         batch_size = atoms['positions'].shape[0]
         idx_i = torch.arange(N, dtype=torch.int64).view(-1, 1).repeat(1, N).view(-1)
         idx_j = torch.arange(N, dtype=torch.int64).view(1, -1).repeat(N, 1).view(-1)
-        neighbor_mask = atom_mask.view(batch_size, 1, -1).repeat(1, N, 1).view(batch_size, -1)
+        neighbor_mask = atoms['atom_mask'].view(batch_size, 1, -1).repeat(1, N, 1).view(batch_size, -1)
         # exclude self - interactions
         neighbor_mask = neighbor_mask[:, idx_i != idx_j]
         idx_i, idx_j = idx_i[idx_i != idx_j], idx_j[idx_i != idx_j]
         print('atom numbers', atoms['atom_numbers'])
-        print('atom mask', atom_mask)
+        print('atom mask', atoms['atom_mask'])
         print('idx_i', idx_i)
         print('idx_j', idx_j)
         print('neighbor_mask', neighbor_mask)
@@ -460,6 +462,7 @@ class TransferableEquivariantSphericalHarmonics(nn.Module):
             sph[L].unsqueeze_(-1)  # unsqueeze for broadcasting
         # print('sph shape', sph[0].shape)
         atoms['sph'] = sph
+        # print('sph[0]', sph[1])
         # initialize atomic features to embeddings
         # repeat Z along batch dimension
         # print('atom numbers shape', atoms['atom_numbers'].shape)
@@ -483,7 +486,10 @@ class TransferableEquivariantSphericalHarmonics(nn.Module):
                 print('repr forward after module', i, ':')
                 print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
                 print('Memory cached', torch.cuda.memory_cached() / 1024**2)
-
+        dim_diff = fs[0].dim() - atoms['atom_mask'].dim()
+        atom_mask = atoms['atom_mask'].reshape(atoms['atom_mask'].shape + (1,) * dim_diff).to(fs[0])
+        for i in range(len(fs)):
+            fs[i] = fs[i] * atom_mask
         atoms['sph_repr'] = fs
         if self.timing:
             print('sph repr time', time.time() - start)
