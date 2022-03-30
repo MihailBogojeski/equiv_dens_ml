@@ -92,8 +92,10 @@ dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_datas
                            verbose=args.verbose)
 
 if data_split_indices is None or args.ignore_split_indices:
+    num_test = 0 if args.np_dataset_test is not None else args.num_test
+    print('num_test', num_test)
     train_dataset, _, test_dataset = seeded_random_split(
-        dataset, [args.num_train, 0, args.num_test], seed=args.split_seed)
+        dataset, [args.num_train, 0, num_test], seed=args.split_seed)
 
     data_split_indices = {'train': train_dataset.indices,
                           'test': test_dataset.indices,
