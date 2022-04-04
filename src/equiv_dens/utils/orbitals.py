@@ -76,7 +76,7 @@ def get_max_order(orbitals, per_atom=False):
 
 
 def get_n_electrons_transfer(atom_numbers):
-    return torch.sum(atom_numbers, -1)
+    return torch.sum(atom_numbers, -1, keepdim=True)
 
 
 def get_n_electrons(orbitals):

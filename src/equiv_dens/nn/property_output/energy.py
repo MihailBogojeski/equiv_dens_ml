@@ -591,15 +591,11 @@ class TransferableSphericalHarmonicsEnergyNetwork(nn.Module):
         if self.mixing_order is None:
             self.mixing_order = self.order
 
-        print('self order', self.order)
         if not isinstance(self.order, list):
             self.order = [self.order] * self.num_modules
-        print('self order', self.order)
 
-        print('self mixing_order', self.mixing_order)
         if not isinstance(self.mixing_order, list):
             self.mixing_order = [self.mixing_order] * self.num_modules
-        print('self mixing_order', self.mixing_order)
 
         if len(self.order) != self.num_modules:
             print('Order needs to be an integer or a list of integers with length equal to num_modules.' +
@@ -707,10 +703,11 @@ class TransferableSphericalHarmonicsEnergyNetwork(nn.Module):
 
     def forward(self, atoms):
         start = time.time()
-        N = atoms['positions'].shape[1]
-        batch_size = atoms['positions'].shape[0]
-        idx_i = torch.arange(N, dtype=torch.int64).view(-1, 1).repeat(1, N).view(-1)
-        idx_j = torch.arange(N, dtype=torch.int64).view(1, -1).repeat(N, 1).view(-1)
+        R = atoms['positions']
+        N = R.shape[1]
+        batch_size = R.shape[0]
+        idx_i = torch.arange(N).view(-1, 1).repeat(1, N).view(-1).to(R).type(torch.int64)
+        idx_j = torch.arange(N).view(1, -1).repeat(N, 1).view(-1).to(R).type(torch.int64)
         neighbor_mask = atoms['atom_mask'].view(batch_size, 1, -1).repeat(1, N, 1).view(batch_size, -1)
         # exclude self - interactions
         neighbor_mask = neighbor_mask[:, idx_i != idx_j]
@@ -760,7 +757,6 @@ class TransferableSphericalHarmonicsEnergyNetwork(nn.Module):
 
         atoms['energy'] = energy
         if self.calculate_forces:
-            print('forces create graph', self.training)
             forces = -torch.autograd.grad(torch.sum(energy), atoms['positions'], create_graph=self.training)[0]
             atoms['forces'] = forces
 
@@ -904,7 +900,7 @@ class SimpleEnergyNetworkv2(nn.Module):
                 scale_fs[L] = (scale_fs[L] * self.radial_scale_filters(L))
                 width_fs[L] = (width_fs[L] * self.radial_width_filters(L))
                 radial_comb = self.coeff_activation[L](scale_fs[L] * width_fs[L])
-                radial_comb = radial_comb.sum(-2, keepdim=True) 
+                radial_comb = radial_comb.sum(-2, keepdim=True)
                 xs.append(sph_fs[L] * radial_comb)
         else:
             xs = sph_fs

@@ -407,19 +407,21 @@ class TransferableEquivariantSphericalHarmonics(nn.Module):
             C: Spherical harmonics coefficients
         """
 
-        N = atoms['positions'].shape[1]
-        batch_size = atoms['positions'].shape[0]
-        idx_i = torch.arange(N, dtype=torch.int64).view(-1, 1).repeat(1, N).view(-1)
-        idx_j = torch.arange(N, dtype=torch.int64).view(1, -1).repeat(N, 1).view(-1)
+        R = atoms['positions']
+        N = R.shape[1]
+        batch_size = R.shape[0]
+        idx_i = torch.arange(N).view(-1, 1).repeat(1, N).view(-1).to(R).type(torch.int64)
+        idx_j = torch.arange(N).view(1, -1).repeat(N, 1).view(-1).to(R).type(torch.int64)
         neighbor_mask = atoms['atom_mask'].view(batch_size, 1, -1).repeat(1, N, 1).view(batch_size, -1)
         # exclude self - interactions
         neighbor_mask = neighbor_mask[:, idx_i != idx_j]
         idx_i, idx_j = idx_i[idx_i != idx_j], idx_j[idx_i != idx_j]
-        print('atom numbers', atoms['atom_numbers'])
-        print('atom mask', atoms['atom_mask'])
-        print('idx_i', idx_i)
-        print('idx_j', idx_j)
-        print('neighbor_mask', neighbor_mask)
+        if self.verbose > 2:
+            print('atom numbers', atoms['atom_numbers'])
+            print('atom mask', atoms['atom_mask'])
+            print('idx_i', idx_i)
+            print('idx_j', idx_j)
+            print('neighbor_mask', neighbor_mask)
 
         # extract nuclear charges from orbitals, determine maximum order, and
         # build the occupation mask (for extracting occupied orbitals in energy prediction)
@@ -435,7 +437,6 @@ class TransferableEquivariantSphericalHarmonics(nn.Module):
         #         print('shape:', atoms[key].shape)
         #     else:
         #         print(atoms[key])
-        R = atoms['positions']
         # compute radial basis functions and spherical harmonics
         # print('idx_i', idx_i)
         dij, uij = calculate_distances_and_directions(R, idx_i, idx_j)

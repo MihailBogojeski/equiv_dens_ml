@@ -217,13 +217,11 @@ class AtomsDensityData(Dataset):
         # extract properties
         properties = {}
         positions = torch.from_numpy(self.atoms['positions'][idx]).type(self.dtype)
-        print('required properties', self.required_properties)
         for pname in self.required_properties:
             # fallback for properties stored directly
             # in the row
             if pname == 'coords' or pname == 'density':
                 properties['coords'], properties['coord_weights'] = self.get_coords(positions, self.atoms['atom_types'])
-                print('coords shape', properties['coords'].shape)
                 if pname == 'density':
                     properties[pname] = self.sample_density(idx, properties['coords'])
             else:
@@ -239,7 +237,6 @@ class AtomsDensityData(Dataset):
             # print('atom center', positions.mean(axis=0))
             positions -= positions.mean(0)
         properties['positions'] = positions
-        print('properties positions type', properties['positions'].type())
         properties['shifted_positions'] = torch.from_numpy(self.atoms['shifted_positions'][idx]).type(self.dtype)
         properties["_idx"] = torch.LongTensor(np.array(idx, dtype=np.int))
         for prop in self.fixed_properties.keys():

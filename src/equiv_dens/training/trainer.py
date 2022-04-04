@@ -423,8 +423,6 @@ class Trainer:
         # run once over the validation set
         valid_errors = self.error_dict.empty()
         for valid_batch_num, data in enumerate(valid_data_loader):
-            for key in valid_errors.keys():
-                print('valid errors', key, type(valid_errors[key]))
             start = time.time()
             # send data to GPU
             if use_gpu:

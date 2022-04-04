@@ -294,15 +294,32 @@ if loss_weights['energy_min']:
 # if the MAE is smaller than a certain threshold.
 
 # prepare data loaders
+if isinstance(train_dataset, torch.utils.data.Subset):
+    def collate_fn(batch):
+        return train_dataset.dataset.get_properties(batch)
+else:
+    def collate_fn(batch):
+        return train_dataset.get_properties(batch)
 train_data_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.train_batch_size,
                                                 num_workers=args.num_workers, pin_memory=use_gpu,
                                                 shuffle=True,
-                                                collate_fn=lambda batch: dataset.get_properties(batch))
+                                                collate_fn=collate_fn)
+if isinstance(valid_dataset, torch.utils.data.Subset):
+    def collate_fn(batch):
+        return valid_dataset.dataset.get_properties(batch)
+else:
+    def collate_fn(batch):
+        return valid_dataset.get_properties(batch)
 valid_data_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=args.valid_batch_size,
                                                 num_workers=args.num_workers, pin_memory=use_gpu,
                                                 shuffle=False,
-                                                collate_fn=lambda batch: dataset.get_properties(batch))
-
+                                                collate_fn=collate_fn)
+if isinstance(test_dataset, torch.utils.data.Subset):
+    def collate_fn(batch):
+        return test_dataset.dataset.get_properties(batch)
+else:
+    def collate_fn(batch):
+        return test_dataset.get_properties(batch)
 test_data_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.test_batch_size,
                                                num_workers=args.num_workers, pin_memory=use_gpu,
                                                shuffle=True,
@@ -311,7 +328,7 @@ if args.cube_grid_valid:
     valid_cube_loader = torch.utils.data.DataLoader(valid_cube_dataset, batch_size=args.valid_batch_size,
                                                     num_workers=args.num_workers, pin_memory=use_gpu,
                                                     shuffle=True,
-                                                    collate_fn=lambda batch: dataset.get_properties(batch))
+                                                    collate_fn=lambda batch: valid_cube_dataset.get_properties(batch))
 
 # define model
 model = load_model(args, dataset, train=True)

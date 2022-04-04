@@ -510,8 +510,6 @@ class TransferableDensityCoeffsNetwork(nn.Module):
         radial_scale = [None] * atom_num
         # print('len radial width', len(radial_width))
         # print('len rad width', len(rad_width))
-        print('spherical_spec', self.spherical_spec)
-        print('radial_count', self.radial_count)
         for i in range(atom_num):
             spherical_coeffs[i] = {}
             radial_width[i] = {}
@@ -657,15 +655,12 @@ class TransferableDensityCoeffsNetwork(nn.Module):
     """
 
     def forward(self, atoms):
-        print('self.order', self.order)
-        print('self.orbitals_max_order', self.orbitals_max_order)
         if self.verbose > 2:
             print('density coeffs forward start:')
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
             print('Memory cached', torch.cuda.memory_cached() / 1024**2)
         start = time.time()
         fs = atoms['sph_repr']
-        print('len fs', len(fs))
         if self.verbose > 3:
             print('distances', atoms['distances'])
             print('fs[0]:', fs[0][:, 0, :, :10])
@@ -689,9 +684,6 @@ class TransferableDensityCoeffsNetwork(nn.Module):
         # print('out scale shape', out_scale[1].shape)
         dim_diff = out_sph[0].dim() - atoms['atom_mask'].dim()
         atom_mask = atoms['atom_mask'].reshape(atoms['atom_mask'].shape + (1,) * dim_diff).to(fs[0])
-        print('len out_sph', len(out_sph))
-        print('len out_width', len(out_width))
-        print('len out_scale', len(out_scale))
         for i in range(len(out_sph)):
             out_sph[i] = out_sph[i] * atom_mask
             out_width[i] = out_width[i] * atom_mask
@@ -700,7 +692,6 @@ class TransferableDensityCoeffsNetwork(nn.Module):
             print('density coeffs forward outputs:')
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
             print('Memory cached', torch.cuda.memory_cached() / 1024**2)
-        print('extracting coefficients')
         atoms['spherical_coeffs'], atoms['radial_width'], atoms['radial_scale'] =\
             self.extract_coefficients(out_sph, out_width, out_scale, atoms['atom_numbers'], atoms['atom_mask'])
         if self.verbose > 2:
@@ -1067,7 +1058,6 @@ class TransferableDensityExpansion(nn.Module):
         L0_d = []
         L0_width = []
         n_electrons = get_n_electrons_transfer(atoms['atom_numbers'])
-        print('num grid points', atoms['coords'].shape)
         for i in range(len(atoms['spherical_coeffs'])):
             if self.verbose > 2:
                 print('Atom', i)
@@ -1116,7 +1106,8 @@ class TransferableDensityExpansion(nn.Module):
                 rbf = gaussian_rbf(d.unsqueeze(-1), width, scale)
                 if i in eval_atoms and L in eval_L:
                     atoms['density'] += torch.sum(rbf * sph, dim=(-2, -1))
-        print('Density shape', atoms['density'].shape)
+        if self.verbose > 0:
+            print('Density shape', atoms['density'].shape)
         L0_coeffs_comb = torch.cat([coeff.view((coeff.shape[0], -1)) for coeff in L0_coeffs], dim=1)
         atoms['L0_coeffs'] = L0_coeffs_comb
         # print('L0_coeffs comb sum before', torch.sum(L0_coeffs_comb, 1))
