@@ -168,6 +168,29 @@ else:
     valid_dataset = torch.utils.data.Subset(dataset, data_split_indices['valid'][:args.num_valid])
     test_dataset = torch.utils.data.Subset(dataset, data_split_indices['test'])
 
+if args.num_test is not None:
+    test_dataset.indices = test_dataset.indices[:args.num_test]
+
+if args.np_dataset_test is not None:
+    test_dataset = AtomsDensityData(np_path=args.np_dataset_test, density_path=args.dens_dataset_test,
+                                    orbitals_path=args.orbitals_file,
+                                    density_n_samp=args.density_subsamples,
+                                    required_properties=required_properties,
+                                    center_positions=False,
+                                    radial_coeffs_file=args.radial_coeffs_file,
+                                    dtype=args.dtype,
+                                    grid_fn=grid_fn,
+                                    sampling_fn=sampling_fn,
+                                    grid_extent=grid_extent,
+                                    grid_origin=grid_origin)
+
+    if args.num_test is not None:
+        test_size = args.num_test
+    else:
+        test_size = len(test_dataset)
+
+    test_dataset = torch.utils.data.Subset(test_dataset, np.arange(test_size))
+
 print('valid dataset size', len(valid_dataset))
 
 if args.cube_grid_valid:
@@ -279,6 +302,11 @@ valid_data_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=args.v
                                                 num_workers=args.num_workers, pin_memory=use_gpu,
                                                 shuffle=False,
                                                 collate_fn=lambda batch: dataset.get_properties(batch))
+
+test_data_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.test_batch_size,
+                                               num_workers=args.num_workers, pin_memory=use_gpu,
+                                               shuffle=True,
+                                               collate_fn=collate_fn)
 if args.cube_grid_valid:
     valid_cube_loader = torch.utils.data.DataLoader(valid_cube_dataset, batch_size=args.valid_batch_size,
                                                     num_workers=args.num_workers, pin_memory=use_gpu,
@@ -383,3 +411,39 @@ trainer = Trainer(model_path=directory, model=model, error_dict=error_dict,
                   )
 # with torch.autograd.detect_anomaly():
 trainer.run(args.max_steps, use_gpu=use_gpu, dtype=args.dtype)
+print('Starting test evaluation!!!')
+test_errors = error_dict.empty()
+for test_batch_num, data in enumerate(test_data_loader):
+    model.eval()
+    # send data to GPU
+    if use_gpu:
+        for key in data.keys():
+            if isinstance(data[key], torch.Tensor):
+                data[key] = data[key].cuda()
+
+    # forward step
+    data = model.conversions_in(data)
+    predictions = model(data)
+    data = model.conversions_out(data)
+    # print(lkajsdlkjasfd)
+    # print('energy pred', predictions['energy'])
+    if args.verbose > 0:
+        if 'density' in predictions.keys():
+            print('test density intergal', torch.sum(predictions['density'] * predictions['coord_weights'], dim=1))
+        if 'energy' in predictions.keys():
+            print('pred energy', predictions['energy'].view((-1, )))
+            print('true energy', data['energy'].view((-1, )))
+
+    # print('spherical density integral', torch.sum(predictions['density'] * data['coord_weights'], dim=-1))
+    # compute error metrics
+    errors = error_dict.compute(predictions, data)
+
+    # update test_errors (running average)
+    for key in errors.keys():
+        test_errors[key] += (errors[key].item() -
+                             test_errors[key]) / (test_batch_num + 1)
+    predictions = None
+    data = None
+    errors = None
+
+print('test errors', test_errors)
