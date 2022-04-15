@@ -67,7 +67,9 @@ def load_model(args, dataset, train=False):
     conversions_out = UnitConversion(
         en_conversion_func=getattr(utils, 'kcal_to_' + args.energy_unit_out),
         dist_conversion_func=getattr(utils, 'angstrom_to_' + args.distance_unit_out))
-    
+    print('conversions in', conversions_in.en_conversion_func)
+    print('conversions out', conversions_out.en_conversion_func)
+
     if args.transferable_model:
         repr_class = TransferableEquivariantSphericalHarmonics
     else:

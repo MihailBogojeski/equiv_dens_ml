@@ -95,6 +95,9 @@ def gaussian_rbf(r, width, scale, normalize=True):
         scale_calc = scale * 8 * (width**(3 / 2)) / (np.pi**(3 / 2) * 53.9866)
     else:
         scale_calc = scale
+
+    print('scale shape', scale_calc.shape)
+    print('r', r.shape)
     rbf = scale_calc * torch.exp(-width * (r)**2)
     return torch.sum(rbf, dim=-2, keepdim=True)
 
@@ -152,8 +155,15 @@ def coeffs_dict_to_tensors(coeffs, radial_coeffs=True):
             if key[1] > max_order:
                 max_order = key[1]
 
-    first_key = list(sph_coeffs[0].keys())[0]
-    batch_size = sph_coeffs[0][first_key].shape[0]
+    batch_size = 0
+    first_key = None
+    first_idx = 0
+    for i in range(len(sph_coeffs)):
+        if sph_coeffs[i]:
+            first_key = list(sph_coeffs[i].keys())[0]
+            batch_size = sph_coeffs[i][first_key].shape[0]
+            first_idx = i
+            break
 
     max_num_coeffs = [0] * (max_order + 1)
     max_num_radial = [0] * (max_order + 1)
@@ -169,19 +179,19 @@ def coeffs_dict_to_tensors(coeffs, radial_coeffs=True):
     # print('max num coeffs', max_num_coeffs)
     # print('max num radial', max_num_radial)
 
-    all_sph = [[torch.zeros([batch_size, 1, (2 * i) + 1, max_num_coeffs[i]]).to(sph_coeffs[0][first_key])
-               for j in range(len(sph_coeffs))]
+    all_sph = [[torch.zeros([batch_size, 1, (2 * i) + 1, max_num_coeffs[i]]).to(sph_coeffs[first_idx][first_key])
+               for _ in range(len(sph_coeffs))]
                for i in range(max_order + 1)]
     if radial_coeffs:
-        all_width = [[torch.zeros([batch_size, 1, max_num_radial[i], max_num_coeffs[i]]).to(sph_coeffs[0][first_key])
-                     for j in range(len(sph_coeffs))]
+        all_width = [[torch.zeros([batch_size, 1, max_num_radial[i], max_num_coeffs[i]]).to(sph_coeffs[first_idx][first_key])
+                     for _ in range(len(sph_coeffs))]
                      for i in range(max_order + 1)]
-        all_scale = [[torch.zeros([batch_size, 1, max_num_radial[i], max_num_coeffs[i]]).to(sph_coeffs[0][first_key])
-                     for j in range(len(sph_coeffs))]
+        all_scale = [[torch.zeros([batch_size, 1, max_num_radial[i], max_num_coeffs[i]]).to(sph_coeffs[first_idx][first_key])
+                     for _ in range(len(sph_coeffs))]
                      for i in range(max_order + 1)]
     else:
-        all_scale = None
-        all_width = None
+        all_scale = []
+        all_width = []
 
     for i in range(len(sph_coeffs)):
         for key in sph_coeffs[i].keys():
