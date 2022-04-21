@@ -135,6 +135,8 @@ def parse_command_line_arguments(arg_file=None):
                                help="how many validation intervals have to be seen without improvement before the learning rate is decayed")
     args_training.add_argument("--stop_at_learning_rate", metavar='FLOAT', type=float, default=1e-1,
                                help="when the learning rate gets lower than this value, training is stopped")
+    args_training.add_argument("--stop_at_learning_rate_patience", metavar='FLOAT', type=float, default=0,
+                               help="when the learning rate gets lower than this value, training is stopped")
     args_training.add_argument("--epsilon", metavar='FLOAT', type=float, default=1e-8,
                                help="epsilon for the optimizer (only relevant for Adam/AMSGrad)")
     args_training.add_argument("--beta1", metavar='FLOAT', type=float, default=0.9,

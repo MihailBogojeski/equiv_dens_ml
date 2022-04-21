@@ -220,6 +220,14 @@ if args.center_energy:
     train_ind = train_dataset.indices
     energy_mean = dataset.atoms['energy'][train_ind].mean()
     dataset.center_energy(energy_mean)
+    if isinstance(test_dataset, torch.utils.data.Subset):
+        test_dataset.dataset.center_energy(energy_mean)
+    else:
+        test_dataset.center_energy(energy_mean)
+    if isinstance(valid_dataset, torch.utils.data.Subset):
+        valid_dataset.dataset.center_energy(energy_mean)
+    else:
+        valid_dataset.center_energy(energy_mean)
     if args.cube_grid_valid:
         cube_dataset.center_energy(energy_mean)
 
@@ -249,6 +257,7 @@ error_dict = ErrorDict(loss_weights, weights_balance=args.weights_balance,
                        loss_comp=loss_comp,
                        )
 
+# print('error dict relative en', error_dict.relative_en)
 z_vals = dataset.atoms['atom_numbers']
 if loss_weights['energy_min']:
     grid_extent = np.array([args.cube_extent] * 3)
@@ -406,6 +415,7 @@ if args.cube_grid_valid:
     validation_loaders.append(valid_cube_loader)
     valid_check_best.append(False)
 
+# print('error dict before training', error_dict.relative_en)
 
 trainer = Trainer(model_path=directory, model=model, error_dict=error_dict,
                   optimizers=optimizers, schedulers=schedulers,
@@ -429,6 +439,12 @@ trainer = Trainer(model_path=directory, model=model, error_dict=error_dict,
 # with torch.autograd.detect_anomaly():
 trainer.run(args.max_steps, use_gpu=use_gpu, dtype=args.dtype)
 print('Starting test evaluation!!!')
+error_dict = ErrorDict(loss_weights, weights_balance=args.weights_balance,
+                       percentage_error=args.percentage_error,
+                       weights_decay=weights_decay, weights_min=weights_min,
+                       loss_comp=loss_comp,
+                       # relative_en=True,
+                       )
 test_errors = error_dict.empty()
 for test_batch_num, data in enumerate(test_data_loader):
     model.eval()

@@ -14,6 +14,7 @@ class ErrorDict:
                  weights_decay=None,
                  weights_min=None,
                  loss_comp=None,
+                 relative_en=False,
                  ):
         self.loss_weights = loss_weights
         self.weights_balance = weights_balance
@@ -21,6 +22,7 @@ class ErrorDict:
         self.weights_decay = weights_decay
         self.weights_min = weights_min
         self.loss_comp = loss_comp
+        self.relative_en = relative_en
         if self.weights_decay is None:
             self.weights_decay = {}
             for key in self.loss_weights.keys():
@@ -53,6 +55,10 @@ class ErrorDict:
                     error_dict[key + "_rmse"] = loss
                 else:
                     diff = predictions[key] - (data[key])
+                    if key == "energy" and self.relative_en:
+                        en_offset = torch.mean(predictions[key]) - torch.mean(data[key])
+                        print('en_offset', en_offset)
+                        diff = diff - en_offset
                     # print('error key', key)
                     # print('pred.shape', predictions[key].shape)
                     # print('data.shape', data[key].shape)

@@ -145,7 +145,9 @@ loss_weights['forces'] = args.forces_weight
 loss_weights['energy_min'] = args.energy_min_weight
 
 error_dict = ErrorDict(loss_weights, weights_balance=args.weights_balance,
-                       percentage_error=args.percentage_error)
+                       percentage_error=args.percentage_error,
+                       # relative_en=True,
+                      )
 
 z_vals = dataset.atoms['atom_numbers']
 if loss_weights['energy_min']:
@@ -229,7 +231,6 @@ for test_batch_num, data in enumerate(test_data_loader):
                 data[key] = data[key].cuda()
 
     # forward step
-    print('step')
     data = model.conversions_in(data)
     predictions = model(data)
     data = model.conversions_out(data)
@@ -248,10 +249,8 @@ for test_batch_num, data in enumerate(test_data_loader):
 
     # update test_errors (running average)
     for key in errors.keys():
-        print('errors', key, type(errors[key]))
         test_errors[key] += (errors[key].item() -
                              test_errors[key]) / (test_batch_num + 1)
-        print('test errors', key, type(test_errors[key]))
     predictions = None
     data = None
     errors = None

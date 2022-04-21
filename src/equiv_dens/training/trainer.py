@@ -46,6 +46,7 @@ class Trainer:
         max_steps=100000,
         clip_norm=0,
         stop_at_learning_rate=1e-5,
+        stop_at_learning_rate_patience=0,
         valid_check_best=None,
         verbose=0,
         timing=False,
@@ -68,6 +69,7 @@ class Trainer:
         self.max_steps = max_steps
         self.clip_norm = clip_norm
         self.stop_at_learning_rate = stop_at_learning_rate
+        self.stop_at_learning_rate_patience = stop_at_learning_rate_patience
         self.verbose = verbose
         self.timing = timing
         self.data_split_indices = data_split_indices
@@ -183,6 +185,8 @@ class Trainer:
         self.valid_errors = checkpoint['valid_errors']
         self._module.load_state_dict(checkpoint['model_state_dict'])
         self.error_dict = checkpoint['error_dict']
+        if not hasattr(self.error_dict, 'relative_en'):
+            self.error_dict.relative_en = False
         self.data_split_indices = checkpoint['data_split_indices']
         for i in range(len(self.optimizers)):
             self.optimizers[i].load_state_dict(checkpoint['optimizers_state_dict'][i])
@@ -232,6 +236,7 @@ class Trainer:
         self.train_iterator = iter(self.train_loader)
         new_valid = False
         new_best = False
+        stop_patience_count = 0
         start_time = time.time()
 
         while self.step < n_steps + 1:
@@ -292,6 +297,9 @@ class Trainer:
                 for param_group in optimizer.param_groups:
                     stop_training = stop_training and (
                         param_group['lr'] < self.stop_at_learning_rate)
+            if stop_training:
+                stop_training = stop_training and stop_patience_count > self.stop_at_learning_rate_patience
+                stop_patience_count += 1
             if self.step > self.max_steps:
                 print('Reached maximum number of steps! Training stopped.')
                 break
@@ -332,10 +340,11 @@ class Trainer:
         predictions = self._model(data)
         data = self._module.conversions_out(data)
 
-        if self.verbose > 0:
+        if self.verbose > -1:
             if 'density' in predictions.keys():
                 print('train density intergal', torch.sum(predictions['density'] * predictions['coord_weights'], dim=1))
                 print('true density intergal', torch.sum(data['density'] * data['coord_weights'], dim=1))
+        if self.verbose > 0:
             if 'energy' in predictions.keys():
                 print('pred energy', predictions['energy'].view((-1, )))
                 print('true energy', data['energy'].view((-1, )))
