@@ -1047,9 +1047,10 @@ class TransferableDensityExpansion(nn.Module):
         return getattr(self, 'init_scale_{}_{}'.format(key[0], key[1]))
 
     def forward(self, atoms, eval_atoms=None, eval_L=None):
+        n_eval = len(atoms['spherical_coeffs'])
         start = time.time()
         if eval_atoms is None:
-            eval_atoms = list(range(len(self.orbitals)))
+            eval_atoms = list(range(n_eval))
         if eval_L is None:
             eval_L = list(range(self.orbitals_max_order + 1))
         atoms['density'] = 0
@@ -1058,7 +1059,8 @@ class TransferableDensityExpansion(nn.Module):
         L0_d = []
         L0_width = []
         n_electrons = get_n_electrons_transfer(atoms['atom_numbers'])
-        for i in range(len(atoms['spherical_coeffs'])):
+        for i in range(n_eval):
+            print('Atom', i)
             if self.verbose > 2:
                 print('Atom', i)
                 print('density density expansion:')
@@ -1069,7 +1071,11 @@ class TransferableDensityExpansion(nn.Module):
                 continue
             # print('atom num', z)
             # print('orbitals i', self.spherical_spec[i])
-            d, u = calculate_distances_and_directions(atoms['coords'], center=atoms['positions'][:, [i]])
+            pos = atoms['positions'][:, [i]]
+            dim_diff = atoms['coords'].dim() - pos.dim()
+            if dim_diff > 0:
+                pos = pos.reshape(pos.shape[:-1] + (1,) * dim_diff + pos.shape[-1:])
+            d, u = calculate_distances_and_directions(atoms['coords'], center=pos)
             s = spherical_harmonics(self.orbitals_max_order_dict[z], u)
             # print('atom[i]', i)
             # print('dists', d)
@@ -1094,6 +1100,17 @@ class TransferableDensityExpansion(nn.Module):
                     print('width', width)
                     print('scale', scale)
                 sph_coeff = atoms['spherical_coeffs'][i][key]
+                dim_diff = s[L].dim() - sph_coeff.dim()
+                if dim_diff >= 0:
+                    sph_coeff = sph_coeff.reshape(sph_coeff.shape[:2] +
+                                                  (1,) * (dim_diff + 1) +
+                                                  sph_coeff.shape[2:])
+                    width = width.reshape(width.shape[:2] +
+                                          (1,) * (dim_diff + 1) +
+                                          width.shape[2:])
+                    scale = scale.reshape(scale.shape[:2] +
+                                          (1,) * (dim_diff + 1) +
+                                          scale.shape[2:])
                 # sph_coeff = sph_coeff.unsqueeze(-1)
                 if L == 0:
                     L0_coeff = sph_coeff * scale
