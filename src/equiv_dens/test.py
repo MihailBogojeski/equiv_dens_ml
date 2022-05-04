@@ -56,6 +56,7 @@ use_gpu = args.use_gpu and torch.cuda.is_available()
 # load dataset(s)
 print("loading density from" + str(args.dens_dataset) + "...")
 print("loading atoms from" + args.np_dataset + "...")
+print('args num test', args.num_test)
 
 if args.cube_grid:
     grid_origin = args.cube_origin
@@ -231,6 +232,8 @@ for test_batch_num, data in enumerate(test_data_loader):
                 data[key] = data[key].cuda()
 
     # forward step
+    print('step', test_batch_num)
+    print('batch size', data['positions'].shape[0])
     data = model.conversions_in(data)
     predictions = model(data)
     data = model.conversions_out(data)

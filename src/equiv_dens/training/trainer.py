@@ -51,6 +51,8 @@ class Trainer:
         verbose=0,
         timing=False,
         data_split_indices=None,
+        grid_scaling_annealing=1.0,
+        grid_scaling_start=10000,
     ):
         self.model_path = model_path
         self.model_code = model_path.split('_')[-1]
@@ -73,6 +75,8 @@ class Trainer:
         self.verbose = verbose
         self.timing = timing
         self.data_split_indices = data_split_indices
+        self.grid_scaling_annealing = grid_scaling_annealing
+        self.grid_scaling_start = grid_scaling_start
         if valid_check_best is None:
             self.valid_check_best = [False] * len(validation_loaders)
             self.valid_check_best[0] = True
@@ -101,6 +105,7 @@ class Trainer:
         self.summary = SummaryWriter(logdir=os.path.join(self.model_path, 'logs'), purge_step=self.step)
 
     def store_checkpoint(self, best=False):
+        print('STORING CHECKPPOINT')
         # move latest checkpoint (so it is not overwritten)
         if not best:
             if os.path.isfile(os.path.join(self.checkpoint_path, 'latest_checkpoint.pth')):
@@ -111,7 +116,7 @@ class Trainer:
             chk_name = 'best_checkpoint.pth'
 
         # overwrite latest checkpoint
-        torch.save({
+        checkpoint = {
             'ID': self.model_code,
             'args': self.args,
             'step': self.step,
@@ -125,7 +130,8 @@ class Trainer:
                                            if self.exponential_moving_average is not None else None),
             'error_dict': self.error_dict,
             'data_split_indices': self.data_split_indices,
-        }, os.path.join(self.checkpoint_path, chk_name))
+        }
+        torch.save(checkpoint, os.path.join(self.checkpoint_path, chk_name))
         self.summary.add_text('checkpoints', 'saved checkpoint', self.step)
 
         # remove oldest checkpoints
@@ -415,6 +421,10 @@ class Trainer:
         # update parameter averages
         if self.exponential_moving_average is not None:
             self.exponential_moving_average(self.epoch)
+
+        if self.epoch > self.grid_scaling_start and 'density' in self._module.property_models.keys():
+            density_expansion_model = self._module.property_models['density']
+            density_expansion_model.grid_scaling_factor *= self.grid_scaling_annealing
 
         # update train_errors (running average)
         for key in errors.keys():

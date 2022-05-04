@@ -435,6 +435,8 @@ trainer = Trainer(model_path=directory, model=model, error_dict=error_dict,
                   verbose=args.verbose,
                   timing=args.timing,
                   data_split_indices=data_split_indices,
+                  grid_scaling_annealing=args.grid_scaling_annealing,
+                  grid_scaling_start=args.grid_scaling_start,
                   )
 # with torch.autograd.detect_anomaly():
 trainer.run(args.max_steps, use_gpu=use_gpu, dtype=args.dtype)

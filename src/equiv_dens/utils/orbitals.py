@@ -96,8 +96,6 @@ def gaussian_rbf(r, width, scale, normalize=True):
     else:
         scale_calc = scale
 
-    print('scale shape', scale_calc.shape)
-    print('r', r.shape)
     rbf = scale_calc * torch.exp(-width * (r)**2)
     return torch.sum(rbf, dim=-2, keepdim=True)
 

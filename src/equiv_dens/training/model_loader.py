@@ -126,6 +126,7 @@ def load_model(args, dataset, train=False):
                                         softmax_norm=args.softmax_norm, n_electrons=sum(z_vals),
                                         verbose=args.verbose,
                                         timing=args.timing,
+                                        grid_scaling_factor=args.grid_scaling_factor,
                                         )
 
     calculate_forces = args.forces_weight > 0

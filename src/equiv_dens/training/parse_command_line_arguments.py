@@ -234,6 +234,13 @@ def parse_command_line_arguments(arg_file=None):
                                help="Conversion factor applied to energy on output")
     args_training.add_argument("--forces_out_factor", metavar='FLOAT', type=float, default=1.0,
                                help="Conversion factor applied to forces on output")
+    args_training.add_argument("--grid_scaling_factor", metavar='True|False', type=str2bool, default=False,
+                               choices=[True, False], help="Factor to control scaling of density to correct integral on grid.")
+    args_training.add_argument("--grid_scaling_annealing", metavar='FLOAT', type=float, default=1.0,
+                               help="Anneal the grid scaling factor over time.")
+    args_training.add_argument("--grid_scaling_start", metavar='INT', type=int, default=10000,
+                               help="The step at which grid scaling starts.")
+
 
     # arguments for simulations
     args_simulation = parser.add_argument_group("simulation hyperparameters")

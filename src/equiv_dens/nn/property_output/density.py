@@ -731,6 +731,7 @@ class DensityExpansion(nn.Module):
                  integral_scale=False,
                  verbose=0,
                  timing=False,
+                 grid_scaling_factor=False,
                  ):
         super().__init__()
         self.orbitals = orbitals
@@ -952,6 +953,7 @@ class TransferableDensityExpansion(nn.Module):
                  integral_scale=False,
                  verbose=0,
                  timing=False,
+                 grid_scaling_factor=False,
                  ):
         super().__init__()
         self.orbitals = orbitals
@@ -960,6 +962,10 @@ class TransferableDensityExpansion(nn.Module):
         self.softmax_norm = softmax_norm
         self.timing = timing
         self.verbose = verbose
+        if grid_scaling_factor:
+            self.register_buffer('grid_scaling_factor', torch.ones(size=(1,)))
+        else:
+            grid_scaling_factor = 0
         if integral_scale:
             self.register_parameter('integral_scale', nn.Parameter(torch.ones(size=(1,))))
         else:
@@ -1060,7 +1066,6 @@ class TransferableDensityExpansion(nn.Module):
         L0_width = []
         n_electrons = get_n_electrons_transfer(atoms['atom_numbers'])
         for i in range(n_eval):
-            print('Atom', i)
             if self.verbose > 2:
                 print('Atom', i)
                 print('density density expansion:')
@@ -1171,9 +1176,12 @@ class TransferableDensityExpansion(nn.Module):
         if self.expansion_constraint == 'sp':
             atoms['density'] = F.softplus(atoms['density'], beta=100000000) + 1e-30
         if self.integral_constraint == 'grid':
-            atoms['density'] = (atoms['density'] * n_electrons /
-                                torch.sum(atoms['density'] * atoms['coord_weights'], dim=1, keepdim=True))
-
+            grid_scaling = n_electrons / torch.sum(atoms['density'] * atoms['coord_weights'], dim=1, keepdim=True)
+            if self.verbose > 0:
+                print('grid_scaling', grid_scaling)
+                print('grid_scaling_factor', (1 - self.grid_scaling_factor))
+            grid_scaling = grid_scaling * (1 - self.grid_scaling_factor) + self.grid_scaling_factor
+            atoms['density'] = (atoms['density'] * grid_scaling)
         if self.timing:
             print('density expansion time:', time.time() - start)
         return atoms
