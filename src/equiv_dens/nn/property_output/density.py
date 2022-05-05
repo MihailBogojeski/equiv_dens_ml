@@ -965,7 +965,7 @@ class TransferableDensityExpansion(nn.Module):
         if grid_scaling_factor:
             self.register_buffer('grid_scaling_factor', torch.ones(size=(1,)))
         else:
-            grid_scaling_factor = 0
+            self.grid_scaling_factor = 0
         if integral_scale:
             self.register_parameter('integral_scale', nn.Parameter(torch.ones(size=(1,))))
         else:
