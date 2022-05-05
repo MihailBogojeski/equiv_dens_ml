@@ -86,11 +86,6 @@ use_gpu = args.use_gpu and torch.cuda.is_available()
 print("loading density from" + str(args.dens_dataset) + "...")
 print("loading atoms from" + args.np_dataset + "...")
 
-if use_gpu:
-    device = 'cuda'
-else:
-    device = 'cpu'
-
 # density_file = '/home/mihail/data/water_rot/full_densities.hdf5'
 # np_file = 'h2o_overlap_static.npy'
 if args.cube_grid:
@@ -372,9 +367,16 @@ if args.load_from is not None:
     print('loading from', args.load_from)
     load_code = args.load_from.split('_')[-1]
     model_dict = torch.load(os.path.join(args.load_from, 'best_' + load_code + '.pth'), map_location='cpu')
+    density_dict = {}
 
-    model.density_model.load_state_dict(model_dict)
-    for param_group in model.density_model.parameters():
+    for key in model_dict.keys():
+        if 'density_repr_model' in key:
+            split_key = key.split('.')[1:]
+            new_key = '.'.join(split_key)
+            density_dict[new_key] = model_dict[key]
+
+    model.density_repr_model.load_state_dict(density_dict)
+    for param_group in model.density_repr_model.parameters():
         param_group.requires_grad = False
 
 parameter_list = [
@@ -438,6 +440,7 @@ trainer = Trainer(model_path=directory, model=model, error_dict=error_dict,
                   summary_interval=args.summary_interval,
                   ema_params=ema_params,
                   args=args,
+                  hyperparam_args=hyperparam_args,
                   restore=restore,
                   max_steps=args.max_steps,
                   clip_norm=args.clip_norm,
@@ -446,10 +449,12 @@ trainer = Trainer(model_path=directory, model=model, error_dict=error_dict,
                   verbose=args.verbose,
                   timing=args.timing,
                   data_split_indices=data_split_indices,
+                  grid_scaling_annealing=args.grid_scaling_annealing,
+                  grid_scaling_start=args.grid_scaling_start,
                   )
 
 # with torch.autograd.detect_anomaly():
-trainer.run(args.max_steps, device=device, dtype=args.dtype)
+trainer.run(args.max_steps, use_gpu=use_gpu, dtype=args.dtype)
 print('Starting test evaluation!!!')
 error_dict = ErrorDict(loss_weights, weights_balance=args.weights_balance,
                        percentage_error=args.percentage_error,
