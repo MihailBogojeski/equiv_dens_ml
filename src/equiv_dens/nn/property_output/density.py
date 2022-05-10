@@ -1063,6 +1063,7 @@ class TransferableDensityExpansion(nn.Module):
         L0_coeffs = []
         L0_sph = []
         L0_d = []
+        L0_i = []
         L0_width = []
         n_electrons = get_n_electrons_transfer(atoms['atom_numbers'])
         for i in range(n_eval):
@@ -1094,7 +1095,7 @@ class TransferableDensityExpansion(nn.Module):
                 orb = self.spherical_spec[z][j]
                 L = orb[2]
                 key = (z, L)
-                width = (atoms['radial_width'][i][key] + 1) * self.init_width(key)
+                width = torch.clamp((atoms['radial_width'][i][key] + 1) * self.init_width(key), 1e-1, 1e+5)
                 zero_scale = (self.init_scale(key) != 0).to(atoms['radial_scale'][i][key])
                 scale = (atoms['radial_scale'][i][key] + self.init_scale(key)) * zero_scale
                 # width = width.unsqueeze(-3)
@@ -1122,11 +1123,15 @@ class TransferableDensityExpansion(nn.Module):
                     L0_coeffs.append(L0_coeff)
                     L0_sph.append(s[L])
                     L0_d.append(d)
+                    L0_i.append(i)
                     L0_width.append(width)
                     continue
                 sph = s[L].unsqueeze(-1) * sph_coeff
                 rbf = gaussian_rbf(d.unsqueeze(-1), width, scale)
                 if i in eval_atoms and L in eval_L:
+                    # part_dens = torch.sum(rbf * sph, dim=(-2, -1))
+                    # part_int = torch.sum(part_dens * atoms['coord_weights'], dim=-1)
+                    # print('part_dens integral', part_int) 
                     atoms['density'] += torch.sum(rbf * sph, dim=(-2, -1))
         if self.verbose > 0:
             print('Density shape', atoms['density'].shape)
@@ -1151,8 +1156,10 @@ class TransferableDensityExpansion(nn.Module):
         # print('L0_coeffs comb sum after', torch.sum(L0_coeffs_comb, 1))
         # print('L0_coeffs after', L0_coeffs_comb)
         # print('density nan', torch.sum(torch.isnan(atoms['density'])))
+        L0_integrals = []
         if 0 in eval_L:
             for i in range(len(L0_coeffs)):
+                print('i', i, ' L0_i', L0_i[i])
                 coeffs_size = np.prod(list(L0_coeffs[i].shape[1:]))
                 curr_coeffs = L0_coeffs_comb[:, coeffs_pointer:(coeffs_size + coeffs_pointer)]
                 if self.verbose > 3:
@@ -1167,8 +1174,16 @@ class TransferableDensityExpansion(nn.Module):
                 # print('rbf nan', torch.sum(torch.isnan(rbf)))
                 sph = L0_sph[i].unsqueeze(-1)
                 # print('sph nan', torch.sum(torch.isnan(sph)))
-                if i in eval_atoms:
-                    atoms['density'] += torch.sum(rbf * sph, dim=(-2, -1))
+                if L0_i[0] in eval_atoms:
+                    L0_dens = torch.sum(rbf * sph, dim=(-1, -2))
+                    L0_int = torch.sum(L0_dens * atoms['coord_weights'], dim=-1)
+                    L0_integrals.append(L0_int)
+                    print('L0_dens integral', L0_int) 
+                    print('l0 dens shape', L0_dens.shape)
+                    print('atoms density shape', atoms['density'].shape)
+                    atoms['density'] += L0_dens 
+        print('L0_int sum', np.sum(L0_integrals))
+        print('sum neg integrals', torch.sum((atoms['density'] * atoms['coord_weights'])[atoms['density'] < 0], dim=-1))
         if self.expansion_constraint == 'sq':
             atoms['density'] = atoms['density']**2
         if self.expansion_constraint == 'abs':

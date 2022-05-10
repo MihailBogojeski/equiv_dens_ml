@@ -1,4 +1,5 @@
 import numpy as np
+import equiv_dens.utils.base as utils
 import torch
 import scipy as sp
 
@@ -89,10 +90,11 @@ def get_n_electrons(orbitals):
 def gaussian_rbf(r, width, scale, normalize=True):
     # print('scale shape', scale.shape)
     # print('scale shape', scale.shape)
-    # print('width shape', width.shape)
+    # print('width', width)
     # print('r shape', r.shape)
     if normalize:
-        scale_calc = scale * 8 * (width**(3 / 2)) / (np.pi**(3 / 2) * 53.9866)
+        # scale_calc = scale * 8 * (width**(3 / 2)) / (np.pi**(3 / 2))
+        scale_calc = scale * (width**(3 / 2)) / (np.pi**(3 / 2)) * utils.to_angstrom**3  
     else:
         scale_calc = scale
 
