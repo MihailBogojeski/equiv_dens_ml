@@ -61,15 +61,11 @@ else:
         checkpoint_path, 'latest_checkpoint.pth'), map_location='cpu')
     latest_checkpoint = checkpoint['step']
     model_code = checkpoint['ID']  # load ID
-    for arg in vars(checkpoint['args']):
-        if args.fix_arguments:
+    if args.fix_arguments:
+        for arg in vars(checkpoint['args']):
             if arg in hyperparam_args:
                 print('loading hyperparam arg', arg)
                 setattr(args, arg, getattr(checkpoint['args'], arg))
-        else:
-            print('loading all arg', arg)
-            setattr(args, arg, getattr(checkpoint['args'], arg))
-
     step = checkpoint['step']
     restore = True
     data_split_indices = checkpoint['data_split_indices']
