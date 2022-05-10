@@ -597,6 +597,10 @@ class TransferableSphericalHarmonicsEnergyNetwork(nn.Module):
         if not isinstance(self.mixing_order, list):
             self.mixing_order = [self.mixing_order] * self.num_modules
 
+        print('self energy order', self.order)
+        print('self energy mixing order', self.order)
+        print('self energy num features', self.num_features)
+
         if len(self.order) != self.num_modules:
             print('Order needs to be an integer or a list of integers with length equal to num_modules.' +
                   ' Taking last order element and using it for all modules.')
