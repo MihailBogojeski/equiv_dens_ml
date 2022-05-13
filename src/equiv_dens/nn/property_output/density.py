@@ -1095,7 +1095,9 @@ class TransferableDensityExpansion(nn.Module):
                 orb = self.spherical_spec[z][j]
                 L = orb[2]
                 key = (z, L)
-                width = torch.clamp((atoms['radial_width'][i][key] + 1) * self.init_width(key), 1e-1, 1e+5)
+                width = (atoms['radial_width'][i][key] + 1) * self.init_width(key)
+                if self.integral_constraint is True or self.integral_constraint == 'coeffs':
+                    width = torch.clamp(width, 1e-1, 1e+5)
                 zero_scale = (self.init_scale(key) != 0).to(atoms['radial_scale'][i][key])
                 scale = (atoms['radial_scale'][i][key] + self.init_scale(key)) * zero_scale
                 # width = width.unsqueeze(-3)
