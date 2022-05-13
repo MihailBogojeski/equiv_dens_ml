@@ -14,7 +14,7 @@ from equiv_dens.nn.property_output.density_legacy import DensityCoeffsNetwork as
 from equiv_dens.nn.property_output.density_legacy import DensityExpansion as LegacyDensityExpansion
 from equiv_dens.nn.property_output.dipole_moment import DipoleMomentCalc
 from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
-from equiv_dens.nn.modules.unit_conversion import UnitConversion
+from equiv_dens.utils.scaling import UnitConversion, VarianceScaling
 import equiv_dens.utils.base as utils
 from equiv_dens.utils.grids import dftpy_grid, CubicalGrid
 from dftpy.pseudo import LocalPseudo
@@ -67,6 +67,9 @@ def load_model(args, dataset, train=False):
     conversions_out = UnitConversion(
         en_conversion_func=getattr(utils, 'kcal_to_' + args.energy_unit_out),
         dist_conversion_func=getattr(utils, 'angstrom_to_' + args.distance_unit_out))
+    force_scaling = VarianceScaling()
+    if args.output_scaling:
+        force_scaling = VarianceScaling(conversions_in.en_conversion_func(dataset.forces)/conversions_in.dist_conversion_func(1))
     print('conversions in', conversions_in.en_conversion_func)
     print('conversions out', conversions_out.en_conversion_func)
 
@@ -283,7 +286,9 @@ def load_model(args, dataset, train=False):
                        calculate_forces_dict=calculate_forces_dict,
                        verbose=args.verbose,
                        conversions_in=conversions_in,
-                       conversions_out=conversions_out)
+                       conversions_out=conversions_out,
+                       scaling=force_scaling,
+                      )
     # print('dft network', model)
     if args.restart is not None:
         directory = args.restart  # load directory name

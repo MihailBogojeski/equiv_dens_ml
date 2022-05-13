@@ -343,8 +343,8 @@ class Trainer:
         #     print('param grad', name, param)
 
         data = self._module.conversions_in(data)
+        data = self._module.scaling(data)
         predictions = self._model(data)
-        data = self._module.conversions_out(data)
 
         if self.verbose > -1:
             if 'density' in predictions.keys():
@@ -456,8 +456,10 @@ class Trainer:
             #     print('validate before prediction:', torch.cuda.memory_summary())
             # print('pre-conversion forces:', data['forces'])
             data = self._module.conversions_in(data)
+            data = self._module.scaling(data)
             # print('post-conversion forces:', data['forces'])
             predictions = self._model(data)
+            data = self._module.scaling.transform_back(data)
             data = self._module.conversions_out(data)
             # print('post-post-conversion forces:', data['forces'])
             # if self.verbose > 2:

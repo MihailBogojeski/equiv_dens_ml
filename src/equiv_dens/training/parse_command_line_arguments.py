@@ -230,10 +230,8 @@ def parse_command_line_arguments(arg_file=None):
                                choices=['angstrom', 'bohr'], help="distance input unit")
     args_training.add_argument("--distance_unit_out", metavar='STR', type=str, default='angstrom',
                                choices=['angstrom', 'bohr'], help="distance output unit")
-    args_training.add_argument("--energy_out_factor", metavar='FLOAT', type=float, default=1.0,
-                               help="Conversion factor applied to energy on output")
-    args_training.add_argument("--forces_out_factor", metavar='FLOAT', type=float, default=1.0,
-                               help="Conversion factor applied to forces on output")
+    args_training.add_argument("--output_scaling", metavar='True|False', type=str2bool, default=False,
+                               choices=[True, False], help="Scale the output forces to unit variance.")
     args_training.add_argument("--grid_scaling_factor", metavar='True|False', type=str2bool, default=False,
                                choices=[True, False], help="Factor to control scaling of density to correct integral on grid.")
     args_training.add_argument("--grid_scaling_annealing", metavar='FLOAT', type=float, default=1.0,

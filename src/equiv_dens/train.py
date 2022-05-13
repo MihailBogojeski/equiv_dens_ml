@@ -454,7 +454,10 @@ for test_batch_num, data in enumerate(test_data_loader):
 
     # forward step
     data = model.conversions_in(data)
+    data = model.scaling(data)
     predictions = model(data)
+    predictions = model.scaling.transform_back(predictions)
+    data = model.scaling.transform_back(data)
     data = model.conversions_out(data)
     # print(lkajsdlkjasfd)
     # print('energy pred', predictions['energy'])

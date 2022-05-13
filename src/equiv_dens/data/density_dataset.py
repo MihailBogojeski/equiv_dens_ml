@@ -78,6 +78,7 @@ class AtomsDensityData(Dataset):
         self.verbose = verbose
         self.use_gpu = use_gpu
         self.radii_adjust = radii_adjust
+        self.energy_centered = False
         print('Some variables')
         if required_properties is None:
             self.required_properties = self.available_properties
@@ -204,9 +205,28 @@ class AtomsDensityData(Dataset):
         return idx
 
     def center_energy(self, energy_mean):
-        print('pre centering:', self.atoms['energy'][:20])
-        self.atoms['energy'] -= energy_mean
-        print('post centering:', self.atoms['energy'][:20])
+        if self.verbose > 0:
+            print('energy before centering', np.mean(self.atoms['energy']))
+            print('energy mean', energy_mean)
+        if not self.energy_centered:
+            self.atoms['energy'] -= energy_mean
+            self.energy_centered = True
+        if self.verbose > 0:
+            print('energy after centering', np.mean(self.atoms['energy']))
+
+    @property
+    def energy(self):
+        if self.subset is None:
+            return self.atoms['energy']
+        else:
+            return self.atoms['energy'][self.subset]
+
+    @property
+    def forces(self):
+        if self.subset is None:
+            return self.atoms['forces']
+        else:
+            return self.atoms['forces'][self.subset]
 
     # collects the molecular properties for the batch, should be used as collate_fn
     def get_properties(self, idx):
