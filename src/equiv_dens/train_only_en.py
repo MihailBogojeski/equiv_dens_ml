@@ -409,7 +409,7 @@ elif args.optimizer == 'sgd':  # Stochastic Gradient Descent
 
 # initialize Lookahead
 if args.lookahead_k > 0:
-    optimizer = Lookahead(optimizers[0], k=args.lookahead_k)
+    optimizers[0] = Lookahead(optimizers[0], k=args.lookahead_k)
 
 # learning rate scheduler (decays learning rate if validation loss plateaus)
 

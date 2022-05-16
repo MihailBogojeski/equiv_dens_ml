@@ -32,13 +32,17 @@ class VarianceScaling(nn.Module):
             self.std = np.std(x)
 
     def forward(self, atoms):
-        atoms['energy'] = atoms['energy'] / self.std
-        atoms['forces'] = atoms['forces'] / self.std
+        if 'energy' in atoms.keys():
+            atoms['energy'] = atoms['energy'] / self.std
+        if 'forces' in atoms.keys():
+            atoms['forces'] = atoms['forces'] / self.std
 
         return atoms
 
     def transform_back(self, atoms):
-        atoms['energy'] = atoms['energy'] * self.std
-        atoms['forces'] = atoms['forces'] * self.std
+        if 'energy' in atoms.keys():
+            atoms['energy'] = atoms['energy'] * self.std
+        if 'forces' in atoms.keys():
+            atoms['forces'] = atoms['forces'] * self.std
 
         return atoms

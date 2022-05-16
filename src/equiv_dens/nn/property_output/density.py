@@ -1161,7 +1161,6 @@ class TransferableDensityExpansion(nn.Module):
         L0_integrals = []
         if 0 in eval_L:
             for i in range(len(L0_coeffs)):
-                print('i', i, ' L0_i', L0_i[i])
                 coeffs_size = np.prod(list(L0_coeffs[i].shape[1:]))
                 curr_coeffs = L0_coeffs_comb[:, coeffs_pointer:(coeffs_size + coeffs_pointer)]
                 if self.verbose > 3:
