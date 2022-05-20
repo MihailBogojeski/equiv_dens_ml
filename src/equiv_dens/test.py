@@ -214,6 +214,7 @@ test_data_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.tes
 
 # define model
 model = load_model(args, dataset)
+
 if use_gpu:
     print("Testing on " + str(torch.cuda.device_count()) + " GPUs:")
 else:

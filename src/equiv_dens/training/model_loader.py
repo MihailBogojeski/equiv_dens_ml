@@ -304,6 +304,14 @@ def load_model(args, dataset, train=False):
         state_dict_path = os.path.join(args.restart, best_model_path)
         print('state_dict_path', state_dict_path)
         state_dict = torch.load(state_dict_path, map_location='cpu')
+        if not train and args.load_from is not None:
+            print('loading from', args.load_from)
+            load_code = args.load_from.split('_')[-1]
+            model_dict = torch.load(os.path.join(args.load_from, 'best_' + load_code + '.pth'), map_location='cpu')
+
+            for key in model_dict.keys():
+                if 'property_models.density' in key:
+                    state_dict[key] = model_dict[key]
         model.load_state_dict(state_dict)
     if not train:
         print('dtype type', type(args.dtype))

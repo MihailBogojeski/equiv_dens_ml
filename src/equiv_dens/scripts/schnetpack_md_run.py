@@ -66,10 +66,10 @@ def run_molecular_dynamics(args, dataset, model):
     if args.dipole_moment_weight > 0:
         required_properties.append('dipole_moment')
     if args.density_weight > 0:
-        # required_properties.append('spherical_coeffs')
-        # required_properties.append('radial_width')
-        # required_properties.append('radial_scale')
-        required_properties.append('density')
+        required_properties.append('spherical_coeffs')
+        required_properties.append('radial_width')
+        required_properties.append('radial_scale')
+        # required_properties.append('density')
     # Generate the calculator
     md_calculator = DFTNetworkCalculator(
         model,
@@ -151,15 +151,12 @@ if __name__ == "__main__":
         checkpoint_path, 'latest_checkpoint.pth'), map_location='cpu')
     latest_checkpoint = checkpoint['step']
     model_code = checkpoint['ID']  # load ID
-    step = checkpoint['step']
     for arg in vars(checkpoint['args']):
         if args.fix_arguments:
             if arg in hyperparam_args:
                 print('loading hyperparam arg', arg)
                 setattr(args, arg, getattr(checkpoint['args'], arg))
-        else:
-            print('loading all arg', arg)
-            setattr(args, arg, getattr(checkpoint['args'], arg))
+    step = checkpoint['step']
     restore = True
     print('dtype', args.dtype)
 
