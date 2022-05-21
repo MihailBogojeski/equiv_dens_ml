@@ -80,9 +80,9 @@ class DFTNetworkCalculator(MDCalculator):
             else:
                 # Detach properties if requested
                 self.results[p] = results[p].detach()
-        print('system before', system.properties)
+        # print('system before', system.properties)
         self._update_system(system)
-        print('system after', system.properties)
+        # print('system after', system.properties)
 
         print('Step time:', time.time() - start)
 
@@ -107,7 +107,7 @@ class DFTNetworkCalculator(MDCalculator):
                   'atom_mask': atom_types != 0,
                   }
         if self.density_expansion:
-            print('grid spec', self.grid_spec)
+            # print('grid spec', self.grid_spec)
             sample_coords, coord_weights = self.grid_sampling_fn(self.grid_spec, 10000000000,
                                                                  utils.numbers_to_symbols(atom_types[0].squeeze().detach().cpu().numpy()),
                                                                  inputs['positions'])
