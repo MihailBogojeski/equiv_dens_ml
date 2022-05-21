@@ -12,6 +12,7 @@ import equiv_dens.utils.base as utils
 
 import numpy as np
 from functools import partial
+import time
 
 from dftpy.pseudo import LocalPseudo
 # from torch import autograd
@@ -221,14 +222,18 @@ else:
     print("Testing on the CPU:")
 
 test_errors = error_dict.empty()
+model.eval()
 for test_batch_num, data in enumerate(test_data_loader):
-    model.eval()
+    start = time.time()
     # send data to GPU
+
     if use_gpu:
         for key in data.keys():
             if isinstance(data[key], torch.Tensor):
                 data[key] = data[key].cuda()
 
+    if args.timing:
+        print('test load time', time.time() - start)
     # forward step
     print('step', test_batch_num)
     print('batch size', data['positions'].shape[0])
@@ -257,5 +262,7 @@ for test_batch_num, data in enumerate(test_data_loader):
     predictions = None
     data = None
     errors = None
+    if args.timing:
+        print('test step time', time.time() - start)
 
 print(test_errors)
