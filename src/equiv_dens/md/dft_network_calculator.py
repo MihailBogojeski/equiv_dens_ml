@@ -36,11 +36,14 @@ class DFTNetworkCalculator(MDCalculator):
         self.grid_sampling_fn = grid_sampling_fn
         self.verbose = verbose
         self.n_jobs = n_jobs
+        print('calculator grid spec', grid_spec)
         self.grid_spec = {}
         if use_gpu:
             for key in grid_spec.keys():
                 self.grid_spec[key] = (grid_spec[key][0].cuda(),
                                        grid_spec[key][1].cuda())
+        else:
+            self.grid_spec = grid_spec
         self.density_expansion = density_expansion
 
     def calculate(self, system):
@@ -58,11 +61,11 @@ class DFTNetworkCalculator(MDCalculator):
         inputs = self._generate_input(system)
         results = self.model(inputs)
         # print('density integral', torch.sum(results['density'] * results['coord_weights'], -1))
-        sph_coeffs, rad_width, rad_scale = orbitals.coeffs_dict_to_tensors(results)
-        coeffs = {}
-        coeffs['spherical_coeffs'] = sph_coeffs
-        coeffs['radial_width'] = rad_width 
-        coeffs['radial_scale'] = rad_scale 
+        vector_coeffs = orbitals.coeffs_dict_to_vector(results, self.model.density_repr_model[0].orbital_basis,
+                                                                          results['atom_numbers'])
+        results['spherical_coeffs'] = vector_coeffs['spherical_coeffs']
+        results['radial_width'] = vector_coeffs['radial_width']
+        results['radial_scale'] = vector_coeffs['radial_scale']
         self.results = {}
         for p in self.required_properties:
             # if p in ['spherical_coeffs', 'radial_width', 'radial_scale']:
@@ -100,9 +103,11 @@ class DFTNetworkCalculator(MDCalculator):
         center = torch.sum(positions * system.masses, 2) / torch.sum(system.masses, 2)
         # inputs = {'positions': positions + 10,
         inputs = {'positions': positions - center.permute(1, 0, 2),
-                  'atom_numbers': atom_types
+                  'atom_numbers': atom_types,
+                  'atom_mask': atom_types != 0,
                   }
         if self.density_expansion:
+            print('grid spec', self.grid_spec)
             sample_coords, coord_weights = self.grid_sampling_fn(self.grid_spec, 10000000000,
                                                                  utils.numbers_to_symbols(atom_types[0].squeeze().detach().cpu().numpy()),
                                                                  inputs['positions'])

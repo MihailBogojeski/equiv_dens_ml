@@ -213,6 +213,92 @@ def coeffs_dict_to_tensors(coeffs, radial_coeffs=True):
     return all_sph, all_scale, all_width
 
 
+def coeffs_dict_to_vector(coeffs, orbital_basis, a_num, radial_coeffs=True):
+    sph_coeffs = coeffs['spherical_coeffs']
+    if radial_coeffs:
+        rad_width = coeffs['radial_width']
+        rad_scale = coeffs['radial_scale']
+
+    all_sph = None
+    all_scale = None
+    all_width = None
+    for i, z in enumerate(torch.max(a_num, dim=0)[0]):
+        orb_ind = {}
+        z = int(z)
+        basis = orbital_basis[z]
+        for orb in basis:
+            L = orb[2]
+            key = (z, L)
+            if key not in orb_ind.keys():
+                orb_ind[key] = 0
+            if all_sph is None:
+                all_sph = 1 * sph_coeffs[i][key][..., orb_ind[key]]
+                if radial_coeffs:
+                    all_scale = 1 * rad_scale[i][key][..., orb_ind[key]]
+                    all_width = 1 * rad_width[i][key][..., orb_ind[key]]
+                orb_ind[key] += 1
+            else:
+                all_sph = torch.cat([all_sph, sph_coeffs[i][key][..., orb_ind[key]]], dim=2)
+                if radial_coeffs:
+                    all_scale = torch.cat([all_scale, rad_scale[i][key][..., orb_ind[key]]], dim=2)
+                    all_width = torch.cat([all_width, rad_width[i][key][..., orb_ind[key]]], dim=2)
+                orb_ind[key] += 1
+
+    vector_coeffs = {}
+    vector_coeffs['spherical_coeffs'] = all_sph.squeeze(1)
+    if radial_coeffs:
+        vector_coeffs['radial_width'] = all_width.squeeze(1)
+        vector_coeffs['radial_scale'] = all_scale.squeeze(1)
+
+    return vector_coeffs
+
+
+def vector_to_coeffs_dict(coeffs, orbital_basis, a_num, radial_coeffs=True):
+    vec_sph = coeffs['spherical_coeffs']
+    dict_sph = []
+    if radial_coeffs:
+        vec_width = coeffs['radial_width']
+        vec_scale = coeffs['radial_scale']
+        dict_width = []
+        dict_scale = []
+    sph_count = 0
+    rad_count = 0
+    for i, z in enumerate(torch.max(a_num, dim=0)[0]):
+        dict_sph.append({})
+        if radial_coeffs:
+            dict_width.append({})
+            dict_scale.append({})
+        z = int(z)
+        basis = orbital_basis[z]
+        for orb in basis:
+            L = orb[2]
+            key = (z, L)
+            step = 2*L + 1
+            if key not in dict_sph[i].keys():
+                dict_sph[i][key] = vec_sph[:, sph_count:sph_count + step].unsqueeze(1).unsqueeze(-1)
+                sph_count += step
+                if radial_coeffs:
+                    dict_width[i][key] = vec_width[:, [rad_count]].unsqueeze(1).unsqueeze(-1)
+                    dict_scale[i][key] = vec_scale[:, [rad_count]].unsqueeze(1).unsqueeze(-1)
+                    rad_count += 1
+            else:
+                new_sph = vec_sph[:, sph_count:sph_count + step].unsqueeze(1).unsqueeze(-1)
+                dict_sph[i][key] = torch.cat([dict_sph[i][key], new_sph], dim=-1) 
+                sph_count += step
+                if radial_coeffs:
+                    new_scale = vec_scale[:, [rad_count]].unsqueeze(1).unsqueeze(-1)
+                    new_width = vec_width[:, [rad_count]].unsqueeze(1).unsqueeze(-1)
+                    dict_width[i][key] = torch.cat([dict_width[i][key], new_width], dim=-1) 
+                    dict_scale[i][key] = torch.cat([dict_scale[i][key], new_scale], dim=-1) 
+                    rad_count += 1
+    dict_coeffs = {}
+    dict_coeffs['spherical_coeffs'] = dict_sph
+    dict_coeffs['radial_width'] = dict_width
+    dict_coeffs['radial_scale'] = dict_scale
+
+    return dict_coeffs
+
+
 def orbitals_from_hamiltonian(hamiltonians, overlaps):
     orbital_coeffs = []
     for i in range(hamiltonians.shape[0]):

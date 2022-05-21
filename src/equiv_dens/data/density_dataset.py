@@ -60,6 +60,7 @@ class AtomsDensityData(Dataset):
         verbose=0,
         use_gpu=False,
         radii_adjust=True,
+        projected_density=False,
     ):
         print('Starting atomsdata density init')
         self.density_path = density_path
@@ -79,6 +80,7 @@ class AtomsDensityData(Dataset):
         self.use_gpu = use_gpu
         self.radii_adjust = radii_adjust
         self.energy_centered = False
+        self.projected_density = projected_density
         print('Some variables')
         if required_properties is None:
             self.required_properties = self.available_properties
@@ -94,6 +96,7 @@ class AtomsDensityData(Dataset):
             calc_results = np.load(density_path, allow_pickle=True)
         self.mols = []
         self.coeffs = []
+        self.density_fitting = []
         self.ions = []
         ase_atoms = utils.npy_to_ase(self.atoms['shifted_positions'], self.atoms['atom_types'])
         # for i in range(10):
@@ -106,6 +109,9 @@ class AtomsDensityData(Dataset):
                 mol = gto.Mole(**mol_dict)
                 self.mols.append(mol)
                 self.coeffs.append(coeff_dict)
+                if 'df_coeff' in calc_dict:
+                    df_dict = {'df_coeff': calc_dict['df_coeff'], 'auxbasis': calc_dict['auxbasis']}
+                    self.density_fitting.append(df_dict)
             a = ase_atoms[i]
             a.set_cell(grid_extent)
             self.ions.append(ase_io.ase2ions(a))
@@ -243,7 +249,10 @@ class AtomsDensityData(Dataset):
             if pname == 'coords' or pname == 'density':
                 properties['coords'], properties['coord_weights'] = self.get_coords(positions, self.atoms['atom_types'])
                 if pname == 'density':
-                    properties[pname] = self.sample_density(idx, properties['coords'])
+                    if self.projected_density:
+                        properties[pname] = self.sample_projected_density(idx, properties['coords'])
+                    else:
+                        properties[pname] = self.sample_density(idx, properties['coords'])
             else:
                 properties[pname] = torch.from_numpy(self.atoms[pname][idx])
 
@@ -303,6 +312,35 @@ class AtomsDensityData(Dataset):
                 # print('ao time', time.time() - ao_start)
                 # rho_start = time.time()
                 rho = numint.eval_rho2(mol, ao, **coeff_dict)
+                # print('rho time', time.time() - rho_start)
+                dens[c, :] = torch.from_numpy(rho).type(self.dtype)
+                # print('mol_time', time.time() - mol_start)
+
+        return dens
+
+    def sample_projected_density(self, idx, sample_coords):
+        scaled_sample_coords = sample_coords.detach().cpu().numpy() / param.BOHR  # convert Angstrom grid to Bohr
+        dens = torch.zeros((sample_coords.shape[0], sample_coords.shape[1]), dtype=self.dtype)
+        if len(self.density_fitting) == 0:
+            raise RuntimeError("Density fitting coefficients MUST be present in order to create projected density")
+        if len(self.mols) > 0:
+            for c, i in enumerate(idx):
+                # mol_start = time.time()
+                # print('c, i', c, i)
+                mol = self.mols[i]
+                if not mol._built and mol.basis != self.density_fitting[i]['auxbasis']:
+                    mol.basis = self.density_fitting[i]['auxbasis']
+                    # build_start = time.time()
+                    if self.verbose > 3:
+                        print('building mol', i)
+                    mol.build()
+                    # print('build time', time.time() - build_start)
+                df_coeff = self.density_fitting[i]['df_coeff']
+                # ao_start = time.time()
+                ao = numint.eval_ao(mol, scaled_sample_coords[c])
+                # print('ao time', time.time() - ao_start)
+                # rho_start = time.time()
+                rho = np.einsum('ij,j->i', ao, df_coeff)
                 # print('rho time', time.time() - rho_start)
                 dens[c, :] = torch.from_numpy(rho).type(self.dtype)
                 # print('mol_time', time.time() - mol_start)
