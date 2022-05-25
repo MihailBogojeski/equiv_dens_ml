@@ -11,7 +11,6 @@ class DFTNetworkCalculator(MDCalculator):
                  model,
                  required_properties,
                  force_handle,
-                 atoms_data=None,
                  verbose=0,
                  n_jobs=10,
                  density_expansion=False,
