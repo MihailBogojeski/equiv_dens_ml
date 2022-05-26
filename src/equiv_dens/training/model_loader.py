@@ -311,6 +311,7 @@ def load_model(args, dataset, train=False):
 
             for key in model_dict.keys():
                 if 'property_models.density' in key:
+                    print('key', key)
                     state_dict[key] = model_dict[key]
         model.load_state_dict(state_dict)
     if not train:

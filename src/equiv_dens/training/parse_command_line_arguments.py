@@ -238,6 +238,8 @@ def parse_command_line_arguments(arg_file=None):
                                help="Anneal the grid scaling factor over time.")
     args_training.add_argument("--grid_scaling_start", metavar='INT', type=int, default=10000,
                                help="The step at which grid scaling starts.")
+    args_training.add_argument("--projected_density", metavar='True|False', type=str1bool, default=False,
+                               choices=[True, False], help="Use density fitting projection for density labels.")
 
 
     # arguments for simulations
