@@ -372,6 +372,7 @@ class TransferableDensityCoeffsNetwork(nn.Module):
                  timing=False,
                  init_coeffs=None,
                  pred_radial_coeffs=True,
+                 scale_sph_degrees=True,
                  ):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
         super().__init__()
 
@@ -389,6 +390,7 @@ class TransferableDensityCoeffsNetwork(nn.Module):
         self.timing = timing
         self.init_coeffs = init_coeffs
         self.pred_radial_coeffs = pred_radial_coeffs
+        self.scale_sph_degrees = scale_sph_degrees
 
         # extract nuclear charges from orbitals, determine maximum order, and
         # build the occupation mask (for extracting occupied orbitals in energy prediction)
@@ -666,6 +668,9 @@ class TransferableDensityCoeffsNetwork(nn.Module):
             print('fs[0]:', fs[0][:, 0, :, :10])
             print('fs[1]:', fs[1][:, 0, :, :10])
         out_sph = self.spherical_output(fs)
+        if self.scale_sph_degrees:
+            for L in range(len(out_sph)):
+                out_sph[L] = out_sph[L] * 10**(-L)
         if self.positive_coeffs:
             out_sph[0] = F.softplus(out_sph[0])
         out_width = []

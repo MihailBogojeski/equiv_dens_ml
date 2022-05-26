@@ -120,6 +120,7 @@ def load_model(args, dataset, train=False):
         timing=args.timing,
         init_coeffs=dataset.L0_coeffs,
         pred_radial_coeffs=args.pred_radial_coeffs,
+        scale_sph_degrees=args.scale_sph_degrees,
     )
 
     expansion_model = density_expansion(dataset.orbitals, radial_coeffs=dataset.radial_coeffs,
