@@ -148,7 +148,6 @@ class AtomsDensityData(Dataset):
                                        self.grid_spec[key][1].cuda())  # convert Bohr grid to Angstrom
         self.fixed_properties = fixed_properties
         if self.verbose > 1:
-            print('dataset init grid_spec type', self.grid_spec['H'][0].type())
             print('dataset radial coeffs', self.radial_coeffs)
             print('dataset L0 coeffs', self.L0_coeffs)
 
@@ -257,7 +256,10 @@ class AtomsDensityData(Dataset):
                 properties[pname] = torch.from_numpy(self.atoms[pname][idx])
 
         # extract/calculate structure
-        properties['atom_numbers'] = torch.LongTensor(self.atoms['atom_numbers']).unsqueeze(0).repeat(len(idx), 1)
+        if self.atoms['atom_numbers'].ndim == 2:
+            properties['atom_numbers'] = torch.LongTensor(self.atoms['atom_numbers'][idx])
+        else:
+            properties['atom_numbers'] = torch.LongTensor(self.atoms['atom_numbers']).unsqueeze(0).repeat(len(idx), 1)
         properties['atom_mask'] = properties['atom_numbers'] != 0
         properties['idx'] = torch.LongTensor(idx).unsqueeze(-1)
         # properties['ions'] = [self.ions[i] for i in idx]
@@ -311,7 +313,13 @@ class AtomsDensityData(Dataset):
                 ao = numint.eval_ao(mol, scaled_sample_coords[c])
                 # print('ao time', time.time() - ao_start)
                 # rho_start = time.time()
-                rho = numint.eval_rho2(mol, ao, **coeff_dict)
+                if coeff_dict['mo_occ'].ndim > 1:
+                    rho = 0
+                    for j in range(coeff_dict['mo_occ'].shape[0]):
+                        rho += numint.eval_rho2(mol, ao, mo_occ=coeff_dict['mo_occ'][j], 
+                                                mo_coeff=coeff_dict['mo_coeff'][j])
+                else:
+                    rho = numint.eval_rho2(mol, ao, **coeff_dict)
                 # print('rho time', time.time() - rho_start)
                 dens[c, :] = torch.from_numpy(rho).type(self.dtype)
                 # print('mol_time', time.time() - mol_start)
@@ -340,7 +348,12 @@ class AtomsDensityData(Dataset):
                 ao = numint.eval_ao(mol, scaled_sample_coords[c])
                 # print('ao time', time.time() - ao_start)
                 # rho_start = time.time()
-                rho = np.einsum('ij,j->i', ao, df_coeff)
+                if df_coeff.ndim > 1:
+                    rho = 0
+                    for j in range(df_coeff.shape[0]):
+                        rho += np.einsum('ij,j->i', ao, df_coeff[j])
+                else:
+                    rho = np.einsum('ij,j->i', ao, df_coeff)
                 # print('rho time', time.time() - rho_start)
                 dens[c, :] = torch.from_numpy(rho).type(self.dtype)
                 # print('mol_time', time.time() - mol_start)

@@ -93,6 +93,8 @@ def parse_command_line_arguments(arg_file=None):
                                   choices=[True, False], help="Optimize coefficients directly without a neural network.")
     args_hyperparams.add_argument("--transferable_model", metavar='True|False', type=str2bool, default=False,
                                   choices=[True, False], help="Make model transferable across different molecules.")
+    args_hyperparams.add_argument("--scale_sph_degrees", metavar='True|False', type=str2bool, default=False,
+                                  choices=[True, False], help="Rescale predicted density coeffs based on spherical harmonic degrees.")
     hyperparam_args = [act.dest for act in args_hyperparams._group_actions]
 
     # arguments for training
@@ -238,7 +240,7 @@ def parse_command_line_arguments(arg_file=None):
                                help="Anneal the grid scaling factor over time.")
     args_training.add_argument("--grid_scaling_start", metavar='INT', type=int, default=10000,
                                help="The step at which grid scaling starts.")
-    args_training.add_argument("--projected_density", metavar='True|False', type=str1bool, default=False,
+    args_training.add_argument("--projected_density", metavar='True|False', type=str2bool, default=False,
                                choices=[True, False], help="Use density fitting projection for density labels.")
 
 
@@ -259,6 +261,9 @@ def parse_command_line_arguments(arg_file=None):
                                  choices=['md', 'opt'], help="type of simulation to run.")
     args_simulation.add_argument("--port_num", metavar='INT', type=int, default=50007,
                                  help="Port number for communication.")
+    args_simulation.add_argument("--force_conversion", metavar='STR', default='kcal/mol/A', type=str, help="Force conversion unit.")
+    args_simulation.add_argument("--position_conversion", metavar='STR', default='A', type=str, help="Position conversion unit.")
+    args_simulation.add_argument("--energy_conversion", metavar='STR', default='kcal/mol', type=str, help="Energy conversion unit.")
 
     # arguments for logging and checkpoints
     args_logging = parser.add_argument_group("logging and checkpoints")

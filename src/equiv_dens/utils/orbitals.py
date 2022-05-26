@@ -293,8 +293,9 @@ def vector_to_coeffs_dict(coeffs, orbital_basis, a_num, radial_coeffs=True):
                     rad_count += 1
     dict_coeffs = {}
     dict_coeffs['spherical_coeffs'] = dict_sph
-    dict_coeffs['radial_width'] = dict_width
-    dict_coeffs['radial_scale'] = dict_scale
+    if radial_coeffs:
+        dict_coeffs['radial_width'] = dict_width
+        dict_coeffs['radial_scale'] = dict_scale
 
     return dict_coeffs
 

@@ -19,10 +19,12 @@ from schnetpack.md.integrators import VelocityVerlet
 from schnetpack.md import Simulator
 from schnetpack.md.simulation_hooks import thermostats
 from schnetpack.md.simulation_hooks import logging_hooks
+import tables
 
 
 def run_molecular_dynamics(args, dataset, model):
     np.random.seed(args.split_seed)
+    tables.file._open_files.close_all()
     # start_ind = 10
 
     start_idx = np.random.randint(len(dataset), size=(args.test_batch_size,))
@@ -75,10 +77,9 @@ def run_molecular_dynamics(args, dataset, model):
         model,
         required_properties=required_properties,
         force_handle='forces',
-        atoms_data=atoms_data,
-        position_conversion="A",
-        force_conversion="kcal/mol/A",
-        property_conversion={},
+        position_conversion=args.position_conversion,
+        force_conversion=args.force_conversion,
+        property_conversion={'energy': args.energy_conversion},
         density_expansion=args.density_weight > 0,
         grid_spec=dataset.grid_spec,
         grid_sampling_fn=dataset.sampling_fn,
@@ -121,17 +122,20 @@ def run_molecular_dynamics(args, dataset, model):
     simulation_hooks.append(file_logger)
 
     # Set the path to the checkpoint file
-    chk_file = os.path.join(args.md_log_dir, 'simulation.chk')
+    chk_file = os.path.join(args.md_log_dir, 'simulation' + args.log_suffix + '.chk')
 
     # Create the checkpoint logger
-    checkpoint = logging_hooks.Checkpoint(chk_file, every_n_steps=10000)
+    checkpoint = logging_hooks.Checkpoint(chk_file, every_n_steps=1000)
 
     # Update the simulation hooks
     simulation_hooks.append(checkpoint)
 
     md_simulator = Simulator(md_system, md_integrator, md_calculator,
-                             simulator_hooks=simulation_hooks,
-                             restart=True)
+                             simulator_hooks=simulation_hooks)
+    if os.path.exists(chk_file):
+        print('restarting past model')
+        state_dict = torch.load(chk_file)
+        md_simulator.restart_simulation(state_dict)
 
     md_simulator.simulate(args.md_steps)
 
