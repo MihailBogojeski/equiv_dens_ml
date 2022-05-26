@@ -137,7 +137,7 @@ class AtomsDensityData(Dataset):
 
         print('grid fn', grid_fn)
         self.grid_spec = grid_fn(self.atoms)
-        print('grid spec sizes', [self.grid_spec[z][1].shape for z in self.grid_spec.keys()])
+        # print('grid spec sizes', [self.grid_spec[z][1].shape for z in self.grid_spec.keys()])
 
         for key in self.grid_spec.keys():
             self.grid_spec[key] = (self.grid_spec[key][0].type(self.dtype),
