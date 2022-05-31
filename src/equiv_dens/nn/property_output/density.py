@@ -691,6 +691,7 @@ class TransferableDensityCoeffsNetwork(nn.Module):
         atom_mask = atoms['atom_mask'].reshape(atoms['atom_mask'].shape + (1,) * dim_diff).to(fs[0])
         for i in range(len(out_sph)):
             out_sph[i] = out_sph[i] * atom_mask
+        for i in range(len(out_width)):
             out_width[i] = out_width[i] * atom_mask
             out_scale[i] = out_scale[i] * atom_mask
         if self.verbose > 2:
