@@ -137,15 +137,16 @@ class AtomsDensityData(Dataset):
 
         print('grid fn', grid_fn)
         self.grid_spec = grid_fn(self.atoms)
-        print('grid spec sizes', [self.grid_spec[z][1].shape for z in self.grid_spec.keys()])
-
-        for key in self.grid_spec.keys():
-            self.grid_spec[key] = (self.grid_spec[key][0].type(self.dtype),
-                                   self.grid_spec[key][1].type(self.dtype))
-        if self.use_gpu:
+        # print('grid spec sizes', [self.grid_spec[z][1].shape for z in self.grid_spec.keys()])
+        if isinstance(self.grid_spec, dict):
             for key in self.grid_spec.keys():
-                self.grid_spec[key] = (self.grid_spec[key][0].cuda(),
-                                       self.grid_spec[key][1].cuda())  # convert Bohr grid to Angstrom
+                self.grid_spec[key] = (self.grid_spec[key][0].type(self.dtype),
+                                       self.grid_spec[key][1].type(self.dtype))
+        if self.use_gpu:
+            if isinstance(self.grid_spec, dict):
+                for key in self.grid_spec.keys():
+                    self.grid_spec[key] = (self.grid_spec[key][0].cuda(),
+                                           self.grid_spec[key][1].cuda())  # convert Bohr grid to Angstrom
         self.fixed_properties = fixed_properties
         if self.verbose > 1:
             print('dataset radial coeffs', self.radial_coeffs)
