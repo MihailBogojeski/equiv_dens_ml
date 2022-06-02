@@ -37,7 +37,12 @@ def cubical_grid(atoms, nx=125, ny=125, nz=125, resolution=None,
     positions = atoms['positions'][0]
     mol_dict = list(zip(symbols, positions))
     print('mol_dict', mol_dict)
-    mol = gto.M(atom=mol_dict)
+    if (len(atoms['atom_types']) == 1 
+        and atoms['atom_numbers'].ndim == 1
+        and atoms['atom_numbers'][0] % 2 == 1):
+        mol = gto.M(atom=mol_dict, spin=1)
+    else:
+        mol = gto.M(atom=mol_dict)
     coord = mol.atom_coords(unit='Angstrom')  # positions in angstrom
     if extent is None:
         box = np.max(coord, axis=0) - np.min(coord, axis=0) + margin * 2
@@ -181,11 +186,13 @@ def cubical_sampling(grid_spec, n_samp, atom_types, pos):
     flat_coords = np.reshape(grid_spec[0], (-1, 3))
     flat_coords = flat_coords[None, :]
     flat_coords = np.repeat(flat_coords, pos.shape[0], axis=0)
+    if isinstance(pos, torch.Tensor):
+        flat_coords = torch.tensor(flat_coords).to(pos)
     if n_samp > flat_coords.shape[1]:
-        return flat_coords, np.ones((flat_coords.shape[1], )) * grid_spec[1]
+        return flat_coords, torch.ones((flat_coords.shape[1], )) * grid_spec[1]
     else:
         rand_idx = np.random.choice(np.arange(flat_coords.shape[1]), size=n_samp, replace=False)
-        return flat_coords[:, rand_idx, :], np.ones((n_samp, ) * grid_spec[1])
+        return flat_coords[:, rand_idx, :], torch.ones((n_samp, ) * grid_spec[1])
 
 
 def dftpy_grid(lattice, gap):

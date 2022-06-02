@@ -19,12 +19,10 @@ from schnetpack.md.integrators import VelocityVerlet
 from schnetpack.md import Simulator
 from schnetpack.md.simulation_hooks import thermostats
 from schnetpack.md.simulation_hooks import logging_hooks
-import tables
 
 
 def run_molecular_dynamics(args, dataset, model):
     np.random.seed(args.split_seed)
-    tables.file._open_files.close_all()
     # start_ind = 10
 
     start_idx = np.random.randint(len(dataset), size=(args.test_batch_size,))
