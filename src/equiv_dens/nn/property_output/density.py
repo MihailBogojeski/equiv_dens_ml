@@ -552,10 +552,10 @@ class TransferableDensityCoeffsNetwork(nn.Module):
                 if self.init_coeffs is not None and L == 0:
                     # print('spherical_coeffs[i][key] before shape', spherical_coeffs[i][key].shape)
                     # print('self.init_sph(i, key)', self.init_sph(i, key))
-                    spherical_coeffs[i][key] = spherical_coeffs[i][key] + self.init_sph(i, key)
+                    spherical_coeffs[i][key] = spherical_coeffs[i][key] + self.init_sph(key)
                     if self.pred_radial_coeffs:
-                        radial_width[i][key] = torch.clamp(radial_width[i][key] + self.init_width(i, key), -0.999999, 0.99999)
-                        radial_scale[i][key] = radial_scale[i][key] + self.init_scale(i, key)
+                        radial_width[i][key] = torch.clamp(radial_width[i][key] + self.init_width(key), -0.999999, 0.99999)
+                        radial_scale[i][key] = radial_scale[i][key] + self.init_scale(key)
                     # print('spherical_coeffs[i][key] after shape', spherical_coeffs[i][key].shape)
 
         return spherical_coeffs, radial_width, radial_scale
