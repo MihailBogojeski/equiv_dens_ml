@@ -264,6 +264,7 @@ def parse_command_line_arguments(arg_file=None):
     args_simulation.add_argument("--force_conversion", metavar='STR', default='kcal/mol/A', type=str, help="Force conversion unit.")
     args_simulation.add_argument("--position_conversion", metavar='STR', default='A', type=str, help="Position conversion unit.")
     args_simulation.add_argument("--energy_conversion", metavar='STR', default='kcal/mol', type=str, help="Energy conversion unit.")
+    args_simulation.add_argument("--start_idx", metavar='INT', type=int, default=[-1], nargs='+', help="Start indices for the simulation.")
 
     # arguments for logging and checkpoints
     args_logging = parser.add_argument_group("logging and checkpoints")
@@ -325,6 +326,8 @@ def parse_command_line_arguments(arg_file=None):
             args.integral_constraint = True
         if args.energy_model == 'None':
             args.energy_model = None
+        if args.start_idx[0] == -1:
+            args.start_idx = None
 
         args.energy_unit_in = args.energy_unit_in.split('/')[0]
         args.energy_unit_out = args.energy_unit_out.split('/')[0]
