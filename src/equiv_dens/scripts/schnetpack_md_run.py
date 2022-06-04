@@ -24,8 +24,10 @@ from schnetpack.md.simulation_hooks import logging_hooks
 def run_molecular_dynamics(args, dataset, model):
     np.random.seed(args.split_seed)
     # start_ind = 10
-
-    start_idx = np.random.randint(len(dataset), size=(args.test_batch_size,))
+    if args.start_idx is None:
+        start_idx = np.random.randint(len(dataset), size=(args.test_batch_size,))
+    else:
+        start_idx = args.start_idx
     print('dataset atoms positions type', dataset.atoms['positions'].dtype)
     atoms_data = dataset.get_properties(start_idx)
     print('data positions type', type(atoms_data['positions']))
