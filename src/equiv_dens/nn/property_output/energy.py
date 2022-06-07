@@ -1219,3 +1219,168 @@ class SimpleRepresentationEnergyNetwork(nn.Module):
         if self.timing:
             print('simple energy time', time.time() - start)
         return atoms
+
+class SphericalLinearEnergyNetwork(nn.Module):
+    """
+    Neural network for computing the energy of a molecule based on the density coefficients
+    """
+    def __init__(self,
+                 orbitals=None,
+                 order=1,  # maximum order of spherical harmonics features
+                 num_features=32,  # dimensionality of the feature space
+                 # how many modules are stacked for calculating atomic features (iterations)
+                 num_modules=1,
+                 activation='swish',
+                 clebsch_gordan=None,  # instance of the clebsch gordan matrix
+                 calculate_forces=False,
+                 compressed_extraction=False,
+                 verbose=0,
+                 timing=False,
+                 pred_radial_coeffs=True,
+                 ):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
+        super().__init__()
+
+        # variables to control the flow of the forward graph
+        # (calculate full_hamiltonian / core_hamiltonian / overlap_matrix / energy / forces?)
+
+        self.calculate_forces = calculate_forces
+
+        # store hyperparameter values
+        self.orbitals = orbitals
+        self.order = order
+        self.num_features = num_features
+        self.num_modules = num_modules
+        self.activation = activation
+        self.compressed_extraction = compressed_extraction
+        self.verbose = verbose
+        self.timing = timing
+        self.pred_radial_coeffs = pred_radial_coeffs
+
+        self.orbital_basis = {}
+        for orb in orbitals:
+            z = orb[0][0]
+            if z not in self.orbital_basis.keys():
+                self.orbital_basis[z] = orb
+
+        if not isinstance(self.order, list):
+            self.order = [self.order] * self.num_modules
+
+        self.orbitals_max_order = get_max_order(self.orbitals)
+        self.spherical_spec, _, _ = combine_orbital_basis(self.orbital_basis, self.orbitals_max_order)
+        self.dens_features = [0] * (self.orbitals_max_order + 1)
+        seen_z = []
+        for key in self.spherical_spec.keys():
+            curr_feats = [0] * (self.orbitals_max_order + 1)
+            z = self.spherical_spec[key][0][0]
+            for orb in self.spherical_spec[key]:
+                L = orb[2]
+                curr_feats[L] += orb[1]
+
+            if self.compressed_extraction:
+                for L in range(len(curr_feats)):
+                    if curr_feats[L] > self.dens_features[L]:
+                        self.dens_features[L] = curr_feats[L]
+            else:
+                if z not in seen_z:
+                    seen_z.append(z)
+                    for L in range(len(curr_feats)):
+                        self.dens_features[L] += curr_feats[L]
+
+        self.order_max = max(self.order)
+
+        if clebsch_gordan is None:
+            self.clebsch_gordan = ClebschGordanMatrix()
+        else:
+            self.clebsch_gordan = clebsch_gordan
+
+        if self.activation == 'swish':
+            self.coeff_activation = nn.ModuleList([Swish(df_num) for df_num in self.dens_features])
+            self.out_activation = Swish(self.num_features)
+        elif self.activation == 'ssp':
+            self.coeff_activation = nn.ModuleList([ShiftedSoftplus(df_num) for df_num in self.dens_features])
+            self.out_activation = ShiftedSoftplus(self.num_features)
+        else:
+            print("Unsupported activation function:", self.activation)
+            quit()
+            
+        if self.pred_radial_coeffs:
+            for L in range(len(self.dens_features)):
+                name = "radial_scale_filters_{}".format(L)
+                self.register_parameter(name, nn.Parameter(torch.ones(1, self.dens_features[L])))
+                name = "radial_width_filters_{}".format(L)
+                self.register_parameter(name, nn.Parameter(torch.ones(1, self.dens_features[L])))
+            # self.radial_scale_filters = nn.ParameterList([nn.Parameter(torch.ones(1, df_num)) for df_num in self.dens_features])
+            # self.radial_width_filters = nn.ParameterList([nn.Parameter(torch.ones(1, df_num)) for df_num in self.dens_features])
+        self.input_layer = nn.ModuleList([nn.Linear(df_num, self.num_features) for df_num in self.dens_features])
+
+        self.order_change = [nn.Identity()]
+        for i in range(1, self.num_modules):
+            if self.order[i] != self.order[i - 1]:
+                self.order_change.append(ResidualBlock(self.order[i - 1], self.num_features,
+                                                         clebsch_gordan=self.clebsch_gordan,
+                                                         activation=self.activation,
+                                                         order_out=self.order[i]))
+            else:
+                self.order_change.append(nn.Identity())
+        self.order_change = nn.ModuleList(self.order_change)
+
+        modules = [ResidualBlock(self.order[0], self.num_features, clebsch_gordan=self.clebsch_gordan,
+                                 activation=self.activation)]
+        modules.extend([ResidualBlock(self.order[i], self.num_features,
+                                     clebsch_gordan=self.clebsch_gordan,
+                                     activation=self.activation) for i in range(1, self.num_modules)])
+        self.module = nn.ModuleList(modules)
+
+        self.energy_output = SphericalLinear(self.order[-1], self.num_features, 0, 1, self.clebsch_gordan)
+
+    def radial_scale_filters(self, L):
+        return getattr(self, "radial_scale_filters_{}".format(L))
+
+    def radial_width_filters(self, L):
+        return getattr(self, "radial_width_filters_{}".format(L))
+
+    def forward(self, atoms):
+        start = time.time()
+        R = atoms['positions']
+        N = R.shape[1]
+        batch_size = R.shape[0]
+
+        sph_fs, scale_fs, width_fs = coeffs_dict_to_tensors(atoms, radial_coeffs=self.pred_radial_coeffs)
+
+        xs = []
+        # print('dens features', self.dens_features)
+        if self.pred_radial_coeffs:
+            for L in range(len(scale_fs)):
+                # print('L', L)
+                # print('scale fs L', scale_fs[L].shape)
+                # print('self.radial_scale_filters[L]', self.radial_scale_filters(L).shape)
+                scale_fs[L] = scale_fs[L] * self.radial_scale_filters(L)
+                width_fs[L] = width_fs[L] * self.radial_width_filters(L)
+                radial_comb = self.coeff_activation[L](scale_fs[L] * width_fs[L])
+                radial_comb = radial_comb.sum(-2, keepdim=True)
+                xs.append(sph_fs[L] * radial_comb)
+        else:
+            xs = sph_fs
+
+        # perform iterations over modular building blocks to get environment - dependent features
+        fs = [1*x for x in xs]  # output features
+        for i, module in enumerate(self.module):
+            xs = self.order_change[i](xs)
+            xs = module(xs)
+            for L in range(self.order[i] + 1):
+                fs[L] += xs[L]  # add contributions to output features
+
+        fs[0] = self.out_activation(fs[0])
+
+        atom_en = self.energy_output(xs)[0].squeeze(-1).squeeze(-1)
+
+        energy = torch.sum(atom_en, dim=1, keepdim=True)
+
+        atoms['energy'] = energy
+        if self.calculate_forces:
+            forces = -torch.autograd.grad(torch.sum(energy), atoms['positions'], create_graph=self.training)[0]
+            atoms['forces'] = forces
+
+        if self.timing:
+            print('simple energy time', time.time() - start)
+        return atoms
