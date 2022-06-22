@@ -10,9 +10,13 @@ class BernsteinRadialBasisFunctions(nn.Module):
     computes radial basis functions with Bernstein polynomials
     """
 
-    def __init__(self, num_basis_functions, cutoff):
+    def __init__(self, num_basis_functions, cutoff, normalize=True):
         super(BernsteinRadialBasisFunctions, self).__init__()
         self.num_basis_functions = num_basis_functions
+        if normalize:
+            self.norm_factor = np.sqrt(num_basis_functions)
+        else:
+            self.norm_factor = 1
         # compute values to initialize buffers
         logfactorial = np.zeros((num_basis_functions))
         for i in range(2, num_basis_functions):
@@ -34,6 +38,7 @@ class BernsteinRadialBasisFunctions(nn.Module):
         x = torch.log(r.view(-1, 1) / self.cutoff)
         x = self.logc + self.n * x + self.v * torch.log(-torch.expm1(x))
         rbf = cutoff_function(r, self.cutoff) * torch.exp(x)
+        rbf = rbf * self.norm_factor
         return rbf
 
 
@@ -91,10 +96,14 @@ class ExponentialBernsteinRadialBasisFunctions(nn.Module):
     computes radial basis functions with exponential Bernstein polynomials
     """
 
-    def __init__(self, num_basis_functions, cutoff, ini_alpha=0.5):
+    def __init__(self, num_basis_functions, cutoff, ini_alpha=0.5, normalize=True):
         super(ExponentialBernsteinRadialBasisFunctions, self).__init__()
         self.num_basis_functions = num_basis_functions
         self.ini_alpha = ini_alpha
+        if normalize:
+            self.norm_factor = num_basis_functions / np.log(num_basis_functions**(0.5))
+        else:
+            self.norm_factor = 1
         # compute values to initialize buffers
         logfactorial = np.zeros((num_basis_functions))
         for i in range(2, num_basis_functions):
@@ -120,6 +129,7 @@ class ExponentialBernsteinRadialBasisFunctions(nn.Module):
         x = self.logc + self.n * x + self.v * torch.log(-torch.expm1(x))
         # print('rbf x', x)
         rbf = cutoff_function(r, self.cutoff) * torch.exp(x)
+        rbf = rbf * self.norm_factor
         return rbf
 
 

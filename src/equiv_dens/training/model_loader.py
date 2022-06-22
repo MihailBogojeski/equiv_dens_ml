@@ -3,15 +3,10 @@ import os
 import torch
 import torch.nn as nn
 from equiv_dens.nn.dft_network import DFTNetwork
-from equiv_dens.nn.representation.spherical_harmonic import EquivariantSphericalHarmonics,\
-    TransferableEquivariantSphericalHarmonics
-from equiv_dens.nn.property_output.energy import ComplexEnergyNetwork, SimpleEnergyNetwork,\
-    SphericalHarmonicsEnergyNetwork, SimpleEnergyNetworkv2, SimpleRepresentationEnergyNetwork,\
-    RepresentationEnergyNetwork, TransferableSphericalHarmonicsEnergyNetwork
-from equiv_dens.nn.property_output.density import DensityCoeffsNetwork, DensityExpansion,\
-    DummyCoeffsNetwork, TransferableDensityCoeffsNetwork, TransferableDensityExpansion
-from equiv_dens.nn.property_output.density_legacy import DensityCoeffsNetwork as LegacyDensityCoeffsNetwork
-from equiv_dens.nn.property_output.density_legacy import DensityExpansion as LegacyDensityExpansion
+from equiv_dens.nn.representation.spherical_harmonic import EquivariantSphericalHarmonics
+from equiv_dens.nn.property_output.energy import SphericalHarmonicsEnergyNetwork,\
+    SphericalLinearEnergyNetwork
+from equiv_dens.nn.property_output.density import DensityCoeffsNetwork, DensityExpansion
 from equiv_dens.nn.property_output.dipole_moment import DipoleMomentCalc
 from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
 from equiv_dens.utils.scaling import UnitConversion, VarianceScaling
@@ -73,10 +68,7 @@ def load_model(args, dataset, train=False):
     print('conversions in', conversions_in.en_conversion_func)
     print('conversions out', conversions_out.en_conversion_func)
 
-    if args.transferable_model:
-        repr_class = TransferableEquivariantSphericalHarmonics
-    else:
-        repr_class = EquivariantSphericalHarmonics
+    repr_class = EquivariantSphericalHarmonics
 
     repr_model = repr_class(
         orbitals=dataset.orbitals,
@@ -91,6 +83,7 @@ def load_model(args, dataset, train=False):
         num_residual_post_v=args.num_residual_post_v,
         num_residual_output=args.num_residual_output,
         num_radial_components=args.num_radial_components,
+        num_neighbours=args.num_neighbours,
         basis_functions=args.basis_functions,
         cutoff=args.cutoff,
         activation=args.activation,
@@ -99,16 +92,8 @@ def load_model(args, dataset, train=False):
         timing=args.timing,
     )
 
-    if args.legacy:
-        density_coeffs_network = LegacyDensityCoeffsNetwork
-        density_expansion = LegacyDensityExpansion
-    else:
-        if args.transferable_model:
-            density_coeffs_network = TransferableDensityCoeffsNetwork
-            density_expansion = TransferableDensityExpansion
-        else:
-            density_coeffs_network = DensityCoeffsNetwork
-            density_expansion = DensityExpansion
+    density_coeffs_network = DensityCoeffsNetwork
+    density_expansion = DensityExpansion
 
     dens_model = density_coeffs_network(
         orbitals=dataset.orbitals,
@@ -137,12 +122,11 @@ def load_model(args, dataset, train=False):
 
     if args.num_energy_features is None:
         args.num_energy_features = args.num_features
+    if args.num_en_modules is None:
+        args.num_en_modules = args.num_modules
 
     if args.energy_model == 'spherical':
-        if args.transferable_model:
-            en_class = TransferableSphericalHarmonicsEnergyNetwork
-        else:
-            en_class = SphericalHarmonicsEnergyNetwork
+        en_class = SphericalHarmonicsEnergyNetwork
         print('building spherical harmonic energy model')
         en_model = en_class(
             orbitals=dataset.orbitals,
@@ -150,7 +134,7 @@ def load_model(args, dataset, train=False):
             mixing_order=args.mixing_order_en,
             num_features=args.num_energy_features,
             num_basis_functions=args.num_basis_functions,
-            num_modules=args.num_modules,
+            num_modules=args.num_en_modules,
             num_residual_pre_x=args.num_residual_pre_x,
             num_residual_post_x=args.num_residual_post_x,
             num_residual_pre_vi=args.num_residual_pre_vi,
@@ -158,6 +142,7 @@ def load_model(args, dataset, train=False):
             num_residual_post_v=args.num_residual_post_v,
             num_residual_output=args.num_residual_output,
             num_radial_components=args.num_radial_components,
+            num_neighbours=args.num_neighbours,
             basis_functions=args.basis_functions,
             cutoff=args.cutoff,
             activation=args.activation,
@@ -166,85 +151,21 @@ def load_model(args, dataset, train=False):
             verbose=args.verbose,
             timing=args.timing,
         )
-    elif args.energy_model == 'complex':
-        print('building complex energy model')
-        en_model = ComplexEnergyNetwork(
-            orbitals=dataset.orbitals,
-            num_features=args.num_energy_features,
-            num_basis_functions=args.num_basis_functions,
-            num_modules=args.num_modules,
-            num_residual_pre_x=args.num_residual_pre_x,
-            num_residual_post_x=args.num_residual_post_x,
-            num_residual_pre_vi=args.num_residual_pre_vi,
-            num_residual_pre_vj=args.num_residual_pre_vj,
-            num_residual_post_v=args.num_residual_post_v,
-            num_residual_output=args.num_residual_output,
-            num_radial_components=args.num_radial_components,
-            basis_functions=args.basis_functions,
-            cutoff=args.cutoff,
-            activation=args.activation,
-            calculate_forces=calculate_forces,
-            verbose=args.verbose,
-            timing=args.timing,
-        )
-    elif args.energy_model == 'simple':
-        print('building simple energy model')
-        en_model = SimpleEnergyNetwork(
-            orbitals=dataset.orbitals,
-            num_features=args.num_energy_features,
-            num_layers=args.num_energy_output,
-            activation=args.activation,
-            calculate_forces=calculate_forces,
-            verbose=args.verbose,
-            timing=args.timing,
-        )
-    elif args.energy_model == 'simple2':
-        print('building simple energy model')
-        en_model = SimpleEnergyNetworkv2(
-            order=args.order[-1],
-            orbitals=dataset.orbitals,
-            num_features=args.num_energy_features,
-            activation=args.activation,
-            calculate_forces=calculate_forces,
-            verbose=args.verbose,
-            clebsch_gordan=clebsch_gordan,
-            timing=args.timing,
-        )
-    elif args.energy_model == 'repr':
-        print('building representation energy model')
-        en_model = RepresentationEnergyNetwork(
+    elif args.energy_model == 'spherical_linear':
+        print('building spherical linear energy model')
+        en_model = SphericalLinearEnergyNetwork(
             orbitals=dataset.orbitals,
             order=args.order_en,
-            mixing_order=args.mixing_order_en,
             num_features=args.num_energy_features,
-            num_basis_functions=args.num_basis_functions,
-            num_modules=args.num_modules,
-            num_residual_pre_x=args.num_residual_pre_x,
-            num_residual_post_x=args.num_residual_post_x,
-            num_residual_pre_vi=args.num_residual_pre_vi,
-            num_residual_pre_vj=args.num_residual_pre_vj,
-            num_residual_post_v=args.num_residual_post_v,
-            num_residual_output=args.num_residual_output,
-            num_radial_components=args.num_radial_components,
-            basis_functions=args.basis_functions,
-            cutoff=args.cutoff,
+            # how many modules are stacked for calculating atomic features (iterations)
+            num_modules=args.num_en_modules,
             activation=args.activation,
             clebsch_gordan=clebsch_gordan,
             calculate_forces=calculate_forces,
+            compressed_extraction=args.compressed_extraction,
             verbose=args.verbose,
             timing=args.timing,
-        )
-    elif args.energy_model == 'simple_repr':
-        print('building simple representation energy model')
-        en_model = SimpleRepresentationEnergyNetwork(
-            orbitals=dataset.orbitals,
-            order=args.order,
-            num_features=args.num_energy_features,
-            activation=args.activation,
-            clebsch_gordan=clebsch_gordan,
-            calculate_forces=calculate_forces,
-            verbose=args.verbose,
-            timing=args.timing,
+            pred_radial_coeffs=args.pred_radial_coeffs,
         )
     else:
         args.energy_model = None
@@ -256,17 +177,6 @@ def load_model(args, dataset, train=False):
         functional_en_model = nn.Sequential(expansion_model, functional)
 
     density_model = nn.Sequential(repr_model, dens_model)
-    if args.dummy_coeff_model:
-        density_model = DummyCoeffsNetwork(orbitals=dataset.orbitals,
-                                           order=args.order[-1],
-                                           num_features=args.num_features,
-                                           positive_coeffs=args.positive_coeffs,
-                                           clebsch_gordan=clebsch_gordan,
-                                           verbose=args.verbose,
-                                           timing=args.timing,
-                                           init_coeffs=dataset.L0_coeffs,
-                                           pred_radial_coeffs=args.pred_radial_coeffs,
-                                           )
 
     property_models = {}
     calculate_forces_dict = {}
@@ -305,11 +215,10 @@ def load_model(args, dataset, train=False):
         state_dict_path = os.path.join(args.restart, best_model_path)
         print('state_dict_path', state_dict_path)
         state_dict = torch.load(state_dict_path, map_location='cpu')
-        if not train and args.load_from is not None:
+        if not train and args.load_from is not None and args.density_weight > 0:
             print('loading from', args.load_from)
             load_code = args.load_from.split('_')[-1]
             model_dict = torch.load(os.path.join(args.load_from, 'best_' + load_code + '.pth'), map_location='cpu')
-
             for key in model_dict.keys():
                 if 'property_models.density' in key:
                     state_dict[key] = model_dict[key]

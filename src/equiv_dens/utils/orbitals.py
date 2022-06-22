@@ -93,13 +93,13 @@ def gaussian_rbf(r, width, scale, normalize=True):
     # print('width', width)
     # print('r shape', r.shape)
     if normalize:
-        scale_calc = scale * (width**(3 / 2)) / (np.pi**(3 / 2)) * utils.to_angstrom**3  
-        # scale_calc = scale * (width**(3 / 2)) / (np.pi**(3 / 2))
+        # scale_calc = scale * (width**(3 / 2)) / (np.pi**(3 / 2)) * utils.to_angstrom**3  
+        scale_calc = scale * (width**(3 / 2)) / (np.pi**(3 / 2))
     else:
         scale_calc = scale
 
-    rbf = scale_calc * torch.exp(-width * (r)**2)
-    # rbf = scale_calc * torch.exp(-width * (r * utils.to_bohr)**2)
+    # rbf = scale_calc * torch.exp(-width * (r)**2)
+    rbf = scale_calc * torch.exp(-width * (r * utils.to_bohr)**2)
     return torch.sum(rbf, dim=-2, keepdim=True)
 
 
