@@ -122,7 +122,7 @@ class SelfMixing(nn.Module):
 
     def forward(self, xs):
         # print('in', self.order_in, 'out', self.order_out)
-        print('xs norm selfmix', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
+        # print('xs norm selfmix', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
         # initialize output
         ys = [
             self.keepcoeff(L) * xs[L]
@@ -167,7 +167,7 @@ class SelfMixing(nn.Module):
                     # print('cg * tp norm', float(torch.mean((coeff * (cg * tp).sum(-3).sum(-3)) ** 2)))
                     # print('norm coeff', float(torch.mean((coeff / np.sqrt(2 * L + 1)) ** 2)))
                     ys[L] = ys[L] + coeff * ((cg * tp).sum(-3).sum(-3))
-        print('ys norm selfmix', [float(torch.mean(ys[L]**2)) for L in range(len(ys))])
+        # print('ys norm selfmix', [float(torch.mean(ys[L]**2)) for L in range(len(ys))])
         return ys
 
 
