@@ -229,7 +229,7 @@ class EquivariantSphericalHarmonics(nn.Module):
             sph[L].unsqueeze_(-1)  # unsqueeze for broadcasting
         # print('sph shape', sph[0].shape)
         atoms['sph'] = sph
-        print('sph norm:', [float(torch.mean(torch.norm(sph[L], dim=(-2, -1))**2)) for L in range(len(sph))])
+        # print('sph norm:', [float(torch.mean(torch.norm(sph[L], dim=(-2, -1))**2)) for L in range(len(sph))])
         # print('sph[0]', sph[1])
         # initialize atomic features to embeddings
         # repeat Z along batch dimension
@@ -245,8 +245,8 @@ class EquivariantSphericalHarmonics(nn.Module):
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
             print('Memory cached', torch.cuda.memory_cached() / 1024**2)
         fs = [torch.zeros_like(x) for x in xs]  # output features
-        print('xs norm:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
-        print('fs norm:', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
+        # print('xs norm:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
+        # print('fs norm:', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
         for i, module in enumerate(self.module):
             xs = self.order_change[i](xs)
             xs, ys = module(xs, rbf, sph, idx_i, idx_j, neighbor_mask=neighbor_mask)
@@ -255,13 +255,13 @@ class EquivariantSphericalHarmonics(nn.Module):
                     scale = 1
                 else:
                     scale = 1/2
-                print('ys[' + str(L) +'] norm', float(torch.mean(ys[L]**2)))
-                print('fs[' + str(L) +'] norm before', float(torch.mean(fs[L]**2)))
-                print('scale', scale)
+                # print('ys[' + str(L) +'] norm', float(torch.mean(ys[L]**2)))
+                # print('fs[' + str(L) +'] norm before', float(torch.mean(fs[L]**2)))
+                # print('scale', scale)
                 fs[L] = ys[L] * scale + fs[L] * scale
-                print('fs[' + str(L) +'] norm after', float(torch.mean(fs[L]**2)))
-            print('ys norm:', [float(torch.mean(ys[L]**2)) for L in range(len(ys))])
-            print('fs norm:', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
+                # print('fs[' + str(L) +'] norm after', float(torch.mean(fs[L]**2)))
+            # print('ys norm:', [float(torch.mean(ys[L]**2)) for L in range(len(ys))])
+            # print('fs norm:', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
             if self.verbose > 2:
                 print('repr forward after module', i, ':')
                 print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)

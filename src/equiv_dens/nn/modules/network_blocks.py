@@ -85,15 +85,15 @@ class ModularBlock(nn.Module):
         )
 
     def forward(self, xs, rbf, sph, idx_i, idx_j, neighbor_mask=1):
-        print('xs norm modular', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
+        # print('xs norm modular', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
         xs = self.residual_pre_x(xs)
-        print('xs norm modular residual pre', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
+        # print('xs norm modular residual pre', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
         xs = self.interaction(xs, rbf, sph, idx_i, idx_j, neighbor_mask=neighbor_mask)
-        print('xs norm modular interaction', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
+        # print('xs norm modular interaction', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
         xs = self.residual_post_x(xs)
-        print('xs norm modular residual post', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
+        # print('xs norm modular residual post', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
         ys = self.residual_out(xs)
-        print('ys norm modular residual out', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
+        # print('ys norm modular residual out', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
         return xs, ys
 
 
@@ -245,7 +245,7 @@ class InteractionBlock(nn.Module):
         yi = self.residual_pre_vi(ys)
         yi[0] = self.activation_i(yi[0])
         yi = self.linear_i(yi)
-        print('yi norm:', [float(torch.mean(yi[L]**2)) for L in range(len(yi))])
+        # print('yi norm:', [float(torch.mean(yi[L]**2)) for L in range(len(yi))])
 
         for L in range(len(yi), self.mixing_order + 1):
             yi.append(torch.zeros(*yi[0].shape[:2], (2 * L) + 1, yi[0].shape[-1]).to(yi[0]))
@@ -261,8 +261,8 @@ class InteractionBlock(nn.Module):
             )
             yj[L] = torch.gather(yj[L], 1, idx) * neighbor_mask
 
-        print('yj norm:', [float(torch.mean(yj[L]**2)) for L in range(len(yj))])
-        print('rbf norm:', float(torch.mean(rbf**2)))
+        # print('yj norm:', [float(torch.mean(yj[L]**2)) for L in range(len(yj))])
+        # print('rbf norm:', float(torch.mean(rbf**2)))
         # print('rbf shape', rbf.shape)
         # print('rbf sum:', float(torch.mean(torch.sum(rbf, dim=-1))))
         ang = self.angular_fn1(sph)
@@ -270,7 +270,7 @@ class InteractionBlock(nn.Module):
         # print('angular norm:', [float(torch.mean(ang[L]**2)) for L in range(len(ang))])
         vs = self.mixing(yj, ang, rbf)
         # print('vs 0 shape', vs[0].shape)
-        print('vs norm:', [float(torch.mean(vs[L]**2)) for L in range(len(vs))])
+        # print('vs norm:', [float(torch.mean(vs[L]**2)) for L in range(len(vs))])
         a = self.angular_fn2(sph)
         for L in range(self.mixing_order + 1):
             # idx_i_scat = idx_i.view(*(1,) * len(vs[L].shape[:-3]), -1, 1, 1).repeat(
@@ -301,7 +301,7 @@ class InteractionBlock(nn.Module):
                 1, idx_i, scale * vs[L] + self.radial_fn[L](rbf) * a[L] * yj[0]
             )
             vs[L] = vs[L] * np.sqrt(self.mixing_order + 1) / self.num_neighbours
-            print('vs ' + str(L) + ' norm:', float(torch.mean(vs[L]**2)))
+            # print('vs ' + str(L) + ' norm:', float(torch.mean(vs[L]**2)))
             # vs[L] = yi[L] + torch.scatter_reduce(
             #         vs[L] + self.radial_fn[L](rbf) * a[L] * yj[0], 1, idx_i_scat, 
             #         'mean')
