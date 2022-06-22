@@ -46,6 +46,8 @@ def parse_command_line_arguments(arg_file=None):
                                   help="dimensionality of energy feature vectors")
     args_hyperparams.add_argument("--num_modules", metavar='INT', type=int, default=3,
                                   help="number of modules used in the neural network (interaction iterations)")
+    args_hyperparams.add_argument("--num_en_modules", metavar='INT', type=int, default=None,
+                                  help="number of modules used in the neural network (interaction iterations)")
     args_hyperparams.add_argument("--num_residual_pre_x", metavar='INT', type=int, default=1,
                                   help="number of residual blocks for refining atomic feature vectors pre interaction")
     args_hyperparams.add_argument("--num_residual_post_x", metavar='INT', type=int, default=1,
@@ -60,6 +62,8 @@ def parse_command_line_arguments(arg_file=None):
                                   help="number of residual blocks for refining output feature vectors")
     args_hyperparams.add_argument("--num_energy_output", metavar='INT', type=int, default=2,
                                   help="number of layers for the simple energy output network.")
+    args_hyperparams.add_argument("--num_neighbours", metavar='INT', type=int, default=1,
+                                  help="Average number of neighbours.")
     args_hyperparams.add_argument("--basis_functions", metavar='STR', type=str, default='exp-bernstein',
                                   choices=['exp-bernstein', 'exp-gaussian', 'bernstein', 'gaussian'],
                                   help="which type of basis functions to use")
@@ -91,8 +95,6 @@ def parse_command_line_arguments(arg_file=None):
                                   choices=[True, False], help="Output predictions for the radial coefficients as well.")
     args_hyperparams.add_argument("--dummy_coeff_model", metavar='True|False', type=str2bool, default=False,
                                   choices=[True, False], help="Optimize coefficients directly without a neural network.")
-    args_hyperparams.add_argument("--transferable_model", metavar='True|False', type=str2bool, default=False,
-                                  choices=[True, False], help="Make model transferable across different molecules.")
     args_hyperparams.add_argument("--scale_sph_degrees", metavar='True|False', type=str2bool, default=False,
                                   choices=[True, False], help="Rescale predicted density coeffs based on spherical harmonic degrees.")
     hyperparam_args = [act.dest for act in args_hyperparams._group_actions]

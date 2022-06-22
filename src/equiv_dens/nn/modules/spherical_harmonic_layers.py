@@ -62,7 +62,7 @@ class SphericalLinear(nn.Module):
         else:
             ys = []
             for x, linear in zip(xs, self.linear):
-                ys.append(linear(x))
+                ys.append(linear(x) * np.sqrt(self.num_out))
         return ys
 
 
@@ -91,17 +91,18 @@ class SelfMixing(nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
-        count = [0 for L in range(self.order_out + 1)]
-        for L in range(min(self.order_in, self.order_out) + 1):
-            count[L] += 1
+        count = [1 for L in range(self.order_out + 1)]
+        # for L in range(min(self.order_in, self.order_out) + 1):
+        #     count[L] += 1
         for l1 in range(self.order_in + 1):
             for l2 in range(l1 + 1, self.order_in + 1):
                 for L in range(abs(l1 - l2), min(l1 + l2, self.order_out) + 1):
                     count[L] += 1
 
+        print('count L', count)
         for L in range(min(self.order_in, self.order_out) + 1):
             nn.init.uniform_(
-                self.keepcoeff(L), a=-np.sqrt(3 / count[L]), b=np.sqrt(3 / count[L])
+                self.keepcoeff(L), a=-np.sqrt(3 * (2 * L + 1)/count[L]), b=np.sqrt(3 * (2 * L + 1)/count[L])
             )
 
         for l1 in range(self.order_in + 1):
@@ -109,8 +110,8 @@ class SelfMixing(nn.Module):
                 for L in range(abs(l1 - l2), min(l1 + l2, self.order_out) + 1):
                     nn.init.uniform_(
                         self.mixcoeff(l1, l2, L),
-                        a=-np.sqrt(3 / count[L]),
-                        b=np.sqrt(3 / count[L]),
+                        a=-np.sqrt(3 * (2 * L + 1)/count[L]),
+                        b=np.sqrt(3 * (2 * L + 1)/count[L]),
                     )
 
     def keepcoeff(self, L):
@@ -120,6 +121,8 @@ class SelfMixing(nn.Module):
         return getattr(self, "mixcoeff_{}_{}_{}".format(l1, l2, L))
 
     def forward(self, xs):
+        # print('in', self.order_in, 'out', self.order_out)
+        print('xs norm selfmix', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
         # initialize output
         ys = [
             self.keepcoeff(L) * xs[L]
@@ -130,6 +133,7 @@ class SelfMixing(nn.Module):
             for L in range(self.order_out + 1)
         ]
         _, cg_matrix = self.clebsch_gordan(self.order_in, self.order_in, self.order_out)
+        # print('ys', [float(torch.mean(ys[L]**2)) for L in range(len(ys))])
         # loop over all combinations of orders
         for l1 in range(self.order_in + 1):
             # get view of x[l1] that enables broadcasting to compute the spherical tensor product
@@ -143,6 +147,7 @@ class SelfMixing(nn.Module):
                 )
                 # compute spherical tensor product
                 tp = x1 * x2
+                # print('tp norm', float(torch.mean(tp ** 2)))
                 # decompose tensor product into irreducible representations and collect contributions
                 for L in range(abs(l1 - l2), min(l1 + l2, self.order_out) + 1):
                     # get Clebsch - Gordan coefficients in broadcastable form
@@ -156,8 +161,13 @@ class SelfMixing(nn.Module):
                     coeff = self.mixcoeff(l1, l2, L).view(
                         *(1,) * len(tp.shape[:-4]), 1, -1
                     )
+
                     # contract and add
+                    # print('L', L)
+                    # print('cg * tp norm', float(torch.mean((coeff * (cg * tp).sum(-3).sum(-3)) ** 2)))
+                    # print('norm coeff', float(torch.mean((coeff / np.sqrt(2 * L + 1)) ** 2)))
                     ys[L] = ys[L] + coeff * ((cg * tp).sum(-3).sum(-3))
+        print('ys norm selfmix', [float(torch.mean(ys[L]**2)) for L in range(len(ys))])
         return ys
 
 
@@ -194,6 +204,7 @@ class PairMixing(nn.Module):
                             self.num_basis_functions, self.num_features, bias=False
                         ),
                     )
+        self.L_count = [0 for L in range(self.order_out + 1)]
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -201,6 +212,7 @@ class PairMixing(nn.Module):
             for l2 in range(self.order_in2 + 1):
                 for L in range(abs(l1 - l2), min(l1 + l2, self.order_out) + 1):
                     nn.init.orthogonal_(self.coeff(l1, l2, L).weight)
+                    self.L_count[L] += 1
 
     def coeff(self, l1, l2, L):
         return getattr(self, "coeff_{}_{}_{}".format(l1, l2, L))
@@ -220,6 +232,9 @@ class PairMixing(nn.Module):
         else:
             cg_matrix = torch.ones((1, 1, 1)).to(x1s[0])
         # loop over all combinations of orders
+        # print('xs1 norm', [float(torch.mean(x1s[L] ** 2)) for L in range(len(x1s))])
+        # print('xs2 norm', [float(torch.mean(x2s[L] ** 2)) for L in range(len(x2s))])
+        # print('L_counts', self.L_count)
         for l1 in range(self.order_in1 + 1):
             # get view of x1s[l1] that enables broadcasting to compute the spherical tensor product
             x1 = x1s[l1].view(
@@ -231,7 +246,11 @@ class PairMixing(nn.Module):
                     *x2s[l2].shape[:-2], 1, x2s[l2].size(-2), 1, self.num_features
                 )
                 # compute spherical tensor product
+                # print('ls', l1, l2)
+                # print('x1 norm', float(torch.mean(x1 ** 2)))
+                # print('x2 norm', float(torch.mean(x2 ** 2)))
                 tp = x1 * x2
+                # print('tp norm', float(torch.mean(tp ** 2)))
                 # decompose tensor product into irreducible representations and collect contributions
                 for L in range(abs(l1 - l2), min(l1 + l2, self.order_out) + 1):
                     # get Clebsch - Gordan coefficients in broadcastable form
@@ -241,8 +260,11 @@ class PairMixing(nn.Module):
                         L ** 2:(L + 1) ** 2,
                     ]
                     cg = cg.view((*(1,) * len(tp.shape[:-4]), *cg.shape, 1))
-                    # contract and add
-                    ys[L] = ys[L] + self.coeff(l1, l2, L)(rbf) * (
-                        (cg * tp).sum(-3).sum(-3)
+                    # contract and addi
+                    # print("L", L)
+                    # print('cg * tp norm', float(torch.mean((self.coeff(l1, l2, L)(rbf) * np.sqrt(2* L + 1) * (cg * tp).sum(-3).sum(-3)) ** 2)))
+                    # print('coeff norm', float(torch.mean(self.coeff(l1, l2, L)(rbf) ** 2)))
+                    ys[L] = ys[L] + self.coeff(l1, l2, L)(rbf) * (np.sqrt(2 * L + 1)) * (
+                        (cg * tp).sum(-3).sum(-3) / np.sqrt(self.L_count[L])
                     )
         return ys

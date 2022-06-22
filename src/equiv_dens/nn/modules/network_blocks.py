@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from .activations import Swish, ShiftedSoftplus
 from .spherical_harmonic_layers import PairMixing, SphericalLinear
-
+import numpy as np
 
 class ModularBlock(nn.Module):
     """
@@ -25,6 +25,7 @@ class ModularBlock(nn.Module):
         mixing_order=None,
         input_order=None,
         activation="swish",
+        num_neighbours=1,
     ):
         super(ModularBlock, self).__init__()
         # initialize attributes
@@ -56,6 +57,7 @@ class ModularBlock(nn.Module):
             self.mixing_order,
             self.input_order,
             activation,
+            num_neighbours,
         )
         self.residual_pre_x = ResidualStack(
             self.num_residual_pre_x,
@@ -83,10 +85,15 @@ class ModularBlock(nn.Module):
         )
 
     def forward(self, xs, rbf, sph, idx_i, idx_j, neighbor_mask=1):
+        print('xs norm modular', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
         xs = self.residual_pre_x(xs)
+        print('xs norm modular residual pre', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
         xs = self.interaction(xs, rbf, sph, idx_i, idx_j, neighbor_mask=neighbor_mask)
+        print('xs norm modular interaction', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
         xs = self.residual_post_x(xs)
+        print('xs norm modular residual post', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
         ys = self.residual_out(xs)
+        print('ys norm modular residual out', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
         return xs, ys
 
 
@@ -108,6 +115,7 @@ class InteractionBlock(nn.Module):
         mixing_order=None,
         input_order=None,
         activation="swish",
+        num_neighbours=1,
     ):
         super(InteractionBlock, self).__init__()
         # initialiye attributes
@@ -118,6 +126,7 @@ class InteractionBlock(nn.Module):
         self.num_residual_pre_vj = num_residual_pre_vj
         self.num_residual_post_v = num_residual_post_v
         self.mixing_order = mixing_order
+        self.num_neighbours = num_neighbours
         if self.mixing_order is None:
             self.mixing_order = self.order
         self.input_order = input_order
@@ -236,6 +245,7 @@ class InteractionBlock(nn.Module):
         yi = self.residual_pre_vi(ys)
         yi[0] = self.activation_i(yi[0])
         yi = self.linear_i(yi)
+        print('yi norm:', [float(torch.mean(yi[L]**2)) for L in range(len(yi))])
 
         for L in range(len(yi), self.mixing_order + 1):
             yi.append(torch.zeros(*yi[0].shape[:2], (2 * L) + 1, yi[0].shape[-1]).to(yi[0]))
@@ -251,12 +261,53 @@ class InteractionBlock(nn.Module):
             )
             yj[L] = torch.gather(yj[L], 1, idx) * neighbor_mask
 
-        vs = self.mixing(yj, self.angular_fn1(sph), rbf)
+        print('yj norm:', [float(torch.mean(yj[L]**2)) for L in range(len(yj))])
+        print('rbf norm:', float(torch.mean(rbf**2)))
+        # print('rbf shape', rbf.shape)
+        # print('rbf sum:', float(torch.mean(torch.sum(rbf, dim=-1))))
+        ang = self.angular_fn1(sph)
+        # print('sph norm:', [float(torch.mean(sph[L]**2)) for L in range(len(sph))])
+        # print('angular norm:', [float(torch.mean(ang[L]**2)) for L in range(len(ang))])
+        vs = self.mixing(yj, ang, rbf)
+        # print('vs 0 shape', vs[0].shape)
+        print('vs norm:', [float(torch.mean(vs[L]**2)) for L in range(len(vs))])
         a = self.angular_fn2(sph)
         for L in range(self.mixing_order + 1):
-            vs[L] = yi[L].index_add(
-                1, idx_i, vs[L] + self.radial_fn[L](rbf) * a[L] * yj[0]
+            # idx_i_scat = idx_i.view(*(1,) * len(vs[L].shape[:-3]), -1, 1, 1).repeat(
+            # *vs[L].shape[:-3], 1, *vs[L].shape[-2:])
+            # print('idx i scat', idx_i_scat.shape)
+            # if L == 0:
+            # #     print('idx_i', idx_i)
+            # #     print('vs[0]', vs[L])
+            # #     print('index add', torch.zeros_like(yi[L]).index_add(
+            # #         1, idx_i, vs[L] + self.radial_fn[L](rbf) * a[L] * yj[0]
+            # #         )
+            # #     )
+            #     print('vs 0', vs[L].shape)
+            #     print('a 0', a[L].shape)
+            #     print('y 0', yj[L].shape)
+            #     print('scatter add', torch.scatter_reduce(
+            #         vs[L] + self.radial_fn[L](rbf) * a[L] * yj[0], 1, idx_i_scat, 
+            #         'mean')
+            #     )
+            #     print('index add', torch.zeros_like(yj[L]).index_add(1, idx_i,
+            #         vs[L] + self.radial_fn[L](rbf) * a[L] * yj[0])
+            #     )
+            if torch.mean(vs[L]**2) == 0 or torch.mean(yi[L]**2) == 0:
+                scale = 1
+            else:
+                scale = 1/2
+            vs[L] = (yi[L] * scale).index_add(
+                1, idx_i, scale * vs[L] + self.radial_fn[L](rbf) * a[L] * yj[0]
             )
+            vs[L] = vs[L] * np.sqrt(self.mixing_order + 1) / self.num_neighbours
+            print('vs ' + str(L) + ' norm:', float(torch.mean(vs[L]**2)))
+            # vs[L] = yi[L] + torch.scatter_reduce(
+            #         vs[L] + self.radial_fn[L](rbf) * a[L] * yj[0], 1, idx_i_scat, 
+            #         'mean')
+            #     print('yi[0]', yi[L])
+            # if L == 0:
+            #     print('vs[0]', vs[L])
 
         if self.mixing_order != self.order:
             vs = self.linear_contract(vs)        # interaction refinement
@@ -370,4 +421,14 @@ class ResidualBlock(nn.Module):
         ys = self.linear1(ys)
         ys[0] = self.activation_post(ys[0])
         ys = self.linear2(ys)
-        return [xs[i] + ys[i] for i in range(self.order_out + 1)]
+        if len(ys) > len(xs):
+            for _ in range(len(xs), len(ys)):
+                xs.append(0)
+
+        for i in range(self.order_out + 1):
+            # if torch.mean(xs[i]**2) == 0 or torch.mean(xs[i]**2) == 0:
+            #     scale = 1/np.sqrt(2)
+            # else:
+            scale = 1
+            ys[i] = ys[i] * scale + xs[i] * scale
+        return ys

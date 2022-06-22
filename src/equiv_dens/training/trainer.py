@@ -599,4 +599,8 @@ class Trainer:
                 progress_string += "     best mae: %10.6f" % self.best_errors[key + '_mae']
                 progress_string += "     best rmse: %10.6f" % self.best_errors[key + '_rmse']
                 progress_string += "    best loss: %10.6f" % self.best_errors['loss']
+          
+        for optimizer in self.optimizers:
+            for param_group in optimizer.param_groups:
+                progress_string += "    lr: %10.6f" % param_group['lr']
         print(progress_string)
