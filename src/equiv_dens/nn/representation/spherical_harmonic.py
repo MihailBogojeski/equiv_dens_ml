@@ -18,7 +18,7 @@ class EquivariantSphericalHarmonics(nn.Module):
     """
 
     def __init__(self,
-                 orbitals=None,  # orbitals of atoms
+                 orbital_basis=None,  # orbitals of atoms
                  order=1,  # maximum order of spherical harmonics features
                  mixing_order=None,   # maximum order of spherical harmonics features during interactions
                  num_features=32,  # dimensionality of the feature space
@@ -56,6 +56,7 @@ class EquivariantSphericalHarmonics(nn.Module):
         self.create_graph = True  # can be set to False if the NN is only used for inference
 
         self.order = order
+        self.orbital_basis=orbital_basis
         self.mixing_order = mixing_order
         if self.mixing_order is None:
             self.mixing_order = self.order
@@ -76,11 +77,11 @@ class EquivariantSphericalHarmonics(nn.Module):
         self.verbose = verbose
         self.num_neighbours = num_neighbours
 
-        self.orbital_basis = {}
-        for orb in orbitals:
-            z = orb[0][0]
-            if z not in self.orbital_basis.keys():
-                self.orbital_basis[z] = orb
+        # self.orbital_basis = {}
+        # for orb in orbitals:
+        #     z = orb[0][0]
+        #     if z not in self.orbital_basis.keys():
+        #         self.orbital_basis[z] = orb
 
         self.orbitals_max_order = 0
         for elem in self.orbital_basis.keys():
@@ -249,6 +250,8 @@ class EquivariantSphericalHarmonics(nn.Module):
         # print('fs norm:', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
         for i, module in enumerate(self.module):
             xs = self.order_change[i](xs)
+            # for L in range(len(xs)):
+            #     print('xs[L] main', xs[L])
             xs, ys = module(xs, rbf, sph, idx_i, idx_j, neighbor_mask=neighbor_mask)
             for L in range(self.order[i] + 1):
                 if torch.mean(fs[L]**2) == 0 or torch.mean(fs[L]**2) == 0:
@@ -260,8 +263,10 @@ class EquivariantSphericalHarmonics(nn.Module):
                 # print('scale', scale)
                 fs[L] = ys[L] * scale + fs[L] * scale
                 # print('fs[' + str(L) +'] norm after', float(torch.mean(fs[L]**2)))
-            # print('ys norm:', [float(torch.mean(ys[L]**2)) for L in range(len(ys))])
-            # print('fs norm:', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
+            print('')
+            print('ys norm:', [float(torch.mean(ys[L]**2)) for L in range(len(ys))])
+            print('fs norm:', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
+            print('')
             if self.verbose > 2:
                 print('repr forward after module', i, ':')
                 print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)

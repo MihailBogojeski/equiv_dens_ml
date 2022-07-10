@@ -71,7 +71,7 @@ def load_model(args, dataset, train=False):
     repr_class = EquivariantSphericalHarmonics
 
     repr_model = repr_class(
-        orbitals=dataset.orbitals,
+        orbital_basis=dataset.orbital_basis_num,
         order=args.order,
         num_features=args.num_features,
         num_basis_functions=args.num_basis_functions,
@@ -96,7 +96,7 @@ def load_model(args, dataset, train=False):
     density_expansion = DensityExpansion
 
     dens_model = density_coeffs_network(
-        orbitals=dataset.orbitals,
+        orbital_basis=dataset.orbital_basis_num,
         order=args.order[-1],
         num_features=args.num_features,
         positive_coeffs=args.positive_coeffs,
@@ -108,7 +108,7 @@ def load_model(args, dataset, train=False):
         scale_sph_degrees=args.scale_sph_degrees,
     )
 
-    expansion_model = density_expansion(dataset.orbitals, radial_coeffs=dataset.radial_coeffs,
+    expansion_model = density_expansion(dataset.orbital_basis_num, radial_coeffs=dataset.radial_coeffs,
                                         expansion_constraint=args.expansion_constraint,
                                         integral_constraint=args.integral_constraint,
                                         integral_scale=args.integral_scale,
@@ -129,7 +129,7 @@ def load_model(args, dataset, train=False):
         en_class = SphericalHarmonicsEnergyNetwork
         print('building spherical harmonic energy model')
         en_model = en_class(
-            orbitals=dataset.orbitals,
+            orbital_basis=dataset.orbital_basis_num,
             order=args.order_en,
             mixing_order=args.mixing_order_en,
             num_features=args.num_energy_features,
@@ -154,7 +154,7 @@ def load_model(args, dataset, train=False):
     elif args.energy_model == 'spherical_linear':
         print('building spherical linear energy model')
         en_model = SphericalLinearEnergyNetwork(
-            orbitals=dataset.orbitals,
+            orbital_basis=dataset.orbital_basis_num,
             order=args.order_en,
             num_features=args.num_energy_features,
             # how many modules are stacked for calculating atomic features (iterations)
@@ -222,6 +222,9 @@ def load_model(args, dataset, train=False):
             for key in model_dict.keys():
                 if 'property_models.density' in key:
                     state_dict[key] = model_dict[key]
+        for key in state_dict.keys():
+            if 'property_models.density' in key:
+                print(key)
         model.load_state_dict(state_dict)
     if not train:
         print('dtype type', type(args.dtype))

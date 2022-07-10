@@ -4,9 +4,10 @@ import ase
 import ase.io
 import torch
 import ase.data
+import pyscf
 
-to_bohr = 1.889725989
-to_angstrom = 0.529177249
+to_bohr = 1/pyscf.lib.param.BOHR
+to_angstrom = pyscf.lib.param.BOHR 
 
 
 def angstrom_to_bohr(pos):
@@ -245,9 +246,13 @@ def ase_to_npy(mols):
 
 
 def npy_to_ase(arr, atom_list):
+    if atom_list.ndim == 1:
+        atom_list = atom_list[None, :]
+    if atom_list.shape[0] != arr.shape[0]:
+        atom_list = np.tile(atom_list, (arr.shape[0], 1))
     mols = []
     for i in range(arr.shape[0]):
-        mols.append(ase.Atoms(atom_list, positions=arr[i]))
+        mols.append(ase.Atoms(atom_list[i], positions=arr[i]))
 
     return mols
 

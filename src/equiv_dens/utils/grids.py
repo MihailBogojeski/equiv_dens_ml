@@ -10,14 +10,13 @@ from pyscf import gto
 
 
 def spherical_grid(atoms, level=2):
-    symbols = atoms['atom_types']
-    positions = atoms['positions'][0]
-    mol_dict = list(zip(symbols, positions))
-    print('len atom types', len(atoms['atom_types']))
-    print('atom numbers', atoms['atom_numbers'][0])
-    if (len(atoms['atom_types']) == 1 
-        and atoms['atom_numbers'].ndim == 1
-        and atoms['atom_numbers'][0] % 2 == 1):
+    numbers = np.unique(atoms['atom_numbers'].flatten())
+    positions = []
+    for n in numbers:
+        positions.append([0, 0, n])
+    positions = np.array(positions)
+    mol_dict = list(zip(numbers, positions))
+    if (np.sum(numbers) % 2 == 1):
         mol = gto.M(atom=mol_dict, spin=1)
     else:
         mol = gto.M(atom=mol_dict)
@@ -33,13 +32,10 @@ def spherical_grid(atoms, level=2):
 
 def cubical_grid(atoms, nx=125, ny=125, nz=125, resolution=None,
                  margin=2, origin=None, extent=[10, 10, 10]):
-    symbols = atoms['atom_types']
+    numbers = atoms['atom_numbers'][0]
     positions = atoms['positions'][0]
-    mol_dict = list(zip(symbols, positions))
-    print('mol_dict', mol_dict)
-    if (len(atoms['atom_types']) == 1 
-        and atoms['atom_numbers'].ndim == 1
-        and atoms['atom_numbers'][0] % 2 == 1):
+    mol_dict = list(zip(numbers, positions))
+    if (np.sum(atoms['atom_numbers'][0]) % 2 == 1):
         mol = gto.M(atom=mol_dict, spin=1)
     else:
         mol = gto.M(atom=mol_dict)
@@ -83,6 +79,7 @@ def becke_scheme(g):
 
 
 def treutler_atomic_radii_adjust(charges, atomic_radii):
+    charges = charges[0].astype(int)
     rad = np.sqrt(atomic_radii[charges]) + 1e-200
     rr = rad.reshape(-1, 1) * (1.0 / rad)
     a = .25 * (rr.T - rr)
@@ -99,7 +96,7 @@ def treutler_atomic_radii_adjust(charges, atomic_radii):
     return fadjust
 
 
-def gen_grid_partition(positions, atom_types, coords, becke_scheme, f_radii_adjust=None):
+def gen_grid_partition(positions, coords, becke_scheme, f_radii_adjust=None):
     ngrids = coords.shape[1]
     natm = positions.shape[1]
     nbatch = positions.shape[0]
@@ -120,22 +117,23 @@ def gen_grid_partition(positions, atom_types, coords, becke_scheme, f_radii_adju
     return pbecke
 
 
-def spherical_radial_sampling(grid_spec, n_samp, atom_types, pos,
+def spherical_radial_sampling(grid_spec, n_samp, atom_numbers, pos,
                               radii_adjust=None,
                               rotate=False):
     grid_coords = []
     grid_weights = []
     # print('pos type', pos.type())
-    for i, t in enumerate(atom_types):
+    for i, n in enumerate(atom_numbers[0]):
         if rotate:
             rot_mat = torch.tensor(random_rotation_matrix()).to(pos)
         else:
             rot_mat = torch.eye(3).to(pos)
+        t = utils.numbers_to_symbols([n])[0]
         # print('rot_mat type', rot_mat.type())
         # print('grid spec type', grid_spec[t][0].type())
         coords = pos[:, [i], :] + (grid_spec[t][0].unsqueeze(0) @ rot_mat)
         weights = grid_spec[t][1]
-        pbecke = gen_grid_partition(pos, atom_types, coords, becke_scheme, radii_adjust)
+        pbecke = gen_grid_partition(pos, coords, becke_scheme, radii_adjust)
         weights = weights * pbecke[:, i] * (1.0 / pbecke.sum(1))
         grid_coords.append(coords)
         grid_weights.append(weights)
@@ -143,23 +141,25 @@ def spherical_radial_sampling(grid_spec, n_samp, atom_types, pos,
     return collect_and_sample_grid(grid_coords, grid_weights, n_samp)
 
 
-def spherical_sampling(grid_spec, n_samp, atom_types, pos):
+def spherical_sampling(grid_spec, n_samp, atom_numbers, pos):
     grid_coords = []
     grid_weights = []
-    for i, t in enumerate(atom_types):
+    for i, n in enumerate(atom_numbers[0]):
+        t = utils.numbers_to_symbols([n])[0]
         grid_coords.append(pos[:, [i], :] + (grid_spec[t][0][None, :]))
-        grid_weights.append(grid_spec[t][1] / len(atom_types))
+        grid_weights.append(grid_spec[t][1] / len(atom_numbers[0]))
 
     return collect_and_sample_grid(grid_coords, grid_weights, n_samp)
 
 
-def rot_spherical_sampling(grid_spec, n_samp, atom_types, pos):
+def rot_spherical_sampling(grid_spec, n_samp, atom_numbers, pos):
     grid_coords = []
     grid_weights = []
-    for i, t in enumerate(atom_types):
+    for i, n in enumerate(atom_numbers[0]):
+        t = utils.numbers_to_symbols([n])[0]
         rot_mat = random_rotation_matrix()
         grid_coords.append(pos[:, [i], :] + (grid_spec[t][0][None, :]) @ rot_mat)
-        grid_weights.append(grid_spec[t][1] / len(atom_types))
+        grid_weights.append(grid_spec[t][1] / len(atom_numbers[0]))
 
     return collect_and_sample_grid(grid_coords, grid_weights, n_samp)
 
@@ -182,7 +182,7 @@ def collect_and_sample_grid(grid_coords, grid_weights, n_samp):
         return grid_coords[:, rand_idx, :], grid_weights[:, rand_idx]
 
 
-def cubical_sampling(grid_spec, n_samp, atom_types, pos):
+def cubical_sampling(grid_spec, n_samp, _, pos):
     flat_coords = np.reshape(grid_spec[0], (-1, 3))
     flat_coords = flat_coords[None, :]
     flat_coords = np.repeat(flat_coords, pos.shape[0], axis=0)
@@ -217,9 +217,9 @@ class CubicalGrid():
                  margin=2, origin=None, extent=[10, 10, 10], use_gpu=False, dtype=torch.double):
         self.use_gpu = use_gpu
         self.dtype = dtype
-        symbols = atoms['atom_types']
+        numbers = atoms['atom_numbers'][0]
         positions = atoms['positions'][0]
-        mol_dict = list(zip(symbols, positions))
+        mol_dict = list(zip(numbers, positions))
         print('mol_dict', mol_dict)
         mol = gto.M(atom=mol_dict)
         if extent is None:

@@ -86,11 +86,19 @@ class AtomsDensityData(Dataset):
             self.required_properties = self.available_properties
         self.centered_positions = center_positions
         self.atoms = np.load(np_path, allow_pickle=True).item()
+        if self.atoms['atom_numbers'].ndim == 1:
+            self.atoms['atom_numbers'] = self.atoms['atom_numbers'][None, :]
+        if self.atoms['atom_numbers'].shape[0] != self.atoms['positions'].shape[0]:
+            self.atoms['atom_numbers'] = np.tile(self.atoms['atom_numbers'], (self.atoms['positions'].shape[0], 1))
+
+        all_atom_numbers = np.unique(self.atoms['atom_numbers'].flatten())
         self.orbital_basis = np.load(orbitals_path, allow_pickle=True).item()
-        self.orbitals = []
+        self.orbital_basis_num = {}
         print('atoms keys', self.atoms.keys())
-        for t in self.atoms['atom_types']:
-            self.orbitals.append(self.orbital_basis[t])
+        for key in self.orbital_basis.keys():
+            anum = utils.symbols_to_numbers([key])[0]
+            if anum in all_atom_numbers:
+                self.orbital_basis_num[anum] = (self.orbital_basis[key])
         self.atoms['shifted_positions'] = self.atoms['positions'] - grid_origin
         if self.density_path is not None:
             calc_results = np.load(density_path, allow_pickle=True)
@@ -98,7 +106,7 @@ class AtomsDensityData(Dataset):
         self.coeffs = []
         self.density_fitting = []
         self.ions = []
-        ase_atoms = utils.npy_to_ase(self.atoms['shifted_positions'], self.atoms['atom_types'])
+        ase_atoms = utils.npy_to_ase(self.atoms['shifted_positions'], self.atoms['atom_numbers'])
         # for i in range(10):
         for i in range(self.atoms['positions'].shape[0]):
             if self.verbose > 3:
@@ -117,10 +125,12 @@ class AtomsDensityData(Dataset):
             self.ions.append(ase_io.ase2ions(a))
 
         if radial_coeffs_file is not None:
-            self.radial_coeffs = []
+            self.radial_coeffs = {}
             radial_coeffs_atoms = np.load(radial_coeffs_file, allow_pickle=True).item()
-            for t in self.atoms['atom_types']:
-                self.radial_coeffs.append(radial_coeffs_atoms[t])
+            for key in radial_coeffs_atoms.keys():
+                anum = utils.symbols_to_numbers([key])[0]
+                if anum in all_atom_numbers:
+                    self.radial_coeffs[anum] = radial_coeffs_atoms[key]
         else:
             self.radial_coeffs = None
 
@@ -129,9 +139,11 @@ class AtomsDensityData(Dataset):
             L0_coeffs_types = np.load(L0_coeffs_file, allow_pickle=True).item()
             for coeff_type in L0_coeffs_types.keys():
                 self.L0_coeffs[coeff_type] = []
-                for t in self.atoms['atom_types']:
-                    L0_atom = L0_coeffs_types[coeff_type][t]
-                    self.L0_coeffs[coeff_type].append(L0_atom)
+                for key in L0_coeffs_types[coeff_type].keys():
+                    anum = utils.symbols_to_numbers([key])[0]
+                    if anum in all_atom_numbers:
+                        L0_atom = L0_coeffs_types[coeff_type][key]
+                        self.L0_coeffs[coeff_type][anum] = L0_atom
         else:
             self.L0_coeffs = None
 
@@ -243,11 +255,12 @@ class AtomsDensityData(Dataset):
         # extract properties
         properties = {}
         positions = torch.from_numpy(self.atoms['positions'][idx]).type(self.dtype)
+        atom_numbers = self.atoms['atom_numbers'][idx]
         for pname in self.required_properties:
             # fallback for properties stored directly
             # in the row
             if pname == 'coords' or pname == 'density':
-                properties['coords'], properties['coord_weights'] = self.get_coords(positions, self.atoms['atom_types'])
+                properties['coords'], properties['coord_weights'] = self.get_coords(positions, atom_numbers)
                 if pname == 'density':
                     if self.projected_density:
                         properties[pname] = self.sample_projected_density(idx, properties['coords'])
@@ -257,10 +270,7 @@ class AtomsDensityData(Dataset):
                 properties[pname] = torch.from_numpy(self.atoms[pname][idx])
 
         # extract/calculate structure
-        if self.atoms['atom_numbers'].ndim == 2:
-            properties['atom_numbers'] = torch.LongTensor(self.atoms['atom_numbers'][idx])
-        else:
-            properties['atom_numbers'] = torch.LongTensor(self.atoms['atom_numbers']).unsqueeze(0).repeat(len(idx), 1)
+        properties['atom_numbers'] = torch.LongTensor(atom_numbers)
         properties['atom_mask'] = properties['atom_numbers'] != 0
         properties['idx'] = torch.LongTensor(idx).unsqueeze(-1)
         # properties['ions'] = [self.ions[i] for i in idx]
@@ -276,18 +286,18 @@ class AtomsDensityData(Dataset):
 
         return properties
 
-    def get_coords(self, positions, atom_types):
+    def get_coords(self, positions, atom_numbers):
         if self.use_gpu:
             positions = positions.cuda()
         if self.radii_adjust:
-            f_radii_adjust = treutler_atomic_radii_adjust(utils.symbols_to_numbers(atom_types),
+            f_radii_adjust = treutler_atomic_radii_adjust(atom_numbers,
                                                           radi.BRAGG_RADII)
             sample_coords, coord_weights = self.sampling_fn(self.grid_spec, self.density_n_samp,
-                                                            atom_types,
+                                                            atom_numbers,
                                                             positions, radii_adjust=f_radii_adjust)
         else:
             sample_coords, coord_weights = self.sampling_fn(self.grid_spec, self.density_n_samp,
-                                                            atom_types,
+                                                            atom_numbers,
                                                             positions)
         # print('density nans', torch.sum(torch.isnan(properties[pname])))
         coords = sample_coords.type(self.dtype)

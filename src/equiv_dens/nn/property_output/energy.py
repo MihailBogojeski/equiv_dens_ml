@@ -4,7 +4,7 @@ from equiv_dens.nn.modules.network_blocks import ModularBlock, ResidualBlock
 from equiv_dens.nn.modules.radial_basis_functions import BernsteinRadialBasisFunctions,\
     GaussianRadialBasisFunctions, ExponentialBernsteinRadialBasisFunctions, ExponentialGaussianRadialBasisFunctions
 from equiv_dens.nn.modules.activations import Swish, ShiftedSoftplus
-from equiv_dens.utils.orbitals import combine_orbitals, combine_orbital_basis, get_invariant_features, get_max_order, coeffs_dict_to_tensors
+from equiv_dens.utils.orbitals import combine_orbital_basis, get_invariant_features, get_max_order, coeffs_dict_to_tensors
 from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
 from equiv_dens.nn.modules.spherical_harmonic_layers import SphericalLinear
 import time
@@ -16,7 +16,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
     Neural network for computing the energy of a molecule based on the density coefficients
     """
     def __init__(self,
-                 orbitals=None,
+                 orbital_basis=None,
                  order=1,  # maximum order of spherical harmonics features
                  mixing_order=None,
                  num_features=32,  # dimensionality of the feature space
@@ -57,7 +57,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
         self.calculate_forces = calculate_forces
 
         # store hyperparameter values
-        self.orbitals = orbitals
+        self.orbital_basis = orbital_basis
         self.order = order
         self.num_features = num_features
         self.num_basis_functions = num_basis_functions
@@ -78,12 +78,6 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
         self.mixing_order = mixing_order
         self.pred_radial_coeffs = pred_radial_coeffs
         self.num_neighbours = num_neighbours
-
-        self.orbital_basis = {}
-        for orb in orbitals:
-            z = orb[0][0]
-            if z not in self.orbital_basis.keys():
-                self.orbital_basis[z] = orb
 
         if self.mixing_order is None:
             self.mixing_order = self.order
@@ -108,7 +102,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
                   ' Taking last order element and using it for all modules.')
             self.mixing_order = [self.mixing_order[-1]] * self.num_modules
 
-        self.orbitals_max_order = get_max_order(self.orbitals)
+        self.orbitals_max_order = get_max_order(self.orbital_basis)
         self.spherical_spec, _, _ = combine_orbital_basis(self.orbital_basis, self.orbitals_max_order)
         self.dens_features = [0] * (self.orbitals_max_order + 1)
         seen_z = []
@@ -287,7 +281,7 @@ class SphericalLinearEnergyNetwork(nn.Module):
     Neural network for computing the energy of a molecule based on the density coefficients
     """
     def __init__(self,
-                 orbitals=None,
+                 orbital_basis=None,
                  order=1,  # maximum order of spherical harmonics features
                  num_features=32,  # dimensionality of the feature space
                  # how many modules are stacked for calculating atomic features (iterations)
@@ -308,7 +302,7 @@ class SphericalLinearEnergyNetwork(nn.Module):
         self.calculate_forces = calculate_forces
 
         # store hyperparameter values
-        self.orbitals = orbitals
+        self.orbital_basis = orbital_basis
         self.order = order
         self.num_features = num_features
         self.num_modules = num_modules
@@ -318,16 +312,11 @@ class SphericalLinearEnergyNetwork(nn.Module):
         self.timing = timing
         self.pred_radial_coeffs = pred_radial_coeffs
 
-        self.orbital_basis = {}
-        for orb in orbitals:
-            z = orb[0][0]
-            if z not in self.orbital_basis.keys():
-                self.orbital_basis[z] = orb
 
         if not isinstance(self.order, list):
             self.order = [self.order] * self.num_modules
 
-        self.orbitals_max_order = get_max_order(self.orbitals)
+        self.orbitals_max_order = get_max_order(self.orbital_basis)
         self.spherical_spec, _, _ = combine_orbital_basis(self.orbital_basis, self.orbitals_max_order)
         self.dens_features = [0] * (self.orbitals_max_order + 1)
         seen_z = []

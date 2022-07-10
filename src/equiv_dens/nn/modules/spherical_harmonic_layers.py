@@ -99,10 +99,10 @@ class SelfMixing(nn.Module):
                 for L in range(abs(l1 - l2), min(l1 + l2, self.order_out) + 1):
                     count[L] += 1
 
-        print('count L', count)
+        # print('count L', count)
         for L in range(min(self.order_in, self.order_out) + 1):
             nn.init.uniform_(
-                self.keepcoeff(L), a=-np.sqrt(3 * (2 * L + 1)/count[L]), b=np.sqrt(3 * (2 * L + 1)/count[L])
+                self.keepcoeff(L), a=-np.sqrt(3 * (L + 1)/count[L]), b=np.sqrt(3 * (L + 1)/count[L])
             )
 
         for l1 in range(self.order_in + 1):
@@ -110,8 +110,8 @@ class SelfMixing(nn.Module):
                 for L in range(abs(l1 - l2), min(l1 + l2, self.order_out) + 1):
                     nn.init.uniform_(
                         self.mixcoeff(l1, l2, L),
-                        a=-np.sqrt(3 * (2 * L + 1)/count[L]),
-                        b=np.sqrt(3 * (2 * L + 1)/count[L]),
+                        a=-np.sqrt(3 * (L + 1)/count[L]),
+                        b=np.sqrt(3 * (L + 1)/count[L]),
                     )
 
     def keepcoeff(self, L):
@@ -122,7 +122,7 @@ class SelfMixing(nn.Module):
 
     def forward(self, xs):
         # print('in', self.order_in, 'out', self.order_out)
-        # print('xs norm selfmix', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
+        print('xs norm selfmix', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
         # initialize output
         ys = [
             self.keepcoeff(L) * xs[L]
@@ -167,7 +167,7 @@ class SelfMixing(nn.Module):
                     # print('cg * tp norm', float(torch.mean((coeff * (cg * tp).sum(-3).sum(-3)) ** 2)))
                     # print('norm coeff', float(torch.mean((coeff / np.sqrt(2 * L + 1)) ** 2)))
                     ys[L] = ys[L] + coeff * ((cg * tp).sum(-3).sum(-3))
-        # print('ys norm selfmix', [float(torch.mean(ys[L]**2)) for L in range(len(ys))])
+        print('ys norm selfmix', [float(torch.mean(ys[L]**2)) for L in range(len(ys))])
         return ys
 
 
@@ -232,8 +232,8 @@ class PairMixing(nn.Module):
         else:
             cg_matrix = torch.ones((1, 1, 1)).to(x1s[0])
         # loop over all combinations of orders
-        # print('xs1 norm', [float(torch.mean(x1s[L] ** 2)) for L in range(len(x1s))])
-        # print('xs2 norm', [float(torch.mean(x2s[L] ** 2)) for L in range(len(x2s))])
+        print('xs1 pairmix norm', [float(torch.mean(x1s[L] ** 2)) for L in range(len(x1s))])
+        print('xs2 pairmix norm', [float(torch.mean(x2s[L] ** 2)) for L in range(len(x2s))])
         # print('L_counts', self.L_count)
         for l1 in range(self.order_in1 + 1):
             # get view of x1s[l1] that enables broadcasting to compute the spherical tensor product
@@ -267,4 +267,5 @@ class PairMixing(nn.Module):
                     ys[L] = ys[L] + self.coeff(l1, l2, L)(rbf) * (np.sqrt(2 * L + 1)) * (
                         (cg * tp).sum(-3).sum(-3) / np.sqrt(self.L_count[L])
                     )
+        print('ys pairmix norm', [float(torch.mean(ys[L] ** 2)) for L in range(len(ys))])
         return ys
