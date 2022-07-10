@@ -4,8 +4,8 @@ import torch.nn as nn
 from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
 from equiv_dens.nn.modules.spherical_harmonic_layers import SphericalLinear
 from equiv_dens.utils.spherical_harmonics import spherical_harmonics
-from equiv_dens.utils.orbitals import combine_orbitals, combine_orbital_basis,\
-    gaussian_rbf, get_max_order, get_n_electrons, get_n_electrons_transfer
+from equiv_dens.utils.orbitals import combine_orbital_basis,\
+    gaussian_rbf, get_max_order, get_n_electrons
 from equiv_dens.utils.base import calculate_distances_and_directions
 import numpy as np
 import time
@@ -17,7 +17,7 @@ class DensityCoeffsNetwork(nn.Module):
     """
 
     def __init__(self,
-                 orbitals=None,  # orbitals of atoms, defines layout and shape of output matrix
+                 orbital_basis=None,  # orbitals of atoms, defines layout and shape of output matrix
                  order=1,  # maximum order of spherical harmonics features
                  num_features=32,
                  positive_coeffs=False,
@@ -36,7 +36,7 @@ class DensityCoeffsNetwork(nn.Module):
         self.create_graph = True  # can be set to False if the NN is only used for inference
 
         # store hyperparameter values
-        self.orbitals = orbitals
+        self.orbital_basis = orbital_basis
         self.order = order
         self.num_features = num_features
         self.positive_coeffs = positive_coeffs
@@ -49,22 +49,9 @@ class DensityCoeffsNetwork(nn.Module):
 
         # extract nuclear charges from orbitals, determine maximum order, and
         # build the occupation mask (for extracting occupied orbitals in energy prediction)
-        self.orbitals_max_order = get_max_order(orbitals)
+        self.orbitals_max_order = get_max_order(orbital_basis)
         # for calculating nucleus - nucleus repulsion
-        self.orbital_basis = {}
-        for orb in orbitals:
-            z = orb[0][0]
-            if z not in self.orbital_basis.keys():
-                self.orbital_basis[z] = orb
         print('init_coeffs', self.init_coeffs)
-        self.init_basis_coeffs = {}
-        if self.init_coeffs is not None:
-            for coeffs_type in self.init_coeffs.keys():
-                self.init_basis_coeffs[coeffs_type] = {}
-                for i in range(len(self.init_coeffs[coeffs_type])):
-                    z = orbitals[i][0][0]
-                    if z not in self.init_basis_coeffs[coeffs_type].keys():
-                        self.init_basis_coeffs[coeffs_type][z] = self.init_coeffs[coeffs_type][i]
 
         print('orbital basis', self.orbital_basis)
         if clebsch_gordan is None:
@@ -100,7 +87,7 @@ class DensityCoeffsNetwork(nn.Module):
             self.output_zero_init = True
         else:
             self.output_bias = True
-            self.output_zero_init = True 
+            self.output_zero_init = False 
 
         self.spherical_output = SphericalLinear(self.order, self.num_features,
                                                 self.orbitals_max_order,
@@ -113,6 +100,7 @@ class DensityCoeffsNetwork(nn.Module):
                                                for L in range(self.orbitals_max_order + 1)])
         if init_coeffs is not None:
             self.init_L0_coeffs()
+        self.reset_parameters()
 
     """
     Sets the initial L=0 coefficients for the model, which are used as baseline for the
@@ -124,6 +112,12 @@ class DensityCoeffsNetwork(nn.Module):
         init_width: Initial L=0 radial width coefficients
     """
 
+    def reset_parameters(self):
+        if self.pred_radial_coeffs:
+            for L in range(len(self.radial_width)):
+                nn.init.zeros_(self.radial_width[L].weight)
+                nn.init.zeros_(self.radial_scale[L].weight)
+
     def init_L0_coeffs(self):
         init_sph = {}
         init_width = {}
@@ -134,9 +128,9 @@ class DensityCoeffsNetwork(nn.Module):
                 L = orb[2]
                 key = (z, L)
                 if L == 0:
-                    init_sph[key] = self.init_basis_coeffs['spherical_coeffs'][z]
-                    init_width[key] = self.init_basis_coeffs['radial_width'][z]
-                    init_scale[key] = self.init_basis_coeffs['radial_scale'][z]
+                    init_sph[key] = self.init_basis['spherical_coeffs'][z]
+                    init_width[key] = self.init_basis['radial_width'][z]
+                    init_scale[key] = self.init_basis['radial_scale'][z]
                     self.register_buffer('init_sph_{}_{}'.format(key[0], key[1]), init_sph[key])
                     self.register_buffer('init_width_{}_{}'.format(key[0], key[1]), init_width[key])
                     self.register_buffer('init_scale_{}_{}'.format(key[0], key[1]), init_scale[key])
@@ -384,7 +378,7 @@ class DensityExpansion(nn.Module):
     Module for expanding density coefficients into a density sampled on a given grid
     """
 
-    def __init__(self, orbitals, radial_coeffs=None,
+    def __init__(self, orbital_basis, radial_coeffs=None,
                  expansion_constraint=None,
                  integral_constraint=None,
                  softmax_norm=False,
@@ -395,7 +389,7 @@ class DensityExpansion(nn.Module):
                  grid_scaling_factor=False,
                  ):
         super().__init__()
-        self.orbitals = orbitals
+        self.orbital_basis = orbital_basis
         self.expansion_constraint = expansion_constraint
         self.integral_constraint = integral_constraint
         self.softmax_norm = softmax_norm
@@ -413,17 +407,9 @@ class DensityExpansion(nn.Module):
             print('expansion constraint', self.expansion_constraint)
             print('integral constraint', self.integral_constraint)
 
-        self.orbitals_max_order_dict = get_max_order(self.orbitals, per_atom=True)
+        self.orbitals_max_order_dict = get_max_order(self.orbital_basis, per_atom=True)
         self.orbitals_max_order = max(self.orbitals_max_order_dict.values())
         self.radial_coeffs = radial_coeffs
-        self.orbital_basis = {}
-        self.radial_coeffs_basis = {}
-        for i in range(len(orbitals)):
-            z = orbitals[i][0][0]
-            if z not in self.orbital_basis.keys():
-                self.orbital_basis[z] = orbitals[i]
-                if self.radial_coeffs is not None:
-                    self.radial_coeffs_basis[z] = self.radial_coeffs[i]
 
         self.spherical_spec, self.radial_spec, radial_counts = combine_orbital_basis(self.orbital_basis, self.orbitals_max_order)
         self.r_max = {}
@@ -465,11 +451,11 @@ class DensityExpansion(nn.Module):
                 key = (z, L)
                 # print('init coeffs orb', orb)
                 if self.radial_coeffs is not None:
-                    n_coeff = len(self.radial_coeffs_basis[z][j][0])
+                    n_coeff = len(self.radial_coeffs[z][j][0])
                     # print('rad_count L', rad_count[L])
                     # print('init coeffs ncoeff', n_coeff)
-                    init_width[key][..., :n_coeff, rad_count[L]] += torch.Tensor(self.radial_coeffs_basis[z][j][0])
-                    init_scale[key][..., :n_coeff, rad_count[L]] += torch.Tensor(self.radial_coeffs_basis[z][j][1])
+                    init_width[key][..., :n_coeff, rad_count[L]] += torch.Tensor(self.radial_coeffs[z][j][0])
+                    init_scale[key][..., :n_coeff, rad_count[L]] += torch.Tensor(self.radial_coeffs[z][j][1])
                     rad_count[L] += 1
                 # if key in init_width[i].keys():
                 #     init_width[i][key] = torch.cat((init_width[i][key], width_coeff), dim=-1)
@@ -504,7 +490,7 @@ class DensityExpansion(nn.Module):
         L0_d = []
         L0_i = []
         L0_width = []
-        n_electrons = get_n_electrons_transfer(atoms['atom_numbers'])
+        n_electrons = get_n_electrons(atoms['atom_numbers'])
         for i in range(n_eval):
             if self.verbose > 2:
                 print('Atom', i)
@@ -539,6 +525,11 @@ class DensityExpansion(nn.Module):
                     width = torch.clamp(width, 1e-1, 1e+5)
                 zero_scale = (self.init_scale(key) != 0).to(atoms['radial_scale'][i][key])
                 scale = (atoms['radial_scale'][i][key] + self.init_scale(key)) * zero_scale
+                # if L == 0:
+                #     print('width init', self.init_width(key))
+                #     print('width init + learned width', (atoms['radial_width'][i][key] + 1) * self.init_width(key))
+                #     print('scale init', self.init_scale(key))
+                #     print('scale init + learned scale', (atoms['radial_scale'][i][key] + self.init_scale(key)) * zero_scale)
                 # width = width.unsqueeze(-3)
                 # scale = scale.unsqueeze(-3)
                 if self.verbose > 3:
@@ -568,7 +559,11 @@ class DensityExpansion(nn.Module):
                     L0_width.append(width)
                     continue
                 sph = s[L].unsqueeze(-1) * sph_coeff
-                rbf = gaussian_rbf(d.unsqueeze(-1), width, scale)
+                rbf = gaussian_rbf(d.unsqueeze(-1), width, scale, L)
+                # print('rbf integral', torch.sum(rbf * atoms['coord_weights'].unsqueeze(-1).unsqueeze(-1), dim=(-2, -3)))
+                # if L == 0:
+                #     print('sph', sph)
+                #     print('rbf', rbf)
                 if i in eval_atoms and L in eval_L:
                     # part_dens = torch.sum(rbf * sph, dim=(-2, -1))
                     # part_int = torch.sum(part_dens * atoms['coord_weights'], dim=-1)
@@ -610,7 +605,11 @@ class DensityExpansion(nn.Module):
                 coeffs_pointer += coeffs_size
                 # print('L0 width', L0_width[i])
                 # print('L0 width negative', torch.sum(L0_width[i] < 0))
-                rbf = gaussian_rbf(L0_d[i].unsqueeze(-1), L0_width[i], curr_coeffs)
+                normalize = False
+                if self.integral_constraint is True or self.integral_constraint == 'coeffs':
+                    normalize = True
+                rbf = gaussian_rbf(L0_d[i].unsqueeze(-1), L0_width[i], curr_coeffs, 0, normalize=normalize)
+                # print('rbf integral', torch.sum(rbf * atoms['coord_weights'].unsqueeze(-1).unsqueeze(-1), dim=(-2, -3)))
                 # print('rbf nan', torch.sum(torch.isnan(rbf)))
                 sph = L0_sph[i].unsqueeze(-1)
                 # print('sph nan', torch.sum(torch.isnan(sph)))

@@ -3,34 +3,36 @@ import equiv_dens.utils.base as utils
 import torch
 import scipy as sp
 
+pyscf_gto_factor = 3.5449070930480957
 
-def combine_orbitals(orbitals, order_max):
-    radial_spec = [None] * len(orbitals)
-    spherical_spec = [None] * len(orbitals)
-    radial_counts = [None] * len(orbitals)
-    for i in range(len(orbitals)):
-        radial_L_count = [0] * (order_max + 2)
-        spherical_L_count = [0] * (order_max + 2)
-        radial_spec[i] = []
-        spherical_spec[i] = []
-        radial_counts[i] = [[] for i in range(order_max + 2)]
-        # print('density L count len', len(density_L_count))
-        z = orbitals[i][0][0]
-        for j in range(len(orbitals[i])):
-            orb = orbitals[i][j]
-            L = orb[2]
-            radial_L_count[L] += orb[1]
-            spherical_L_count[L] += 1
-            radial_counts[i][L].append(orb[1])
-        for L, c in enumerate(radial_L_count):
-            if c == 0:
-                continue
-            radial_spec[i].append((z, c, L))
-        for L, c in enumerate(spherical_L_count):
-            if c == 0:
-                continue
-            spherical_spec[i].append((z, c, L))
-    return spherical_spec, radial_spec, radial_counts
+#
+# def combine_orbitals(orbitals, order_max):
+#     radial_spec = [None] * len(orbitals)
+#     spherical_spec = [None] * len(orbitals)
+#     radial_counts = [None] * len(orbitals)
+#     for i in range(len(orbitals)):
+#         radial_L_count = [0] * (order_max + 2)
+#         spherical_L_count = [0] * (order_max + 2)
+#         radial_spec[i] = []
+#         spherical_spec[i] = []
+#         radial_counts[i] = [[] for i in range(order_max + 2)]
+#         # print('density L count len', len(density_L_count))
+#         z = orbitals[i][0][0]
+#         for j in range(len(orbitals[i])):
+#             orb = orbitals[i][j]
+#             L = orb[2]
+#             radial_L_count[L] += orb[1]
+#             spherical_L_count[L] += 1
+#             radial_counts[i][L].append(orb[1])
+#         for L, c in enumerate(radial_L_count):
+#             if c == 0:
+#                 continue
+#             radial_spec[i].append((z, c, L))
+#         for L, c in enumerate(spherical_L_count):
+#             if c == 0:
+#                 continue
+#             spherical_spec[i].append((z, c, L))
+#     return spherical_spec, radial_spec, radial_counts
 
 
 def combine_orbital_basis(orbital_basis, order_max):
@@ -61,10 +63,10 @@ def combine_orbital_basis(orbital_basis, order_max):
     return spherical_spec, radial_spec, radial_counts
 
 
-def get_max_order(orbitals, per_atom=False):
+def get_max_order(orbital_basis, per_atom=False):
     order_max = {}
-    for i in range(len(orbitals)):
-        for z, _, l in orbitals[i]:
+    for key in orbital_basis.keys():
+        for z, _, l in orbital_basis[key]:
             if z in order_max.keys():
                 if l > order_max[z]:
                     order_max[z] = l
@@ -76,31 +78,46 @@ def get_max_order(orbitals, per_atom=False):
         return max(order_max.values())
 
 
-def get_n_electrons_transfer(atom_numbers):
+def get_n_electrons(atom_numbers):
     return torch.sum(atom_numbers, -1, keepdim=True)
 
 
-def get_n_electrons(orbitals):
-    n_electrons = 0
-    for i in range(len(orbitals)):
-        n_electrons += orbitals[i][0][0]
-    return n_electrons
-
-
-def gaussian_rbf(r, width, scale, normalize=True):
+# def get_n_electrons(orbitals):
+#     n_electrons = 0
+#     for i in range(len(orbitals)):
+#         n_electrons += orbitals[i][0][0]
+#     return n_electrons
+#
+#
+def gaussian_rbf(r, width, scale, order, normalize=False):
     # print('scale shape', scale.shape)
     # print('scale shape', scale.shape)
     # print('width', width)
     # print('r shape', r.shape)
+    # print('L', order)
     if normalize:
         # scale_calc = scale * (width**(3 / 2)) / (np.pi**(3 / 2)) * utils.to_angstrom**3  
-        scale_calc = scale * (width**(3 / 2)) / (np.pi**(3 / 2))
+        # scale_calc = scale * (width**(3/2)) / (np.pi**(3 / 2))
+        scale_calc = scale * gto_norm(order, width)
     else:
-        scale_calc = scale
-
-    # rbf = scale_calc * torch.exp(-width * (r)**2)
-    rbf = scale_calc * torch.exp(-width * (r * utils.to_bohr)**2)
+        scale_calc = scale / pyscf_gto_factor
+    # print('scale', scale)
+    # print('width', width)
+    # print('scale calc', scale_calc)
+    r_bohr = r * utils.to_bohr
+    rbf = scale_calc * r_bohr**(2*order) * torch.exp(-width * (r_bohr)**2)
+    # rbf = scale_calc * torch.exp(-width * (r_bohr)**2)
     return torch.sum(rbf, dim=-2, keepdim=True)
+
+
+def gto_norm(order, width):
+        # norm_factor = (width**(3 / 2)) / (np.pi**(3 / 2)) * utils.to_angstrom**3  
+        # norm_factor = (width**(3/2)) / (np.pi**(3 / 2))
+
+        n1 = ((2 * (order + 1)) + 1) / 2
+        n2 = (2 * order) + 1
+        norm_factor = (sp.special.gamma(order + 1) * 2**(order*2) * (width**(n1))) / ((np.pi**(3 / 2)) * sp.special.gamma(n2 + 1))
+        return norm_factor
 
 
 def get_invariant_features(coeffs, permutational_invariance=True, keep_dims=False, radial_coeffs=True):

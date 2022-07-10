@@ -85,15 +85,15 @@ class ModularBlock(nn.Module):
         )
 
     def forward(self, xs, rbf, sph, idx_i, idx_j, neighbor_mask=1):
-        # print('xs norm modular', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
+        print('xs norm modular', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
         xs = self.residual_pre_x(xs)
-        # print('xs norm modular residual pre', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
+        print('xs norm modular residual pre', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
         xs = self.interaction(xs, rbf, sph, idx_i, idx_j, neighbor_mask=neighbor_mask)
-        # print('xs norm modular interaction', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
+        print('xs norm modular interaction', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
         xs = self.residual_post_x(xs)
-        # print('xs norm modular residual post', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
+        print('xs norm modular residual post', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
         ys = self.residual_out(xs)
-        # print('ys norm modular residual out', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
+        print('ys norm modular residual out', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
         return xs, ys
 
 
@@ -408,27 +408,48 @@ class ResidualBlock(nn.Module):
             self.num_features,
             clebsch_gordan,
             self.mix_orders,
-            zero_init=True,
+            zero_init=False,
         )
+        self.norm_layers = [nn.LayerNorm(num_features) for L in range(self.order_out + 1)]
         self.reset_parameters()
 
     def reset_parameters(self):
         pass
 
     def forward(self, xs):
+        # for L in range(len(xs)):
+        #     print('L', L)
+        #     print('xs[L] pre-residual', xs[L])
+        print('xs pre residual norm:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
         ys = [1 * x for x in xs]
         ys[0] = self.activation_pre(ys[0])
         ys = self.linear1(ys)
+        # for L in range(len(xs)):
+        #     print('L', L)
+        #     print('xs[L] post_linear1', xs[L])
         ys[0] = self.activation_post(ys[0])
+        self.norm_layers[0](ys[0])
+        for L in range(len(ys)):
+            if torch.mean(ys[L]**2) != 0:
+                ys[L] = ys[L] / torch.sqrt(torch.mean(ys[L]**2))
+                print('ys residual norm:', [float(torch.mean(ys[L]**2)) for L in range(len(ys))])
         ys = self.linear2(ys)
         if len(ys) > len(xs):
-            for _ in range(len(xs), len(ys)):
-                xs.append(0)
+            for L in range(len(xs), len(ys)):
+                xs.append(torch.zeros_like(ys[L]))
 
-        for i in range(self.order_out + 1):
-            # if torch.mean(xs[i]**2) == 0 or torch.mean(xs[i]**2) == 0:
-            #     scale = 1/np.sqrt(2)
-            # else:
-            scale = 1
-            ys[i] = ys[i] * scale + xs[i] * scale
+        print('xs post residual norm:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
+        print('ys pre residual norm:', [float(torch.mean(ys[L]**2)) for L in range(len(ys))])
+        for L in range(self.order_out + 1):
+            # print('L', L)
+            # print('xs[L] residual', xs[L])
+            # print('ys[L]', ys[L])
+            # print('xs[L]', xs[L])
+            if torch.mean(ys[L]**2) == 0 or torch.mean(xs[L]**2) == 0:
+                scale = 1
+            else:
+                scale = 1/2
+            # scale = 1
+            ys[L] = ys[L] * scale + xs[L] * scale
+        print('ys post residual norm:', [float(torch.mean(ys[L]**2)) for L in range(len(ys))])
         return ys
