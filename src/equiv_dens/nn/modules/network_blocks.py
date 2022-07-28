@@ -321,11 +321,16 @@ class ResidualBlock(nn.Module):
         clebsch_gordan=None,
         mix_orders=True,
         activation="swish",
+        order_out = None,
     ):
         super(ResidualBlock, self).__init__()
         self.order = order
         self.num_features = num_features
         self.mix_orders = mix_orders
+        if order_out is None:
+            self.order_out = self.order
+        else:
+            self.order_out = order_out
         if self.mix_orders:
             assert clebsch_gordan is not None
         if activation == "swish":
@@ -340,15 +345,15 @@ class ResidualBlock(nn.Module):
         self.linear1 = SphericalLinear(
             self.order,
             self.num_features,
-            self.order,
+            self.order_out,
             self.num_features,
             clebsch_gordan,
             self.mix_orders,
         )
         self.linear2 = SphericalLinear(
-            self.order,
+            self.order_out,
             self.num_features,
-            self.order,
+            self.order_out,
             self.num_features,
             clebsch_gordan,
             self.mix_orders,
@@ -365,4 +370,4 @@ class ResidualBlock(nn.Module):
         ys = self.linear1(ys)
         ys[0] = self.activation_post(ys[0])
         ys = self.linear2(ys)
-        return [x + y for x, y in zip(xs, ys)]
+        return [xs[i] + ys[i] for i in range(self.order_out + 1)]
