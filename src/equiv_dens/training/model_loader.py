@@ -90,6 +90,7 @@ def load_model(args, dataset, train=False):
         clebsch_gordan=clebsch_gordan,
         verbose=args.verbose,
         timing=args.timing,
+        normalize=args.normalize,
     )
 
     density_coeffs_network = DensityCoeffsNetwork
@@ -105,7 +106,8 @@ def load_model(args, dataset, train=False):
         timing=args.timing,
         init_coeffs=dataset.L0_coeffs,
         pred_radial_coeffs=args.pred_radial_coeffs,
-        scale_sph_degrees=args.scale_sph_degrees,
+        scale_sph_order=args.scale_sph_order,
+        normalize=args.normalize,
     )
 
     expansion_model = density_expansion(dataset.orbital_basis_num, radial_coeffs=dataset.radial_coeffs,
@@ -150,6 +152,7 @@ def load_model(args, dataset, train=False):
             calculate_forces=calculate_forces,
             verbose=args.verbose,
             timing=args.timing,
+            normalize=args.normalize,
         )
     elif args.energy_model == 'spherical_linear':
         print('building spherical linear energy model')

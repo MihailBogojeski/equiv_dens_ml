@@ -48,6 +48,7 @@ class EquivariantSphericalHarmonics(nn.Module):
                  timing=False,
                  verbose=0,
                  num_neighbours=1,
+                 normalize=0,
                  ):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
         super().__init__()
 
@@ -76,6 +77,7 @@ class EquivariantSphericalHarmonics(nn.Module):
         self.timing = timing
         self.verbose = verbose
         self.num_neighbours = num_neighbours
+        self.normalize = normalize
 
         # self.orbital_basis = {}
         # for orb in orbitals:
@@ -129,16 +131,16 @@ class EquivariantSphericalHarmonics(nn.Module):
             self.order_max, self.num_features, self.Zmax)
         if basis_functions == 'exp-gaussian':
             self.radial_basis_functions = ExponentialGaussianRadialBasisFunctions(
-                self.num_basis_functions, self.cutoff)
+                self.num_basis_functions, self.cutoff,)
         elif basis_functions == 'exp-bernstein':
             self.radial_basis_functions = ExponentialBernsteinRadialBasisFunctions(
-                self.num_basis_functions, self.cutoff)
+                self.num_basis_functions, self.cutoff, normalize=self.normalize)
         elif basis_functions == 'gaussian':
             self.radial_basis_functions = GaussianRadialBasisFunctions(
                 self.num_basis_functions, self.cutoff)
         elif basis_functions == 'bernstein':
             self.radial_basis_functions = BernsteinRadialBasisFunctions(
-                self.num_basis_functions, self.cutoff)
+                self.num_basis_functions, self.cutoff, normalize=self.normalize)
         else:
             print("basis function type:",
                   basis_functions, "is not supported")
@@ -146,12 +148,12 @@ class EquivariantSphericalHarmonics(nn.Module):
                                 self.num_residual_pre_x, self.num_residual_post_x, self.num_residual_pre_vi,
                                 self.num_residual_pre_vj, self.num_residual_post_v, self.num_residual_output,
                                 self.clebsch_gordan, True, self.mixing_order[0], 0, self.activation,
-                                self.num_neighbours)]
+                                self.num_neighbours, normalize)]
         modules.extend([ModularBlock(self.order[i], self.num_features, self.num_basis_functions,
                                      self.num_residual_pre_x, self.num_residual_post_x, self.num_residual_pre_vi,
                                      self.num_residual_pre_vj, self.num_residual_post_v, self.num_residual_output,
                                      self.clebsch_gordan, True, self.mixing_order[i], self.order[i - 1],
-                                     self.activation, self.num_neighbours) for i in range(1, self.num_modules)])
+                                     self.activation, self.num_neighbours, normalize) for i in range(1, self.num_modules)])
         self.module = nn.ModuleList(modules)
         self.order_change = [nn.Identity()]
         for i in range(1, self.num_modules):
@@ -159,7 +161,7 @@ class EquivariantSphericalHarmonics(nn.Module):
                 self.order_change.append(ResidualBlock(self.order[i - 1], self.num_features,
                                                          clebsch_gordan=self.clebsch_gordan,
                                                          activation=self.activation,
-                                                         order_out=self.order[i]))
+                                                         order_out=self.order[i], normalize=normalize))
             else:
                 self.order_change.append(nn.Identity())
         self.order_change = nn.ModuleList(self.order_change)
@@ -253,11 +255,12 @@ class EquivariantSphericalHarmonics(nn.Module):
             # for L in range(len(xs)):
             #     print('xs[L] main', xs[L])
             xs, ys = module(xs, rbf, sph, idx_i, idx_j, neighbor_mask=neighbor_mask)
+            print('fs norm before:', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
             for L in range(self.order[i] + 1):
-                if torch.mean(fs[L]**2) == 0 or torch.mean(fs[L]**2) == 0:
+                if not self.normalize or torch.mean(fs[L]**2) == 0 or torch.mean(fs[L]**2) == 0:
                     scale = 1
                 else:
-                    scale = 1/2
+                    scale = np.sqrt(1/2)
                 # print('ys[' + str(L) +'] norm', float(torch.mean(ys[L]**2)))
                 # print('fs[' + str(L) +'] norm before', float(torch.mean(fs[L]**2)))
                 # print('scale', scale)
