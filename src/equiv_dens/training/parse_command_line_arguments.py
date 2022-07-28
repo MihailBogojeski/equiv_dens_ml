@@ -95,8 +95,10 @@ def parse_command_line_arguments(arg_file=None):
                                   choices=[True, False], help="Output predictions for the radial coefficients as well.")
     args_hyperparams.add_argument("--dummy_coeff_model", metavar='True|False', type=str2bool, default=False,
                                   choices=[True, False], help="Optimize coefficients directly without a neural network.")
-    args_hyperparams.add_argument("--scale_sph_degrees", metavar='True|False', type=str2bool, default=False,
-                                  choices=[True, False], help="Rescale predicted density coeffs based on spherical harmonic degrees.")
+    args_hyperparams.add_argument("--scale_sph_order", metavar='True|False', type=str2bool, default=False,
+                                  choices=[True, False], help="Rescale predicted density coeffs based on spherical harmonic order.")
+    args_hyperparams.add_argument("--normalize", metavar='INT', type=int, default=0,
+                                  help="Internal normalization in network.")
     hyperparam_args = [act.dest for act in args_hyperparams._group_actions]
 
     # arguments for training

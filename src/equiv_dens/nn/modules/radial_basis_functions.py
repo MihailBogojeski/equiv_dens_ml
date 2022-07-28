@@ -10,7 +10,7 @@ class BernsteinRadialBasisFunctions(nn.Module):
     computes radial basis functions with Bernstein polynomials
     """
 
-    def __init__(self, num_basis_functions, cutoff, normalize=True):
+    def __init__(self, num_basis_functions, cutoff, normalize=0):
         super(BernsteinRadialBasisFunctions, self).__init__()
         self.num_basis_functions = num_basis_functions
         if normalize:
@@ -96,7 +96,7 @@ class ExponentialBernsteinRadialBasisFunctions(nn.Module):
     computes radial basis functions with exponential Bernstein polynomials
     """
 
-    def __init__(self, num_basis_functions, cutoff, ini_alpha=0.5, normalize=True):
+    def __init__(self, num_basis_functions, cutoff, ini_alpha=0.5, normalize=0):
         super(ExponentialBernsteinRadialBasisFunctions, self).__init__()
         self.num_basis_functions = num_basis_functions
         self.ini_alpha = ini_alpha

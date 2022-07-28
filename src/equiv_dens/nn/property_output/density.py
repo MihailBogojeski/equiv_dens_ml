@@ -27,7 +27,8 @@ class DensityCoeffsNetwork(nn.Module):
                  timing=False,
                  init_coeffs=None,
                  pred_radial_coeffs=True,
-                 scale_sph_degrees=True,
+                 scale_sph_order=True,
+                 normalize=0,
                  ):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
         super().__init__()
 
@@ -45,7 +46,8 @@ class DensityCoeffsNetwork(nn.Module):
         self.timing = timing
         self.init_coeffs = init_coeffs
         self.pred_radial_coeffs = pred_radial_coeffs
-        self.scale_sph_degrees = scale_sph_degrees
+        self.scale_sph_order = scale_sph_order
+        self.normalize = normalize
 
         # extract nuclear charges from orbitals, determine maximum order, and
         # build the occupation mask (for extracting occupied orbitals in energy prediction)
@@ -92,7 +94,7 @@ class DensityCoeffsNetwork(nn.Module):
         self.spherical_output = SphericalLinear(self.order, self.num_features,
                                                 self.orbitals_max_order,
                                                 max(self.sph_counts), self.clebsch_gordan, bias=self.output_bias,
-                                                zero_init=self.output_zero_init)
+                                                zero_init=self.output_zero_init, normalize=self.normalize)
         if self.pred_radial_coeffs:
             self.radial_width = nn.ModuleList([nn.Linear(self.num_features, self.rad_counts[L])
                                                for L in range(self.orbitals_max_order + 1)])
@@ -317,7 +319,7 @@ class DensityCoeffsNetwork(nn.Module):
             print('fs[0]:', fs[0][:, 0, :, :10])
             print('fs[1]:', fs[1][:, 0, :, :10])
         out_sph = self.spherical_output(fs)
-        if self.scale_sph_degrees:
+        if self.scale_sph_order:
             for L in range(len(out_sph)):
                 out_sph[L] = out_sph[L] * 10**(-L)
         if self.positive_coeffs:

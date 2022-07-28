@@ -18,6 +18,7 @@ class SphericalLinear(nn.Module):
         mix_orders=True,
         bias=True,
         zero_init=False,
+        normalize=0,
     ):
         super().__init__()
         self.order_in = order_in
@@ -32,7 +33,7 @@ class SphericalLinear(nn.Module):
                 clebsch_gordan is not None
             )  # Clebsch-Gordan coefficients are necessary for mixing
             self.mixing = SelfMixing(
-                self.order_in, self.order_out, self.num_in, clebsch_gordan
+                self.order_in, self.order_out, self.num_in, clebsch_gordan, normalize
             )
         else:  # order can only be changed if mixing is enabled
             assert order_in == order_out
@@ -71,12 +72,13 @@ class SelfMixing(nn.Module):
     Mixes features of different orders
     """
 
-    def __init__(self, order_in, order_out, num_features, clebsch_gordan):
+    def __init__(self, order_in, order_out, num_features, clebsch_gordan, normalize=0):
         super().__init__()
         self.order_in = order_in
         self.order_out = order_out
         self.num_features = num_features
         self.clebsch_gordan = clebsch_gordan
+        self.normalize = normalize
         # coefficients for mixing
         for l1 in range(self.order_in + 1):
             for l2 in range(l1 + 1, self.order_in + 1):
@@ -101,17 +103,25 @@ class SelfMixing(nn.Module):
 
         # print('count L', count)
         for L in range(min(self.order_in, self.order_out) + 1):
+            if self.normalize:
+                norm_factor = (L + 1)
+            else:
+                norm_factor = 1
             nn.init.uniform_(
-                self.keepcoeff(L), a=-np.sqrt(3 * (L + 1)/count[L]), b=np.sqrt(3 * (L + 1)/count[L])
+                self.keepcoeff(L), a=-np.sqrt(3 * norm_factor/count[L]), b=np.sqrt(3 * norm_factor/count[L])
             )
 
         for l1 in range(self.order_in + 1):
             for l2 in range(l1 + 1, self.order_in + 1):
                 for L in range(abs(l1 - l2), min(l1 + l2, self.order_out) + 1):
+                    if self.normalize:
+                        norm_factor = (L + 1)
+                    else:
+                        norm_factor = 1
                     nn.init.uniform_(
                         self.mixcoeff(l1, l2, L),
-                        a=-np.sqrt(3 * (L + 1)/count[L]),
-                        b=np.sqrt(3 * (L + 1)/count[L]),
+                        a=-np.sqrt(3 * norm_factor/count[L]),
+                        b=np.sqrt(3 * norm_factor/count[L]),
                     )
 
     def keepcoeff(self, L):
@@ -122,7 +132,7 @@ class SelfMixing(nn.Module):
 
     def forward(self, xs):
         # print('in', self.order_in, 'out', self.order_out)
-        print('xs norm selfmix', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
+        # print('xs norm selfmix', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
         # initialize output
         ys = [
             self.keepcoeff(L) * xs[L]
@@ -167,7 +177,7 @@ class SelfMixing(nn.Module):
                     # print('cg * tp norm', float(torch.mean((coeff * (cg * tp).sum(-3).sum(-3)) ** 2)))
                     # print('norm coeff', float(torch.mean((coeff / np.sqrt(2 * L + 1)) ** 2)))
                     ys[L] = ys[L] + coeff * ((cg * tp).sum(-3).sum(-3))
-        print('ys norm selfmix', [float(torch.mean(ys[L]**2)) for L in range(len(ys))])
+        # print('ys norm selfmix', [float(torch.mean(ys[L]**2)) for L in range(len(ys))])
         return ys
 
 
@@ -185,6 +195,7 @@ class PairMixing(nn.Module):
         num_basis_functions,
         num_features,
         clebsch_gordan,
+        normalize=0,
     ):
         super().__init__()
         self.order_in1 = order_in1
@@ -193,6 +204,7 @@ class PairMixing(nn.Module):
         self.num_basis_functions = num_basis_functions
         self.num_features = num_features
         self.clebsch_gordan = clebsch_gordan
+        self.normalize = normalize 
         # distance - dependent coefficients for mixing
         for l1 in range(self.order_in1 + 1):
             for l2 in range(self.order_in2 + 1):
@@ -232,8 +244,8 @@ class PairMixing(nn.Module):
         else:
             cg_matrix = torch.ones((1, 1, 1)).to(x1s[0])
         # loop over all combinations of orders
-        print('xs1 pairmix norm', [float(torch.mean(x1s[L] ** 2)) for L in range(len(x1s))])
-        print('xs2 pairmix norm', [float(torch.mean(x2s[L] ** 2)) for L in range(len(x2s))])
+        # print('xs1 pairmix norm', [float(torch.mean(x1s[L] ** 2)) for L in range(len(x1s))])
+        # print('xs2 pairmix norm', [float(torch.mean(x2s[L] ** 2)) for L in range(len(x2s))])
         # print('L_counts', self.L_count)
         for l1 in range(self.order_in1 + 1):
             # get view of x1s[l1] that enables broadcasting to compute the spherical tensor product
@@ -263,9 +275,15 @@ class PairMixing(nn.Module):
                     # contract and addi
                     # print("L", L)
                     # print('cg * tp norm', float(torch.mean((self.coeff(l1, l2, L)(rbf) * np.sqrt(2* L + 1) * (cg * tp).sum(-3).sum(-3)) ** 2)))
-                    # print('coeff norm', float(torch.mean(self.coeff(l1, l2, L)(rbf) ** 2)))
-                    ys[L] = ys[L] + self.coeff(l1, l2, L)(rbf) * (np.sqrt(2 * L + 1)) * (
+                    # print('coeff norm', float(torch.mean((self.coeff(l1, l2, L)(rbf) * np.sqrt(self.num_features/self.num_basis_functions)) ** 2)))
+                    # print('num basis functions', self.num_basis_functions)
+                    # print('num features', self.num_features)
+                    if self.normalize:
+                        norm_factor =  np.sqrt(L + 1) * np.sqrt(self.num_features/self.num_basis_functions)
+                    else:
+                        norm_factor = 1
+                    ys[L] = ys[L] + self.coeff(l1, l2, L)(rbf) * (norm_factor) * (
                         (cg * tp).sum(-3).sum(-3) / np.sqrt(self.L_count[L])
                     )
-        print('ys pairmix norm', [float(torch.mean(ys[L] ** 2)) for L in range(len(ys))])
+        # print('ys pairmix norm', [float(torch.mean(ys[L] ** 2)) for L in range(len(ys))])
         return ys

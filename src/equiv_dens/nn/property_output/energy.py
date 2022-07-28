@@ -48,6 +48,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
                  timing=False,
                  pred_radial_coeffs=True,
                  num_neighbours=1,
+                 normalize=0,
                  ):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
         super().__init__()
 
@@ -78,6 +79,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
         self.mixing_order = mixing_order
         self.pred_radial_coeffs = pred_radial_coeffs
         self.num_neighbours = num_neighbours
+        self.normalize = normalize
 
         if self.mixing_order is None:
             self.mixing_order = self.order
@@ -135,13 +137,13 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
                 self.num_basis_functions, self.cutoff)
         elif self.basis_functions == 'exp-bernstein':
             self.radial_basis_functions = ExponentialBernsteinRadialBasisFunctions(
-                self.num_basis_functions, self.cutoff)
+                self.num_basis_functions, self.cutoff, normalize=self.normalize)
         elif self.basis_functions == 'gaussian':
             self.radial_basis_functions = GaussianRadialBasisFunctions(
                 self.num_basis_functions, self.cutoff)
         elif self.basis_functions == 'bernstein':
             self.radial_basis_functions = BernsteinRadialBasisFunctions(
-                self.num_basis_functions, self.cutoff)
+                self.num_basis_functions, self.cutoff, normalize=self.normalize)
         else:
             print("basis function type:",
                   self.basis_functions, "is not supported")
@@ -160,12 +162,12 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
                                 self.num_residual_pre_x, self.num_residual_post_x, self.num_residual_pre_vi,
                                 self.num_residual_pre_vj, self.num_residual_post_v, self.num_residual_output,
                                 self.clebsch_gordan, True, self.mixing_order[0], 0, self.activation,
-                                self.num_neighbours)]
+                                self.num_neighbours, normalize)]
         modules.extend([ModularBlock(self.order[i], self.num_features, self.num_basis_functions,
                                      self.num_residual_pre_x, self.num_residual_post_x, self.num_residual_pre_vi,
                                      self.num_residual_pre_vj, self.num_residual_post_v, self.num_residual_output,
                                      self.clebsch_gordan, True, self.mixing_order[i], self.order[i - 1],
-                                     self.activation, self.num_neighbours) for i in range(1, self.num_modules)])
+                                     self.activation, self.num_neighbours, normalize) for i in range(1, self.num_modules)])
         self.module = nn.ModuleList(modules)
 
         self.order_change = []
@@ -174,7 +176,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
             self.order_change.append(ResidualBlock(self.orbitals_max_order, self.num_features,
                                                      clebsch_gordan=self.clebsch_gordan,
                                                      activation=self.activation,
-                                                     order_out=self.order[0]))
+                                                     order_out=self.order[0], normalize=normalize))
         else:
             self.order_change.append(nn.Identity())
         for i in range(1, self.num_modules):
@@ -182,7 +184,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
                 self.order_change.append(ResidualBlock(self.order[i - 1], self.num_features,
                                                          clebsch_gordan=self.clebsch_gordan,
                                                          activation=self.activation,
-                                                         order_out=self.order[i]))
+                                                         order_out=self.order[i], normalize=normalize))
             else:
                 self.order_change.append(nn.Identity())
         self.order_change = nn.ModuleList(self.order_change)
@@ -254,10 +256,10 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
             xs = self.order_change[i](xs)
             xs, ys = module(xs, rbf, sph, idx_i, idx_j, neighbor_mask=neighbor_mask)
             for L in range(self.order[i] + 1):
-                if torch.mean(fs[L]**2) == 0 or torch.mean(ys[L]**2) == 0:
+                if not self.normalize or torch.mean(fs[L]**2) == 0 or torch.mean(ys[L]**2) == 0:
                     scale = 1
                 else:
-                    scale = 1/np.sqrt(2)
+                    scale = np.sqrt(1/2)
                 fs[L] = ys[L] * scale + fs[L] * scale
         fs[0] = self.out_activation(fs[0])
 

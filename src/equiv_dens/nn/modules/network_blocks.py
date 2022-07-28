@@ -26,6 +26,7 @@ class ModularBlock(nn.Module):
         input_order=None,
         activation="swish",
         num_neighbours=1,
+        normalize=0,
     ):
         super(ModularBlock, self).__init__()
         # initialize attributes
@@ -58,6 +59,7 @@ class ModularBlock(nn.Module):
             self.input_order,
             activation,
             num_neighbours,
+            normalize=normalize,
         )
         self.residual_pre_x = ResidualStack(
             self.num_residual_pre_x,
@@ -66,6 +68,7 @@ class ModularBlock(nn.Module):
             clebsch_gordan,
             mix_orders,
             activation,
+            normalize,
         )
         self.residual_post_x = ResidualStack(
             self.num_residual_post_x,
@@ -74,6 +77,7 @@ class ModularBlock(nn.Module):
             clebsch_gordan,
             mix_orders,
             activation,
+            normalize,
         )
         self.residual_out = ResidualStack(
             self.num_residual_output,
@@ -82,18 +86,19 @@ class ModularBlock(nn.Module):
             clebsch_gordan,
             mix_orders,
             activation,
+            normalize
         )
 
     def forward(self, xs, rbf, sph, idx_i, idx_j, neighbor_mask=1):
-        print('xs norm modular', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
+        # print('xs norm modular', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
         xs = self.residual_pre_x(xs)
-        print('xs norm modular residual pre', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
+        # print('xs norm modular residual pre', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
         xs = self.interaction(xs, rbf, sph, idx_i, idx_j, neighbor_mask=neighbor_mask)
-        print('xs norm modular interaction', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
+        # print('xs norm modular interaction', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
         xs = self.residual_post_x(xs)
-        print('xs norm modular residual post', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
+        # print('xs norm modular residual post', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
         ys = self.residual_out(xs)
-        print('ys norm modular residual out', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
+        # print('ys norm modular residual out', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
         return xs, ys
 
 
@@ -116,6 +121,7 @@ class InteractionBlock(nn.Module):
         input_order=None,
         activation="swish",
         num_neighbours=1,
+        normalize=0,
     ):
         super(InteractionBlock, self).__init__()
         # initialiye attributes
@@ -127,6 +133,7 @@ class InteractionBlock(nn.Module):
         self.num_residual_post_v = num_residual_post_v
         self.mixing_order = mixing_order
         self.num_neighbours = num_neighbours
+        self.normalize=normalize
         if self.mixing_order is None:
             self.mixing_order = self.order
         self.input_order = input_order
@@ -152,6 +159,7 @@ class InteractionBlock(nn.Module):
             self.num_features,
             clebsch_gordan,
             mix_orders=False,
+            normalize=normalize,
         )
         self.angular_fn2 = SphericalLinear(
             self.mixing_order,
@@ -160,6 +168,7 @@ class InteractionBlock(nn.Module):
             self.num_features,
             clebsch_gordan,
             mix_orders=False,
+            normalize=normalize,
         )
         self.radial_fn = nn.ModuleList(
             [
@@ -174,6 +183,7 @@ class InteractionBlock(nn.Module):
             self.num_basis_functions,
             self.num_features,
             clebsch_gordan,
+            normalize=normalize,
         )
         self.linear_i = SphericalLinear(
             min(2 * self.input_order, self.order),
@@ -182,6 +192,7 @@ class InteractionBlock(nn.Module):
             self.num_features,
             clebsch_gordan,
             mix_orders,
+            normalize=normalize,
         )
         self.linear_j = SphericalLinear(
             min(2 * self.input_order, self.order),
@@ -190,6 +201,7 @@ class InteractionBlock(nn.Module):
             self.num_features,
             clebsch_gordan,
             mix_orders,
+            normalize=normalize,
         )
         self.linear_v = SphericalLinear(
             self.order,
@@ -198,6 +210,7 @@ class InteractionBlock(nn.Module):
             self.num_features,
             clebsch_gordan,
             mix_orders,
+            normalize=normalize,
         )
         if self.mixing_order != self.order:
             self.linear_contract = SphericalLinear(
@@ -207,6 +220,7 @@ class InteractionBlock(nn.Module):
                 self.num_features,
                 clebsch_gordan,
                 mix_orders,
+                normalize=normalize,
             )
         self.residual_pre_vi = ResidualStack(
             self.num_residual_pre_vi,
@@ -215,6 +229,7 @@ class InteractionBlock(nn.Module):
             clebsch_gordan,
             mix_orders,
             activation,
+            normalize,
         )
         self.residual_pre_vj = ResidualStack(
             self.num_residual_pre_vj,
@@ -223,6 +238,7 @@ class InteractionBlock(nn.Module):
             clebsch_gordan,
             mix_orders,
             activation,
+            normalize,
         )
         self.residual_post_v = ResidualStack(
             self.num_residual_post_v,
@@ -231,6 +247,7 @@ class InteractionBlock(nn.Module):
             clebsch_gordan,
             mix_orders,
             activation,
+            normalize,
         )
 
         self.reset_parameters()
@@ -244,8 +261,14 @@ class InteractionBlock(nn.Module):
         # path for atoms i
         yi = self.residual_pre_vi(ys)
         yi[0] = self.activation_i(yi[0])
+        # print('yi norm:', float(torch.mean(yi[0]**2)))
+        if self.normalize > 1:
+            for L in range(len(yi)):
+                yi[L] = layer_norm(yi[L], dims=(-2, -1)) 
+            # yi[0] = layer_norm(yi[0], dims=(-2, -1)) 
+        # print('yi norm:', float(torch.mean(yi[0]**2)))
+        # print('yi norm:', torch.mean(yi[0]**2, dim=(-2,-1)))
         yi = self.linear_i(yi)
-        # print('yi norm:', [float(torch.mean(yi[L]**2)) for L in range(len(yi))])
 
         for L in range(len(yi), self.mixing_order + 1):
             yi.append(torch.zeros(*yi[0].shape[:2], (2 * L) + 1, yi[0].shape[-1]).to(yi[0]))
@@ -253,6 +276,12 @@ class InteractionBlock(nn.Module):
         # path for atoms j
         yj = self.residual_pre_vj(ys)
         yj[0] = self.activation_j(yj[0])
+        if self.normalize == 1:
+            yj[0] = layer_norm(yj[0], dims=(-2, -1)) 
+        elif self.normalize > 1:
+            for L in range(len(yj)):
+                yj[L] = layer_norm(yj[L], dims=(-2, -1)) 
+        # print('yj norm:', float(torch.mean(yj[0]**2)))
         yj = self.linear_j(yj)
         # interaction function
         for L in range(min(2 * self.input_order, self.order) + 1):
@@ -272,6 +301,7 @@ class InteractionBlock(nn.Module):
         # print('vs 0 shape', vs[0].shape)
         # print('vs norm:', [float(torch.mean(vs[L]**2)) for L in range(len(vs))])
         a = self.angular_fn2(sph)
+        # print('a norm:', [float(torch.mean(a[L]**2)) for L in range(len(a))])
         for L in range(self.mixing_order + 1):
             # idx_i_scat = idx_i.view(*(1,) * len(vs[L].shape[:-3]), -1, 1, 1).repeat(
             # *vs[L].shape[:-3], 1, *vs[L].shape[-2:])
@@ -293,14 +323,20 @@ class InteractionBlock(nn.Module):
             #     print('index add', torch.zeros_like(yj[L]).index_add(1, idx_i,
             #         vs[L] + self.radial_fn[L](rbf) * a[L] * yj[0])
             #     )
-            if torch.mean(vs[L]**2) == 0 or torch.mean(yi[L]**2) == 0:
+            if not self.normalize or torch.mean(yi[L]**2) == 0 or torch.mean(vs[L]**2) == 0:
                 scale = 1
             else:
-                scale = 1/2
+                scale = np.sqrt(1/2)
+            if self.normalize:
+                norm_rbf =  np.sqrt(self.num_features/self.num_basis_functions)
+                norm_sph = np.sqrt(self.mixing_order + 1) 
+            else:
+                norm_rbf = 1
+                norm_sph = 1
             vs[L] = (yi[L] * scale).index_add(
-                1, idx_i, scale * vs[L] + self.radial_fn[L](rbf) * a[L] * yj[0]
+                1, idx_i, scale * (vs[L] + self.radial_fn[L](rbf) * norm_rbf * a[L] * yj[0])
             )
-            vs[L] = vs[L] * np.sqrt(self.mixing_order + 1) / self.num_neighbours
+            vs[L] = vs[L] * norm_sph / self.num_neighbours
             # print('vs ' + str(L) + ' norm:', float(torch.mean(vs[L]**2)))
             # vs[L] = yi[L] + torch.scatter_reduce(
             #         vs[L] + self.radial_fn[L](rbf) * a[L] * yj[0], 1, idx_i_scat, 
@@ -308,6 +344,7 @@ class InteractionBlock(nn.Module):
             #     print('yi[0]', yi[L])
             # if L == 0:
             #     print('vs[0]', vs[L])
+        # print('vs norm:', [float(torch.mean(vs[L]**2)) for L in range(len(vs))])
 
         if self.mixing_order != self.order:
             vs = self.linear_contract(vs)        # interaction refinement
@@ -333,6 +370,7 @@ class ResidualStack(nn.Module):
         clebsch_gordan=None,
         mix_orders=True,
         activation="swish",
+        normalize=0,
     ):
         super(ResidualStack, self).__init__()
         self.num_blocks = num_blocks
@@ -346,6 +384,7 @@ class ResidualStack(nn.Module):
                     clebsch_gordan,
                     mix_orders,
                     activation,
+                    normalize,
                 )
                 for i in range(self.num_blocks)
             ]
@@ -372,11 +411,13 @@ class ResidualBlock(nn.Module):
         clebsch_gordan=None,
         mix_orders=True,
         activation="swish",
+        normalize=0,
         order_out = None,
     ):
         super(ResidualBlock, self).__init__()
         self.order = order
         self.num_features = num_features
+        self.normalize = normalize
         self.mix_orders = mix_orders
         if order_out is None:
             self.order_out = self.order
@@ -400,6 +441,7 @@ class ResidualBlock(nn.Module):
             self.num_features,
             clebsch_gordan,
             self.mix_orders,
+            normalize=normalize,
         )
         self.linear2 = SphericalLinear(
             self.order_out,
@@ -408,9 +450,9 @@ class ResidualBlock(nn.Module):
             self.num_features,
             clebsch_gordan,
             self.mix_orders,
-            zero_init=False,
+            zero_init=True,
+            normalize=normalize,
         )
-        self.norm_layers = [nn.LayerNorm(num_features) for L in range(self.order_out + 1)]
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -420,7 +462,7 @@ class ResidualBlock(nn.Module):
         # for L in range(len(xs)):
         #     print('L', L)
         #     print('xs[L] pre-residual', xs[L])
-        print('xs pre residual norm:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
+        # print('xs pre residual norm:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
         ys = [1 * x for x in xs]
         ys[0] = self.activation_pre(ys[0])
         ys = self.linear1(ys)
@@ -428,28 +470,39 @@ class ResidualBlock(nn.Module):
         #     print('L', L)
         #     print('xs[L] post_linear1', xs[L])
         ys[0] = self.activation_post(ys[0])
-        self.norm_layers[0](ys[0])
-        for L in range(len(ys)):
-            if torch.mean(ys[L]**2) != 0:
-                ys[L] = ys[L] / torch.sqrt(torch.mean(ys[L]**2))
-                print('ys residual norm:', [float(torch.mean(ys[L]**2)) for L in range(len(ys))])
+        if self.normalize > 1:
+            for L in range(len(ys)):
+                ys[L] = layer_norm(ys[L], dims=(-2, -1)) 
+        #     # ys[0] = layer_norm(ys[0], dims=(-2, -1)) 
+        # for L in range(len(ys)):
+        #     if torch.mean(ys[L]**2) != 0:
+        #         ys[L] = ys[L] / torch.sqrt(torch.mean(ys[L]**2))
+        # if torch.mean(ys[0]**2) != 0:
+        #     ys[0] = ys[0] / torch.sqrt(torch.mean(ys[0]**2))
+        # print('ys residual norm:', [float(torch.mean(ys[L]**2)) for L in range(len(ys))])
         ys = self.linear2(ys)
         if len(ys) > len(xs):
             for L in range(len(xs), len(ys)):
                 xs.append(torch.zeros_like(ys[L]))
 
-        print('xs post residual norm:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
-        print('ys pre residual norm:', [float(torch.mean(ys[L]**2)) for L in range(len(ys))])
+        # print('xs post residual norm:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
+        # print('ys pre residual norm:', [float(torch.mean(ys[L]**2)) for L in range(len(ys))])
         for L in range(self.order_out + 1):
             # print('L', L)
             # print('xs[L] residual', xs[L])
             # print('ys[L]', ys[L])
             # print('xs[L]', xs[L])
-            if torch.mean(ys[L]**2) == 0 or torch.mean(xs[L]**2) == 0:
+            if not self.normalize or torch.mean(xs[L]**2) == 0 or torch.mean(ys[L]**2) == 0:
                 scale = 1
             else:
-                scale = 1/2
-            # scale = 1
+                scale = np.sqrt(1/2)
             ys[L] = ys[L] * scale + xs[L] * scale
-        print('ys post residual norm:', [float(torch.mean(ys[L]**2)) for L in range(len(ys))])
+        # print('ys post residual norm:', [float(torch.mean(ys[L]**2)) for L in range(len(ys))])
         return ys
+
+
+def layer_norm(x, dims):
+    x_mean = torch.mean(x, dim=dims, keepdim=True)
+    x_std = torch.std(x, dim=dims, keepdim=True)
+    eps = 1e-8
+    return (x - x_mean) / (x_std + eps)
