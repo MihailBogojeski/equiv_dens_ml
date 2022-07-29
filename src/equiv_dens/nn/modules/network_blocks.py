@@ -450,7 +450,7 @@ class ResidualBlock(nn.Module):
             self.num_features,
             clebsch_gordan,
             self.mix_orders,
-            zero_init=False,
+            zero_init=True,
             normalize=normalize,
         )
         self.reset_parameters()
