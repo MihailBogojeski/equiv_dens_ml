@@ -450,7 +450,7 @@ class ResidualBlock(nn.Module):
             self.num_features,
             clebsch_gordan,
             self.mix_orders,
-            zero_init=True,
+            zero_init=False,
             normalize=normalize,
         )
         self.reset_parameters()
@@ -504,5 +504,5 @@ class ResidualBlock(nn.Module):
 def layer_norm(x, dims):
     x_mean = torch.mean(x, dim=dims, keepdim=True)
     x_std = torch.std(x, dim=dims, keepdim=True)
-    eps = 1e-8
+    eps = 1e-2
     return (x - x_mean) / (x_std + eps)
