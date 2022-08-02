@@ -255,7 +255,7 @@ class EquivariantSphericalHarmonics(nn.Module):
             # for L in range(len(xs)):
             #     print('xs[L] main', xs[L])
             xs, ys = module(xs, rbf, sph, idx_i, idx_j, neighbor_mask=neighbor_mask)
-            print('fs norm before:', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
+            # print('fs norm before:', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
             for L in range(self.order[i] + 1):
                 if not self.normalize or torch.mean(fs[L]**2) == 0 or torch.mean(fs[L]**2) == 0:
                     scale = 1
@@ -266,10 +266,10 @@ class EquivariantSphericalHarmonics(nn.Module):
                 # print('scale', scale)
                 fs[L] = ys[L] * scale + fs[L] * scale
                 # print('fs[' + str(L) +'] norm after', float(torch.mean(fs[L]**2)))
-            print('')
-            print('ys norm:', [float(torch.mean(ys[L]**2)) for L in range(len(ys))])
-            print('fs norm:', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
-            print('')
+            # print('')
+            # print('ys norm:', [float(torch.mean(ys[L]**2)) for L in range(len(ys))])
+            # print('fs norm:', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
+            # print('')
             if self.verbose > 2:
                 print('repr forward after module', i, ':')
                 print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
