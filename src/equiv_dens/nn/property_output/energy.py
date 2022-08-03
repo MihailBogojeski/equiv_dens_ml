@@ -240,10 +240,12 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
                 xs.append(sph_fs[L] * radial_comb)
         else:
             xs = sph_fs
+        # print('xs energy norm before:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
 
         for L in range(len(xs)):
             xs[L] = self.input_layer[L](xs[L])
 
+        # print('xs energy norm after input layer:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
         mask_dim = neighbor_mask.dim()
         dim_diff = xs[0].dim() - mask_dim
         neighbor_mask = neighbor_mask.to(xs[0]).reshape(rbf.shape[:mask_dim] + (1,) * dim_diff)
@@ -254,6 +256,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
         # fs = [torch.zeros_like(x) for x in xs]  # output features
         for i, module in enumerate(self.module):
             xs = self.order_change[i](xs)
+            # print('xs norm module ', i, ':', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
             xs, ys = module(xs, rbf, sph, idx_i, idx_j, neighbor_mask=neighbor_mask)
             for L in range(self.order[i] + 1):
                 if not self.normalize or torch.mean(fs[L]**2) == 0 or torch.mean(ys[L]**2) == 0:
@@ -261,6 +264,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
                 else:
                     scale = np.sqrt(1/2)
                 fs[L] = ys[L] * scale + fs[L] * scale
+            # print('fs norm ', i, ':', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
         fs[0] = self.out_activation(fs[0])
 
         atom_en = self.energy_output(fs)[0].squeeze(-1).squeeze(-1)
@@ -272,6 +276,8 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
         if self.calculate_forces:
             forces = -torch.autograd.grad(torch.sum(energy), atoms['positions'], create_graph=self.training)[0]
             atoms['forces'] = forces
+
+        # raise Exception('Random exception')
 
         if self.timing:
             print('simple energy time', time.time() - start)
@@ -295,6 +301,7 @@ class SphericalLinearEnergyNetwork(nn.Module):
                  verbose=0,
                  timing=False,
                  pred_radial_coeffs=True,
+                 normalize=0,
                  ):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
         super().__init__()
 
@@ -313,6 +320,7 @@ class SphericalLinearEnergyNetwork(nn.Module):
         self.verbose = verbose
         self.timing = timing
         self.pred_radial_coeffs = pred_radial_coeffs
+        self.normalize = normalize
 
 
         if not isinstance(self.order, list):
@@ -380,19 +388,21 @@ class SphericalLinearEnergyNetwork(nn.Module):
                 self.order_change.append(ResidualBlock(self.order[i - 1], self.num_features,
                                                          clebsch_gordan=self.clebsch_gordan,
                                                          activation=self.activation,
-                                                         order_out=self.order[i]))
+                                                         order_out=self.order[i], normalize=self.normalize))
             else:
                 self.order_change.append(nn.Identity())
         self.order_change = nn.ModuleList(self.order_change)
 
         modules = [ResidualBlock(self.order[0], self.num_features, clebsch_gordan=self.clebsch_gordan,
-                                 activation=self.activation)]
+                                 activation=self.activation,
+                                 normalize=self.normalize)]
         modules.extend([ResidualBlock(self.order[i], self.num_features,
                                      clebsch_gordan=self.clebsch_gordan,
-                                     activation=self.activation) for i in range(1, self.num_modules)])
+                                     activation=self.activation,
+                                     normalize=self.normalize) for i in range(1, self.num_modules)])
         self.module = nn.ModuleList(modules)
 
-        self.energy_output = SphericalLinear(self.order[-1], self.num_features, 0, 1, self.clebsch_gordan)
+        self.energy_output = SphericalLinear(self.order[-1], self.num_features, 0, 1, self.clebsch_gordan, normalize=self.normalize)
 
     def radial_scale_filters(self, L):
         return getattr(self, "radial_scale_filters_{}".format(L))
@@ -438,7 +448,7 @@ class SphericalLinearEnergyNetwork(nn.Module):
             # print('order ', i, ':', self.order[i] + 1)
             xs = module(xs)
             for L in range(self.order[i] + 1):
-                if torch.mean(fs[L]**2) == 0 or torch.mean(xs[L]**2) == 0:
+                if not self.normalize or torch.mean(fs[L]**2) == 0 or torch.mean(xs[L]**2) == 0:
                     scale = 1
                 else:
                     scale = 1/np.sqrt(2)

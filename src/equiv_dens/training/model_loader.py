@@ -152,7 +152,7 @@ def load_model(args, dataset, train=False):
             calculate_forces=calculate_forces,
             verbose=args.verbose,
             timing=args.timing,
-            normalize=args.normalize,
+            normalize=args.normalize_en,
         )
     elif args.energy_model == 'spherical_linear':
         print('building spherical linear energy model')
@@ -169,6 +169,7 @@ def load_model(args, dataset, train=False):
             verbose=args.verbose,
             timing=args.timing,
             pred_radial_coeffs=args.pred_radial_coeffs,
+            normalize=args.normalize_en,
         )
     else:
         args.energy_model = None

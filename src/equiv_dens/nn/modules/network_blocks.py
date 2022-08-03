@@ -503,6 +503,11 @@ class ResidualBlock(nn.Module):
 
 def layer_norm(x, dims):
     x_mean = torch.mean(x, dim=dims, keepdim=True)
-    x_std = torch.std(x, dim=dims, keepdim=True)
+    x_var = torch.var(x, dim=dims, keepdim=True)
+    if torch.sum(x_var) == 0:
+        x_std = 0
+    else:
+        x_std = torch.sqrt(x_var)
+    # print('x_std', x_std)
     eps = 1e-2
     return (x - x_mean) / (x_std + eps)

@@ -99,6 +99,8 @@ def parse_command_line_arguments(arg_file=None):
                                   choices=[True, False], help="Rescale predicted density coeffs based on spherical harmonic order.")
     args_hyperparams.add_argument("--normalize", metavar='INT', type=int, default=0,
                                   help="Internal normalization in network.")
+    args_hyperparams.add_argument("--normalize_en", metavar='INT', type=int, default=0,
+                                  help="Internal normalization in energy network.")
     hyperparam_args = [act.dest for act in args_hyperparams._group_actions]
 
     # arguments for training
