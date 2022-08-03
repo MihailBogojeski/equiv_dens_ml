@@ -344,7 +344,9 @@ class Trainer:
 
         data = self._module.conversions_in(data)
         data = self._module.scaling(data)
+        # print('model embedding layer before', self._model.density_repr_model[0].embedding.embedding.element_embedding)
         predictions = self._model(data)
+        # print('model embedding layer after pred', self._model.density_repr_model[0].embedding.embedding.element_embedding)
 
         if self.verbose > -1:
             if 'density' in predictions.keys():
@@ -418,6 +420,7 @@ class Trainer:
         if self.timing:
             print('step time', time.time() - start_step)
 
+        # print('model embedding layer after backward', self._model.density_repr_model[0].embedding.embedding.element_embedding)
         # update parameter averages
         if self.exponential_moving_average is not None:
             self.exponential_moving_average(self.epoch)

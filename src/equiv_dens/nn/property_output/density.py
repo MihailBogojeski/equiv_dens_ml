@@ -371,6 +371,7 @@ class DensityCoeffsNetwork(nn.Module):
             print('density coeffs forward end:')
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
             print('Memory cached', torch.cuda.memory_cached() / 1024**2)
+        # print('sph_dict', atoms['sph_dict'])
 
         return atoms
 

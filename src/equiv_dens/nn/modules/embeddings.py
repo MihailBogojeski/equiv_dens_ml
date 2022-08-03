@@ -33,6 +33,8 @@ class Embedding(nn.Module):
         embedding = (
             self.element_embedding + self.config_linear(self.electron_config)
         ).repeat(Z.size(0), 1, 1)
+        # print('element_embedding', self.element_embedding)
+        # print('embedding shape', embedding.shape)
         return torch.gather(embedding, -2, Z)
 
 
