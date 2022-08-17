@@ -5,7 +5,7 @@ from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
 from equiv_dens.nn.modules.spherical_harmonic_layers import SphericalLinear
 from equiv_dens.utils.spherical_harmonics import spherical_harmonics
 from equiv_dens.utils.orbitals import combine_orbital_basis,\
-    gaussian_rbf, get_max_order, get_n_electrons
+    gaussian_rbf, get_max_order, get_n_electrons, coeffs_dict_to_vector
 from equiv_dens.utils.base import calculate_distances_and_directions
 import numpy as np
 import time
@@ -351,6 +351,8 @@ class DensityCoeffsNetwork(nn.Module):
             print('Memory cached', torch.cuda.memory_cached() / 1024**2)
         atoms['spherical_coeffs'], atoms['radial_width'], atoms['radial_scale'] =\
             self.extract_coefficients(out_sph, out_width, out_scale, atoms['atom_numbers'], atoms['atom_mask'])
+        atoms['df_coeffs'] = coeffs_dict_to_vector(atoms, self.orbital_basis,
+                                                            atoms['atom_numbers'], radial_coeffs=False)['spherical_coeffs']
         if self.verbose > 2:
             print('density coeffs forward extract coeffs:')
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
@@ -392,6 +394,16 @@ class DensityExpansion(nn.Module):
                  grid_scaling_factor=False,
                  ):
         super().__init__()
+        print('orbital_basis', orbital_basis)
+        print('radial_coeffs', radial_coeffs)
+        print('expansion_constraint', expansion_constraint)
+        print('integral_constraint', integral_constraint)
+        print('softmax_norm', softmax_norm)
+        print('n_electrons', n_electrons)
+        print('integral_scale', integral_scale)
+        print('verbose', verbose)
+        print('timing', timing)
+        print('grid_scale_factor', grid_scaling_factor)
         self.orbital_basis = orbital_basis
         self.expansion_constraint = expansion_constraint
         self.integral_constraint = integral_constraint
@@ -482,6 +494,9 @@ class DensityExpansion(nn.Module):
 
     def forward(self, atoms, eval_atoms=None, eval_L=None):
         n_eval = len(atoms['spherical_coeffs'])
+        # print('spherical_coeffs', atoms['spherical_coeffs'][0][(6, 0)])
+        # print('radial width', atoms['radial_width'])
+        # print('radial scale', atoms['radial_scale'])
         start = time.time()
         if eval_atoms is None:
             eval_atoms = list(range(n_eval))
@@ -506,11 +521,13 @@ class DensityExpansion(nn.Module):
             # print('atom num', z)
             # print('orbitals i', self.spherical_spec[i])
             pos = atoms['positions'][:, [i]]
+            # print('pos', pos)
             dim_diff = atoms['coords'].dim() - pos.dim()
             if dim_diff > 0:
                 pos = pos.reshape(pos.shape[:-1] + (1,) * dim_diff + pos.shape[-1:])
             d, u = calculate_distances_and_directions(atoms['coords'], center=pos)
             s = spherical_harmonics(self.orbitals_max_order_dict[z], u)
+            # print('s', s[1])
             # print('atom[i]', i)
             # print('dists', d)
             # print('dists shape', d.shape)
@@ -562,8 +579,15 @@ class DensityExpansion(nn.Module):
                     L0_width.append(width)
                     continue
                 sph = s[L].unsqueeze(-1) * sph_coeff
+                # if i == 0 and L == 1:
+                #     print('sph', sph)
+                #     print('width', width)
+                #     print('scale', scale)
                 rbf = gaussian_rbf(d.unsqueeze(-1), width, scale, L)
-                # print('rbf integral', torch.sum(rbf * atoms['coord_weights'].unsqueeze(-1).unsqueeze(-1), dim=(-2, -3)))
+                if self.verbose > 2:
+                    print('L', L)
+                    print('rbf integral', torch.sum(rbf * atoms['coord_weights'].unsqueeze(-1).unsqueeze(-1), dim=(-2, -3)))
+                    print('abs sph', torch.sum(torch.abs(sph) * atoms['coord_weights'].unsqueeze(-1).unsqueeze(-1), dim=(-2, -3)))
                 # if L == 0:
                 #     print('sph', sph)
                 #     print('rbf', rbf)
@@ -616,6 +640,10 @@ class DensityExpansion(nn.Module):
                 # print('rbf nan', torch.sum(torch.isnan(rbf)))
                 sph = L0_sph[i].unsqueeze(-1)
                 # print('sph nan', torch.sum(torch.isnan(sph)))
+                if self.verbose > 2:
+                    print('L', 0)
+                    print('rbf integral', torch.sum(rbf * atoms['coord_weights'].unsqueeze(-1).unsqueeze(-1), dim=(-2, -3)))
+                    print('abs sph', torch.sum(torch.abs(sph) * atoms['coord_weights'].unsqueeze(-1).unsqueeze(-1), dim=(-2, -3)))
                 if L0_i[0] in eval_atoms:
                     L0_dens = torch.sum(rbf * sph, dim=(-1, -2))
                     L0_int = torch.sum(L0_dens * atoms['coord_weights'], dim=-1)

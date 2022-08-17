@@ -213,25 +213,22 @@ def load_model(args, dataset, train=False):
             checkpoint_path, 'latest_checkpoint.pth'), map_location='cpu')
         model_code = checkpoint['ID']
         best_model_path = 'best_' + model_code + '.pth'
-        print('best_model_path', best_model_path)
-        print('args restart', args.restart)
-        print('best_model_path', best_model_path)
+        # print('best_model_path', best_model_path)
+        # print('args restart', args.restart)
+        # print('best_model_path', best_model_path)
         state_dict_path = os.path.join(args.restart, best_model_path)
-        print('state_dict_path', state_dict_path)
+        # print('state_dict_path', state_dict_path)
         state_dict = torch.load(state_dict_path, map_location='cpu')
         if not train and args.load_from is not None and args.density_weight > 0:
-            print('loading from', args.load_from)
+            # print('loading from', args.load_from)
             load_code = args.load_from.split('_')[-1]
             model_dict = torch.load(os.path.join(args.load_from, 'best_' + load_code + '.pth'), map_location='cpu')
             for key in model_dict.keys():
                 if 'property_models.density' in key:
                     state_dict[key] = model_dict[key]
-        for key in state_dict.keys():
-            if 'property_models.density' in key:
-                print(key)
         model.load_state_dict(state_dict)
     if not train:
-        print('dtype type', type(args.dtype))
+        # print('dtype type', type(args.dtype))
         model.to(args.dtype)
         if args.use_gpu:
             print('using GPU')

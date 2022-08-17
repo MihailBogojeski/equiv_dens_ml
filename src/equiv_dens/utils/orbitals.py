@@ -101,11 +101,12 @@ def gaussian_rbf(r, width, scale, order, normalize=False):
         scale_calc = scale * gto_norm(order, width)
     else:
         scale_calc = scale / pyscf_gto_factor
+    # print('gto norm', 1/gto_norm(order, width))
     # print('scale', scale)
     # print('width', width)
     # print('scale calc', scale_calc)
     r_bohr = r * utils.to_bohr
-    rbf = scale_calc * r_bohr**(2*order) * torch.exp(-width * (r_bohr)**2)
+    rbf = scale_calc * r_bohr**(order) * torch.exp(-width * (r_bohr)**2)
     # rbf = scale_calc * torch.exp(-width * (r_bohr)**2)
     return torch.sum(rbf, dim=-2, keepdim=True)
 
@@ -114,9 +115,9 @@ def gto_norm(order, width):
         # norm_factor = (width**(3 / 2)) / (np.pi**(3 / 2)) * utils.to_angstrom**3  
         # norm_factor = (width**(3/2)) / (np.pi**(3 / 2))
 
-        n1 = ((2 * (order + 1)) + 1) / 2
-        n2 = (2 * order) + 1
-        norm_factor = (sp.special.gamma(order + 1) * 2**(order*2) * (width**(n1))) / ((np.pi**(3 / 2)) * sp.special.gamma(n2 + 1))
+        n1 = (order + 3) / 2
+        n2 = order + 1
+        norm_factor = (sp.special.gamma(order/2 + 1) * 2**(order) * (width**(n1))) / ((np.pi**(3 / 2)) * sp.special.gamma(n2 + 1))
         return norm_factor
 
 
