@@ -104,7 +104,7 @@ class AtomsDensityData(Dataset):
             calc_results = np.load(density_path, allow_pickle=True)
         self.mols = []
         self.coeffs = []
-        self.density_fitting = []
+        self.density_fitting = {}
         self.ions = []
         ase_atoms = utils.npy_to_ase(self.atoms['shifted_positions'], self.atoms['atom_numbers'])
         # for i in range(10):
@@ -118,8 +118,12 @@ class AtomsDensityData(Dataset):
                 self.mols.append(mol)
                 self.coeffs.append(coeff_dict)
                 if 'df_coeff' in calc_dict:
-                    df_dict = {'df_coeff': calc_dict['df_coeff'], 'auxbasis': calc_dict['auxbasis']}
-                    self.density_fitting.append(df_dict)
+                    if 'df_coeffs' not in self.density_fitting.keys():
+                        self.density_fitting['auxbasis'] = calc_dict['auxbasis']
+                        self.density_fitting['df_coeffs'] = calc_dict['df_coeff'][None, :]
+                    else:
+                        self.density_fitting['df_coeffs'] = np.concatenate((self.density_fitting['df_coeffs'],
+                                                                            calc_dict['df_coeff'][None, :]), axis=0)
             a = ase_atoms[i]
             a.set_cell(grid_extent)
             self.ions.append(ase_io.ase2ions(a))
@@ -266,8 +270,10 @@ class AtomsDensityData(Dataset):
                         properties[pname] = self.sample_projected_density(idx, properties['coords'])
                     else:
                         properties[pname] = self.sample_density(idx, properties['coords'])
+            elif pname == 'df_coeffs':
+                properties[pname] = torch.from_numpy(self.density_fitting[pname][idx])
             else:
-                properties[pname] = torch.from_numpy(self.atoms[pname][idx])
+                properties[pname] = torch.from_numpy(self.atoms[pname][idx]).type(self.dtype)
 
         # extract/calculate structure
         properties['atom_numbers'] = torch.LongTensor(atom_numbers)
@@ -347,14 +353,14 @@ class AtomsDensityData(Dataset):
                 # mol_start = time.time()
                 # print('c, i', c, i)
                 mol = self.mols[i]
-                if not mol._built and mol.basis != self.density_fitting[i]['auxbasis']:
-                    mol.basis = self.density_fitting[i]['auxbasis']
+                if not mol._built and mol.basis != self.density_fitting['auxbasis']:
+                    mol.basis = self.density_fitting['auxbasis']
                     # build_start = time.time()
                     if self.verbose > 3:
                         print('building mol', i)
                     mol.build()
                     # print('build time', time.time() - build_start)
-                df_coeff = self.density_fitting[i]['df_coeff']
+                df_coeff = self.density_fitting['df_coeffs'][i]
                 # ao_start = time.time()
                 ao = numint.eval_ao(mol, scaled_sample_coords[c])
                 # print('ao time', time.time() - ao_start)

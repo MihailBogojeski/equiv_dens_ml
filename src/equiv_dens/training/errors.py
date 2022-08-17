@@ -1,5 +1,7 @@
 import torch
 import numpy as np
+import equiv_dens.scripts.transform_df_coeffs as transform_df_coeffs
+
 
 _sqrt2 = np.sqrt(2)
 
@@ -55,6 +57,8 @@ class ErrorDict:
                     error_dict[key + "_rmse"] = loss
                 else:
                     diff = predictions[key] - (data[key])
+                    if key == 'df_coeffs':
+                        diff = predictions[key] - transform_df_coeffs.transform(data[key], data['atom_numbers']) 
                     if key == "energy" and self.relative_en:
                         en_offset = torch.mean(predictions[key]) - torch.mean(data[key])
                         print('en_offset', en_offset)
@@ -71,7 +75,6 @@ class ErrorDict:
                         balanced_weights = 1
                     abs_diff = torch.abs(diff) * balanced_weights
                     sq_diff = (diff ** 2) * balanced_weights
-                    # if key == 'density':
                     #     print('sq diff no weights negative', torch.sum((diff ** 2) < 0))
                     #     print('sq diff negative', torch.sum(sq_diff < 0))
                     mse = torch.mean(sq_diff, dim=1)

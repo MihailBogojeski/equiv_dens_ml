@@ -100,6 +100,8 @@ else:
 required_properties = []
 if args.density_weight > 0:
     required_properties.append('density')
+if args.df_weight > 0:
+    required_properties.append('df_coeffs')
 if args.energy_weight > 0:
     required_properties.append('energy')
 if args.forces_weight > 0:
@@ -229,21 +231,25 @@ if args.center_energy:
 
 loss_weights = {}
 loss_weights['density'] = args.density_weight
+loss_weights['df_coeffs'] = args.df_weight
 loss_weights['energy'] = args.energy_weight
 loss_weights['forces'] = args.forces_weight
 loss_weights['energy_min'] = args.energy_min_weight
 weights_decay = {}
 weights_decay['density'] = args.density_weight_decay
+weights_decay['df_coeffs'] = args.df_weight_decay
 weights_decay['energy'] = args.energy_weight_decay
 weights_decay['forces'] = args.forces_weight_decay
 weights_decay['energy_min'] = args.energy_min_weight_decay
 weights_min = {}
 weights_min['density'] = args.density_weight_min
+weights_min['df_coeffs'] = args.df_weight_min
 weights_min['energy'] = args.energy_weight_min
 weights_min['forces'] = args.forces_weight_min
 weights_min['energy_min'] = args.energy_min_weight_min
 loss_comp = {}
 loss_comp['density'] = args.density_loss_comp
+loss_comp['df_coeffs'] = args.df_loss_comp
 loss_comp['energy'] = args.energy_loss_comp
 loss_comp['forces'] = args.forces_loss_comp
 
