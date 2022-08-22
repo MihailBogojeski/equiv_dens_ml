@@ -48,6 +48,7 @@ class Trainer:
         stop_at_learning_rate=1e-5,
         stop_at_learning_rate_patience=0,
         valid_check_best=None,
+        valid_error_dict=None,
         verbose=0,
         timing=False,
         data_split_indices=None,
@@ -91,6 +92,11 @@ class Trainer:
         self.error_dict = error_dict
         self.optimizers = optimizers
         self.schedulers = schedulers
+        
+        if valid_error_dict is None:
+            self.valid_error_dict = self.error_dict
+        else:
+            self.valid_error_dict = valid_error_dict
 
         if os.path.exists(self.checkpoint_path) and restore:
             self.restore_checkpoint()
@@ -100,6 +106,7 @@ class Trainer:
             self.step = 0
             self.best_errors = self.error_dict.empty(fill_value=math.inf)
             self.valid_errors = [self.error_dict.empty(fill_value=math.inf) for i in range(len(self.validation_loaders))]
+            self.valid_errors_2 = [self.valid_error_dict.empty(fill_value=math.inf) for i in range(len(self.validation_loaders))]
 
         self.train_errors = self.error_dict.empty()  # reset train error metrics
         self.summary = SummaryWriter(logdir=os.path.join(self.model_path, 'logs'), purge_step=self.step)
@@ -123,12 +130,14 @@ class Trainer:
             'epoch': self.epoch,
             'best_errors': self.best_errors,
             'valid_errors': self.valid_errors,
+            'valid_errors_2': self.valid_errors_2,
             'model_state_dict': self._module.state_dict(),
             'optimizers_state_dict': [optimizer.state_dict() for optimizer in self.optimizers],
             'schedulers_state_dict': [scheduler.state_dict() for scheduler in self.schedulers],
             'exponential_moving_average': (self.exponential_moving_average.ema
                                            if self.exponential_moving_average is not None else None),
             'error_dict': self.error_dict,
+            'valid_error_dict': self.valid_error_dict,
             'data_split_indices': self.data_split_indices,
         }
         torch.save(checkpoint, os.path.join(self.checkpoint_path, chk_name))
@@ -189,8 +198,10 @@ class Trainer:
         self.epoch = checkpoint['epoch']
         self.best_errors = checkpoint['best_errors']
         self.valid_errors = checkpoint['valid_errors']
+        self.valid_errors_2 = checkpoint['valid_errors_2']
         self._module.load_state_dict(checkpoint['model_state_dict'])
         self.error_dict = checkpoint['error_dict']
+        self.valid_error_dict = checkpoint['valid_error_dict']
         if not hasattr(self.error_dict, 'relative_en'):
             self.error_dict.relative_en = False
         self.data_split_indices = checkpoint['data_split_indices']
@@ -212,7 +223,6 @@ class Trainer:
                 self.ema_params = None
 
     def run(self, n_steps, use_gpu=False, dtype=torch.float64):
-
         self._model.to(dtype)
         if use_gpu:
             self._model.cuda()
@@ -233,7 +243,6 @@ class Trainer:
         if self.ema_params is not None and self.exponential_moving_average is None:
             self.exponential_moving_average = ExponentialMovingAverage(self._module, decay=self.ema_params['decay'],
                                                                        start_epoch=self.ema_params['start_epoch'])
-
         if self.clip_norm > 0:
             self.gradient_norm = 0
         self.train_batch_num = -1
@@ -244,10 +253,8 @@ class Trainer:
         new_best = False
         stop_patience_count = 0
         start_time = time.time()
-
         while self.step < n_steps + 1:
             # get the next batch
-
             self._train_step(use_gpu)
             # run validation each validation_interval
             if self.step % self.validation_interval == 0:
@@ -261,16 +268,15 @@ class Trainer:
                     if self.verbose > 0:
                         print('validation for', valid_data_loader)
                     if self._module.calculate_forces:
-                        self.valid_errors[i], is_best = self._validate(valid_data_loader, use_gpu, check_best=self.valid_check_best[i])
+                        self.valid_errors[i], self.valid_errors_2[i], is_best = self._validate(valid_data_loader, use_gpu, check_best=self.valid_check_best[i])
                     else:
                         with torch.no_grad():
-                            self.valid_errors[i], is_best = self._validate(valid_data_loader, use_gpu, check_best=self.valid_check_best[i])
+                            self.valid_errors[i], self.valid_errors_2[i], is_best = self._validate(valid_data_loader, use_gpu, check_best=self.valid_check_best[i])
                     if self.valid_check_best[i]:
                         new_best = is_best
                 self._module.train()
                 for param in self._module.parameters():
                     param.requires_grad = True
-
             # write summary to console
             if self.step % self.summary_interval == 0:
                 # write error summaries
@@ -444,6 +450,7 @@ class Trainer:
 
         # run once over the validation set
         valid_errors = self.error_dict.empty()
+        valid_errors_2 = self.valid_error_dict.empty()
         for valid_batch_num, data in enumerate(valid_data_loader):
             start = time.time()
             # send data to GPU
@@ -505,6 +512,7 @@ class Trainer:
                 if self.error_dict.loss_weights['energy_min'] == sum(self.error_dict.loss_weights.values()):
                     exclude_energy_min = False
             errors = self.error_dict.compute(predictions, data, exclude_energy_min=exclude_energy_min)
+            errors_2 = self.valid_error_dict.compute(predictions, data, exclude_energy_min=exclude_energy_min)
             # update valid_errors (running average)
             found_nans = False
             for key in errors.keys():
@@ -525,11 +533,15 @@ class Trainer:
             for key in errors.keys():
                 valid_errors[key] += (errors[key].item() -
                                       valid_errors[key]) / (valid_batch_num + 1)
+             for key in errors_2.keys():
+                valid_errors_2[key] += (errors_2[key].item() -
+                                      valid_errors_2[key]) / (valid_batch_num + 1)
             if self.timing:
                 print('valid step time:', time.time() - start)
             predictions = None
             data = None
             errors = None
+            errors_2 = None
 
         # pass validation loss to learning rate scheduler
         if check_best:
@@ -552,7 +564,7 @@ class Trainer:
         if self.exponential_moving_average:
             self.exponential_moving_average.swap()
 
-        return valid_errors, is_best
+        return valid_errors, valid_errors_2, is_best
 
     def write_summary(self, new_valid, new_best):
         for key in self.train_errors.keys():
@@ -562,7 +574,10 @@ class Trainer:
             for valid_err in self.valid_errors:
                 for key in valid_err.keys():
                     self.summary.add_scalar(key + '/valid', valid_err[key], self.step)
-                new_valid = False
+            for valid_err in self.valid_errors_2:
+                for key in valid_err.keys():
+                    self.summary.add_scalar(key + '/valid', valid_err[key], self.step)
+            new_valid = False
 
         if new_best:
             for key in self.best_errors.keys():
