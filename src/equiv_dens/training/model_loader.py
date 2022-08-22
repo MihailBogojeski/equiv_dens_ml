@@ -110,15 +110,18 @@ def load_model(args, dataset, train=False):
         normalize=args.normalize,
     )
 
-    expansion_model = density_expansion(dataset.orbital_basis_num, radial_coeffs=dataset.radial_coeffs,
-                                        expansion_constraint=args.expansion_constraint,
-                                        integral_constraint=args.integral_constraint,
-                                        integral_scale=args.integral_scale,
-                                        softmax_norm=args.softmax_norm, n_electrons=sum(z_vals),
-                                        verbose=args.verbose,
-                                        timing=args.timing,
-                                        grid_scaling_factor=args.grid_scaling_factor,
-                                        )
+    if args.density_weight > 0:
+        expansion_model = density_expansion(dataset.orbital_basis_num, radial_coeffs=dataset.radial_coeffs,
+                                            expansion_constraint=args.expansion_constraint,
+                                            integral_constraint=args.integral_constraint,
+                                            integral_scale=args.integral_scale,
+                                            softmax_norm=args.softmax_norm, n_electrons=sum(z_vals),
+                                            verbose=args.verbose,
+                                            timing=args.timing,
+                                            grid_scaling_factor=args.grid_scaling_factor,
+                                            )
+    else:
+        expansion_model = None
 
     calculate_forces = args.forces_weight > 0
 
