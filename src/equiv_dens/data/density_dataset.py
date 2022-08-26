@@ -62,7 +62,6 @@ class AtomsDensityData(Dataset):
         radii_adjust=True,
         projected_density=False,
     ):
-        print('Starting atomsdata density init')
         self.density_path = density_path
         self.np_path = np_path
         self.orbitals_path = orbitals_path
@@ -81,7 +80,6 @@ class AtomsDensityData(Dataset):
         self.radii_adjust = radii_adjust
         self.energy_centered = False
         self.projected_density = projected_density
-        print('Some variables')
         if required_properties is None:
             self.required_properties = self.available_properties
         self.centered_positions = center_positions
@@ -94,7 +92,6 @@ class AtomsDensityData(Dataset):
         all_atom_numbers = np.unique(self.atoms['atom_numbers'].flatten())
         self.orbital_basis = np.load(orbitals_path, allow_pickle=True).item()
         self.orbital_basis_num = {}
-        print('atoms keys', self.atoms.keys())
         for key in self.orbital_basis.keys():
             anum = utils.symbols_to_numbers([key])[0]
             if anum in all_atom_numbers:
@@ -151,9 +148,7 @@ class AtomsDensityData(Dataset):
         else:
             self.L0_coeffs = None
 
-        print('grid fn', grid_fn)
         self.grid_spec = grid_fn(self.atoms)
-        # print('grid spec sizes', [self.grid_spec[z][1].shape for z in self.grid_spec.keys()])
         if isinstance(self.grid_spec, dict):
             for key in self.grid_spec.keys():
                 self.grid_spec[key] = (self.grid_spec[key][0].type(self.dtype),

@@ -65,7 +65,7 @@ else:
     if args.fix_arguments:
         for arg in vars(checkpoint['args']):
             if arg in hyperparam_args:
-                print('loading hyperparam arg', arg)
+                # print('loading hyperparam arg', arg)
                 setattr(args, arg, getattr(checkpoint['args'], arg))
     step = checkpoint['step']
     restore = True
@@ -73,10 +73,7 @@ else:
 
 print('model code:', model_code)
 print('max steps:', args.max_steps)
-print('num train:', args.num_train)
-print('num valid:', args.num_valid)
 # determine whether GPU is used for training
-print('args use gpu', args.use_gpu)
 use_gpu = args.use_gpu and torch.cuda.is_available()
 
 # load dataset(s)
@@ -98,7 +95,7 @@ else:
     grid_origin = 0
     grid_extent = None
 
-if 'training_phases' not in checkpoint:
+if checkpoint is None or 'training_phases' not in checkpoint:
     training_phases = []
     if args.density_weight > 0:
         training_phases.append('df_coeffs')
@@ -125,10 +122,11 @@ for phase in training_phases:
         args.df_weight = df_weight 
     elif phase == 'density':
         args.density_weight = density_weight
+        if df_weight > 0:
+            args.learning_rate = args.learning_rate / 10
     elif phase == 'energy':
         args.energy_weight = energy_weight
         args.forces_weight = forces_weight
-        args.learning_rate = args.learning_rate / 10
 
     required_properties = []
     if args.density_weight > 0:
@@ -140,6 +138,10 @@ for phase in training_phases:
     if args.forces_weight > 0:
         required_properties.append('forces')
 
+    print('args_df_weight', args.df_weight)
+    print('args_density_weight', args.density_weight)
+    print('args_energy_weight', args.energy_weight)
+    print('args_forces_weight', args.forces_weight)
 
     dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_dataset,
                                orbitals_path=args.orbitals_file,
@@ -222,7 +224,7 @@ for phase in training_phases:
 
         test_dataset = torch.utils.data.Subset(test_dataset, np.arange(test_size))
 
-    print('valid dataset size', len(valid_dataset))
+    # print('valid dataset size', len(valid_dataset))
 
     if args.cube_grid_valid:
         grid_origin = args.cube_origin
@@ -286,16 +288,7 @@ for phase in training_phases:
     loss_comp['energy'] = args.energy_loss_comp
     loss_comp['forces'] = args.forces_loss_comp
 
-    valid_loss_weights = copy.deep_copy(loss_weights)
-    if phase == 'df_coeffs':
-        valid_loss_weights['density'] == 1.0
-
     error_dict = ErrorDict(loss_weights, weights_balance=args.weights_balance,
-                           percentage_error=args.percentage_error,
-                           weights_decay=weights_decay, weights_min=weights_min,
-                           loss_comp=loss_comp,
-                           )
-    valid_error_dict = ErrorDict(valid_loss_weights, weights_balance=args.weights_balance,
                            percentage_error=args.percentage_error,
                            weights_decay=weights_decay, weights_min=weights_min,
                            loss_comp=loss_comp,
@@ -412,6 +405,8 @@ for phase in training_phases:
     if phase == 'energy':
         for param_group in model.density_repr_model.parameters():
             param_group.requires_grad = False
+        # for name, param in model.named_parameters():
+        #     print(name, param.requires_grad)
 
     parameter_list = [
         {'params': parameters},
@@ -466,9 +461,20 @@ for phase in training_phases:
         valid_check_best.append(False)
 
 # print('error dict before training', error_dict.relative_en)
+    # for name, param in model.named_parameters():
+    #     if 'density_repr_model.0.module' in name:
+    #         print(name, param, param.requires_grad)
+    #         break
+    # for name, param in model.named_parameters():
+    #     if 'density_repr_model.1' in name:
+    #         print(name, param, param.requires_grad)
+    #         break
+    if args.use_gpu:
+        model.cuda()
+    model.to(args.dtype)
+    sample = dataset.get_properties([0])
 
     trainer = Trainer(model_path=directory, model=model, error_dict=error_dict,
-                      valid_error_dict=valid_error_dict,
                       optimizers=optimizers, schedulers=schedulers,
                       train_loader=train_data_loader,
                       validation_loaders=validation_loaders,
@@ -488,18 +494,165 @@ for phase in training_phases:
                       data_split_indices=data_split_indices,
                       grid_scaling_annealing=args.grid_scaling_annealing,
                       grid_scaling_start=args.grid_scaling_start,
+                      training_phases=ongoing_phases,
                       )
-# with torch.autograd.detect_anomaly():
+    # with torch.autograd.detect_anomaly():
     trainer.run(args.max_steps, use_gpu=use_gpu, dtype=args.dtype)
+    ongoing_phases.remove(phase)
 print('Starting test evaluation!!!')
+
+args.df_weight = 0.0 
+args.density_weight = 1.0
+args.energy_weight = 1.0
+args.forces_weight = 1.0
+required_properties = []
+if args.density_weight > 0:
+    required_properties.append('density')
+if args.df_weight > 0:
+    required_properties.append('df_coeffs')
+if args.energy_weight > 0:
+    required_properties.append('energy')
+if args.forces_weight > 0:
+    required_properties.append('forces')
+
+
+dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_dataset,
+                           orbitals_path=args.orbitals_file,
+                           density_n_samp=args.density_subsamples,
+                           required_properties=required_properties,
+                           center_positions=False,
+                           radial_coeffs_file=args.radial_coeffs_file,
+                           L0_coeffs_file=args.L0_coeffs_file,
+                           dtype=args.dtype,
+                           grid_fn=grid_fn,
+                           sampling_fn=sampling_fn,
+                           grid_extent=grid_extent,
+                           grid_origin=grid_origin,
+                           verbose=args.verbose)
+
+# split into train / valid / test
+if data_split_indices is None and args.np_dataset_valid is None:
+    train_dataset, valid_dataset, test_dataset = seeded_random_split(
+        lengths=[args.num_train, args.num_valid, len(dataset) - (args.num_train + args.num_valid)],
+        dataset=dataset, seed=args.split_seed
+    )
+
+    data_split_indices = {'train': train_dataset.indices,
+                          'valid': valid_dataset.indices,
+                          'test': test_dataset.indices}
+elif args.np_dataset_valid is not None:
+    valid_dataset = AtomsDensityData(np_path=args.np_dataset_valid, density_path=args.dens_dataset_valid,
+                                     orbitals_path=args.orbitals_file,
+                                     density_n_samp=args.density_subsamples,
+                                     required_properties=required_properties,
+                                     center_positions=False,
+                                     radial_coeffs_file=args.radial_coeffs_file,
+                                     L0_coeffs_file=args.L0_coeffs_file,
+                                     dtype=args.dtype,
+                                     grid_fn=grid_fn,
+                                     sampling_fn=sampling_fn,
+                                     grid_extent=grid_extent,
+                                     grid_origin=grid_origin,
+                                     verbose=args.verbose)
+    if data_split_indices is None or args.ignore_split_indices:
+        train_inds = np.random.choice(np.arange(len(dataset)), args.num_train, replace=False)
+        valid_inds = np.random.choice(np.arange(len(valid_dataset)), args.num_valid, replace=False)
+        valid_dataset = torch.utils.data.Subset(valid_dataset, valid_inds)
+        train_dataset, _, test_dataset = seeded_random_split(
+            lengths=[args.num_train, 0, len(dataset) - args.num_train],
+            dataset=dataset, seed=args.split_seed
+        )
+        data_split_indices = {'train': train_dataset.indices,
+                              'valid': valid_dataset.indices,
+                              'test': test_dataset.indices}
+    else:
+        train_dataset = torch.utils.data.Subset(dataset, data_split_indices['train'][:args.num_train])
+        valid_dataset = torch.utils.data.Subset(valid_dataset, data_split_indices['valid'][:args.num_valid])
+        test_dataset = torch.utils.data.Subset(dataset, data_split_indices['test'])
+else:
+    train_dataset = torch.utils.data.Subset(dataset, data_split_indices['train'][:args.num_train])
+    valid_dataset = torch.utils.data.Subset(dataset, data_split_indices['valid'][:args.num_valid])
+    test_dataset = torch.utils.data.Subset(dataset, data_split_indices['test'])
+
+if args.num_test is not None:
+    test_dataset.indices = test_dataset.indices[:args.num_test]
+
+if args.np_dataset_test is not None:
+    test_dataset = AtomsDensityData(np_path=args.np_dataset_test, density_path=args.dens_dataset_test,
+                                    orbitals_path=args.orbitals_file,
+                                    density_n_samp=args.density_subsamples,
+                                    required_properties=required_properties,
+                                    center_positions=False,
+                                    radial_coeffs_file=args.radial_coeffs_file,
+                                    dtype=args.dtype,
+                                    grid_fn=grid_fn,
+                                    sampling_fn=sampling_fn,
+                                    grid_extent=grid_extent,
+                                    grid_origin=grid_origin)
+
+    if args.num_test is not None:
+        test_size = args.num_test
+    else:
+        test_size = len(test_dataset)
+
+    test_dataset = torch.utils.data.Subset(test_dataset, np.arange(test_size))
+
+if args.center_energy:
+    train_ind = train_dataset.indices
+    energy_mean = dataset.atoms['energy'][train_ind].mean()
+    dataset.center_energy(energy_mean)
+    if isinstance(test_dataset, torch.utils.data.Subset):
+        test_dataset.dataset.center_energy(energy_mean)
+    else:
+        test_dataset.center_energy(energy_mean)
+    if isinstance(valid_dataset, torch.utils.data.Subset):
+        valid_dataset.dataset.center_energy(energy_mean)
+    else:
+        valid_dataset.center_energy(energy_mean)
+
+if isinstance(train_dataset, torch.utils.data.Subset):
+    def collate_fn(batch):
+        return train_dataset.dataset.get_properties(batch)
+else:
+    def collate_fn(batch):
+        return train_dataset.get_properties(batch)
+train_data_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.train_batch_size,
+                                                num_workers=args.num_workers, pin_memory=use_gpu,
+                                                shuffle=True,
+                                                collate_fn=collate_fn)
+if isinstance(valid_dataset, torch.utils.data.Subset):
+    def collate_fn(batch):
+        return valid_dataset.dataset.get_properties(batch)
+else:
+    def collate_fn(batch):
+        return valid_dataset.get_properties(batch)
+valid_data_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=args.valid_batch_size,
+                                                num_workers=args.num_workers, pin_memory=use_gpu,
+                                                shuffle=False,
+                                                collate_fn=collate_fn)
+if isinstance(test_dataset, torch.utils.data.Subset):
+    def collate_fn(batch):
+        return test_dataset.dataset.get_properties(batch)
+else:
+    def collate_fn(batch):
+        return test_dataset.get_properties(batch)
+test_data_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.test_batch_size,
+                                               num_workers=args.num_workers, pin_memory=use_gpu,
+                                               shuffle=True,
+                                               collate_fn=collate_fn)
+
+loss_weights = {}
+loss_weights['density'] = args.density_weight
+loss_weights['energy'] = args.energy_weight
+loss_weights['forces'] = args.forces_weight
+
 error_dict = ErrorDict(loss_weights, weights_balance=args.weights_balance,
                        percentage_error=args.percentage_error,
-                       weights_decay=weights_decay, weights_min=weights_min,
-                       loss_comp=loss_comp,
                        # relative_en=True,
                        )
+model = load_model(args, dataset, train=False)
 test_errors = error_dict.empty()
-for test_batch_num, data in enumerate(test_data_loader):
+for test_batch_num, data in enumerate(valid_data_loader):
     model.eval()
     # send data to GPU
     if use_gpu:
@@ -516,9 +669,10 @@ for test_batch_num, data in enumerate(test_data_loader):
     data = model.conversions_out(data)
     # print(lkajsdlkjasfd)
     # print('energy pred', predictions['energy'])
-    if args.verbose > 0:
+    if args.verbose > -1:
         if 'density' in predictions.keys():
             print('test density intergal', torch.sum(predictions['density'] * predictions['coord_weights'], dim=1))
+            print('true density intergal', torch.sum(data['density'] * data['coord_weights'], dim=1))
         if 'energy' in predictions.keys():
             print('pred energy', predictions['energy'].view((-1, )))
             print('true energy', data['energy'].view((-1, )))

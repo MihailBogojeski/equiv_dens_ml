@@ -48,12 +48,12 @@ class Trainer:
         stop_at_learning_rate=1e-5,
         stop_at_learning_rate_patience=0,
         valid_check_best=None,
-        valid_error_dict=None,
         verbose=0,
         timing=False,
         data_split_indices=None,
         grid_scaling_annealing=1.0,
         grid_scaling_start=10000,
+        training_phases=None,
     ):
         self.model_path = model_path
         self.model_code = model_path.split('_')[-1]
@@ -78,6 +78,7 @@ class Trainer:
         self.data_split_indices = data_split_indices
         self.grid_scaling_annealing = grid_scaling_annealing
         self.grid_scaling_start = grid_scaling_start
+        self.training_phases = training_phases
         if valid_check_best is None:
             self.valid_check_best = [False] * len(validation_loaders)
             self.valid_check_best[0] = True
@@ -93,31 +94,30 @@ class Trainer:
         self.optimizers = optimizers
         self.schedulers = schedulers
         
-        if valid_error_dict is None:
-            self.valid_error_dict = self.error_dict
-        else:
-            self.valid_error_dict = valid_error_dict
-
+        print('trainer restore', restore)
         if os.path.exists(self.checkpoint_path) and restore:
             self.restore_checkpoint()
         else:
-            os.makedirs(self.checkpoint_path)
+            if not os.path.exists(self.checkpoint_path):
+                os.makedirs(self.checkpoint_path)
             self.epoch = 0
             self.step = 0
             self.best_errors = self.error_dict.empty(fill_value=math.inf)
             self.valid_errors = [self.error_dict.empty(fill_value=math.inf) for i in range(len(self.validation_loaders))]
-            self.valid_errors_2 = [self.valid_error_dict.empty(fill_value=math.inf) for i in range(len(self.validation_loaders))]
 
         self.train_errors = self.error_dict.empty()  # reset train error metrics
         self.summary = SummaryWriter(logdir=os.path.join(self.model_path, 'logs'), purge_step=self.step)
 
     def store_checkpoint(self, best=False):
-        print('STORING CHECKPPOINT')
+        if self.training_phases is None:
+            phase = ''
+        else:
+            phase = '_' + self.training_phases[0]
         # move latest checkpoint (so it is not overwritten)
         if not best:
             if os.path.isfile(os.path.join(self.checkpoint_path, 'latest_checkpoint.pth')):
                 os.rename(os.path.join(self.checkpoint_path, 'latest_checkpoint.pth'), os.path.join(
-                    self.checkpoint_path, 'checkpoint_' + str(self.step).zfill(10) + '.pth'))
+                    self.checkpoint_path, 'checkpoint_' + str(self.step).zfill(10) + phase + '.pth'))
             chk_name = 'latest_checkpoint.pth'
         else:
             chk_name = 'best_checkpoint.pth'
@@ -130,15 +130,14 @@ class Trainer:
             'epoch': self.epoch,
             'best_errors': self.best_errors,
             'valid_errors': self.valid_errors,
-            'valid_errors_2': self.valid_errors_2,
             'model_state_dict': self._module.state_dict(),
             'optimizers_state_dict': [optimizer.state_dict() for optimizer in self.optimizers],
             'schedulers_state_dict': [scheduler.state_dict() for scheduler in self.schedulers],
             'exponential_moving_average': (self.exponential_moving_average.ema
                                            if self.exponential_moving_average is not None else None),
             'error_dict': self.error_dict,
-            'valid_error_dict': self.valid_error_dict,
             'data_split_indices': self.data_split_indices,
+            'training_phases': self.training_phases
         }
         torch.save(checkpoint, os.path.join(self.checkpoint_path, chk_name))
         self.summary.add_text('checkpoints', 'saved checkpoint', self.step)
@@ -147,8 +146,10 @@ class Trainer:
         if self.keep_n_checkpoints >= 0 and not best:  # for negative arguments, all checkpoints are kept
             for file in os.listdir(self.checkpoint_path):
                 if file.startswith("checkpoint") and file.endswith('.pth'):
-                    checkpoint_step = int(file.split('.pth')[0].split('_')[-1])
-                    if checkpoint_step < self.step - self.checkpoint_interval * self.keep_n_checkpoints:
+                    checkpoint_step = int(file.split('.pth')[0].split('_')[1])
+                    checkpoint_phase = file.split('.pth')[0].split('_')[2]
+                    if checkpoint_step < self.step - self.checkpoint_interval * self.keep_n_checkpoints \
+                       and phase == checkpoint_phase:
                         filename = os.path.join(self.checkpoint_path, file)
                         if os.path.isfile(filename):
                             os.remove(filename)
@@ -182,6 +183,7 @@ class Trainer:
                     self.exponential_moving_average.ema[key] = self.exponential_moving_average.ema[key].type(dtype)
 
     def restore_checkpoint(self):
+        print('RESTORING CHECKPOINT')
         checkpoint = torch.load(os.path.join(
             self.checkpoint_path, 'latest_checkpoint.pth'), map_location='cpu')
         # self.args = checkpoint['args']  # overwrite args
@@ -198,10 +200,9 @@ class Trainer:
         self.epoch = checkpoint['epoch']
         self.best_errors = checkpoint['best_errors']
         self.valid_errors = checkpoint['valid_errors']
-        self.valid_errors_2 = checkpoint['valid_errors_2']
         self._module.load_state_dict(checkpoint['model_state_dict'])
         self.error_dict = checkpoint['error_dict']
-        self.valid_error_dict = checkpoint['valid_error_dict']
+        self.training_phases = checkpoint['training_phases']
         if not hasattr(self.error_dict, 'relative_en'):
             self.error_dict.relative_en = False
         self.data_split_indices = checkpoint['data_split_indices']
@@ -262,21 +263,17 @@ class Trainer:
                     print('validation')
                 new_valid = True
                 self._module.eval()
-                for param in self._module.parameters():
-                    param.requires_grad = False
                 for i, valid_data_loader in enumerate(self.validation_loaders):
                     if self.verbose > 0:
                         print('validation for', valid_data_loader)
                     if self._module.calculate_forces:
-                        self.valid_errors[i], self.valid_errors_2[i], is_best = self._validate(valid_data_loader, use_gpu, check_best=self.valid_check_best[i])
+                        self.valid_errors[i], is_best = self._validate(valid_data_loader, use_gpu, check_best=self.valid_check_best[i])
                     else:
                         with torch.no_grad():
-                            self.valid_errors[i], self.valid_errors_2[i], is_best = self._validate(valid_data_loader, use_gpu, check_best=self.valid_check_best[i])
+                            self.valid_errors[i], is_best = self._validate(valid_data_loader, use_gpu, check_best=self.valid_check_best[i])
                     if self.valid_check_best[i]:
                         new_best = is_best
                 self._module.train()
-                for param in self._module.parameters():
-                    param.requires_grad = True
             # write summary to console
             if self.step % self.summary_interval == 0:
                 # write error summaries
@@ -354,7 +351,7 @@ class Trainer:
         predictions = self._model(data)
         # print('model embedding layer after pred', self._model.density_repr_model[0].embedding.embedding.element_embedding)
 
-        if self.verbose > -1:
+        if self.verbose > 0:
             if 'density' in predictions.keys():
                 print('train density intergal', torch.sum(predictions['density'] * predictions['coord_weights'], dim=1))
                 print('true density intergal', torch.sum(data['density'] * data['coord_weights'], dim=1))
@@ -407,6 +404,11 @@ class Trainer:
         # if self.verbose > 2:
         #     print('train step before backward:', torch.cuda.memory_summary())
         start_bw = time.time()
+        # for key in ['df_coeffs', 'density', 'energy', 'forces']:
+        #     if key in predictions.keys():
+        #         print('prediction type', key, predictions[key].type())
+        #         print('prediction grad fn', key, predictions[key].grad_fn)
+        # print(errors['loss'].type())
         errors['loss'].backward()
         if self.timing:
             print('backward time', time.time() - start_bw)
@@ -450,7 +452,6 @@ class Trainer:
 
         # run once over the validation set
         valid_errors = self.error_dict.empty()
-        valid_errors_2 = self.valid_error_dict.empty()
         for valid_batch_num, data in enumerate(valid_data_loader):
             start = time.time()
             # send data to GPU
@@ -512,7 +513,6 @@ class Trainer:
                 if self.error_dict.loss_weights['energy_min'] == sum(self.error_dict.loss_weights.values()):
                     exclude_energy_min = False
             errors = self.error_dict.compute(predictions, data, exclude_energy_min=exclude_energy_min)
-            errors_2 = self.valid_error_dict.compute(predictions, data, exclude_energy_min=exclude_energy_min)
             # update valid_errors (running average)
             found_nans = False
             for key in errors.keys():
@@ -533,15 +533,11 @@ class Trainer:
             for key in errors.keys():
                 valid_errors[key] += (errors[key].item() -
                                       valid_errors[key]) / (valid_batch_num + 1)
-             for key in errors_2.keys():
-                valid_errors_2[key] += (errors_2[key].item() -
-                                      valid_errors_2[key]) / (valid_batch_num + 1)
             if self.timing:
                 print('valid step time:', time.time() - start)
             predictions = None
             data = None
             errors = None
-            errors_2 = None
 
         # pass validation loss to learning rate scheduler
         if check_best:
@@ -564,7 +560,7 @@ class Trainer:
         if self.exponential_moving_average:
             self.exponential_moving_average.swap()
 
-        return valid_errors, valid_errors_2, is_best
+        return valid_errors, is_best
 
     def write_summary(self, new_valid, new_best):
         for key in self.train_errors.keys():
@@ -572,9 +568,6 @@ class Trainer:
 
         if new_valid:
             for valid_err in self.valid_errors:
-                for key in valid_err.keys():
-                    self.summary.add_scalar(key + '/valid', valid_err[key], self.step)
-            for valid_err in self.valid_errors_2:
                 for key in valid_err.keys():
                     self.summary.add_scalar(key + '/valid', valid_err[key], self.step)
             new_valid = False
