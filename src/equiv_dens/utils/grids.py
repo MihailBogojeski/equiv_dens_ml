@@ -21,7 +21,6 @@ def spherical_grid(atoms, level=2):
     else:
         mol = gto.M(atom=mol_dict)
 
-    print('level', level)
     grid_spec = gen_grid.gen_atomic_grids(mol, radi_method=radi.treutler, level=level)
     for key in grid_spec.keys():
         grid_spec[key] = (torch.tensor(grid_spec[key][0] * utils.to_angstrom),
@@ -198,15 +197,15 @@ def cubical_sampling(grid_spec, n_samp, _, pos):
 def dftpy_grid(lattice, gap):
     nr = np.zeros(3, dtype='int32')
     metric = np.dot(lattice.T, lattice)
-    print('lattice', lattice)
-    print('metric', np.sqrt(metric[0, 0]))
-    print('gap', gap)
+    # print('lattice', lattice)
+    # print('metric', np.sqrt(metric[0, 0]))
+    # print('gap', gap)
     for i in range(3):
         nr[i] = int(np.sqrt(metric[i, i]) / gap)
-    print('The initial grid size is ', nr)
+    # print('The initial grid size is ', nr)
     for i in range(3):
         nr[i] = bestFFTsize(nr[i])
-    print('The final grid size is ', nr)
+    # print('The final grid size is ', nr)
     grid = DirectGrid(lattice=lattice, nr=nr, units=None, full=False)
     return grid
 
@@ -220,7 +219,7 @@ class CubicalGrid():
         numbers = atoms['atom_numbers'][0]
         positions = atoms['positions'][0]
         mol_dict = list(zip(numbers, positions))
-        print('mol_dict', mol_dict)
+        # print('mol_dict', mol_dict)
         mol = gto.M(atom=mol_dict)
         if extent is None:
             coord = mol.atom_coords(unit='Angstrom')  # positions in angstrom

@@ -130,52 +130,53 @@ def load_model(args, dataset, train=False):
     if args.num_en_modules is None:
         args.num_en_modules = args.num_modules
 
-    if args.energy_model == 'spherical':
-        en_class = SphericalHarmonicsEnergyNetwork
-        print('building spherical harmonic energy model')
-        en_model = en_class(
-            orbital_basis=dataset.orbital_basis_num,
-            order=args.order_en,
-            mixing_order=args.mixing_order_en,
-            num_features=args.num_energy_features,
-            num_basis_functions=args.num_basis_functions,
-            num_modules=args.num_en_modules,
-            num_residual_pre_x=args.num_residual_pre_x,
-            num_residual_post_x=args.num_residual_post_x,
-            num_residual_pre_vi=args.num_residual_pre_vi,
-            num_residual_pre_vj=args.num_residual_pre_vj,
-            num_residual_post_v=args.num_residual_post_v,
-            num_residual_output=args.num_residual_output,
-            num_radial_components=args.num_radial_components,
-            num_neighbours=args.num_neighbours,
-            basis_functions=args.basis_functions,
-            cutoff=args.cutoff,
-            activation=args.activation,
-            clebsch_gordan=clebsch_gordan,
-            calculate_forces=calculate_forces,
-            verbose=args.verbose,
-            timing=args.timing,
-            normalize=args.normalize_en,
-        )
-    elif args.energy_model == 'spherical_linear':
-        print('building spherical linear energy model')
-        en_model = SphericalLinearEnergyNetwork(
-            orbital_basis=dataset.orbital_basis_num,
-            order=args.order_en,
-            num_features=args.num_energy_features,
-            # how many modules are stacked for calculating atomic features (iterations)
-            num_modules=args.num_en_modules,
-            activation=args.activation,
-            clebsch_gordan=clebsch_gordan,
-            calculate_forces=calculate_forces,
-            compressed_extraction=args.compressed_extraction,
-            verbose=args.verbose,
-            timing=args.timing,
-            pred_radial_coeffs=args.pred_radial_coeffs,
-            normalize=args.normalize_en,
-        )
-    else:
-        args.energy_model = None
+    if args.energy_weight + args.forces_weight > 0:
+        if args.energy_model == 'spherical':
+            en_class = SphericalHarmonicsEnergyNetwork
+            print('building spherical harmonic energy model')
+            en_model = en_class(
+                orbital_basis=dataset.orbital_basis_num,
+                order=args.order_en,
+                mixing_order=args.mixing_order_en,
+                num_features=args.num_energy_features,
+                num_basis_functions=args.num_basis_functions,
+                num_modules=args.num_en_modules,
+                num_residual_pre_x=args.num_residual_pre_x,
+                num_residual_post_x=args.num_residual_post_x,
+                num_residual_pre_vi=args.num_residual_pre_vi,
+                num_residual_pre_vj=args.num_residual_pre_vj,
+                num_residual_post_v=args.num_residual_post_v,
+                num_residual_output=args.num_residual_output,
+                num_radial_components=args.num_radial_components,
+                num_neighbours=args.num_neighbours,
+                basis_functions=args.basis_functions,
+                cutoff=args.cutoff,
+                activation=args.activation,
+                clebsch_gordan=clebsch_gordan,
+                calculate_forces=calculate_forces,
+                verbose=args.verbose,
+                timing=args.timing,
+                normalize=args.normalize_en,
+            )
+        elif args.energy_model == 'spherical_linear':
+            print('building spherical linear energy model')
+            en_model = SphericalLinearEnergyNetwork(
+                orbital_basis=dataset.orbital_basis_num,
+                order=args.order_en,
+                num_features=args.num_energy_features,
+                # how many modules are stacked for calculating atomic features (iterations)
+                num_modules=args.num_en_modules,
+                activation=args.activation,
+                clebsch_gordan=clebsch_gordan,
+                calculate_forces=calculate_forces,
+                compressed_extraction=args.compressed_extraction,
+                verbose=args.verbose,
+                timing=args.timing,
+                pred_radial_coeffs=args.pred_radial_coeffs,
+                normalize=args.normalize_en,
+            )
+        else:
+            args.energy_model = None
 
     if args.energy_min_weight > 0:
         functional = LDAFunctional(z_vals, verbose=args.verbose,
@@ -193,7 +194,7 @@ def load_model(args, dataset, train=False):
     if args.energy_min_weight > 0:
         property_models['energy_min'] = functional_en_model
         calculate_forces_dict['energy_min'] = False
-    if args.energy_model is not None:
+    if args.energy_weight + args.forces_weight > 0 and args.energy_model is not None:
         property_models['energy'] = en_model
         calculate_forces_dict['energy'] = calculate_forces
     if args.dipole_moment_weight:
@@ -229,7 +230,26 @@ def load_model(args, dataset, train=False):
             for key in model_dict.keys():
                 if 'property_models.density' in key:
                     state_dict[key] = model_dict[key]
-        model.load_state_dict(state_dict)
+        missing, unexpected = model.load_state_dict(state_dict, strict=False)
+        if len(unexpected) > 0:
+            for key in unexpected:
+                if args.density_weight + args.df_weight > 0:
+                    print('Unexpected keywords', key)
+                    raise Exception('Unexpected keywords in density model state dict')
+                elif 'property_models.density' not in key:
+                    print('Unexpected keywords', key)
+                    raise Exception('Unexpected keywords in energy model state dict')
+        if len(missing) > 0:
+            for key in missing:
+                if args.df_weight > 0:
+                    print('Missing keywords', key)
+                    raise Exception('Missing keywords in df model state dict')
+                elif args.density_weight > 0 and 'property_models.density' not in key:
+                    print('Missing keywords', key)
+                    raise Exception('Missing keywords in density model state dict')
+                if args.energy_weight + args.forces_weight > 0 and ('property_models.energy' not in key and 'property_models.density' not in key):
+                    print('Missing keywords', key)
+                    raise Exception('Missing keywords in energy model state dict')
     if not train:
         # print('dtype type', type(args.dtype))
         model.to(args.dtype)
