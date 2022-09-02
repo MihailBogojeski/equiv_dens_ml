@@ -93,15 +93,11 @@ class EquivariantSphericalHarmonics(nn.Module):
                 if l > self.orbitals_max_order:
                     self.orbitals_max_order = l
 
-        print('self order', self.order)
         if not isinstance(self.order, list):
             self.order = [self.order] * self.num_modules
-        print('self order', self.order)
 
-        print('self mixing_order', self.mixing_order)
         if not isinstance(self.mixing_order, list):
             self.mixing_order = [self.mixing_order] * self.num_modules
-        print('self mixing_order', self.mixing_order)
 
         if len(self.order) != self.num_modules:
             print('Order needs to be an integer or a list of integers with length equal to num_modules.' +
@@ -126,7 +122,6 @@ class EquivariantSphericalHarmonics(nn.Module):
             self.clebsch_gordan = ClebschGordanMatrix()
         else:
             self.clebsch_gordan = clebsch_gordan
-        print('creating embedding')
         self.embedding = SphericalEmbedding(
             self.order_max, self.num_features, self.Zmax)
         if basis_functions == 'exp-gaussian':
