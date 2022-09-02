@@ -53,9 +53,7 @@ class DensityCoeffsNetwork(nn.Module):
         # build the occupation mask (for extracting occupied orbitals in energy prediction)
         self.orbitals_max_order = get_max_order(orbital_basis)
         # for calculating nucleus - nucleus repulsion
-        print('init_coeffs', self.init_coeffs)
 
-        print('orbital basis', self.orbital_basis)
         if clebsch_gordan is None:
             self.clebsch_gordan = ClebschGordanMatrix()
         else:
@@ -218,7 +216,6 @@ class DensityCoeffsNetwork(nn.Module):
     """
 
     def compute_orbital_features_num(self):
-        print('using expanded extraction')
         # counts the number of orbitals of each order across all atoms for the given basis
         sph_counts = [0 for L in range(self.orbitals_max_order + 1)]
         rad_counts = [0 for L in range(self.orbitals_max_order + 1)]
@@ -269,7 +266,6 @@ class DensityCoeffsNetwork(nn.Module):
     """
 
     def compute_orbital_features_num_compressed(self):
-        print('using compressed extraction')
         # counts the number of orbitals of each order across all atoms for the given basis
         L_counts = [0 for L in range(self.orbitals_max_order + 1)]
         # contains maximum number of radial components for each order across all atoms for the given basis
@@ -394,16 +390,6 @@ class DensityExpansion(nn.Module):
                  grid_scaling_factor=False,
                  ):
         super().__init__()
-        print('orbital_basis', orbital_basis)
-        print('radial_coeffs', radial_coeffs)
-        print('expansion_constraint', expansion_constraint)
-        print('integral_constraint', integral_constraint)
-        print('softmax_norm', softmax_norm)
-        print('n_electrons', n_electrons)
-        print('integral_scale', integral_scale)
-        print('verbose', verbose)
-        print('timing', timing)
-        print('grid_scale_factor', grid_scaling_factor)
         self.orbital_basis = orbital_basis
         self.expansion_constraint = expansion_constraint
         self.integral_constraint = integral_constraint

@@ -233,10 +233,10 @@ def load_model(args, dataset, train=False):
         missing, unexpected = model.load_state_dict(state_dict, strict=False)
         if len(unexpected) > 0:
             for key in unexpected:
-                if args.density_weight + args.df_weight > 0:
+                if args.density_weight + args.df_weight > 0 and 'property_models.energy' not in key:
                     print('Unexpected keywords', key)
                     raise Exception('Unexpected keywords in density model state dict')
-                elif 'property_models.density' not in key:
+                elif args.energy_weight + args.forces_weight > 0 and 'property_models.density' not in key:
                     print('Unexpected keywords', key)
                     raise Exception('Unexpected keywords in energy model state dict')
         if len(missing) > 0:
