@@ -272,7 +272,7 @@ class AtomsDensityData(Dataset):
 
         # extract/calculate structure
         properties['atom_numbers'] = torch.LongTensor(atom_numbers)
-        properties['atom_mask'] = properties['atom_numbers'] != 0
+        properties['atom_mask'] = properties['atom_numbers'] > 0
         properties['idx'] = torch.LongTensor(idx).unsqueeze(-1)
         # properties['ions'] = [self.ions[i] for i in idx]
         # print('positions', positions)
@@ -303,6 +303,14 @@ class AtomsDensityData(Dataset):
         print('idx_is', idx_is)
         print('idx_js', idx_js)
         print('batch_idx', batch_idx)
+        properties['positions'] = properties['positions'].view(1, -1, *properties['positions'].shape[2:])
+        properties['shifted_positions'] = properties['shifted_positions'].view(1, -1,*properties['shifted_positions'].shape[2:])
+        properties['atom_numbers'] = properties['atom_numbers'].flatten()
+        properties['atom_mask'] = properties['atom_mask'].flatten()
+        properties['atom_mask'] = properties['atom_mask'][properties['atom_mask']]
+        properties['atom_numbers'] = properties['atom_numbers'][properties['atom_mask']]
+        properties['positions'] = properties['positions'][:, properties['atom_mask']]
+        properties['shifted_positions'] = properties['shifted_positions'][:, properties['atom_mask']]
         for prop in self.fixed_properties.keys():
             properties[prop] = self.fixed_properties[prop]
 

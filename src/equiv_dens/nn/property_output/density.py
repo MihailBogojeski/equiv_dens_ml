@@ -501,12 +501,13 @@ class DensityExpansion(nn.Module):
                 print('density density expansion:')
                 print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
                 print('Memory cached', torch.cuda.memory_cached() / 1024**2)
-            z = int(max(atoms['atom_numbers'][:, i]))
+            z = int(max(atoms['atom_numbers_batch'][:, i]))
             if z == 0:
                 continue
             # print('atom num', z)
             # print('orbitals i', self.spherical_spec[i])
             pos = atoms['positions'][:, [i]]
+            atom_mask = atoms['atom_mask_batch'][:, i].to(pos)
             # print('pos', pos)
             dim_diff = atoms['coords'].dim() - pos.dim()
             if dim_diff > 0:
@@ -529,7 +530,7 @@ class DensityExpansion(nn.Module):
                 width = (atoms['radial_width'][i][key] + 1) * self.init_width(key)
                 if self.integral_constraint is True or self.integral_constraint == 'coeffs':
                     width = torch.clamp(width, 1e-1, 1e+5)
-                zero_scale = (self.init_scale(key) != 0).to(atoms['radial_scale'][i][key])
+                zero_scale = (self.init_scale(key) != 0).to(atoms['radial_scale'][i][key]) * atom_mask
                 scale = (atoms['radial_scale'][i][key] + self.init_scale(key)) * zero_scale
                 # if L == 0:
                 #     print('width init', self.init_width(key))

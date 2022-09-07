@@ -544,3 +544,77 @@ def neighbor_pairs(padding_mask, coordinates, cell, shifts, cutoff):
     atom_index2 = p2_all[pair_index]
     shifts = shifts_all.index_select(0, pair_index)
     return atom_index1, atom_index2, shifts
+
+
+def compress_batch_atoms(numbers, props_dict):
+    atom_num_count = {}
+    for i in range(len(numbers)):
+        nums = np.unique(numbers[i])
+        for num in nums:
+            if num <= 0:
+                continue
+            count = np.sum(numbers[i] == num)
+            if num in atom_num_count.keys():
+                if count > atom_num_count[num]:
+                    atom_num_count[num] = count
+            else:
+                atom_num_count[num] = count
+    common_numbers = []
+    for key in atom_num_count.keys():
+        common_numbers += [key] * atom_num_count[key]
+    batch_nums = []
+    batch_props = {}
+    for i in range(len(numbers)):
+        props = {key: props_dict[key][i] for key in props_dict.keys()}
+        nums = np.array(numbers[i])
+        new_props = {key: np.zeros((len(common_numbers), props[key].shape[1])) for key in props.keys()}
+        new_nums = np.zeros((len(common_numbers),))
+        last_idx = 0
+        for an in atom_num_count.keys():
+            idx = np.where(nums == an)[0]
+            new_nums[last_idx:last_idx + len(idx)] = nums[idx]
+            for key in new_props.keys():
+                new_props[key][last_idx:last_idx + len(idx)] = props[key][idx]
+            last_idx += atom_num_count[an]
+        batch_nums.append(new_nums)
+        for key in new_props.keys():
+            if key in batch_props.keys():
+                batch_props[key].append(new_pos)
+
+    batch_nums = np.array(batch_nums)
+    batch_pos = np.array(batch_pos)
+
+    return batch_pos, batch_nums
+            
+def calc_dict_to_npy(data, convert_forces=True):
+    data_npy = {}
+    data_npy['energy'] = []
+    data_npy['forces'] = []
+    data_npy['positions'] = []
+    data_npy['atom_numbers'] = []
+    data_npy['atom_types'] = []
+    for calc in data:
+        data_npy['energy'].append(calc[1]['energy'])
+        if convert_forces:
+            data_npy['forces'].append(-calc[1]['forces'] * utils.to_bohr)
+        else:
+            data_npy['forces'].append(calc[1]['forces'])
+        pos = []
+        at = []
+        an = []
+        for a in calc[0]['atom']:
+            an.append(a[0])
+            at.append(utils.numbers_to_symbols([a[0]])[0])
+            pos.append(a[1])
+        an = np.array(an)
+        pos = np.array(pos)
+        data_npy['positions'].append(pos)
+        data_npy['atom_numbers'].append(an)
+        data_npy['atom_types'].append(an)
+    data_npy['positions'] = np.stack(data_npy['positions'], 0)
+    print(data_npy['positions'].shape)
+    data_npy['atom_numbers'] = np.stack(data_npy['atom_numbers'], 0)
+    print(data_npy['atom_numbers'].shape)
+    data_npy['energy'] = np.stack(data_npy['energy'], 0)[:, None]
+    data_npy['forces'] = np.stack(data_npy['forces'], 0)
+    return data_npy
