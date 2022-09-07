@@ -257,10 +257,14 @@ class InteractionBlock(nn.Module):
             nn.init.orthogonal_(self.radial_fn[L].weight)
 
     def forward(self, xs, rbf, sph, idx_i, idx_j, neighbor_mask=1):
+        print('idx_i', idx_i)
+        print('idx_j', idx_j)
+        print('idx_j shape', idx_j.shape)
         ys = [1 * x for x in xs]
         # path for atoms i
         yi = self.residual_pre_vi(ys)
         yi[0] = self.activation_i(yi[0])
+        print('yi[0] shape', yi[0].shape)
         # print('yi norm:', float(torch.mean(yi[0]**2)))
         if self.normalize > 1:
             for L in range(len(yi)):
@@ -273,6 +277,7 @@ class InteractionBlock(nn.Module):
         for L in range(len(yi), self.mixing_order + 1):
             yi.append(torch.zeros(*yi[0].shape[:2], (2 * L) + 1, yi[0].shape[-1]).to(yi[0]))
 
+        print('yi[0] shape', yi[0].shape)
         # path for atoms j
         yj = self.residual_pre_vj(ys)
         yj[0] = self.activation_j(yj[0])
@@ -281,6 +286,7 @@ class InteractionBlock(nn.Module):
         elif self.normalize > 1:
             for L in range(len(yj)):
                 yj[L] = layer_norm(yj[L], dims=(-2, -1)) 
+        print('yj[0] shape', yj[0].shape)
         # print('yj norm:', float(torch.mean(yj[0]**2)))
         yj = self.linear_j(yj)
         # interaction function
@@ -289,6 +295,7 @@ class InteractionBlock(nn.Module):
                 *yj[L].shape[:-3], 1, *yj[L].shape[-2:]
             )
             yj[L] = torch.gather(yj[L], 1, idx) * neighbor_mask
+        print('yj[0] shape', yj[0].shape)
 
         # print('yj norm:', [float(torch.mean(yj[L]**2)) for L in range(len(yj))])
         # print('rbf norm:', float(torch.mean(rbf**2)))
@@ -298,7 +305,7 @@ class InteractionBlock(nn.Module):
         # print('sph norm:', [float(torch.mean(sph[L]**2)) for L in range(len(sph))])
         # print('angular norm:', [float(torch.mean(ang[L]**2)) for L in range(len(ang))])
         vs = self.mixing(yj, ang, rbf)
-        # print('vs 0 shape', vs[0].shape)
+        print('vs 0 shape', vs[0].shape)
         # print('vs norm:', [float(torch.mean(vs[L]**2)) for L in range(len(vs))])
         a = self.angular_fn2(sph)
         # print('a norm:', [float(torch.mean(a[L]**2)) for L in range(len(a))])

@@ -282,6 +282,27 @@ class AtomsDensityData(Dataset):
         properties['positions'] = positions
         properties['shifted_positions'] = torch.from_numpy(self.atoms['shifted_positions'][idx]).type(self.dtype)
         properties["_idx"] = torch.LongTensor(np.array(idx, dtype=np.int))
+        nl = utils.TorchNeighborList(50)
+        idx_is, idx_js, _ = nl.get_neighbors(properties)
+        batch_idx = []
+        prev_max = 0
+        for i in range(len(idx_is)):
+            idx_is[i] += prev_max
+            idx_js[i] += prev_max 
+            max_i = torch.max(idx_is[i])
+            max_j = torch.max(idx_is[i])
+            prev_max = max(max_i, max_j) + 1
+            batch_idx.append(torch.ones_like(idx_is[i]) * i)
+
+        idx_is = torch.cat(idx_is, dim=0)
+        idx_js = torch.cat(idx_js, dim=0)
+        batch_idx = torch.cat(batch_idx, dim=0)
+        properties['idx_is'] = idx_is
+        properties['idx_js'] = idx_js
+        properties['batch_idx'] = batch_idx
+        print('idx_is', idx_is)
+        print('idx_js', idx_js)
+        print('batch_idx', batch_idx)
         for prop in self.fixed_properties.keys():
             properties[prop] = self.fixed_properties[prop]
 
