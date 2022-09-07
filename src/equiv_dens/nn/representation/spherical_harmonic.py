@@ -176,6 +176,9 @@ class EquivariantSphericalHarmonics(nn.Module):
         batch_size = R.shape[0]
         idx_i = torch.arange(N).view(-1, 1).repeat(1, N).view(-1).to(R).type(torch.int64)
         idx_j = torch.arange(N).view(1, -1).repeat(N, 1).view(-1).to(R).type(torch.int64)
+        # idx_i = atoms['idx_i']
+        # idx_j = atoms['idx_j']
+        # neighbor_mask = 1 
         neighbor_mask = atoms['atom_mask'].view(batch_size, 1, -1).repeat(1, N, 1).view(batch_size, -1)
         # exclude self - interactions
         neighbor_mask = neighbor_mask[:, idx_i != idx_j]

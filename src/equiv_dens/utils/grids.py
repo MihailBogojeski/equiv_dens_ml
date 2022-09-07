@@ -78,7 +78,7 @@ def becke_scheme(g):
 
 
 def treutler_atomic_radii_adjust(charges, atomic_radii):
-    charges = charges[0].astype(int)
+    charges = np.amax(charges, axis=0).astype(int)
     rad = np.sqrt(atomic_radii[charges]) + 1e-200
     rr = rad.reshape(-1, 1) * (1.0 / rad)
     a = .25 * (rr.T - rr)
@@ -123,6 +123,8 @@ def spherical_radial_sampling(grid_spec, n_samp, atom_numbers, pos,
     grid_weights = []
     # print('pos type', pos.type())
     for i, n in enumerate(atom_numbers[0]):
+        if n <= 0:
+            continue
         if rotate:
             rot_mat = torch.tensor(random_rotation_matrix()).to(pos)
         else:
