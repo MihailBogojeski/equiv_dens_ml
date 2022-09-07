@@ -391,9 +391,7 @@ class TorchNeighborList:
             else:
                 cell = torch.max(pos, dim=(0))[0] - torch.min(pos, dim=(0))[0]
                 cell = torch.diag(cell)
-            print('cell_shape', cell.shape)
             
-
             shifts = compute_shifts(cell=cell, pbc=pbc, cutoff=self.cutoff)
 
             # The returned indices are only one directional

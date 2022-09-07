@@ -300,9 +300,9 @@ class AtomsDensityData(Dataset):
         properties['idx_is'] = idx_is
         properties['idx_js'] = idx_js
         properties['batch_idx'] = batch_idx
-        print('idx_is', idx_is)
-        print('idx_js', idx_js)
-        print('batch_idx', batch_idx)
+        # print('idx_is', idx_is)
+        # print('idx_js', idx_js)
+        # print('batch_idx', batch_idx)
         for prop in self.fixed_properties.keys():
             properties[prop] = self.fixed_properties[prop]
 
