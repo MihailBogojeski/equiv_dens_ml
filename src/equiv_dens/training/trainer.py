@@ -146,16 +146,12 @@ class Trainer:
         if self.keep_n_checkpoints >= 0 and not best:  # for negative arguments, all checkpoints are kept
             for file in os.listdir(self.checkpoint_path):
                 if file.startswith("checkpoint") and file.endswith('.pth'):
-                    print('file', file)
                     file_split = file.split('.pth')[0].split('_')
                     checkpoint_step = int(file_split[1])
-                    print('file split', file_split)
-                    print('checkpoint step', checkpoint_step)
                     if len(file_split) > 2:
-                        checkpoint_phase = file_split[2]
+                        checkpoint_phase = '_' + file_split[2]
                     else:
                         checkpoint_phase = ''
-                    print('checkpoint phase', checkpoint_phase)
                     if checkpoint_step < self.step - self.checkpoint_interval * self.keep_n_checkpoints \
                        and phase == checkpoint_phase:
                         filename = os.path.join(self.checkpoint_path, file)
