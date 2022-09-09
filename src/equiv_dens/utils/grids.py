@@ -122,7 +122,8 @@ def spherical_radial_sampling(grid_spec, n_samp, atom_numbers, pos,
     grid_coords = []
     grid_weights = []
     # print('pos type', pos.type())
-    for i, n in enumerate(atom_numbers[0]):
+    atom_numbers = np.amax(atom_numbers, axis=0).astype(int)
+    for i, n in enumerate(atom_numbers):
         if n <= 0:
             continue
         if rotate:
@@ -145,10 +146,11 @@ def spherical_radial_sampling(grid_spec, n_samp, atom_numbers, pos,
 def spherical_sampling(grid_spec, n_samp, atom_numbers, pos):
     grid_coords = []
     grid_weights = []
-    for i, n in enumerate(atom_numbers[0]):
+    atom_numbers = np.amax(atom_numbers, axis=0).astype(int)
+    for i, n in enumerate(atom_numbers):
         t = utils.numbers_to_symbols([n])[0]
         grid_coords.append(pos[:, [i], :] + (grid_spec[t][0][None, :]))
-        grid_weights.append(grid_spec[t][1] / len(atom_numbers[0]))
+        grid_weights.append(grid_spec[t][1] / len(atom_numbers))
 
     return collect_and_sample_grid(grid_coords, grid_weights, n_samp)
 
@@ -156,11 +158,12 @@ def spherical_sampling(grid_spec, n_samp, atom_numbers, pos):
 def rot_spherical_sampling(grid_spec, n_samp, atom_numbers, pos):
     grid_coords = []
     grid_weights = []
-    for i, n in enumerate(atom_numbers[0]):
+    atom_numbers = np.amax(atom_numbers, axis=0).astype(int)
+    for i, n in enumerate(atom_numbers):
         t = utils.numbers_to_symbols([n])[0]
         rot_mat = random_rotation_matrix()
         grid_coords.append(pos[:, [i], :] + (grid_spec[t][0][None, :]) @ rot_mat)
-        grid_weights.append(grid_spec[t][1] / len(atom_numbers[0]))
+        grid_weights.append(grid_spec[t][1] / len(atom_numbers))
 
     return collect_and_sample_grid(grid_coords, grid_weights, n_samp)
 
@@ -218,7 +221,7 @@ class CubicalGrid():
                  margin=2, origin=None, extent=[10, 10, 10], use_gpu=False, dtype=torch.double):
         self.use_gpu = use_gpu
         self.dtype = dtype
-        numbers = atoms['atom_numbers'][0]
+        numbers, _ = torch.max(atoms['atom_numbers'], dim=1)
         positions = atoms['positions'][0]
         mol_dict = list(zip(numbers, positions))
         # print('mol_dict', mol_dict)
