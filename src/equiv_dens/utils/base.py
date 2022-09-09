@@ -592,16 +592,24 @@ def compress_batch_atoms(numbers, props_dict, basis_size=None):
                     new_props[key].append(np.zeros((basis_size[an], )))
             else:
                 raise Exception('No basis size given for df coeffs!')
+        print('new nums', new_nums)
+        print('new props', new_props)
 
         last_idx = 0
         for an in atom_num_count.keys():
             idx = np.where(nums == an)[0]
+            print('an', an)
+            print('an idx', idx)
             new_nums[last_idx:last_idx + len(idx)] = nums[idx]
+            print('new_nums', new_nums)
             for key in new_props.keys():
+                print('prop key', key)
                 if isinstance(new_props[key], np.ndarray):
                     new_props[key][last_idx:last_idx + len(idx)] = props[key][idx]
                 else:
+                    print('we are here')
                     new_props[key][last_idx:last_idx + len(idx)] = [props[key][i] for i in idx]
+            print('new props', new_props)
             last_idx += atom_num_count[an]
         batch_nums.append(new_nums)
         for key in new_props.keys():

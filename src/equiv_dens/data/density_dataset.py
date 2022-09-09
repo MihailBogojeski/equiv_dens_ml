@@ -272,6 +272,8 @@ class AtomsDensityData(Dataset):
             elif pname == 'df_coeffs':
                 atom_props[pname] = [self.density_fitting[pname][i] for i in idx]
 
+        print('atom numbers', atom_numbers)
+        print('props', atom_props)
         atom_numbers, props = utils.compress_batch_atoms(atom_numbers, atom_props, basis_size=self.orbital_basis_size)
         props.update(mol_props)
         # atom_numbers = torch.from_numpy(atom_numbers).type(self.dtype)
@@ -294,6 +296,7 @@ class AtomsDensityData(Dataset):
         properties['positions'] = positions
         properties['atom_numbers'] = torch.LongTensor(atom_numbers)
         properties['atom_mask'] = properties['atom_numbers'] > 0
+        print('atom mask early', properties['atom_mask'])
         properties['idx'] = torch.LongTensor(idx).unsqueeze(-1)
         # properties['ions'] = [self.ions[i] for i in idx]
         # print('positions', positions)
@@ -319,17 +322,16 @@ class AtomsDensityData(Dataset):
         properties['idx_is'] = idx_is
         properties['idx_js'] = idx_js
         properties['batch_idx'] = batch_idx
-        print('idx_is', idx_is)
-        print('idx_js', idx_js)
-        print('batch_idx', batch_idx)
         properties['batch_atom_numbers'] = properties['atom_numbers'] * 1
-        properties['batch_atom_mask'] = properties['atom_mask'] * 1
+        properties['batch_atom_mask'] = (properties['atom_mask'] * 1).type(torch.ByteTensor)
+        properties['batch_positions'] = properties['positions'] * 1
         properties['positions'] = positions.view(1, -1, *properties['positions'].shape[2:])
         properties['atom_numbers'] = properties['batch_atom_numbers'].flatten()
         properties['atom_mask'] = properties['batch_atom_mask'].flatten()
         properties['atom_mask'] = properties['atom_mask'][properties['atom_mask']]
         properties['atom_numbers'] = properties['atom_numbers'][properties['atom_mask']]
         properties['positions'] = properties['positions'][:, properties['atom_mask']]
+        print('properties all', properties)
 
         for prop in self.fixed_properties.keys():
             properties[prop] = self.fixed_properties[prop]
@@ -405,7 +407,6 @@ class AtomsDensityData(Dataset):
                     mol.build()
                     # print('build time', time.time() - build_start)
                 df_coeff = np.concatenate(self.density_fitting['df_coeffs'][i])
-                print('df coeff in sample dens', df_coeff)
                 # ao_start = time.time()
                 ao = numint.eval_ao(mol, scaled_sample_coords[c])
                 # print('ao time', time.time() - ao_start)

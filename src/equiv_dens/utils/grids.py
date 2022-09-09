@@ -10,7 +10,8 @@ from pyscf import gto
 
 
 def spherical_grid(atoms, level=2):
-    numbers = np.unique(atoms['atom_numbers'].flatten())
+    numbers = np.unique(atoms['atom_numbers'].flatten()).astype(int)
+    numbers = numbers[numbers > 0]
     positions = []
     for n in numbers:
         positions.append([0, 0, n])
@@ -32,7 +33,9 @@ def spherical_grid(atoms, level=2):
 def cubical_grid(atoms, nx=125, ny=125, nz=125, resolution=None,
                  margin=2, origin=None, extent=[10, 10, 10]):
     numbers = atoms['atom_numbers'][0]
+    numbers = numbers[numbers > 0]
     positions = atoms['positions'][0]
+    positions = positions[numbers > 0, :]
     mol_dict = list(zip(numbers, positions))
     if (np.sum(atoms['atom_numbers'][0]) % 2 == 1):
         mol = gto.M(atom=mol_dict, spin=1)
