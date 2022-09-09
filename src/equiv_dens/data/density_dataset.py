@@ -25,6 +25,7 @@ from pyscf.lib import param
 from equiv_dens.utils.grids import spherical_grid,\
     spherical_radial_sampling, treutler_atomic_radii_adjust 
 import equiv_dens.utils.base as utils
+from equiv_dens.utils import orbitals
 from dftpy.formats import ase_io
 from pyscf.dft import radi
 # import time
@@ -90,12 +91,18 @@ class AtomsDensityData(Dataset):
             self.atoms['atom_numbers'] = np.tile(self.atoms['atom_numbers'], (self.atoms['positions'].shape[0], 1))
 
         all_atom_numbers = np.unique(self.atoms['atom_numbers'].flatten())
+        all_atom_numbers = all_atom_numbers[all_atom_numbers > 0]
         self.orbital_basis = np.load(orbitals_path, allow_pickle=True).item()
         self.orbital_basis_num = {}
+        self.orbital_basis_size = {}
         for key in self.orbital_basis.keys():
             anum = utils.symbols_to_numbers([key])[0]
             if anum in all_atom_numbers:
                 self.orbital_basis_num[anum] = (self.orbital_basis[key])
+                self.orbital_basis_size[anum] = 0
+                for orb in self.orbital_basis_num[anum]:
+                    self.orbital_basis_size[anum] += orb[1] * ((2 * orb[2]) + 1)
+
         self.atoms['shifted_positions'] = self.atoms['positions'] - grid_origin
         if self.density_path is not None:
             calc_results = np.load(density_path, allow_pickle=True)
@@ -105,7 +112,7 @@ class AtomsDensityData(Dataset):
         self.ions = []
         ase_atoms = utils.npy_to_ase(self.atoms['shifted_positions'], self.atoms['atom_numbers'])
         # for i in range(10):
-        for i in range(self.atoms['positions'].shape[0]):
+        for i in range(len(self.atoms['positions'])):
             if self.verbose > 3:
                 print('loading sample', i)
             if self.density_path is not None:
@@ -117,10 +124,11 @@ class AtomsDensityData(Dataset):
                 if 'df_coeff' in calc_dict:
                     if 'df_coeffs' not in self.density_fitting.keys():
                         self.density_fitting['auxbasis'] = calc_dict['auxbasis']
-                        self.density_fitting['df_coeffs'] = calc_dict['df_coeff'][None, :]
+                        df_coeffs_split = orbitals.split_df_coeffs(mol_dict['atom'], calc_dict['df_coeff'], self.orbital_basis_size) 
+                        self.density_fitting['df_coeffs'] = [df_coeffs_split]
                     else:
-                        self.density_fitting['df_coeffs'] = np.concatenate((self.density_fitting['df_coeffs'],
-                                                                            calc_dict['df_coeff'][None, :]), axis=0)
+                        df_coeffs_split = orbitals.split_df_coeffs(mol_dict['atom'], calc_dict['df_coeff'], self.orbital_basis_size) 
+                        self.density_fitting['df_coeffs'].append(df_coeffs_split)
             a = ase_atoms[i]
             a.set_cell(grid_extent)
             self.ions.append(ase_io.ase2ions(a))
@@ -252,9 +260,23 @@ class AtomsDensityData(Dataset):
             idx = [idx]
 
         # extract properties
-        properties = {}
-        positions = torch.from_numpy(self.atoms['positions'][idx]).type(self.dtype)
         atom_numbers = self.atoms['atom_numbers'][idx]
+        atom_props = {'positions': self.atoms['positions'][idx]}
+        mol_props = {}
+        for pname in self.required_properties:
+            if pname in self.atoms.keys():
+                if self.atoms[pname][0].shape[0] > 1:
+                    atom_props[pname] = self.atoms[pname][idx]
+                else:
+                    mol_props[pname] = self.atoms[pname][idx]
+            elif pname == 'df_coeffs':
+                atom_props[pname] = [self.density_fitting[pname][i] for i in idx]
+
+        atom_numbers, props = utils.compress_batch_atoms(atom_numbers, atom_props, basis_size=self.orbital_basis_size)
+        props.update(mol_props)
+        # atom_numbers = torch.from_numpy(atom_numbers).type(self.dtype)
+        positions = torch.from_numpy(props['positions']).type(self.dtype)
+        properties = {}
         for pname in self.required_properties:
             # fallback for properties stored directly
             # in the row
@@ -265,12 +287,11 @@ class AtomsDensityData(Dataset):
                         properties[pname] = self.sample_projected_density(idx, properties['coords'])
                     else:
                         properties[pname] = self.sample_density(idx, properties['coords'])
-            elif pname == 'df_coeffs':
-                properties[pname] = torch.from_numpy(self.density_fitting[pname][idx])
             else:
-                properties[pname] = torch.from_numpy(self.atoms[pname][idx]).type(self.dtype)
+                properties[pname] = torch.from_numpy(props[pname]).type(self.dtype)
 
         # extract/calculate structure
+        properties['positions'] = positions
         properties['atom_numbers'] = torch.LongTensor(atom_numbers)
         properties['atom_mask'] = properties['atom_numbers'] > 0
         properties['idx'] = torch.LongTensor(idx).unsqueeze(-1)
@@ -278,9 +299,7 @@ class AtomsDensityData(Dataset):
         # print('positions', positions)
         if self.centered_positions:
             # print('atom center', positions.mean(axis=0))
-            positions -= positions.mean(0)
-        properties['positions'] = positions
-        properties['shifted_positions'] = torch.from_numpy(self.atoms['shifted_positions'][idx]).type(self.dtype)
+            positions -= torch.sum(positions * atom_numbers, 0)/torch.sum(atom_numbers, 1)
         properties["_idx"] = torch.LongTensor(np.array(idx, dtype=np.int))
         nl = utils.TorchNeighborList(50)
         idx_is, idx_js, _ = nl.get_neighbors(properties)
@@ -303,14 +322,15 @@ class AtomsDensityData(Dataset):
         print('idx_is', idx_is)
         print('idx_js', idx_js)
         print('batch_idx', batch_idx)
-        properties['positions'] = properties['positions'].view(1, -1, *properties['positions'].shape[2:])
-        properties['shifted_positions'] = properties['shifted_positions'].view(1, -1,*properties['shifted_positions'].shape[2:])
-        properties['atom_numbers'] = properties['atom_numbers'].flatten()
-        properties['atom_mask'] = properties['atom_mask'].flatten()
+        properties['batch_atom_numbers'] = properties['atom_numbers'] * 1
+        properties['batch_atom_mask'] = properties['atom_mask'] * 1
+        properties['positions'] = positions.view(1, -1, *properties['positions'].shape[2:])
+        properties['atom_numbers'] = properties['batch_atom_numbers'].flatten()
+        properties['atom_mask'] = properties['batch_atom_mask'].flatten()
         properties['atom_mask'] = properties['atom_mask'][properties['atom_mask']]
         properties['atom_numbers'] = properties['atom_numbers'][properties['atom_mask']]
         properties['positions'] = properties['positions'][:, properties['atom_mask']]
-        properties['shifted_positions'] = properties['shifted_positions'][:, properties['atom_mask']]
+
         for prop in self.fixed_properties.keys():
             properties[prop] = self.fixed_properties[prop]
 
@@ -384,7 +404,8 @@ class AtomsDensityData(Dataset):
                         print('building mol', i)
                     mol.build()
                     # print('build time', time.time() - build_start)
-                df_coeff = self.density_fitting['df_coeffs'][i]
+                df_coeff = np.concatenate(self.density_fitting['df_coeffs'][i])
+                print('df coeff in sample dens', df_coeff)
                 # ao_start = time.time()
                 ao = numint.eval_ao(mol, scaled_sample_coords[c])
                 # print('ao time', time.time() - ao_start)

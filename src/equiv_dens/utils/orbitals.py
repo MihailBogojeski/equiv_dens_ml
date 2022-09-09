@@ -337,3 +337,19 @@ def parse_orbitals(orbitals, atom_types, basis_def):
             split_orbitals.append(orbitals[:, count:(count + (2 * L) + 1)])
             count += (2 * L) + 1
     return split_orbitals
+
+def split_df_coeffs(atom, df_coeffs, basis_size):
+    atom_numbers = []
+    for at in atom:
+        if isinstance(at[0], str):
+            atom_numbers.append(utils.symbols_to_numbers([at[0]])[0])
+        else:
+            atom_numbers.append(at[0])
+    df_coeffs_split = []
+    curr_idx = 0
+    for an in atom_numbers:
+        df_coeffs_split.append(df_coeffs[curr_idx:curr_idx + basis_size[an]])
+        curr_idx += basis_size[an]
+
+    return df_coeffs_split
+
