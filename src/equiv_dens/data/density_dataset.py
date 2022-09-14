@@ -62,6 +62,7 @@ class AtomsDensityData(Dataset):
         use_gpu=False,
         radii_adjust=True,
         projected_density=False,
+        cutoff=7.937658158457616,
     ):
         self.density_path = density_path
         self.np_path = np_path
@@ -81,6 +82,7 @@ class AtomsDensityData(Dataset):
         self.radii_adjust = radii_adjust
         self.energy_centered = False
         self.projected_density = projected_density
+        self.cutoff = cutoff
         if required_properties is None:
             self.required_properties = self.available_properties
         self.centered_positions = center_positions
@@ -96,12 +98,12 @@ class AtomsDensityData(Dataset):
         self.orbital_basis_num = {}
         self.orbital_basis_size = {}
         for key in self.orbital_basis.keys():
-            anum = utils.symbols_to_numbers([key])[0]
-            if anum in all_atom_numbers:
-                self.orbital_basis_num[anum] = (self.orbital_basis[key])
-                self.orbital_basis_size[anum] = 0
-                for orb in self.orbital_basis_num[anum]:
-                    self.orbital_basis_size[anum] += orb[1] * ((2 * orb[2]) + 1)
+            z = utils.symbols_to_numbers([key])[0]
+            if z in all_atom_numbers:
+                self.orbital_basis_num[z] = (self.orbital_basis[key])
+                self.orbital_basis_size[z] = 0
+                for orb in self.orbital_basis_num[z]:
+                    self.orbital_basis_size[z] += orb[1] * ((2 * orb[2]) + 1)
 
         self.atoms['shifted_positions'] = self.atoms['positions'] - grid_origin
         if self.density_path is not None:
@@ -137,9 +139,9 @@ class AtomsDensityData(Dataset):
             self.radial_coeffs = {}
             radial_coeffs_atoms = np.load(radial_coeffs_file, allow_pickle=True).item()
             for key in radial_coeffs_atoms.keys():
-                anum = utils.symbols_to_numbers([key])[0]
-                if anum in all_atom_numbers:
-                    self.radial_coeffs[anum] = radial_coeffs_atoms[key]
+                z = utils.symbols_to_numbers([key])[0]
+                if z in all_atom_numbers:
+                    self.radial_coeffs[z] = radial_coeffs_atoms[key]
         else:
             self.radial_coeffs = None
 
@@ -149,10 +151,10 @@ class AtomsDensityData(Dataset):
             for coeff_type in L0_coeffs_types.keys():
                 self.L0_coeffs[coeff_type] = []
                 for key in L0_coeffs_types[coeff_type].keys():
-                    anum = utils.symbols_to_numbers([key])[0]
-                    if anum in all_atom_numbers:
+                    z = utils.symbols_to_numbers([key])[0]
+                    if z in all_atom_numbers:
                         L0_atom = L0_coeffs_types[coeff_type][key]
-                        self.L0_coeffs[coeff_type][anum] = L0_atom
+                        self.L0_coeffs[coeff_type][z] = L0_atom
         else:
             self.L0_coeffs = None
 
@@ -272,8 +274,8 @@ class AtomsDensityData(Dataset):
             elif pname == 'df_coeffs':
                 atom_props[pname] = [self.density_fitting[pname][i] for i in idx]
 
-        print('atom numbers', atom_numbers)
-        print('props', atom_props)
+        # print('atom numbers', atom_numbers)
+        # print('props', atom_props)
         atom_numbers, props = utils.compress_batch_atoms(atom_numbers, atom_props, basis_size=self.orbital_basis_size)
         props.update(mol_props)
         # atom_numbers = torch.from_numpy(atom_numbers).type(self.dtype)
@@ -293,10 +295,10 @@ class AtomsDensityData(Dataset):
                 properties[pname] = torch.from_numpy(props[pname]).type(self.dtype)
 
         # extract/calculate structure
+        properties['atom_numbers_first_positions'] = utils.get_atom_num_first_positions(atom_numbers)
         properties['positions'] = positions
         properties['atom_numbers'] = torch.LongTensor(atom_numbers)
         properties['atom_mask'] = properties['atom_numbers'] > 0
-        print('atom mask early', properties['atom_mask'])
         properties['idx'] = torch.LongTensor(idx).unsqueeze(-1)
         # properties['ions'] = [self.ions[i] for i in idx]
         # print('positions', positions)
@@ -304,7 +306,7 @@ class AtomsDensityData(Dataset):
             # print('atom center', positions.mean(axis=0))
             positions -= torch.sum(positions * atom_numbers, 0)/torch.sum(atom_numbers, 1)
         properties["_idx"] = torch.LongTensor(np.array(idx, dtype=np.int))
-        nl = utils.TorchNeighborList(50)
+        nl = utils.TorchNeighborList(self.cutoff)
         idx_is, idx_js, _ = nl.get_neighbors(properties)
         batch_idx = []
         prev_max = 0
@@ -319,8 +321,8 @@ class AtomsDensityData(Dataset):
         idx_is = torch.cat(idx_is, dim=0)
         idx_js = torch.cat(idx_js, dim=0)
         batch_idx = torch.cat(batch_idx, dim=0)
-        properties['idx_is'] = idx_is
-        properties['idx_js'] = idx_js
+        properties['idx_i'] = idx_is
+        properties['idx_j'] = idx_js
         properties['batch_idx'] = batch_idx
         properties['batch_atom_numbers'] = properties['atom_numbers'] * 1
         properties['batch_atom_mask'] = (properties['atom_mask'] * 1).type(torch.ByteTensor)
@@ -328,8 +330,7 @@ class AtomsDensityData(Dataset):
         properties['positions'] = positions.view(1, -1, *properties['positions'].shape[2:])
         properties['atom_numbers'] = properties['batch_atom_numbers'].flatten()
         properties['atom_mask'] = properties['batch_atom_mask'].flatten()
-        properties['atom_mask'] = properties['atom_mask'][properties['atom_mask']]
-        properties['atom_numbers'] = properties['atom_numbers'][properties['atom_mask']]
+        properties['atom_numbers'] = properties['atom_numbers'][properties['atom_mask']].view(1, -1)
         properties['positions'] = properties['positions'][:, properties['atom_mask']]
         print('properties all', properties)
 
@@ -406,7 +407,8 @@ class AtomsDensityData(Dataset):
                         print('building mol', i)
                     mol.build()
                     # print('build time', time.time() - build_start)
-                df_coeff = np.concatenate(self.density_fitting['df_coeffs'][i])
+                # df_coeff = np.concatenate(self.density_fitting['df_coeffs'][i])
+                df_coeff = np.concatenate([coeff[1] for coeff in self.density_fitting['df_coeffs'][i]])
                 # ao_start = time.time()
                 ao = numint.eval_ao(mol, scaled_sample_coords[c])
                 # print('ao time', time.time() - ao_start)

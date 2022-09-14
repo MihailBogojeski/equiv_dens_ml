@@ -119,29 +119,55 @@ def gen_grid_partition(positions, coords, becke_scheme, f_radii_adjust=None):
     return pbecke
 
 
-def spherical_radial_sampling(grid_spec, n_samp, atom_numbers, pos,
+def spherical_radial_sampling(grid_spec, n_samp, atom_numbers, positions,
                               radii_adjust=None,
                               rotate=False):
     grid_coords = []
     grid_weights = []
     # print('pos type', pos.type())
-    atom_numbers = np.amax(atom_numbers, axis=0).astype(int)
-    for i, n in enumerate(atom_numbers):
-        if n <= 0:
-            continue
-        if rotate:
-            rot_mat = torch.tensor(random_rotation_matrix()).to(pos)
-        else:
-            rot_mat = torch.eye(3).to(pos)
-        t = utils.numbers_to_symbols([n])[0]
-        # print('rot_mat type', rot_mat.type())
-        # print('grid spec type', grid_spec[t][0].type())
-        coords = pos[:, [i], :] + (grid_spec[t][0].unsqueeze(0) @ rot_mat)
-        weights = grid_spec[t][1]
-        pbecke = gen_grid_partition(pos, coords, becke_scheme, radii_adjust)
-        weights = weights * pbecke[:, i] * (1.0 / pbecke.sum(1))
-        grid_coords.append(coords)
-        grid_weights.append(weights)
+    atom_numbers_max = np.amax(atom_numbers, axis=0).astype(int)
+    for i in range(len(atom_numbers)):
+        grid_coords.append([])
+        grid_weights.append([])
+        # print('i', i)
+        pos = positions[[i]]
+        mask = atom_numbers[i] > 0
+        pos_nz = pos[:, mask, :] 
+        pos_idx = -1
+        for j, z in enumerate(atom_numbers_max):
+            if z <= 0:
+                continue
+            if rotate:
+                rot_mat = torch.tensor(random_rotation_matrix()).to(pos)
+            else:
+                rot_mat = torch.eye(3).to(pos)
+            if atom_numbers[i,j] > 0:
+                pos_idx += 1
+            t = utils.numbers_to_symbols([z])[0]
+            # print('rot_mat type', rot_mat.type())
+            # print('grid spec type', grid_spec[t][0].type())
+            coords = pos[:, [j], :] + (grid_spec[t][0].unsqueeze(0) @ rot_mat)
+            weights = grid_spec[t][1] * (atom_numbers[i][j] > 0)
+            pbecke = gen_grid_partition(pos_nz, coords, becke_scheme, radii_adjust)
+            weights = weights * pbecke[:, pos_idx] * (1.0 / pbecke.sum(1))
+            grid_coords[i].append(coords)
+            grid_weights[i].append(weights)
+            # print('i', i)
+    # print('len grid coords', len(grid_coords))
+    # print('len grid coords[0]', len(grid_coords[0]))
+    # print('shape grid coords[0][0]', grid_coords[0][0].shape)
+
+    grid_coords = [list(coord) for coord in zip(*grid_coords)]
+    grid_weights = [list(coord) for coord in zip(*grid_weights)]
+    # print('len grid coords', len(grid_coords))
+    # print('len grid coords[0]', len(grid_coords[0]))
+    # print('shape grid coords[0][0]', grid_coords[0][0].shape)
+    if isinstance(grid_coords[0][0], torch.Tensor):
+        grid_coords = [torch.cat(atoms, dim=0) for atoms in grid_coords]
+        grid_weights = [torch.cat(atoms, dim=0) for atoms in grid_weights]
+    else:
+        grid_coords = [np.concatenate(atoms, axis=0) for atoms in grid_coords]
+        grid_weights = [np.concatenate(atoms, axis=0) for atoms in grid_weights]
 
     return collect_and_sample_grid(grid_coords, grid_weights, n_samp)
 

@@ -174,15 +174,15 @@ class EquivariantSphericalHarmonics(nn.Module):
         R = atoms['positions']
         N = R.shape[1]
         batch_size = R.shape[0]
-        idx_i = torch.arange(N).view(-1, 1).repeat(1, N).view(-1).to(R).type(torch.int64)
-        idx_j = torch.arange(N).view(1, -1).repeat(N, 1).view(-1).to(R).type(torch.int64)
-        # idx_i = atoms['idx_i']
-        # idx_j = atoms['idx_j']
-        # neighbor_mask = 1 
-        neighbor_mask = atoms['atom_mask'].view(batch_size, 1, -1).repeat(1, N, 1).view(batch_size, -1)
+        # idx_i = torch.arange(N).view(-1, 1).repeat(1, N).view(-1).to(R).type(torch.int64)
+        # idx_j = torch.arange(N).view(1, -1).repeat(N, 1).view(-1).to(R).type(torch.int64)
+        idx_i = atoms['idx_i']
+        idx_j = atoms['idx_j']
+        neighbor_mask = 1 
+        # neighbor_mask = atoms['atom_mask'].view(batch_size, 1, -1).repeat(1, N, 1).view(batch_size, -1)
         # exclude self - interactions
-        neighbor_mask = neighbor_mask[:, idx_i != idx_j]
-        idx_i, idx_j = idx_i[idx_i != idx_j], idx_j[idx_i != idx_j]
+        # neighbor_mask = neighbor_mask[:, idx_i != idx_j]
+        # idx_i, idx_j = idx_i[idx_i != idx_j], idx_j[idx_i != idx_j]
         if self.verbose > 2:
             print('atom numbers', atoms['atom_numbers'])
             print('atom mask', atoms['atom_mask'])
@@ -239,9 +239,6 @@ class EquivariantSphericalHarmonics(nn.Module):
         # print('atom numbers', atoms['atom_numbers'])
         xs = self.embedding(atoms['atom_numbers'])
         # print('xs norm representation before:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
-        mask_dim = neighbor_mask.dim()
-        dim_diff = xs[0].dim() - mask_dim
-        neighbor_mask = neighbor_mask.to(xs[0]).reshape(rbf.shape[:mask_dim] + (1,) * dim_diff)
 
         # perform iterations over modular building blocks to get environment - dependent features
         if self.verbose > 2:
@@ -277,11 +274,6 @@ class EquivariantSphericalHarmonics(nn.Module):
                 print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
                 print('Memory cached', torch.cuda.memory_cached() / 1024**2)
             # print('fs norms', [torch.mean(torch.sum(fs[i]**2, dim=-2), dim=-1) for i in range(len(fs))])
-        dim_diff = fs[0].dim() - atoms['atom_mask'].dim()
-        atom_mask = atoms['atom_mask'].reshape(atoms['atom_mask'].shape + (1,) * dim_diff).to(fs[0])
-        for i in range(len(fs)):
-            fs[i] = fs[i] * atom_mask
-        # print('fs norm representation:', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
         atoms['sph_repr'] = fs
         if self.timing:
             print('sph repr time', time.time() - start)

@@ -348,7 +348,7 @@ def split_df_coeffs(atom, df_coeffs, basis_size):
     df_coeffs_split = []
     curr_idx = 0
     for an in atom_numbers:
-        df_coeffs_split.append(df_coeffs[curr_idx:curr_idx + basis_size[an]])
+        df_coeffs_split.append((an, df_coeffs[curr_idx:curr_idx + basis_size[an]]))
         curr_idx += basis_size[an]
 
     return df_coeffs_split

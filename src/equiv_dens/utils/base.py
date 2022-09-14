@@ -403,9 +403,8 @@ class TorchNeighborList:
             if 'cell' in atoms.keys():
                 cell = atoms['cell']
             else:
-                cell = torch.max(pos, dim=(0))[0] - torch.min(pos, dim=(0))[0]
+                cell = torch.max(pos, dim=(0))[0] - torch.min(pos, dim=(0))[0] + 2
                 cell = torch.diag(cell)
-            print('cell_shape', cell.shape)
             
 
             shifts = compute_shifts(cell=cell, pbc=pbc, cutoff=self.cutoff)
@@ -588,29 +587,28 @@ def compress_batch_atoms(numbers, props_dict, basis_size=None):
                 new_props[key] = np.zeros((len(common_numbers), props[key].shape[1]))
             elif basis_size is not None:
                 new_props[key] = []
-                for an in common_numbers:
-                    new_props[key].append(np.zeros((basis_size[an], )))
+                for z in common_numbers:
+                    new_props[key].append(np.zeros((basis_size[z], )))
             else:
                 raise Exception('No basis size given for df coeffs!')
-        print('new nums', new_nums)
-        print('new props', new_props)
 
         last_idx = 0
-        for an in atom_num_count.keys():
-            idx = np.where(nums == an)[0]
-            print('an', an)
-            print('an idx', idx)
+        for z in atom_num_count.keys():
+            idx = np.where(nums == z)[0]
+            # print('z', z)
+            # print('z idx', idx)
             new_nums[last_idx:last_idx + len(idx)] = nums[idx]
-            print('new_nums', new_nums)
             for key in new_props.keys():
-                print('prop key', key)
+                # print('prop key', key)
                 if isinstance(new_props[key], np.ndarray):
+                    # print('numpy array add props')
                     new_props[key][last_idx:last_idx + len(idx)] = props[key][idx]
                 else:
-                    print('we are here')
-                    new_props[key][last_idx:last_idx + len(idx)] = [props[key][i] for i in idx]
-            print('new props', new_props)
-            last_idx += atom_num_count[an]
+                    # print('df coeffs add props')
+                    charges = np.array([prop[0] for prop in props[key]])
+                    idx_alt = np.where(charges == z)[0]
+                    new_props[key][last_idx:last_idx + len(idx_alt)] = [props[key][j][1] for j in idx_alt]
+            last_idx += atom_num_count[z]
         batch_nums.append(new_nums)
         for key in new_props.keys():
             if not isinstance(new_props[key], np.ndarray):
@@ -625,6 +623,21 @@ def compress_batch_atoms(numbers, props_dict, basis_size=None):
         batch_props[key] = np.array(batch_props[key])
 
     return batch_nums, batch_props
+
+def get_atom_num_first_positions(atom_numbers):
+    if atom_numbers.ndim > 1:
+        if isinstance(atom_numbers, np.ndarray):
+            atom_numbers = np.max(atom_numbers, axis=0)
+        else: 
+            atom_numbers, _ = torch.max(atom_numbers, dim=0)
+    atom_numbers_first_positions = {}
+    for i in range(len(atom_numbers)):
+        z = atom_numbers[i]
+        if z not in atom_numbers_first_positions.keys():
+            atom_numbers_first_positions[z] = i
+
+    return atom_numbers_first_positions
+
             
 def calc_dict_to_npy(data, convert_forces=True):
     data_npy = {}
@@ -641,20 +654,20 @@ def calc_dict_to_npy(data, convert_forces=True):
             data_npy['forces'].append(calc[1]['forces'])
         pos = []
         at = []
-        an = []
+        z = []
         for a in calc[0]['atom']:
             if isinstance(a[0], str):
-                an.append(symbols_to_numbers([a[0]])[0])
+                z.append(symbols_to_numbers([a[0]])[0])
                 at.append(a[0])
             else:
-                an.append(a[0])
+                z.append(a[0])
                 at.append(numbers_to_symbols([a[0]])[0])
             pos.append(a[1])
-        an = np.array(an)
+        z = np.array(z)
         pos = np.array(pos)
         data_npy['positions'].append(pos)
-        data_npy['atom_numbers'].append(an)
-        data_npy['atom_types'].append(an)
+        data_npy['atom_numbers'].append(z)
+        data_npy['atom_types'].append(z)
     print('data_npy atom numbers', data_npy['atom_numbers'][:10])
     print('data_npy pos', data_npy['positions'][:10])
     atom_numbers, props = compress_batch_atoms(data_npy['atom_numbers'],
