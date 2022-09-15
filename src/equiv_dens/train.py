@@ -70,6 +70,9 @@ else:
     restore = True
     data_split_indices = checkpoint['data_split_indices']
 
+if args.no_restore:
+    restore=False
+
 print('model code:', model_code)
 print('max steps:', args.max_steps)
 print('num train:', args.num_train)

@@ -24,6 +24,8 @@ def parse_command_line_arguments(arg_file=None):
                               help="restart training from the given folder (all other arguments are ignored)")
     args_restart.add_argument("--load_from", metavar='STR', type=str, default=None,
                               help="initialize model from given pth file (other architecture hyperparameters are ignored)")
+    args_restart.add_argument("--no_restore", metavar='True|False', type=str2bool, default=False,
+                                  choices=[True, False], help="Do not restore checkpoint.")
     args_restart.add_argument("--fix_arguments", metavar='True|False', type=str2bool, default=False,
                               choices=[True, False],
                               help="Do not change arguments after loading checkpoint (except hyperparams).")
