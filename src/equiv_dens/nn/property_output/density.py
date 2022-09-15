@@ -183,6 +183,8 @@ class DensityCoeffsNetwork(nn.Module):
             print('prev batch num', prev_batch_num)
             if z != prev_z or batch_num != prev_batch_num:
                 atom_idx = atoms['atom_numbers_first_positions'][z]
+            prev_z = z
+            prev_batch_num = batch_num
             if spherical_coeffs[atom_idx] is None:
                 spherical_coeffs[atom_idx] = {}
                 radial_width[atom_idx] = {}
@@ -191,12 +193,13 @@ class DensityCoeffsNetwork(nn.Module):
                 L = orb[2]
                 key = (z, L)
                 inds = self.sph_dict[key]
+                print('inds', inds)
                 print('sph fs L shape', sph_fs[L].shape)
                 sph_fs_i = sph_fs[L][:, [i], :, :]
                 # print('sph l=', L, 'shape:', sph_fs[L].shape)
                 # print('inds', inds)
                 if key not in spherical_coeffs[atom_idx].keys():
-                    spherical_coeffs[atom_idx][key] = torch.zeros(batch_size, *sph_fs_i.shape[1:]).to(sph_fs_i)
+                    spherical_coeffs[atom_idx][key] = torch.zeros(batch_size, *sph_fs_i.shape[1:-1], len(inds)).to(sph_fs_i)
                     print('sph zero init size', spherical_coeffs[atom_idx][key].shape)
                 print('sph_fs_i shape', sph_fs_i.shape)
                 spherical_coeffs[atom_idx][key][batch_num, :] = sph_fs_i[0, ..., inds]
@@ -204,7 +207,7 @@ class DensityCoeffsNetwork(nn.Module):
                 # print('spherical coeffs shape', spherical_coeffs[i][key].shape)
                 # print('i', i)
                 # print('L', L)
-                radial_width[atom_idx][key] = torch.zeros(spherical_coeffs[atom_idx][key].shape[:2], self.r_max[key], orb[1]).to(sph_fs_i)
+                radial_width[atom_idx][key] = torch.zeros(*spherical_coeffs[atom_idx][key].shape[:2], self.r_max[key], orb[1]).to(sph_fs_i)
                 radial_scale[atom_idx][key] = torch.zeros(*spherical_coeffs[atom_idx][key].shape[:2], self.r_max[key], orb[1]).to(sph_fs_i)
                 if self.pred_radial_coeffs and z != 0:
                     inds = self.rad_dict[key]
@@ -230,6 +233,10 @@ class DensityCoeffsNetwork(nn.Module):
                         radial_width[atom_idx][key] = torch.clamp(radial_width[atom_idx][key] + self.init_width(key), -0.999999, 0.99999)
                         radial_scale[atom_idx][key] = radial_scale[atom_idx][key] + self.init_scale(key)
                     # print('spherical_coeffs[i][key] after shape', spherical_coeffs[i][key].shape)
+            atom_idx += 1
+        
+        for i in range(len(spherical_coeffs)):
+            print('spherical_coeffs', i , spherical_coeffs[i])
 
         return spherical_coeffs, radial_width, radial_scale
 
@@ -524,7 +531,7 @@ class DensityExpansion(nn.Module):
             # print('atom num', z)
             # print('orbitals i', self.spherical_spec[i])
             pos = atoms['positions'][:, [i]]
-            atom_mask = atoms['batchatom_mask'][:, i].to(pos)
+            atom_mask = atoms['batch_atom_mask'][:, i].to(pos)
             # print('pos', pos)
             dim_diff = atoms['coords'].dim() - pos.dim()
             if dim_diff > 0:

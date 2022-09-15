@@ -325,7 +325,7 @@ class AtomsDensityData(Dataset):
         properties['idx_j'] = idx_js
         properties['batch_idx'] = batch_idx
         properties['batch_atom_numbers'] = properties['atom_numbers'] * 1
-        properties['batch_atom_mask'] = (properties['atom_mask'] * 1).type(torch.ByteTensor)
+        properties['batch_atom_mask'] = (properties['atom_mask'] * 1).type(torch.bool)
         properties['batch_positions'] = properties['positions'] * 1
         properties['positions'] = positions.view(1, -1, *properties['positions'].shape[2:])
         properties['atom_numbers'] = properties['batch_atom_numbers'].flatten()
