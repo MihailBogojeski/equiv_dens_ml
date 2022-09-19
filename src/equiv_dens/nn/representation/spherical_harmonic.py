@@ -186,7 +186,6 @@ class EquivariantSphericalHarmonics(nn.Module):
             print('idx_i', idx_i)
             print('idx_j', idx_j)
             print('neighbor_mask', neighbor_mask)
-        print('idx_i shape', idx_i.shape)
 
         # extract nuclear charges from orbitals, determine maximum order, and
         # build the occupation mask (for extracting occupied orbitals in energy prediction)
