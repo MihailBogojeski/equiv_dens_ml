@@ -25,6 +25,7 @@ from pyscf.lib import param
 from equiv_dens.utils.grids import spherical_grid,\
     spherical_radial_sampling, treutler_atomic_radii_adjust 
 import equiv_dens.utils.base as utils
+from equiv_dens.utils import orbitals
 from dftpy.formats import ase_io
 from pyscf.dft import radi
 # import time
@@ -132,6 +133,19 @@ class AtomsDensityData(Dataset):
                 anum = utils.symbols_to_numbers([key])[0]
                 if anum in all_atom_numbers:
                     self.radial_coeffs[anum] = radial_coeffs_atoms[key]
+
+            self.coeff_weights = {}
+            for z in self.orbital_basis_num.keys():
+                self.coeff_weights[z] = []
+                for j in range(len(self.orbital_basis_num[z])):
+                    # print('init coeffs j', j)
+                    orb = self.orbital_basis_num[z][j]
+                    L = orb[2]
+                    key = (z, L)
+                    width = self.radial_coeffs[z][j][0]
+                    scale = self.radial_coeffs[z][j][1] / orbitals.pyscf_gto_factor
+                    integral = 1/(orbitals.gto_norm(L, width))
+                    self.coeff_weights[z].append(scale * integral / (2 * L + 1))
         else:
             self.radial_coeffs = None
 
@@ -282,24 +296,6 @@ class AtomsDensityData(Dataset):
         properties['positions'] = positions
         properties['shifted_positions'] = torch.from_numpy(self.atoms['shifted_positions'][idx]).type(self.dtype)
         properties["_idx"] = torch.LongTensor(np.array(idx, dtype=np.int))
-        nl = utils.TorchNeighborList(50)
-        idx_is, idx_js, _ = nl.get_neighbors(properties)
-        batch_idx = []
-        prev_max = 0
-        for i in range(len(idx_is)):
-            idx_is[i] += prev_max
-            idx_js[i] += prev_max 
-            max_i = torch.max(idx_is[i])
-            max_j = torch.max(idx_is[i])
-            prev_max = max(max_i, max_j) + 1
-            batch_idx.append(torch.ones_like(idx_is[i]) * i)
-
-        idx_is = torch.cat(idx_is, dim=0)
-        idx_js = torch.cat(idx_js, dim=0)
-        batch_idx = torch.cat(batch_idx, dim=0)
-        properties['idx_is'] = idx_is
-        properties['idx_js'] = idx_js
-        properties['batch_idx'] = batch_idx
         # print('idx_is', idx_is)
         # print('idx_js', idx_js)
         # print('batch_idx', batch_idx)
