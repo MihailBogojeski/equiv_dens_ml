@@ -105,6 +105,7 @@ def load_model(args, dataset, train=False):
         verbose=args.verbose,
         timing=args.timing,
         init_coeffs=dataset.L0_coeffs,
+        coeff_weights=dataset.coeff_weights,
         pred_radial_coeffs=args.pred_radial_coeffs,
         scale_sph_order=args.scale_sph_order,
         normalize=args.normalize,
