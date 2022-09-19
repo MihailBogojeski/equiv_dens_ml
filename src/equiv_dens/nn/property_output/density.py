@@ -26,6 +26,7 @@ class DensityCoeffsNetwork(nn.Module):
                  compressed_extraction=False,
                  timing=False,
                  init_coeffs=None,
+                 coeff_weights=None,
                  pred_radial_coeffs=True,
                  scale_sph_order=True,
                  normalize=0,
@@ -48,6 +49,7 @@ class DensityCoeffsNetwork(nn.Module):
         self.pred_radial_coeffs = pred_radial_coeffs
         self.scale_sph_order = scale_sph_order
         self.normalize = normalize
+        self.coeff_weights = coeff_weights
 
         # extract nuclear charges from orbitals, determine maximum order, and
         # build the occupation mask (for extracting occupied orbitals in energy prediction)
@@ -93,6 +95,7 @@ class DensityCoeffsNetwork(nn.Module):
                                                 self.orbitals_max_order,
                                                 max(self.sph_counts), self.clebsch_gordan, bias=self.output_bias,
                                                 zero_init=self.output_zero_init, normalize=self.normalize)
+        print('self.pred_radial_coeffs', self.pred_radial_coeffs)
         if self.pred_radial_coeffs:
             self.radial_width = nn.ModuleList([nn.Linear(self.num_features, self.rad_counts[L])
                                                for L in range(self.orbitals_max_order + 1)])
@@ -100,6 +103,8 @@ class DensityCoeffsNetwork(nn.Module):
                                                for L in range(self.orbitals_max_order + 1)])
         if init_coeffs is not None:
             self.init_L0_coeffs()
+        if coeff_weights is not None:
+            self.init_coeff_weights()
         self.reset_parameters()
 
     """
@@ -145,6 +150,38 @@ class DensityCoeffsNetwork(nn.Module):
 
     def init_scale(self, key):
         return getattr(self, 'init_scale_{}_{}'.format(key[0], key[1]))
+
+    def init_coeff_weights(self):
+        coeff_weights = {}
+        for z in self.orbital_basis.keys():
+            # print('init coeffs i', i)
+            rad_count = [0] * (self.orbitals_max_order + 1)
+            for j in range(len(self.spherical_spec[z])):
+                orb = self.spherical_spec[z][j]
+                L = orb[2]
+                key = (z, L)
+                coeff_weights[key] = torch.zeros(1, 1, self.r_max[key], orb[1])
+            for j in range(len(self.orbital_basis[z])):
+                # print('init coeffs j', j)
+                orb = self.orbital_basis[z][j]
+                L = orb[2]
+                key = (z, L)
+                # print('init coeffs orb', orb)
+                if self.coeff_weights is not None:
+                    n_coeff = len(self.coeff_weights[z][j])
+                    # print('rad_count L', rad_count[L])
+                    # print('init coeffs ncoeff', n_coeff)
+                    coeff_weights[key][..., :n_coeff, rad_count[L]] += torch.Tensor(self.coeff_weights[z][j])
+                    rad_count[L] += 1
+
+        for key in coeff_weights.keys():
+            self.register_buffer('coeff_weights_{}_{}'.format(key[0], key[1]), coeff_weights[key])
+
+        return coeff_weights
+
+    def coeff_weight(self, key):
+        return getattr(self, 'coeff_weights_{}_{}'.format(key[0], key[1]))
+
     """
     Collects spherical harmonics features into orbital coefficients of the appropriate size
 
@@ -163,6 +200,7 @@ class DensityCoeffsNetwork(nn.Module):
         spherical_coeffs = [None] * batch_atom_count
         radial_width = [None] * batch_atom_count
         radial_scale = [None] * batch_atom_count
+        coeff_weights = [None] * batch_atom_count 
         # print('batch atom numbers max', torch.max(batch_atom_numbers, dim=0)[0])
         # print('batch_atom_numbers shape', batch_atom_numbers.shape)
         # print('atom numbers positions', atoms['atom_numbers_first_positions'])
@@ -191,9 +229,11 @@ class DensityCoeffsNetwork(nn.Module):
                 spherical_coeffs[atom_idx] = {}
                 radial_width[atom_idx] = {}
                 radial_scale[atom_idx] = {}
+                coeff_weights[atom_idx] = {}
             for orb in self.spherical_spec[z]:
                 L = orb[2]
                 key = (z, L)
+                print('atom idx', atom_idx, 'key', key)
                 inds = self.sph_dict[key]
                 # print('key', key)
                 # print('inds', inds)
@@ -206,6 +246,10 @@ class DensityCoeffsNetwork(nn.Module):
                 #     print('sph zero init size', spherical_coeffs[atom_idx][key].shape)
                 # print('sph_fs_i shape', sph_fs_i.shape)
                 spherical_coeffs[atom_idx][key][batch_num, :] = sph_fs_i[0, ..., inds]
+                if self.coeff_weight:
+                    coeff_weights[atom_idx][key] = torch.sum(self.coeff_weight(key), dim=-2, keepdim=True)
+                    coeff_weights[atom_idx][key] = coeff_weights[atom_idx][key].expand(-1, -1 , spherical_coeffs[atom_idx][key].shape[-2], -1).clone()
+                print('coeff_weights shape', coeff_weights['atom_idx'][key].shape)
                 if self.pred_radial_coeffs and z != 0:
                     inds = self.rad_dict[key]
                     rad_w_i = rad_width[L][:, [i], :, :]
@@ -223,7 +267,7 @@ class DensityCoeffsNetwork(nn.Module):
                         radial_scale[atom_idx][key] = radial_scale[atom_idx][key] + self.init_scale(key)
             atom_idx += 1
         
-        return spherical_coeffs, radial_width, radial_scale
+        return spherical_coeffs, radial_width, radial_scale, coeff_weights
 
     """
     Counts how many features of each order are needed to collect the orbital coefficients
@@ -334,11 +378,14 @@ class DensityCoeffsNetwork(nn.Module):
             print('density coeffs forward outputs:')
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
             print('Memory cached', torch.cuda.memory_cached() / 1024**2)
-        atoms['spherical_coeffs'], atoms['radial_width'], atoms['radial_scale'] =\
+        atoms['spherical_coeffs'], atoms['radial_width'], atoms['radial_scale'], atoms['coeff_weights'] =\
             self.extract_coefficients(out_sph, out_width, out_scale, atoms)
-        atoms['df_coeffs'] = coeffs_dict_to_vector(atoms, self.orbital_basis,
+        all_coeffs = coeffs_dict_to_vector(atoms, self.orbital_basis,
                                                    atoms['batch_atom_numbers'],
-                                                   radial_coeffs=False)['spherical_coeffs']
+                                                    radial_coeffs=False, coeff_weighting=True)
+        atoms['df_coeffs'] = all_coeffs['spherical_coeffs'] 
+        atoms['df_weights'] = all_coeffs['coeff_weights'] 
+                             
         if self.verbose > 2:
             print('density coeffs forward extract coeffs:')
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
@@ -575,7 +622,7 @@ class DensityExpansion(nn.Module):
                     L0_dens = torch.sum(rbf * sph, dim=(-1, -2))
                     L0_int = torch.sum(L0_dens * atoms['coord_weights'], dim=-1)
                     L0_integrals.append(L0_int)
-                    if self.verbose > 1:
+                    if self.verbose > 2:
                         print('L0_dens integral', L0_int) 
                         print('l0 dens shape', L0_dens.shape)
                         print('atoms density shape', atoms['density'].shape)

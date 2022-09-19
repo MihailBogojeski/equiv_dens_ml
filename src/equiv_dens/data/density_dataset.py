@@ -142,6 +142,18 @@ class AtomsDensityData(Dataset):
                 z = utils.symbols_to_numbers([key])[0]
                 if z in all_atom_numbers:
                     self.radial_coeffs[z] = radial_coeffs_atoms[key]
+            self.coeff_weights = {}
+            for z in self.orbital_basis_num.keys():
+                self.coeff_weights[z] = []
+                for j in range(len(self.orbital_basis_num[z])):
+                    # print('init coeffs j', j)
+                    orb = self.orbital_basis_num[z][j]
+                    L = orb[2]
+                    key = (z, L)
+                    width = self.radial_coeffs[z][j][0]
+                    scale = self.radial_coeffs[z][j][1] / orbitals.pyscf_gto_factor
+                    integral = 1/(orbitals.gto_norm(L, width))
+                    self.coeff_weights[z].append(scale * integral / (2 * L + 1))
         else:
             self.radial_coeffs = None
 

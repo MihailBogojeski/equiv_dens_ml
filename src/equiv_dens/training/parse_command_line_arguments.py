@@ -201,6 +201,8 @@ def parse_command_line_arguments(arg_file=None):
                                "in forces (higher errors are clamped)")
     args_training.add_argument("--dipole_moment_weight", metavar='FLOAT', type=float, default=0.0,
                                help="weight of the dipole moment in the loss function")
+    args_training.add_argument("--df_loss_weights",  metavar='True|False', type=str2bool, default=True, choices=[True, False],
+                               help="Incorporate weighting based on radial coefficients for density fitting loss.")
     args_training.add_argument("--center_energy", metavar='True|False', type=str2bool, default=True,
                                choices=[True, False], help="set energy mean to zero.")
     args_training.add_argument("--clip_norm", metavar='FLOAT', type=float, default=0.0,

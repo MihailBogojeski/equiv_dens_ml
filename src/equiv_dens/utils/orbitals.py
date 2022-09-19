@@ -101,10 +101,12 @@ def gaussian_rbf(r, width, scale, order, normalize=False):
         scale_calc = scale * gto_norm(order, width)
     else:
         scale_calc = scale / pyscf_gto_factor
-    # print('gto norm', 1/gto_norm(order, width))
-    # print('scale', scale)
+    # print('order', order)
     # print('width', width)
+    # print('gto_norm', 1/gto_norm(order, width))
+    # print('pyscf gto factor', pyscf_gto_factor)
     # print('scale calc', scale_calc)
+    # print('scale calc * gto norm', scale_calc/gto_norm(order, width))
     r_bohr = r * utils.to_bohr
     rbf = scale_calc * r_bohr**(order) * torch.exp(-width * (r_bohr)**2)
     # rbf = scale_calc * torch.exp(-width * (r_bohr)**2)
@@ -232,15 +234,23 @@ def coeffs_dict_to_tensors(coeffs, radial_coeffs=True):
     return all_sph, all_scale, all_width
 
 
-def coeffs_dict_to_vector(coeffs, orbital_basis, a_num, radial_coeffs=True):
-    sph_coeffs = coeffs['spherical_coeffs']
+def coeffs_dict_to_vector(coeffs, orbital_basis, a_num, radial_coeffs=True, coeff_weighting=False):
+    relevant_keys = ['spherical_coeffs']
+    # sph_coeffs = coeffs['spherical_coeffs']
     if radial_coeffs:
-        rad_width = coeffs['radial_width']
-        rad_scale = coeffs['radial_scale']
+        relevant_keys.extend(['radial_width', 'radial_scale'])
+        # rad_width = coeffs['radial_width']
+        # rad_scale = coeffs['radial_scale']
+    if coeff_weighting:
+        relevant_keys.append('coeff_weights')
+        # coeff_weights = coeffs['coeff_weights']
 
-    all_sph = None
-    all_scale = None
-    all_width = None
+    print('relevant keys', relevant_keys)
+    all_coeffs = {key: None for key in relevant_keys}
+    # all_sph = None
+    # all_scale = None
+    # all_width = None
+    # all_weights = None
     for i, z in enumerate(torch.max(a_num, dim=0)[0]):
         orb_ind = {}
         z = int(z)
@@ -250,26 +260,72 @@ def coeffs_dict_to_vector(coeffs, orbital_basis, a_num, radial_coeffs=True):
             key = (z, L)
             if key not in orb_ind.keys():
                 orb_ind[key] = 0
-            if all_sph is None:
-                all_sph = 1 * sph_coeffs[i][key][..., orb_ind[key]]
-                if radial_coeffs:
-                    all_scale = 1 * rad_scale[i][key][..., orb_ind[key]]
-                    all_width = 1 * rad_width[i][key][..., orb_ind[key]]
-                orb_ind[key] += 1
+            if all_coeffs['spherical_coeffs'] is None:
+                for coeff_type in relevant_keys:
+                    all_coeffs[coeff_type] = 1 * coeffs[coeff_type][i][key][..., orb_ind[key]]
             else:
-                all_sph = torch.cat([all_sph, sph_coeffs[i][key][..., orb_ind[key]]], dim=2)
-                if radial_coeffs:
-                    all_scale = torch.cat([all_scale, rad_scale[i][key][..., orb_ind[key]]], dim=2)
-                    all_width = torch.cat([all_width, rad_width[i][key][..., orb_ind[key]]], dim=2)
-                orb_ind[key] += 1
+                for coeff_type in relevant_keys:
+                    all_coeffs[coeff_type] = torch.cat([all_coeffs[coeff_type],
+                                                        coeffs[coeff_type][i][key][..., orb_ind[key]]], dim=2)
+            orb_ind[key] += 1
 
     vector_coeffs = {}
-    vector_coeffs['spherical_coeffs'] = all_sph.squeeze(1)
-    if radial_coeffs:
-        vector_coeffs['radial_width'] = all_width.squeeze(1)
-        vector_coeffs['radial_scale'] = all_scale.squeeze(1)
+    for coeff_type in relevant_keys:
+        vector_coeffs[coeff_type] = all_coeffs[coeff_type].squeeze(1)
 
     return vector_coeffs
+
+
+# def coeffs_dict_to_vector(coeffs, orbital_basis, a_num, radial_coeffs=True, coeff_weighting=False):
+#     # relevant_keys = ['spherical_coeffs']
+#     sph_coeffs = coeffs['spherical_coeffs']
+#     if radial_coeffs:
+#         # relevant_keys.extend(['radial_width', 'radial_scale'])
+#         rad_width = coeffs['radial_width']
+#         rad_scale = coeffs['radial_scale']
+#     if coeff_weighting:
+#         coeff_weights = coeffs['coeff_weights']
+#         # relevant_keys.append(coeff_weights)
+#
+#     # all_coeffs = {key: None for key in relevant_keys}
+#     all_sph = None
+#     all_scale = None
+#     all_width = None
+#     all_weights = None
+#     for i, z in enumerate(torch.max(a_num, dim=0)[0]):
+#         orb_ind = {}
+#         z = int(z)
+#         basis = orbital_basis[z]
+#         for orb in basis:
+#             L = orb[2]
+#             key = (z, L)
+#             if key not in orb_ind.keys():
+#                 orb_ind[key] = 0
+#             if all_sph is None:
+#                 all_sph = 1 * sph_coeffs[i][key][..., orb_ind[key]]
+#                 if radial_coeffs:
+#                     all_scale = 1 * rad_scale[i][key][..., orb_ind[key]]
+#                     all_width = 1 * rad_width[i][key][..., orb_ind[key]]
+#                 if coeff_weighting:
+#                     all_weights = 1 * coeff_weights[i][key][..., orb_ind[key]]
+#             else:
+#                 all_sph = torch.cat([all_sph, sph_coeffs[i][key][..., orb_ind[key]]], dim=2)
+#                 if radial_coeffs:
+#                     all_scale = torch.cat([all_scale, rad_scale[i][key][..., orb_ind[key]]], dim=2)
+#                     all_width = torch.cat([all_width, rad_width[i][key][..., orb_ind[key]]], dim=2)
+#                 if coeff_weighting:
+#                     all_weights = torch.cat([all_weights, coeff_weights[i][key][..., orb_ind[key]]], dim=2)
+#             orb_ind[key] += 1
+#
+#     vector_coeffs = {}
+#     vector_coeffs['spherical_coeffs'] = all_sph.squeeze(1)
+#     if radial_coeffs:
+#         vector_coeffs['radial_width'] = all_width.squeeze(1)
+#         vector_coeffs['radial_scale'] = all_scale.squeeze(1)
+#     if coeff_weighting:
+#         vector_coeffs['coeff_weights'] = all_weights.squeeze(1)
+#
+#     return vector_coeffs
 
 
 def vector_to_coeffs_dict(coeffs, orbital_basis, a_num, radial_coeffs=True):
