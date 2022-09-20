@@ -259,7 +259,7 @@ loss_comp['forces'] = args.forces_loss_comp
 error_dict = ErrorDict(loss_weights, weights_balance=args.weights_balance,
                        percentage_error=args.percentage_error,
                        weights_decay=weights_decay, weights_min=weights_min,
-                       loss_comp=loss_comp, df_loss_weight=args.df_loss_weight,
+                       loss_comp=loss_comp, df_loss_weights=args.df_loss_weights,
                        )
 
 # print('error dict relative en', error_dict.relative_en)
@@ -449,7 +449,7 @@ print('Starting test evaluation!!!')
 error_dict = ErrorDict(loss_weights, weights_balance=args.weights_balance,
                        percentage_error=args.percentage_error,
                        weights_decay=weights_decay, weights_min=weights_min,
-                       loss_comp=loss_comp, df_loss_weight=args.df_loss_weight,
+                       loss_comp=loss_comp, df_loss_weights=args.df_loss_weights,
                        # relative_en=True,
                        )
 test_errors = error_dict.empty()
