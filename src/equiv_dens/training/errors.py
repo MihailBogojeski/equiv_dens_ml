@@ -17,7 +17,7 @@ class ErrorDict:
                  weights_min=None,
                  loss_comp=None,
                  relative_en=False,
-                 df_loss_weight=False,
+                 df_loss_weights=False,
                  ):
         self.loss_weights = loss_weights
         self.weights_balance = weights_balance
@@ -26,7 +26,7 @@ class ErrorDict:
         self.weights_min = weights_min
         self.loss_comp = loss_comp
         self.relative_en = relative_en
-        self.df_loss_weight = df_loss_weight
+        self.df_loss_weights = df_loss_weights
         if self.weights_decay is None:
             self.weights_decay = {}
             for key in self.loss_weights.keys():
@@ -61,7 +61,7 @@ class ErrorDict:
                     diff = predictions[key] - (data[key])
                     if key == 'df_coeffs':
                         diff = predictions[key] - transform_df_coeffs.transform(data[key], data['atom_numbers']) 
-                        if self.df_loss_weight:
+                        if self.df_loss_weights:
                             diff = diff * predictions['df_weights']
 
                     if key == "energy" and self.relative_en:

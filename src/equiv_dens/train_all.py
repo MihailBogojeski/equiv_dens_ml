@@ -295,7 +295,7 @@ for phase in training_phases:
     error_dict = ErrorDict(loss_weights, weights_balance=args.weights_balance,
                            percentage_error=args.percentage_error,
                            weights_decay=weights_decay, weights_min=weights_min,
-                           loss_comp=loss_comp,
+                           loss_comp=loss_comp, df_loss_weights=args.df_loss_weights,
                            )
 
 # print('error dict relative en', error_dict.relative_en)
