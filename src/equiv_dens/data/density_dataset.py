@@ -308,22 +308,28 @@ class AtomsDensityData(Dataset):
         properties["_idx"] = torch.LongTensor(np.array(idx, dtype=np.int))
         nl = utils.TorchNeighborList(self.cutoff)
         idx_is, idx_js, _ = nl.get_neighbors(properties)
-        batch_idx = []
-        prev_max = 0
+        neighbor_batch_idx = []
+        prev_max=0
         for i in range(len(idx_is)):
             idx_is[i] += prev_max
             idx_js[i] += prev_max 
             max_i = torch.max(idx_is[i])
             max_j = torch.max(idx_is[i])
             prev_max = max(max_i, max_j) + 1
-            batch_idx.append(torch.ones_like(idx_is[i]) * i)
+            neighbor_batch_idx.append(torch.ones_like(idx_is[i]) * i)
+        
+        atom_batch_idx = np.zeros_like(atom_numbers)
+        for i in range(len(atom_numbers)):
+            atom_batch_idx[i, :] = i
+        atom_batch_idx = torch.LongTensor(atom_batch_idx)
+
 
         idx_is = torch.cat(idx_is, dim=0)
         idx_js = torch.cat(idx_js, dim=0)
-        batch_idx = torch.cat(batch_idx, dim=0)
+        neighbor_batch_idx = torch.cat(neighbor_batch_idx, dim=0)
         properties['idx_i'] = idx_is
         properties['idx_j'] = idx_js
-        properties['batch_idx'] = batch_idx
+        properties['neighbor_batch_idx'] = neighbor_batch_idx
         properties['batch_atom_numbers'] = properties['atom_numbers'] * 1
         properties['batch_atom_mask'] = (properties['atom_mask'] * 1).type(torch.bool)
         properties['batch_positions'] = properties['positions'] * 1
@@ -331,7 +337,14 @@ class AtomsDensityData(Dataset):
         properties['atom_numbers'] = properties['batch_atom_numbers'].flatten()
         properties['atom_mask'] = properties['batch_atom_mask'].flatten()
         properties['atom_numbers'] = properties['atom_numbers'][properties['atom_mask']].view(1, -1)
+        properties['atom_batch_idx'] = atom_batch_idx.flatten()
+        properties['atom_batch_idx'] = properties['atom_batch_idx'][properties['atom_mask']].view(1, -1)
         properties['positions'] = properties['positions'][:, properties['atom_mask']]
+        if 'forces' in properties:
+            properties['batch_forces'] = properties['forces'] * 1
+            properties['forces'] = properties['forces'].view(1, -1, *properties['forces'].shape[2:])
+            properties['forces'] = properties['forces'][:, properties['atom_mask']]
+
         print('properties all', properties)
 
         for prop in self.fixed_properties.keys():

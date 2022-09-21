@@ -354,7 +354,6 @@ outputs:
 
 
 def calculate_distances_and_directions(R, idx_i=None, idx_j=None, center=None):
-    # print('R shape', R.shape)
     if idx_i is not None and idx_j is not None:
         Ri = torch.gather(R, -2, idx_i.view(*(1,) * len(R.shape[: -2]), -1, 1).repeat(*R.shape[: -2], 1, R.size(-1)))
         Rj = torch.gather(R, -2, idx_j.view(*(1,) * len(R.shape[: -2]), -1, 1).repeat(*R.shape[: -2], 1, R.size(-1)))
@@ -398,7 +397,9 @@ class TorchNeighborList:
             pbc = torch.zeros((3, )).to(atoms['positions']).type(torch.ByteTensor) 
         for i in range(atoms['positions'].shape[0]):
             numbers = atoms['atom_numbers'][i]
-            pos = atoms['positions'][i]
+            nz = numbers > 0
+            numbers = numbers[nz]
+            pos = atoms['positions'][i][nz]
             
             if 'cell' in atoms.keys():
                 cell = atoms['cell']

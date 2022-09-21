@@ -212,19 +212,21 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
         R = atoms['positions']
         N = R.shape[1]
         batch_size = R.shape[0]
-        idx_i = torch.arange(N).view(-1, 1).repeat(1, N).view(-1).to(R).type(torch.int64)
-        idx_j = torch.arange(N).view(1, -1).repeat(N, 1).view(-1).to(R).type(torch.int64)
-        neighbor_mask = atoms['atom_mask'].view(batch_size, 1, -1).repeat(1, N, 1).view(batch_size, -1)
+        idx_i = atoms['idx_i']
+        idx_j = atoms['idx_j']
+        neighbor_mask = 1 
         # exclude self - interactions
-        neighbor_mask = neighbor_mask[:, idx_i != idx_j]
-        idx_i, idx_j = idx_i[idx_i != idx_j], idx_j[idx_i != idx_j]
         # initialize atomic features to embeddings
         sph_fs, scale_fs, width_fs = coeffs_dict_to_tensors(atoms, radial_coeffs=self.pred_radial_coeffs)
+        for i in range(len(sph_fs)):
+            sph_fs[i] = sph_fs[i].view(1, -1, *sph_fs[i].shape[2:])
+            sph_fs[i] = sph_fs[i][:, atoms['atom_mask']]
+            scale_fs[i] = scale_fs[i].view(1, -1, *scale_fs[i].shape[2:])
+            scale_fs[i] = scale_fs[i][:, atoms['atom_mask']]
+            width_fs[i] = width_fs[i].view(1, -1, *width_fs[i].shape[2:])
+            width_fs[i] = width_fs[i][:, atoms['atom_mask']]
         dij = atoms['distances']
         sph = atoms['sph']
-        # print('dij shape', dij.shape)
-        # print('uij shape', uij.shape)
-        # print('R shape', R.shape)
         rbf = self.radial_basis_functions(dij).unsqueeze_(-2)  # unsqueeze for broadcasting
         xs = []
         # print('dens features', self.dens_features)
@@ -246,9 +248,6 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
             xs[L] = self.input_layer[L](xs[L])
 
         # print('xs energy norm after input layer:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
-        mask_dim = neighbor_mask.dim()
-        dim_diff = xs[0].dim() - mask_dim
-        neighbor_mask = neighbor_mask.to(xs[0]).reshape(rbf.shape[:mask_dim] + (1,) * dim_diff)
         # perform iterations over modular building blocks to get environment - dependent features
         fs = [0 for _ in range(max(self.order_max, self.orbitals_max_order) + 1)]  # output features
         for i in range(len(xs)):
@@ -268,9 +267,10 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
         fs[0] = self.out_activation(fs[0])
 
         atom_en = self.energy_output(fs)[0].squeeze(-1).squeeze(-1)
-        atom_en = atom_en * atoms['atom_mask']
 
-        energy = torch.sum(atom_en, dim=1, keepdim=True)
+        energy = torch.zeros(1, atoms['batch_atom_numbers'].shape[0])
+        energy = energy.scatter_add(1, atoms['atom_batch_idx'], atom_en)
+        energy = torch.t(energy)
 
         atoms['energy'] = energy
         if self.calculate_forces:
