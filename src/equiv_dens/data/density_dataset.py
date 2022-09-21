@@ -62,6 +62,7 @@ class AtomsDensityData(Dataset):
         use_gpu=False,
         radii_adjust=True,
         projected_density=False,
+        cutoff=5,
     ):
         self.density_path = density_path
         self.np_path = np_path
