@@ -676,7 +676,7 @@ def calc_dict_to_npy(data, convert_forces=True):
                                                 'forces': data_npy['forces']})
     data_npy['positions'] = props['positions'] 
     print(data_npy['positions'].shape)
-    data_npy['atom_numbers'] = atom_numbers 
+    data_npy['atom_numbers'] = atom_numbers.astype(int)
     print(data_npy['atom_numbers'].shape)
     print('data_npy atom numbers new', data_npy['atom_numbers'][:10])
     print('data_npy pos new', data_npy['positions'][:10])
