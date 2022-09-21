@@ -163,27 +163,29 @@ class DensityCoeffsNetwork(nn.Module):
         spherical_coeffs = [None] * batch_atom_count
         radial_width = [None] * batch_atom_count
         radial_scale = [None] * batch_atom_count
-        # print('len radial width', len(radial_width))
-        # print('len rad width', len(rad_width))
-        print('batch atom numbers max', torch.max(batch_atom_numbers, dim=0)[0])
-        print('batch_atom_numbers shape', batch_atom_numbers.shape)
-        print('atom numbers positions', atoms['atom_numbers_first_positions'])
-        print('atom count', atom_count)
-        print('batch size', batch_size)
-        print('batch atom count', batch_atom_count)
+        # print('batch atom numbers max', torch.max(batch_atom_numbers, dim=0)[0])
+        # print('batch_atom_numbers shape', batch_atom_numbers.shape)
+        # print('atom numbers positions', atoms['atom_numbers_first_positions'])
+        # print('atom batch idx', atoms['atom_batch_idx'])
+        # print('atom batch idx shape', atoms['atom_batch_idx'].shape)
+        # print('atom count', atom_count)
+        # print('batch size', batch_size)
+        # print('batch atom count', batch_atom_count)
         atom_idx = 0
         prev_z = int(atoms['atom_numbers'][0, 0])
-        prev_batch_num = int(atoms['batch_idx'][0])
+        prev_batch_num = int(atoms['atom_batch_idx'][:, 0])
         for i in range(atom_count):
             z = int(atom_numbers[0, i])
-            batch_num = int(atoms['batch_idx'][i])
-            print('z', z)
-            print('prev z', prev_z)
-            print('batch num', batch_num)
-            print('prev batch num', prev_batch_num)
+            batch_num = int(atoms['atom_batch_idx'][:, i])
+            # print('atom count', i)
+            # print('z', z)
+            # print('prev z', prev_z)
+            # print('batch num', batch_num)
+            # print('prev batch num', prev_batch_num)
             if z != prev_z or batch_num != prev_batch_num:
                 atom_idx = atoms['atom_numbers_first_positions'][z]
             prev_z = z
+            # print('atom_idx', atom_idx)
             prev_batch_num = batch_num
             if spherical_coeffs[atom_idx] is None:
                 spherical_coeffs[atom_idx] = {}
@@ -193,51 +195,34 @@ class DensityCoeffsNetwork(nn.Module):
                 L = orb[2]
                 key = (z, L)
                 inds = self.sph_dict[key]
-                print('inds', inds)
-                print('sph fs L shape', sph_fs[L].shape)
-                sph_fs_i = sph_fs[L][:, [i], :, :]
-                # print('sph l=', L, 'shape:', sph_fs[L].shape)
+                # print('key', key)
                 # print('inds', inds)
+                # print('sph fs L shape', sph_fs[L].shape)
+                sph_fs_i = sph_fs[L][:, [i], :, :]
                 if key not in spherical_coeffs[atom_idx].keys():
                     spherical_coeffs[atom_idx][key] = torch.zeros(batch_size, *sph_fs_i.shape[1:-1], len(inds)).to(sph_fs_i)
-                    print('sph zero init size', spherical_coeffs[atom_idx][key].shape)
-                print('sph_fs_i shape', sph_fs_i.shape)
+                #     print('sph zero init size', spherical_coeffs[atom_idx][key].shape)
+                # print('sph_fs_i shape', sph_fs_i.shape)
                 spherical_coeffs[atom_idx][key][batch_num, :] = sph_fs_i[0, ..., inds]
-                # spherical_coeffs[i][key] = torch.ones_like(sph_fs_i[..., inds])
-                # print('spherical coeffs shape', spherical_coeffs[i][key].shape)
-                # print('i', i)
-                # print('L', L)
                 radial_width[atom_idx][key] = torch.zeros(*spherical_coeffs[atom_idx][key].shape[:2], self.r_max[key], orb[1]).to(sph_fs_i)
                 radial_scale[atom_idx][key] = torch.zeros(*spherical_coeffs[atom_idx][key].shape[:2], self.r_max[key], orb[1]).to(sph_fs_i)
                 if self.pred_radial_coeffs and z != 0:
                     inds = self.rad_dict[key]
                     rad_w_i = rad_width[L][:, [i], :, :]
                     rad_s_i = rad_scale[L][:, [i], :, :]
-                    # print('rad fs l=', L, 'shape:', rad_w_i.shape)
-                    # print('inds', inds)
                     r_curr = 0
                     for k, r_num in enumerate(self.radial_count[z][L]):
-                        # print('radial width ', i, key, 'shape', radial_width[i][key].shape)
                         rad_inds = inds[r_curr: r_curr + r_num]
                         r_curr += r_num
                         radial_width[atom_idx][key][batch_num, ..., :r_num, k] = rad_w_i[0, ..., 0, rad_inds]
                         radial_scale[atom_idx][key][batch_num, ..., :r_num, k] = rad_s_i[0, ..., 0, rad_inds]
-                # print('radial width shape', radial_width[i][key].shape)
-                # print('radial width', radial_width[i][key][0])
-                # print('self.init coeffs', self.init_coeffs)
                 if self.init_coeffs is not None and L == 0:
-                    # print('spherical_coeffs[i][key] before shape', spherical_coeffs[i][key].shape)
-                    # print('self.init_sph(i, key)', self.init_sph(i, key))
                     spherical_coeffs[atom_idx][key] = spherical_coeffs[atom_idx][key] + self.init_sph(key)
                     if self.pred_radial_coeffs:
                         radial_width[atom_idx][key] = torch.clamp(radial_width[atom_idx][key] + self.init_width(key), -0.999999, 0.99999)
                         radial_scale[atom_idx][key] = radial_scale[atom_idx][key] + self.init_scale(key)
-                    # print('spherical_coeffs[i][key] after shape', spherical_coeffs[i][key].shape)
             atom_idx += 1
         
-        for i in range(len(spherical_coeffs)):
-            print('spherical_coeffs', i , spherical_coeffs[i])
-
         return spherical_coeffs, radial_width, radial_scale
 
     """
@@ -254,7 +239,6 @@ class DensityCoeffsNetwork(nn.Module):
         r_max = {}
         spherical_dict = {}
         radial_dict = {}
-        # radial_dict = {}
         for z in self.spherical_spec.keys():
             rad_c = self.radial_count[z]
             for j in range(len(self.spherical_spec[z])):
@@ -270,8 +254,6 @@ class DensityCoeffsNetwork(nn.Module):
                 orb = self.radial_spec[z][j]
                 L = orb[2]
                 n = orb[1]
-                # print('L', L)
-                # print('n', n)
                 key = (z, L)
                 if key not in radial_dict:
                     # print('lcounts range', rad_counts[L], rad_counts[L] + n)
@@ -285,8 +267,6 @@ class DensityCoeffsNetwork(nn.Module):
                         r_max[key] = max(max_rad_c, r_max[key])
                     else:
                         r_max[key] = max_rad_c
-                    # return one radial function per orbital
-                    # radial function consists of multiple gaussians each with width and factor
 
         return sph_counts, rad_counts, r_max, spherical_dict, radial_dict
 
@@ -297,32 +277,21 @@ class DensityCoeffsNetwork(nn.Module):
     """
 
     def compute_orbital_features_num_compressed(self):
-        # counts the number of orbitals of each order across all atoms for the given basis
         L_counts = [0 for L in range(self.orbitals_max_order + 1)]
-        # contains maximum number of radial components for each order across all atoms for the given basis
         r_max = [0 for L in range(self.orbitals_max_order + 1)]
         orbital_dict = {}
-        # radial_dict = {}
         for z in self.radial_spec.keys():
             for j in range(len(self.radial_spec[z])):
                 orb = self.radial_spec[z][j]
                 rad_c = self.radial_count[z][j]
                 L = orb[2]
                 n = orb[1]
-                # print('L', L)
-                # print('n', n)
                 key = (z, L)
                 if key not in orbital_dict:
-                    # print('lcounts range', L_counts[L], L_counts[L] + n)
                     orbital_dict[key] = range(n)
                     if L_counts[L] < n:
                         L_counts[L] = n
-                    # L_counts[L] += n
-                    # print('rmax L', r_max[L])
-                    # print('rad_c L', rad_c[L])
                     r_max[L] = max(rad_c[L], r_max[L])
-                    # return one radial function per orbital
-                    # radial function consists of multiple gaussians each with width and factor
         return L_counts, r_max, orbital_dict
 
     """
@@ -361,10 +330,6 @@ class DensityCoeffsNetwork(nn.Module):
                     out_scale.append(F.softplus(self.radial_scale[L](fs[0])))
                 else:
                     out_scale.append(self.radial_scale[L](fs[0]))
-            # out_scale[L] = out_scale[L].view(*out_scale[L].shape[:-2], self.r_max[L], self.L_counts[L])
-        # print('out sph shape', out_sph[1].shape)
-        # print('out width shape', out_width[1].shape)
-        # print('out scale shape', out_scale[1].shape)
         if self.verbose > 2:
             print('density coeffs forward outputs:')
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
@@ -372,15 +337,13 @@ class DensityCoeffsNetwork(nn.Module):
         atoms['spherical_coeffs'], atoms['radial_width'], atoms['radial_scale'] =\
             self.extract_coefficients(out_sph, out_width, out_scale, atoms)
         atoms['df_coeffs'] = coeffs_dict_to_vector(atoms, self.orbital_basis,
-                                                            atoms['atom_numbers'], radial_coeffs=False)['spherical_coeffs']
+                                                   atoms['batch_atom_numbers'],
+                                                   radial_coeffs=False)['spherical_coeffs']
         if self.verbose > 2:
             print('density coeffs forward extract coeffs:')
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
             print('Memory cached', torch.cuda.memory_cached() / 1024**2)
-        # print('out sph[1][0]', out_sph[1][:, 0, :])
-        # print('spherical_coeffs[1][0]', atoms['spherical_coeffs'][0][(8, 1)])
-        # print('out sph[1][0]', out_sph[1][:, 1, :])
-        # print('spherical_coeffs[1][0]', atoms['spherical_coeffs'][1][(1, 1)])
+
         if fs[0].get_device() >= 0:
             atoms['rad_dict'] = {key: self.rad_dict[key].to(fs[0].get_device()) for key in self.rad_dict.keys()}
             atoms['sph_dict'] = {key: self.sph_dict[key].to(fs[0].get_device()) for key in self.sph_dict.keys()}
@@ -393,7 +356,6 @@ class DensityCoeffsNetwork(nn.Module):
             print('density coeffs forward end:')
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
             print('Memory cached', torch.cuda.memory_cached() / 1024**2)
-        # print('sph_dict', atoms['sph_dict'])
 
         return atoms
 
@@ -482,13 +444,6 @@ class DensityExpansion(nn.Module):
                     init_width[key][..., :n_coeff, rad_count[L]] += torch.Tensor(self.radial_coeffs[z][j][0])
                     init_scale[key][..., :n_coeff, rad_count[L]] += torch.Tensor(self.radial_coeffs[z][j][1])
                     rad_count[L] += 1
-                # if key in init_width[i].keys():
-                #     init_width[i][key] = torch.cat((init_width[i][key], width_coeff), dim=-1)
-                #     init_scale[i][key] = torch.cat((init_scale[i][key], scale_coeff), dim=-1)
-                # else:
-                #     init_width[i][key] = width_coeff
-                #     init_scale[i][key] = scale_coeff
-                # print('init_width', i, key, init_width[i][key][0])
 
         for key in init_width.keys():
             self.register_buffer('init_width_{}_{}'.format(key[0], key[1]), init_width[key])
@@ -504,9 +459,6 @@ class DensityExpansion(nn.Module):
 
     def forward(self, atoms, eval_atoms=None, eval_L=None):
         n_eval = len(atoms['spherical_coeffs'])
-        # print('spherical_coeffs', atoms['spherical_coeffs'][0][(6, 0)])
-        # print('radial width', atoms['radial_width'])
-        # print('radial scale', atoms['radial_scale'])
         start = time.time()
         if eval_atoms is None:
             eval_atoms = list(range(n_eval))
@@ -528,26 +480,21 @@ class DensityExpansion(nn.Module):
             z = int(max(atoms['batch_atom_numbers'][:, i]))
             if z == 0:
                 continue
-            # print('atom num', z)
-            # print('orbitals i', self.spherical_spec[i])
-            pos = atoms['positions'][:, [i]]
+            pos = atoms['batch_positions'][:, [i]]
             atom_mask = atoms['batch_atom_mask'][:, i].to(pos)
-            # print('pos', pos)
             dim_diff = atoms['coords'].dim() - pos.dim()
             if dim_diff > 0:
                 pos = pos.reshape(pos.shape[:-1] + (1,) * dim_diff + pos.shape[-1:])
+
+            dim_diff = 4 - atom_mask.dim()
+            if dim_diff > 0:
+                atom_mask = atom_mask.reshape(atom_mask.shape + (1,) * dim_diff)
             d, u = calculate_distances_and_directions(atoms['coords'], center=pos)
             s = spherical_harmonics(self.orbitals_max_order_dict[z], u)
-            # print('s', s[1])
-            # print('atom[i]', i)
-            # print('dists', d)
-            # print('dists shape', d.shape)
-            # print('min dist', torch.min(d))
             for L in range(len(s)):
                 zeros = torch.zeros_like(s[L])
                 s[L] = torch.where(torch.isnan(s[L]), zeros, s[L])  # making sure there are no nans to avoid NaNs
             for j in range(len(self.spherical_spec[z])):
-                # print('orbital', orb)
                 orb = self.spherical_spec[z][j]
                 L = orb[2]
                 key = (z, L)
@@ -556,13 +503,6 @@ class DensityExpansion(nn.Module):
                     width = torch.clamp(width, 1e-1, 1e+5)
                 zero_scale = (self.init_scale(key) != 0).to(atoms['radial_scale'][i][key]) * atom_mask
                 scale = (atoms['radial_scale'][i][key] + self.init_scale(key)) * zero_scale
-                # if L == 0:
-                #     print('width init', self.init_width(key))
-                #     print('width init + learned width', (atoms['radial_width'][i][key] + 1) * self.init_width(key))
-                #     print('scale init', self.init_scale(key))
-                #     print('scale init + learned scale', (atoms['radial_scale'][i][key] + self.init_scale(key)) * zero_scale)
-                # width = width.unsqueeze(-3)
-                # scale = scale.unsqueeze(-3)
                 if self.verbose > 3:
                     print('init_width', self.init_width(key))
                     print('init_scale', self.init_scale(key))
@@ -580,7 +520,6 @@ class DensityExpansion(nn.Module):
                     scale = scale.reshape(scale.shape[:2] +
                                           (1,) * (dim_diff + 1) +
                                           scale.shape[2:])
-                # sph_coeff = sph_coeff.unsqueeze(-1)
                 if L == 0:
                     L0_coeff = sph_coeff * scale
                     L0_coeffs.append(L0_coeff)
@@ -590,46 +529,28 @@ class DensityExpansion(nn.Module):
                     L0_width.append(width)
                     continue
                 sph = s[L].unsqueeze(-1) * sph_coeff
-                # if i == 0 and L == 1:
-                #     print('sph', sph)
-                #     print('width', width)
-                #     print('scale', scale)
                 rbf = gaussian_rbf(d.unsqueeze(-1), width, scale, L)
                 if self.verbose > 2:
                     print('L', L)
                     print('rbf integral', torch.sum(rbf * atoms['coord_weights'].unsqueeze(-1).unsqueeze(-1), dim=(-2, -3)))
                     print('abs sph', torch.sum(torch.abs(sph) * atoms['coord_weights'].unsqueeze(-1).unsqueeze(-1), dim=(-2, -3)))
-                # if L == 0:
-                #     print('sph', sph)
-                #     print('rbf', rbf)
                 if i in eval_atoms and L in eval_L:
-                    # part_dens = torch.sum(rbf * sph, dim=(-2, -1))
-                    # part_int = torch.sum(part_dens * atoms['coord_weights'], dim=-1)
-                    # print('part_dens integral', part_int) 
                     atoms['density'] += torch.sum(rbf * sph, dim=(-2, -1))
         if self.verbose > 0:
             print('Density shape', atoms['density'].shape)
         L0_coeffs_comb = torch.cat([coeff.view((coeff.shape[0], -1)) for coeff in L0_coeffs], dim=1)
         atoms['L0_coeffs'] = L0_coeffs_comb
-        # print('L0_coeffs comb sum before', torch.sum(L0_coeffs_comb, 1))
-        # print('num electrons', self.n_electrons)
         if self.integral_constraint is True or self.integral_constraint == 'coeffs':
             if self.softmax_norm:
                 L0_coeffs_comb = F.softmax(L0_coeffs_comb, dim=1)
                 L0_coeffs_comb = L0_coeffs_comb * n_electrons
                 L0_coeffs_comb = L0_coeffs_comb * torch.clamp(self.integral_scale, 0.5, 1.5)
-                # print('coeffs_sum', torch.sum(L0_coeffs_comb, dim=1, keepdim=True))
             else:
                 coeffs_sum = torch.sum(L0_coeffs_comb, dim=1, keepdim=True)
                 scale_factor = n_electrons / coeffs_sum
                 L0_coeffs_comb = L0_coeffs_comb * scale_factor
                 L0_coeffs_comb = L0_coeffs_comb * torch.clamp(self.integral_scale, 0.5, 1.5)
-                # print('coeffs_sum', torch.sum(L0_coeffs_comb, dim=1, keepdim=True))
         coeffs_pointer = 0
-        # print('integral scale', self.integral_scale)
-        # print('L0_coeffs comb sum after', torch.sum(L0_coeffs_comb, 1))
-        # print('L0_coeffs after', L0_coeffs_comb)
-        # print('density nan', torch.sum(torch.isnan(atoms['density'])))
         L0_integrals = []
         if 0 in eval_L:
             for i in range(len(L0_coeffs)):
@@ -641,16 +562,11 @@ class DensityExpansion(nn.Module):
                     print('L0 width', L0_width[i])
                 curr_coeffs = curr_coeffs.view(L0_coeffs[i].shape)
                 coeffs_pointer += coeffs_size
-                # print('L0 width', L0_width[i])
-                # print('L0 width negative', torch.sum(L0_width[i] < 0))
                 normalize = False
                 if self.integral_constraint is True or self.integral_constraint == 'coeffs':
                     normalize = True
                 rbf = gaussian_rbf(L0_d[i].unsqueeze(-1), L0_width[i], curr_coeffs, 0, normalize=normalize)
-                # print('rbf integral', torch.sum(rbf * atoms['coord_weights'].unsqueeze(-1).unsqueeze(-1), dim=(-2, -3)))
-                # print('rbf nan', torch.sum(torch.isnan(rbf)))
                 sph = L0_sph[i].unsqueeze(-1)
-                # print('sph nan', torch.sum(torch.isnan(sph)))
                 if self.verbose > 2:
                     print('L', 0)
                     print('rbf integral', torch.sum(rbf * atoms['coord_weights'].unsqueeze(-1).unsqueeze(-1), dim=(-2, -3)))
