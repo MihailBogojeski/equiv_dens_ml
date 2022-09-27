@@ -262,6 +262,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
                 print('module', i, 'fs[0]', fs[0])
             # print('fs norm ', i, ':', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
         fs[0] = self.out_activation(fs[0])
+        print('fs[0]', fs[0])
 
         atom_en = self.energy_output(fs)[0].squeeze(-1).squeeze(-1)
 
