@@ -214,7 +214,6 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
         # exclude self - interactions
         # initialize atomic features to embeddings
         sph_fs, scale_fs, width_fs = coeffs_dict_to_tensors(atoms, radial_coeffs=self.pred_radial_coeffs)
-        print('sph_fs[0]', sph_fs[0])
         for i in range(len(sph_fs)):
             sph_fs[i] = sph_fs[i].view(1, -1, *sph_fs[i].shape[2:])
             sph_fs[i] = sph_fs[i][:, atoms['atom_mask']]
@@ -222,7 +221,6 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
             scale_fs[i] = scale_fs[i][:, atoms['atom_mask']]
             width_fs[i] = width_fs[i].view(1, -1, *width_fs[i].shape[2:])
             width_fs[i] = width_fs[i][:, atoms['atom_mask']]
-        print('sph fs[0] after', sph_fs[0])
         dij = atoms['distances']
         sph = atoms['sph']
         rbf = self.radial_basis_functions(dij).unsqueeze_(-2)  # unsqueeze for broadcasting
@@ -241,12 +239,10 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
         else:
             xs = sph_fs
         # print('xs energy norm before:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
-        print('xs[0]', xs[0])
 
         for L in range(len(xs)):
             xs[L] = self.input_layer[L](xs[L])
 
-        print('xs[0] after', xs[0])
         # print('xs energy norm after input layer:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
         # perform iterations over modular building blocks to get environment - dependent features
         fs = [0 for _ in range(max(self.order_max, self.orbitals_max_order) + 1)]  # output features
@@ -263,13 +259,10 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
                 else:
                     scale = np.sqrt(1/2)
                 fs[L] = ys[L] * scale + fs[L] * scale
-            print('module', i, 'fs[0]', fs[0])
             # print('fs norm ', i, ':', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
         fs[0] = self.out_activation(fs[0])
-        print('fs[0]', fs[0])
 
         atom_en = self.energy_output(fs)[0].squeeze(-1).squeeze(-1)
-        print('atom_en', atom_en)
 
         energy = torch.zeros(1, atoms['batch_atom_numbers'].shape[0])
         energy = energy.scatter_add(1, atoms['atom_batch_idx'], atom_en)
