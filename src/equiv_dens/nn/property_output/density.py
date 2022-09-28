@@ -201,11 +201,11 @@ class DensityCoeffsNetwork(nn.Module):
                 sph_fs_i = sph_fs[L][:, [i], :, :]
                 if key not in spherical_coeffs[atom_idx].keys():
                     spherical_coeffs[atom_idx][key] = torch.zeros(batch_size, *sph_fs_i.shape[1:-1], len(inds)).to(sph_fs_i)
+                    radial_width[atom_idx][key] = torch.zeros(*spherical_coeffs[atom_idx][key].shape[:2], self.r_max[key], orb[1]).to(sph_fs_i)
+                    radial_scale[atom_idx][key] = torch.zeros(*spherical_coeffs[atom_idx][key].shape[:2], self.r_max[key], orb[1]).to(sph_fs_i)
                 #     print('sph zero init size', spherical_coeffs[atom_idx][key].shape)
                 # print('sph_fs_i shape', sph_fs_i.shape)
                 spherical_coeffs[atom_idx][key][batch_num, :] = sph_fs_i[0, ..., inds]
-                radial_width[atom_idx][key] = torch.zeros(*spherical_coeffs[atom_idx][key].shape[:2], self.r_max[key], orb[1]).to(sph_fs_i)
-                radial_scale[atom_idx][key] = torch.zeros(*spherical_coeffs[atom_idx][key].shape[:2], self.r_max[key], orb[1]).to(sph_fs_i)
                 if self.pred_radial_coeffs and z != 0:
                     inds = self.rad_dict[key]
                     rad_w_i = rad_width[L][:, [i], :, :]
