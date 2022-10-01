@@ -220,7 +220,6 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
         idx_i, idx_j = idx_i[idx_i != idx_j], idx_j[idx_i != idx_j]
         # initialize atomic features to embeddings
         sph_fs, scale_fs, width_fs = coeffs_dict_to_tensors(atoms, radial_coeffs=self.pred_radial_coeffs)
-        print('sph fs[0]', sph_fs[0])
         dij = atoms['distances']
         sph = atoms['sph']
         # print('dij shape', dij.shape)
@@ -241,12 +240,10 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
                 xs.append(sph_fs[L] * radial_comb)
         else:
             xs = sph_fs
-        print('xs[0]', xs[0])
         # print('xs energy norm before:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
 
         for L in range(len(xs)):
             xs[L] = self.input_layer[L](xs[L])
-        print('xs[0] after', xs[0])
 
         # print('xs energy norm after input layer:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
         mask_dim = neighbor_mask.dim()
@@ -268,13 +265,10 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
                     scale = np.sqrt(1/2)
                 fs[L] = ys[L] * scale + fs[L] * scale
             # print('fs norm ', i, ':', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
-            print('module', i, 'fs[0]', fs[0])
         fs[0] = self.out_activation(fs[0])
-        print('fs[0]', fs[0])
 
         atom_en = self.energy_output(fs)[0].squeeze(-1).squeeze(-1)
         atom_en = atom_en * atoms['atom_mask']
-        print('atom_en', atom_en)
 
         energy = torch.sum(atom_en, dim=1, keepdim=True)
 
