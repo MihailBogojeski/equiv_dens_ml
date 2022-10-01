@@ -255,6 +255,13 @@ class AtomsDensityData(Dataset):
         else:
             return self.atoms['forces'][self.subset]
 
+    @property
+    def atom_numbers(self):
+        if self.subset is None:
+            return self.atoms['atom_numbers']
+        else:
+            return self.atoms['atom_numbers'][self.subset]
+
     # collects the molecular properties for the batch, should be used as collate_fn
     def get_properties(self, idx):
         idx = self._subset_index(idx)
@@ -344,8 +351,6 @@ class AtomsDensityData(Dataset):
             properties['batch_forces'] = properties['forces'] * 1
             properties['forces'] = properties['forces'].view(1, -1, *properties['forces'].shape[2:])
             properties['forces'] = properties['forces'][:, properties['atom_mask']]
-
-        print('properties all', properties)
 
         for prop in self.fixed_properties.keys():
             properties[prop] = self.fixed_properties[prop]
