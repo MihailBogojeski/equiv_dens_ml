@@ -89,7 +89,8 @@ dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_datas
                            grid_extent=grid_extent,
                            grid_origin=grid_origin,
                            verbose=args.verbose,
-                           cutoff=args.cutoff)
+                           cutoff=args.cutoff,
+                           df_loss_weights=args.df_loss_weights)
 
 if data_split_indices is None or args.ignore_split_indices:
     num_test = 0 if args.np_dataset_test is not None else args.num_test
@@ -119,7 +120,8 @@ if args.np_dataset_test is not None:
                                     sampling_fn=sampling_fn,
                                     grid_extent=grid_extent,
                                     grid_origin=grid_origin,
-                                    cutoff=args.cutoff)
+                                    cutoff=args.cutoff,
+                                    df_loss_weights=args.df_loss_weights)
 
     if args.num_test is not None:
         test_size = args.num_test

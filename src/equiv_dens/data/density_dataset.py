@@ -63,6 +63,7 @@ class AtomsDensityData(Dataset):
         radii_adjust=True,
         projected_density=False,
         cutoff=7.937658158457616,
+        df_loss_weights=True,
     ):
         self.density_path = density_path
         self.np_path = np_path
@@ -142,20 +143,24 @@ class AtomsDensityData(Dataset):
                 z = utils.symbols_to_numbers([key])[0]
                 if z in all_atom_numbers:
                     self.radial_coeffs[z] = radial_coeffs_atoms[key]
-            self.coeff_weights = {}
-            for z in self.orbital_basis_num.keys():
-                self.coeff_weights[z] = []
-                for j in range(len(self.orbital_basis_num[z])):
-                    # print('init coeffs j', j)
-                    orb = self.orbital_basis_num[z][j]
-                    L = orb[2]
-                    key = (z, L)
-                    width = self.radial_coeffs[z][j][0]
-                    scale = self.radial_coeffs[z][j][1] / orbitals.pyscf_gto_factor
-                    integral = 1/(orbitals.gto_norm(L, width))
-                    self.coeff_weights[z].append(scale * integral / (2 * L + 1))
+            if df_loss_weights:
+                self.coeff_weights = {}
+                for z in self.orbital_basis_num.keys():
+                    self.coeff_weights[z] = []
+                    for j in range(len(self.orbital_basis_num[z])):
+                        # print('init coeffs j', j)
+                        orb = self.orbital_basis_num[z][j]
+                        L = orb[2]
+                        key = (z, L)
+                        width = self.radial_coeffs[z][j][0]
+                        scale = self.radial_coeffs[z][j][1] / orbitals.pyscf_gto_factor
+                        integral = 1/(orbitals.gto_norm(L, width))
+                        self.coeff_weights[z].append(scale * integral / (2 * L + 1))
+            else:
+                self.coeff_weights = None
         else:
             self.radial_coeffs = None
+            self.coeff_weights = None
 
         if L0_coeffs_file is not None:
             self.L0_coeffs = {}

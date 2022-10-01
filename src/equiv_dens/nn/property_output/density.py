@@ -235,9 +235,6 @@ class DensityCoeffsNetwork(nn.Module):
                 key = (z, L)
                 print('atom idx', atom_idx, 'key', key)
                 inds = self.sph_dict[key]
-                # print('key', key)
-                # print('inds', inds)
-                # print('sph fs L shape', sph_fs[L].shape)
                 sph_fs_i = sph_fs[L][:, [i], :, :]
                 if key not in spherical_coeffs[atom_idx].keys():
                     spherical_coeffs[atom_idx][key] = torch.zeros(batch_size, *sph_fs_i.shape[1:-1], len(inds)).to(sph_fs_i)
@@ -246,7 +243,7 @@ class DensityCoeffsNetwork(nn.Module):
                 #     print('sph zero init size', spherical_coeffs[atom_idx][key].shape)
                 # print('sph_fs_i shape', sph_fs_i.shape)
                 spherical_coeffs[atom_idx][key][batch_num, :] = sph_fs_i[0, ..., inds]
-                if self.coeff_weight:
+                if self.coeff_weights is not None:
                     coeff_weights[atom_idx][key] = torch.sum(self.coeff_weight(key), dim=-2, keepdim=True)
                     coeff_weights[atom_idx][key] = coeff_weights[atom_idx][key].expand(-1, -1 , spherical_coeffs[atom_idx][key].shape[-2], -1).clone()
                 print('coeff_weights shape', coeff_weights['atom_idx'][key].shape)
@@ -378,13 +375,15 @@ class DensityCoeffsNetwork(nn.Module):
             print('density coeffs forward outputs:')
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
             print('Memory cached', torch.cuda.memory_cached() / 1024**2)
+        coeff_weighting = self.coeff_weights is not None
         atoms['spherical_coeffs'], atoms['radial_width'], atoms['radial_scale'], atoms['coeff_weights'] =\
             self.extract_coefficients(out_sph, out_width, out_scale, atoms)
         all_coeffs = coeffs_dict_to_vector(atoms, self.orbital_basis,
                                                    atoms['batch_atom_numbers'],
-                                                    radial_coeffs=False, coeff_weighting=True)
+                                                    radial_coeffs=False, coeff_weighting=coeff_weighting)
         atoms['df_coeffs'] = all_coeffs['spherical_coeffs'] 
-        atoms['df_weights'] = all_coeffs['coeff_weights'] 
+        if coeff_weighting:
+            atoms['df_weights'] = all_coeffs['coeff_weights'] 
                              
         if self.verbose > 2:
             print('density coeffs forward extract coeffs:')
