@@ -259,6 +259,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
                 else:
                     scale = np.sqrt(1/2)
                 fs[L] = ys[L] * scale + fs[L] * scale
+                print('module', i, 'fs[0]', fs[0])
             # print('fs norm ', i, ':', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
         fs[0] = self.out_activation(fs[0])
 

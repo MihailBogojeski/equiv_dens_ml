@@ -683,3 +683,4 @@ def calc_dict_to_npy(data, convert_forces=True):
     data_npy['forces'] = props['forces'] 
     data_npy['energy'] = np.stack(data_npy['energy'], 0)[:, None]
     return data_npy
+
