@@ -156,7 +156,8 @@ for phase in training_phases:
                                grid_extent=grid_extent,
                                grid_origin=grid_origin,
                                verbose=args.verbose,
-                               cutoff=args.cutoff)
+                               cutoff=args.cutoff,
+                               df_loss_weights=args.df_loss_weights)
 
 # split into train / valid / test
     if data_split_indices is None and args.np_dataset_valid is None:
@@ -182,7 +183,8 @@ for phase in training_phases:
                                          grid_extent=grid_extent,
                                          grid_origin=grid_origin,
                                          verbose=args.verbose,
-                                         cutoff=args.cutoff)
+                                         cutoff=args.cutoff,
+                                         df_loss_weights=args.df_loss_weights)
         if data_split_indices is None or args.ignore_split_indices:
             train_inds = np.random.choice(np.arange(len(dataset)), args.num_train, replace=False)
             valid_inds = np.random.choice(np.arange(len(valid_dataset)), args.num_valid, replace=False)
@@ -218,7 +220,8 @@ for phase in training_phases:
                                         sampling_fn=sampling_fn,
                                         grid_extent=grid_extent,
                                         grid_origin=grid_origin,
-                                        cutoff=args.cutoff)
+                                        cutoff=args.cutoff,
+                                        df_loss_weights=args.df_loss_weights)
 
         if args.num_test is not None:
             test_size = args.num_test
@@ -248,7 +251,8 @@ for phase in training_phases:
                                         grid_fn=cube_grid_fn,
                                         sampling_fn=cube_sampling_fn,
                                         verbose=args.verbose,
-                                        cutoff=args.cutoff)
+                                        cutoff=args.cutoff,
+                                        df_loss_weights=args.df_loss_weights)
 
         valid_cube_dataset = torch.utils.data.Subset(cube_dataset, valid_dataset.indices)
 

@@ -264,10 +264,6 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
         fs[0] = self.out_activation(fs[0])
 
         atom_en = self.energy_output(fs)[0].squeeze(-1).squeeze(-1)
-<<<<<<< HEAD
-=======
-        atom_en = atom_en * atoms['atom_mask']
->>>>>>> 1fcefd9 (removing prints)
 
         energy = torch.zeros(1, atoms['batch_atom_numbers'].shape[0])
         energy = energy.scatter_add(1, atoms['atom_batch_idx'], atom_en)
