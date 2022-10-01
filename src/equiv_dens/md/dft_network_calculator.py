@@ -108,7 +108,7 @@ class DFTNetworkCalculator(MDCalculator):
         if self.density_expansion:
             # print('grid spec', self.grid_spec)
             sample_coords, coord_weights = self.grid_sampling_fn(self.grid_spec, 10000000000,
-                                                                 utils.numbers_to_symbols(atom_types[0].squeeze().detach().cpu().numpy()),
+                                                                 atom_types.detach().cpu().numpy(),
                                                                  inputs['positions'])
             inputs['coords'] = sample_coords
             inputs['coord_weights'] = coord_weights
