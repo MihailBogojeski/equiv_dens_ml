@@ -238,12 +238,10 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
                 xs.append(sph_fs[L] * radial_comb)
         else:
             xs = sph_fs
-        print('xs[0]', xs[0])
         # print('xs energy norm before:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
 
         for L in range(len(xs)):
             xs[L] = self.input_layer[L](xs[L])
-        print('xs[0] after', xs[0])
 
         # print('xs energy norm after input layer:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
         # perform iterations over modular building blocks to get environment - dependent features
@@ -263,11 +261,13 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
                 fs[L] = ys[L] * scale + fs[L] * scale
                 print('module', i, 'fs[0]', fs[0])
             # print('fs norm ', i, ':', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
-            print('module', i, 'fs[0]', fs[0])
         fs[0] = self.out_activation(fs[0])
-        print('fs[0]', fs[0])
 
         atom_en = self.energy_output(fs)[0].squeeze(-1).squeeze(-1)
+<<<<<<< HEAD
+=======
+        atom_en = atom_en * atoms['atom_mask']
+>>>>>>> 1fcefd9 (removing prints)
 
         energy = torch.zeros(1, atoms['batch_atom_numbers'].shape[0])
         energy = energy.scatter_add(1, atoms['atom_batch_idx'], atom_en)
