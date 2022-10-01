@@ -32,7 +32,7 @@ def run_molecular_dynamics(args, dataset, model):
     atoms_data = dataset.get_properties(start_idx)
     print('data positions type', type(atoms_data['positions']))
     mols = utils.npy_to_ase(atoms_data['positions'].detach().cpu().numpy(),
-                            utils.numbers_to_symbols(atoms_data['atom_numbers'][0].squeeze()))
+                            atoms_data['atom_numbers'].detach().cpu().numpy())
     print('positions shape', atoms_data['positions'].shape)
     # Check if a GPU is available and use a CPU otherwise
     if args.use_gpu:
@@ -200,7 +200,8 @@ if __name__ == "__main__":
                                sampling_fn=sampling_fn,
                                grid_extent=grid_extent,
                                grid_origin=grid_origin,
-                               verbose=args.verbose)
+                               verbose=args.verbose,
+                               df_loss_weights=args.df_loss_weights)
 
     print('dataset grid_spec type', dataset.grid_spec['H'][0].type())
     model = load_model(args, dataset)

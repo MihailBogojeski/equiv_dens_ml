@@ -217,7 +217,7 @@ class DensityCoeffsNetwork(nn.Module):
                 # print('sph l=', L, 'shape:', sph_fs[L].shape)
                 # print('inds', inds)
                 spherical_coeffs[i][key] = sph_fs_i[..., inds]
-                if self.coeff_weight:
+                if self.coeff_weights is not None:
                     coeff_weights[i][key] = torch.sum(self.coeff_weight(key), dim=-2, keepdim=True)
                     coeff_weights[i][key] = coeff_weights[i][key].expand(-1, -1 , spherical_coeffs[i][key].shape[-2], -1).clone()
                 # spherical_coeffs[i][key] = torch.ones_like(sph_fs_i[..., inds])
@@ -391,10 +391,13 @@ class DensityCoeffsNetwork(nn.Module):
             print('Memory cached', torch.cuda.memory_cached() / 1024**2)
         atoms['spherical_coeffs'], atoms['radial_width'], atoms['radial_scale'], atoms['coeff_weights'] =\
             self.extract_coefficients(out_sph, out_width, out_scale, atoms['atom_numbers'], atoms['atom_mask'])
+        coeff_weighting = self.coeff_weights is not None
         all_coeffs = coeffs_dict_to_vector_new(atoms, self.orbital_basis,
-                                           atoms['atom_numbers'], radial_coeffs=False, coeff_weighting=True)
+                                           atoms['atom_numbers'], radial_coeffs=False,
+                                           coeff_weighting=coeff_weighting)
         atoms['df_coeffs'] = all_coeffs['spherical_coeffs'] 
-        atoms['df_weights'] = all_coeffs['coeff_weights'] 
+        if coeff_weighting:
+            atoms['df_weights'] = all_coeffs['coeff_weights'] 
                              
         if self.verbose > 2:
             print('density coeffs forward extract coeffs:')
