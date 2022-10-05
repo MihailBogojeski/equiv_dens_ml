@@ -15,8 +15,6 @@ class DipoleMomentCalc(nn.Module):
         n_electrons = get_n_electrons(atoms['atom_numbers'])
         scaling_factor = n_electrons / torch.sum(density * atoms['coord_weights'], dim=1, keepdim=True)
         density = density * scaling_factor
-        print('density integral', torch.sum(density * atoms['coord_weights'], dim=1, keepdim=True))
-        print('density min', torch.min(density))
         positive_dipole_moment = torch.sum(atoms['positions'] * atoms['atom_numbers'].unsqueeze(-1), dim=1)
         # print('positive_dipole_moment', positive_dipole_moment)
         weighted_dens = density.unsqueeze(-1) * atoms['coord_weights'].unsqueeze(-1)
