@@ -245,7 +245,6 @@ def coeffs_dict_to_vector(coeffs, orbital_basis, a_num, radial_coeffs=True, coef
         relevant_keys.append('coeff_weights')
         # coeff_weights = coeffs['coeff_weights']
 
-    print('relevant keys', relevant_keys)
     all_coeffs = {key: None for key in relevant_keys}
     # all_sph = None
     # all_scale = None
