@@ -140,6 +140,7 @@ if args.center_energy:
 
 # determine weights of different quantities for scaling loss
 loss_weights = {}
+loss_weights['df_coeffs'] = args.df_weight
 loss_weights['density'] = args.density_weight
 loss_weights['energy'] = args.energy_weight
 loss_weights['forces'] = args.forces_weight
