@@ -40,7 +40,7 @@ class ErrorDict:
         else:
             self.max_errors = max_errors
         if self.loss_comp is None:
-            self.loss_comp = {key: 'mae+rmse' for key in self.loss_weights.keys()}
+            self.loss_comp = {key: 'mae' for key in self.loss_weights.keys()}
 
     def compute(self, predictions, data, exclude_energy_min=False):
         error_dict = {}
