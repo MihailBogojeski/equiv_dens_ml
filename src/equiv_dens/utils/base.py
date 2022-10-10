@@ -640,7 +640,7 @@ def get_atom_num_first_positions(atom_numbers):
     return atom_numbers_first_positions
 
             
-def calc_dict_to_npy(data, convert_forces=True):
+def calc_dict_to_npy(data, convert_forces=True, compress_atoms=True):
     data_npy = {}
     data_npy['energy'] = []
     data_npy['forces'] = []
@@ -669,17 +669,21 @@ def calc_dict_to_npy(data, convert_forces=True):
         data_npy['positions'].append(pos)
         data_npy['atom_numbers'].append(z)
         data_npy['atom_types'].append(z)
-    print('data_npy atom numbers', data_npy['atom_numbers'][:10])
-    print('data_npy pos', data_npy['positions'][:10])
-    atom_numbers, props = compress_batch_atoms(data_npy['atom_numbers'],
-                                               {'positions': data_npy['positions'],
-                                                'forces': data_npy['forces']})
+    # print('data_npy atom numbers', data_npy['atom_numbers'][:10])
+    # print('data_npy pos', data_npy['positions'][:10])
+    if compress_atoms:
+        atom_numbers, props = compress_batch_atoms(data_npy['atom_numbers'],
+                                                   {'positions': data_npy['positions'],
+                                                    'forces': data_npy['forces']})
+    else:
+        atom_numbers = np.array(data_npy['atom_numbers'])
+        props = {'positions': np.array(data_npy['positions']), 'forces': np.array(data_npy['forces'])}
     data_npy['positions'] = props['positions'] 
-    print(data_npy['positions'].shape)
+    # print(data_npy['positions'].shape)
     data_npy['atom_numbers'] = atom_numbers.astype(int)
-    print(data_npy['atom_numbers'].shape)
-    print('data_npy atom numbers new', data_npy['atom_numbers'][:10])
-    print('data_npy pos new', data_npy['positions'][:10])
+    # print(data_npy['atom_numbers'].shape)
+    # print('data_npy atom numbers new', data_npy['atom_numbers'][:10])
+    # print('data_npy pos new', data_npy['positions'][:10])
     data_npy['forces'] = props['forces'] 
     data_npy['energy'] = np.stack(data_npy['energy'], 0)[:, None]
     return data_npy
