@@ -85,6 +85,13 @@ class AtomsDensityData(Dataset):
         self.projected_density = projected_density
         if required_properties is None:
             self.required_properties = self.available_properties
+        if 'dipole_moment' in self.required_properties:
+            if 'density' not in self.required_properties:
+                self.required_properties.append('density')
+            self.required_properties.remove('dipole_moment')
+            self.calc_dpm = True
+        else:
+            self.calc_dpm = False
         self.centered_positions = center_positions
         self.atoms = np.load(np_path, allow_pickle=True).item()
         if self.atoms['atom_numbers'].ndim == 1:
