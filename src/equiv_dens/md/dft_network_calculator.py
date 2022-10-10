@@ -44,6 +44,7 @@ class DFTNetworkCalculator(MDCalculator):
         else:
             self.grid_spec = grid_spec
         self.density_expansion = density_expansion
+        self.detach = detach
 
     def calculate(self, system):
         """
@@ -78,7 +79,7 @@ class DFTNetworkCalculator(MDCalculator):
                 )
             else:
                 # Detach properties if requested
-                self.results[p] = results[p].detach()
+                self.results[p] = results[p]
         # print('system before', system.properties)
         self._update_system(system)
         # print('system after', system.properties)
