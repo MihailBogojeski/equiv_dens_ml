@@ -264,6 +264,8 @@ for test_batch_num, data in enumerate(test_data_loader):
     for key in errors.keys():
         test_errors[key] += (errors[key].item() -
                              test_errors[key]) / (test_batch_num + 1)
+    if 'density' in predictions.keys():
+        print('density shape', predictions['density'].shape)
     predictions = None
     data = None
     errors = None
