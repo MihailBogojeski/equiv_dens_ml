@@ -48,7 +48,7 @@ def run_molecular_dynamics(args, dataset, model):
 
     # Load the structure
     md_system.load_molecules(mols)
-    system_temperature = 300  # Kelvin
+    system_temperature = args.temperature  # Kelvin
 
     # Set up the initializer
     md_initializer = MaxwellBoltzmannInit(
@@ -84,18 +84,20 @@ def run_molecular_dynamics(args, dataset, model):
         grid_spec=dataset.grid_spec,
         grid_sampling_fn=dataset.sampling_fn,
         use_gpu=args.use_gpu,
-        detach=False,
+        detach=True,
     )
 
-    # Set temperature and thermostat constant
-    # bath_temperature = 300  # K
-    # time_constant = 100  # fs
-
     simulation_hooks = []
+    if args.langevin:
+        # Set temperature and thermostat constant
+        bath_temperature = args.temperature  # K
+        time_constant = 100  # fs
 
-    # Initialize the thermostat
-    # langevin = thermostats.LangevinThermostat(bath_temperature, time_constant)
-    # simulation_hooks.append(langevin)
+
+        # Initialize the thermostat
+        langevin = thermostats.LangevinThermostat(bath_temperature, time_constant)
+        simulation_hooks.append(langevin)
+        print('initialized thermostat')
 
     if args.log_suffix != '':
         args.log_suffix = '_' + args.log_suffix
