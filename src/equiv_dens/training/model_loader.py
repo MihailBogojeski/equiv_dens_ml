@@ -189,7 +189,7 @@ def load_model(args, dataset, train=False):
 
     property_models = {}
     calculate_forces_dict = {}
-    if args.density_weight + dipole_moment_weight > 0:
+    if args.density_weight + args.dipole_moment_weight > 0:
         property_models['density'] = expansion_model
         calculate_forces_dict['density'] = False
     if args.energy_min_weight > 0:
