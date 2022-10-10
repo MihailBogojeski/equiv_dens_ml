@@ -97,10 +97,12 @@ else:
 
 if checkpoint is None or 'training_phases' not in checkpoint:
     training_phases = []
-    if args.density_weight > 0:
-        training_phases.append('df_coeffs')
     if args.df_weight > 0:
+        training_phases.append('df_coeffs')
+    if args.density_weight > 0:
         training_phases.append('density')
+    if args.dipole_moment_weight > 0:
+        training_phases.append('dipole_moment')
     if args.energy_weight > 0:
         training_phases.append('energy')
 else:
@@ -115,6 +117,7 @@ learning_rate = args.learning_rate
 for phase in training_phases:
     args.df_weight = 0.0 
     args.density_weight = 0.0
+    args.dipole_moment_weight = 0.0
     args.energy_weight = 0.0
     args.forces_weight = 0.0
     args.learning_rate = learning_rate
@@ -123,6 +126,12 @@ for phase in training_phases:
     elif phase == 'density':
         args.density_weight = density_weight
         if df_weight > 0:
+            args.learning_rate = args.learning_rate / 10
+    elif phase == 'dipole_moment':
+        args.density_weight = density_weight
+        if density_weight > 0:
+            args.learning_rate = args.learning_rate / 50
+        elif df_weight > 0:
             args.learning_rate = args.learning_rate / 10
     elif phase == 'energy':
         args.energy_weight = energy_weight
@@ -133,6 +142,10 @@ for phase in training_phases:
         required_properties.append('density')
     if args.df_weight > 0:
         required_properties.append('df_coeffs')
+    if args.dipole_moment_weight > 0:
+        if 'density' not in required_properties:
+            required_properties.append('density')
+        required_properties.append('dipole_moment')
     if args.energy_weight > 0:
         required_properties.append('energy')
     if args.forces_weight > 0:
@@ -140,6 +153,7 @@ for phase in training_phases:
 
     print('args_df_weight', args.df_weight)
     print('args_density_weight', args.density_weight)
+    print('args_dipole_moment_weight', args.dipole_moment_weight)
     print('args_energy_weight', args.energy_weight)
     print('args_forces_weight', args.forces_weight)
 
@@ -274,24 +288,28 @@ for phase in training_phases:
 
     loss_weights = {}
     loss_weights['density'] = args.density_weight
+    loss_weights['dipole_moment'] = args.dipole_moment_weight
     loss_weights['df_coeffs'] = args.df_weight
     loss_weights['energy'] = args.energy_weight
     loss_weights['forces'] = args.forces_weight
     loss_weights['energy_min'] = args.energy_min_weight
     weights_decay = {}
     weights_decay['density'] = args.density_weight_decay
+    weights_decay['dipole_moment'] = args.dipole_moment_weight_decay
     weights_decay['df_coeffs'] = args.df_weight_decay
     weights_decay['energy'] = args.energy_weight_decay
     weights_decay['forces'] = args.forces_weight_decay
     weights_decay['energy_min'] = args.energy_min_weight_decay
     weights_min = {}
     weights_min['density'] = args.density_weight_min
+    weights_min['dipole_moment'] = args.dipole_moment_weight_min
     weights_min['df_coeffs'] = args.df_weight_min
     weights_min['energy'] = args.energy_weight_min
     weights_min['forces'] = args.forces_weight_min
     weights_min['energy_min'] = args.energy_min_weight_min
     loss_comp = {}
     loss_comp['density'] = args.density_loss_comp
+    loss_comp['dipole_moment'] = args.dipole_moment_loss_comp
     loss_comp['df_coeffs'] = args.df_loss_comp
     loss_comp['energy'] = args.energy_loss_comp
     loss_comp['forces'] = args.forces_loss_comp
