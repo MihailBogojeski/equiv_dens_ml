@@ -66,7 +66,6 @@ class ErrorDict:
 
                     if key == "energy" and self.relative_en:
                         en_offset = torch.mean(predictions[key]) - torch.mean(data[key])
-                        print('en_offset', en_offset)
                         diff = diff - en_offset
                     # print('error key', key)
                     # print('pred.shape', predictions[key].shape)

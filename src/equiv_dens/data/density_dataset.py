@@ -70,7 +70,7 @@ class AtomsDensityData(Dataset):
         self.orbitals_path = orbitals_path
         self.density_n_samp = density_n_samp
         self.subset = subset
-        self.required_properties = required_properties
+        self.required_properties = [prop for prop in required_properties]
         self.radial_coeffs_file = radial_coeffs_file
         self.L0_coeffs_file = L0_coeffs_file
         self.grid_fn = grid_fn
@@ -312,6 +312,9 @@ class AtomsDensityData(Dataset):
         # print('idx_is', idx_is)
         # print('idx_js', idx_js)
         # print('batch_idx', batch_idx)
+        if self.calc_dpm:
+            properties = orbitals.calc_dipole_moment(properties) 
+
         for prop in self.fixed_properties.keys():
             properties[prop] = self.fixed_properties[prop]
 
