@@ -70,7 +70,7 @@ class AtomsDensityData(Dataset):
         self.orbitals_path = orbitals_path
         self.density_n_samp = density_n_samp
         self.subset = subset
-        self.required_properties = required_properties
+        self.required_properties = [prop for prop in required_properties]
         self.radial_coeffs_file = radial_coeffs_file
         self.L0_coeffs_file = L0_coeffs_file
         self.grid_fn = grid_fn
@@ -337,6 +337,9 @@ class AtomsDensityData(Dataset):
             # print('atom center', positions.mean(axis=0))
             positions -= torch.sum(positions * atom_numbers, 0)/torch.sum(atom_numbers, 1)
         properties["_idx"] = torch.LongTensor(np.array(idx, dtype=np.int))
+        if self.calc_dpm:
+            properties = orbitals.calc_dipole_moment(properties) 
+
         nl = utils.TorchNeighborList(self.cutoff)
         idx_is, idx_js, _ = nl.get_neighbors(properties)
         neighbor_batch_idx = []

@@ -111,7 +111,7 @@ def load_model(args, dataset, train=False):
         normalize=args.normalize,
     )
 
-    if args.density_weight > 0:
+    if args.density_weight + args.dipole_moment_weight > 0:
         expansion_model = density_expansion(dataset.orbital_basis_num, radial_coeffs=dataset.radial_coeffs,
                                             expansion_constraint=args.expansion_constraint,
                                             integral_constraint=args.integral_constraint,
@@ -189,6 +189,8 @@ def load_model(args, dataset, train=False):
 
     property_models = {}
     calculate_forces_dict = {}
+    print('density_weight', args.density_weight)
+    print('dipole_moment_weight', args.dipole_moment_weight)
     if args.density_weight + args.dipole_moment_weight > 0:
         property_models['density'] = expansion_model
         calculate_forces_dict['density'] = False
