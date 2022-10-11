@@ -110,6 +110,7 @@ else:
 ongoing_phases = [phase for phase in training_phases]
 df_weight = args.df_weight 
 density_weight = args.density_weight 
+dipole_moment_weight = args.dipole_moment_weight 
 energy_weight = args.energy_weight
 forces_weight = args.forces_weight 
 learning_rate = args.learning_rate
@@ -128,7 +129,7 @@ for phase in training_phases:
         if df_weight > 0:
             args.learning_rate = args.learning_rate / 10
     elif phase == 'dipole_moment':
-        args.density_weight = density_weight
+        args.dipole_moment_weight = dipole_moment_weight
         if density_weight > 0:
             args.learning_rate = args.learning_rate / 50
         elif df_weight > 0:
@@ -150,12 +151,6 @@ for phase in training_phases:
         required_properties.append('energy')
     if args.forces_weight > 0:
         required_properties.append('forces')
-
-    print('args_df_weight', args.df_weight)
-    print('args_density_weight', args.density_weight)
-    print('args_dipole_moment_weight', args.dipole_moment_weight)
-    print('args_energy_weight', args.energy_weight)
-    print('args_forces_weight', args.forces_weight)
 
     dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_dataset,
                                orbitals_path=args.orbitals_file,
@@ -525,11 +520,14 @@ print('Starting test evaluation!!!')
 
 args.df_weight = 0.0 
 args.density_weight = 1.0
+args.dipole_moment_weight = dipole_moment_weight 
 args.energy_weight = 1.0
 args.forces_weight = 1.0
 required_properties = []
-if args.density_weight > 0:
+if args.density_weight + args.dipole_moment_weight > 0:
     required_properties.append('density')
+if args.dipole_moment_weight > 0:
+    required_properties.append('dipole_moment')
 if args.df_weight > 0:
     required_properties.append('df_coeffs')
 if args.energy_weight > 0:
@@ -550,7 +548,8 @@ dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_datas
                            sampling_fn=sampling_fn,
                            grid_extent=grid_extent,
                            grid_origin=grid_origin,
-                           verbose=args.verbose)
+                           verbose=args.verbose,
+                           df_loss_weights=args.df_loss_weights)
 
 # split into train / valid / test
 if data_split_indices is None and args.np_dataset_valid is None:
@@ -575,7 +574,8 @@ elif args.np_dataset_valid is not None:
                                      sampling_fn=sampling_fn,
                                      grid_extent=grid_extent,
                                      grid_origin=grid_origin,
-                                     verbose=args.verbose)
+                                     verbose=args.verbose,
+                                     df_loss_weights=args.df_loss_weights)
     if data_split_indices is None or args.ignore_split_indices:
         train_inds = np.random.choice(np.arange(len(dataset)), args.num_train, replace=False)
         valid_inds = np.random.choice(np.arange(len(valid_dataset)), args.num_valid, replace=False)
@@ -610,7 +610,9 @@ if args.np_dataset_test is not None:
                                     grid_fn=grid_fn,
                                     sampling_fn=sampling_fn,
                                     grid_extent=grid_extent,
-                                    grid_origin=grid_origin)
+                                    grid_origin=grid_origin,
+                                    verbose=args.verbose,
+                                    df_loss_weights=args.df_loss_weights)
 
     if args.num_test is not None:
         test_size = args.num_test
@@ -665,8 +667,10 @@ test_data_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.tes
 
 loss_weights = {}
 loss_weights['density'] = args.density_weight
+loss_weights['dipole_moment'] = args.dipole_moment_weight
 loss_weights['energy'] = args.energy_weight
 loss_weights['forces'] = args.forces_weight
+print('loss weights test', loss_weights)
 
 error_dict = ErrorDict(loss_weights, weights_balance=args.weights_balance,
                        percentage_error=args.percentage_error,
@@ -690,7 +694,7 @@ for test_batch_num, data in enumerate(valid_data_loader):
     data = model.conversions_out(data)
     # print(lkajsdlkjasfd)
     # print('energy pred', predictions['energy'])
-    if args.verbose > -1:
+    if args.verbose > 1:
         if 'density' in predictions.keys():
             print('test density intergal', torch.sum(predictions['density'] * predictions['coord_weights'], dim=1))
             print('true density intergal', torch.sum(data['density'] * data['coord_weights'], dim=1))
