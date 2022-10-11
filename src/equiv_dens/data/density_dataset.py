@@ -357,6 +357,47 @@ class AtomsDensityData(Dataset):
 
         return properties
 
+
+    def get_basic_properties(self, idx):
+        idx = self._subset_index(idx)
+        if not hasattr(idx, '__len__'):
+            idx = [idx]
+
+        # extract properties
+        atom_numbers = self.atoms['atom_numbers'][idx]
+        atom_props = {'positions': self.atoms['positions'][idx]}
+        mol_props = {}
+        for pname in self.required_properties:
+            if pname in self.atoms.keys():
+                if self.atoms[pname][0].shape[0] > 1:
+                    atom_props[pname] = self.atoms[pname][idx]
+                else:
+                    mol_props[pname] = self.atoms[pname][idx]
+            elif pname == 'df_coeffs':
+                atom_props[pname] = [self.density_fitting[pname][i] for i in idx]
+
+        # print('atom numbers', atom_numbers)
+        # print('props', atom_props)
+        atom_numbers, props = utils.compress_batch_atoms(atom_numbers, atom_props, basis_size=self.orbital_basis_size)
+        props.update(mol_props)
+        # atom_numbers = torch.from_numpy(atom_numbers).type(self.dtype)
+        positions = torch.from_numpy(props['positions']).type(self.dtype)
+        properties = {}
+        # extract/calculate structure
+        properties['positions'] = positions
+        properties['atom_numbers'] = torch.LongTensor(atom_numbers)
+        # properties['ions'] = [self.ions[i] for i in idx]
+        # print('positions', positions)
+        if self.centered_positions:
+            # print('atom center', positions.mean(axis=0))
+            positions -= torch.sum(positions * atom_numbers, 0)/torch.sum(atom_numbers, 1)
+        properties["_idx"] = torch.LongTensor(np.array(idx, dtype=np.int))
+        
+        for prop in self.fixed_properties.keys():
+            properties[prop] = self.fixed_properties[prop]
+
+        return properties
+
     def get_coords(self, positions, atom_numbers):
         if self.use_gpu:
             positions = positions.cuda()
