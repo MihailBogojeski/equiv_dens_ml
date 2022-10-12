@@ -5,7 +5,7 @@ from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
 from equiv_dens.nn.modules.spherical_harmonic_layers import SphericalLinear
 from equiv_dens.utils.spherical_harmonics import spherical_harmonics
 from equiv_dens.utils.orbitals import combine_orbital_basis,\
-    gaussian_rbf, get_max_order, get_n_electrons, coeffs_dict_to_vector
+    gaussian_rbf, get_max_order, get_n_electrons, coeffs_dict_to_vector_new
 from equiv_dens.utils.base import calculate_distances_and_directions
 import numpy as np
 import time

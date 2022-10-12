@@ -63,7 +63,7 @@ class AtomsDensityData(Dataset):
         radii_adjust=True,
         projected_density=False,
         cutoff=7.937658158457616,
-        df_loss_weights=True,
+        df_loss_weights=False,
     ):
         self.density_path = density_path
         self.np_path = np_path
