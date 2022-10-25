@@ -87,6 +87,7 @@ def transform(df_coeffs, atoms, convention='pyscf_augccpvqzjkfit'):
     conv = convention_dict[convention]
     orbitals = []
     orbitals_order = []
+    # print('atom_numbers', atoms.shape)
     atom_numbers, _ = torch.max(atoms, dim=0)
     # print('df coeffs shape', df_coeffs.shape)
     # print('atom numbers shape', atom_numbers.shape)
