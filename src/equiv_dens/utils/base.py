@@ -477,7 +477,7 @@ def compute_shifts(cell, pbc, cutoff):
     # type: (Tensor, Tensor, float) -> Tensor
     reciprocal_cell = cell.inverse().t()
     inv_distances = reciprocal_cell.norm(2, -1)
-    num_repeats = torch.ceil(cutoff * inv_distances).to(torch.long)
+    num_repeats = torch.ceil(cutoff * inv_distances).to(pbc).type(torch.long)
     num_repeats = torch.where(pbc, num_repeats, torch.zeros_like(num_repeats))
 
     r1 = torch.arange(1, num_repeats[0] + 1, device=cell.device)
@@ -624,6 +624,42 @@ def compress_batch_atoms(numbers, props_dict, basis_size=None):
 
     return batch_nums, batch_props
 
+
+def batch_compressed_atoms(atoms, relevant_keys):
+    atom_numbers = atoms['atom_numbers']
+    batch_idx = atoms['atom_batch_idx']
+    batch_nums = atoms['batch_atom_numbers']
+    atom_count = atom_numbers.shape[1]
+    batch_size = batch_nums.shape[0]
+    batch_atom_count = batch_nums.shape[1]
+    batch_props = {key: torch.zeros((batch_size, batch_atom_count, atoms[key].shape[-1])).to(atoms[key]) for key in relevant_keys}
+    atom_idx = 0
+    prev_z = int(atom_numbers[0, 0])
+    prev_batch_num = int(batch_idx[:, 0])
+
+    for i in range(atom_count):
+        z = int(atom_numbers[0, i])
+        batch_num = int(atoms['atom_batch_idx'][:, i])
+        # print('atom count', i)
+        # print('z', z)
+        # print('prev z', prev_z)
+        # print('batch num', batch_num)
+        # print('prev batch num', prev_batch_num)
+        if z != prev_z or batch_num != prev_batch_num:
+            atom_idx = atoms['atom_numbers_first_positions'][z]
+        prev_z = z
+        # print('atom_idx', atom_idx)
+        prev_batch_num = batch_num
+        for key in relevant_keys:
+            batch_props[key][batch_num, atom_idx] = atoms[key][0, i]
+        atom_idx += 1
+
+    for key in relevant_keys:
+        atoms[key] = batch_props[key]
+
+    return atoms
+
+
 def get_atom_num_first_positions(atom_numbers):
     if atom_numbers.ndim > 1:
         if isinstance(atom_numbers, np.ndarray):
@@ -686,4 +722,3 @@ def calc_dict_to_npy(data, convert_forces=True, compress_atoms=True):
     data_npy['forces'] = props['forces'] 
     data_npy['energy'] = np.stack(data_npy['energy'], 0)[:, None]
     return data_npy
-
