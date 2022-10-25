@@ -259,13 +259,13 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
                 else:
                     scale = np.sqrt(1/2)
                 fs[L] = ys[L] * scale + fs[L] * scale
-                print('module', i, 'fs[0]', fs[0])
+                # print('module', i, 'fs[0]', fs[0])
             # print('fs norm ', i, ':', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
         fs[0] = self.out_activation(fs[0])
 
         atom_en = self.energy_output(fs)[0].squeeze(-1).squeeze(-1)
 
-        energy = torch.zeros(1, atoms['batch_atom_numbers'].shape[0])
+        energy = torch.zeros(1, atoms['batch_atom_numbers'].shape[0]).to(atoms['positions'])
         energy = energy.scatter_add(1, atoms['atom_batch_idx'], atom_en)
         energy = torch.t(energy)
 

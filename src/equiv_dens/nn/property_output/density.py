@@ -5,7 +5,7 @@ from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
 from equiv_dens.nn.modules.spherical_harmonic_layers import SphericalLinear
 from equiv_dens.utils.spherical_harmonics import spherical_harmonics
 from equiv_dens.utils.orbitals import combine_orbital_basis,\
-    gaussian_rbf, get_max_order, get_n_electrons, coeffs_dict_to_vector_new
+    gaussian_rbf, get_max_order, get_n_electrons, coeffs_dict_to_vector
 from equiv_dens.utils.base import calculate_distances_and_directions
 import numpy as np
 import time
@@ -233,7 +233,6 @@ class DensityCoeffsNetwork(nn.Module):
             for orb in self.spherical_spec[z]:
                 L = orb[2]
                 key = (z, L)
-                print('atom idx', atom_idx, 'key', key)
                 inds = self.sph_dict[key]
                 sph_fs_i = sph_fs[L][:, [i], :, :]
                 if key not in spherical_coeffs[atom_idx].keys():
@@ -246,7 +245,6 @@ class DensityCoeffsNetwork(nn.Module):
                 if self.coeff_weights is not None:
                     coeff_weights[atom_idx][key] = torch.sum(self.coeff_weight(key), dim=-2, keepdim=True)
                     coeff_weights[atom_idx][key] = coeff_weights[atom_idx][key].expand(-1, -1 , spherical_coeffs[atom_idx][key].shape[-2], -1).clone()
-                print('coeff_weights shape', coeff_weights['atom_idx'][key].shape)
                 if self.pred_radial_coeffs and z != 0:
                     inds = self.rad_dict[key]
                     rad_w_i = rad_width[L][:, [i], :, :]
@@ -379,8 +377,8 @@ class DensityCoeffsNetwork(nn.Module):
         atoms['spherical_coeffs'], atoms['radial_width'], atoms['radial_scale'], atoms['coeff_weights'] =\
             self.extract_coefficients(out_sph, out_width, out_scale, atoms)
         all_coeffs = coeffs_dict_to_vector(atoms, self.orbital_basis,
-                                                   atoms['batch_atom_numbers'],
-                                                    radial_coeffs=False, coeff_weighting=coeff_weighting)
+                                           atoms['batch_atom_numbers'],
+                                           radial_coeffs=False, coeff_weighting=coeff_weighting)
         atoms['df_coeffs'] = all_coeffs['spherical_coeffs'] 
         if coeff_weighting:
             atoms['df_weights'] = all_coeffs['coeff_weights'] 
