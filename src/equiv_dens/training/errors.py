@@ -51,6 +51,9 @@ class ErrorDict:
             coord_weights = None
         for key in self.loss_weights.keys():
             if self.loss_weights[key] > 0:
+                print('key', key)
+                print('predictions shape', predictions[key].shape)
+                print('data shape', data[key].shape)
                 if key == "energy_min":
                     if exclude_energy_min:
                         continue
