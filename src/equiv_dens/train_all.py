@@ -114,6 +114,7 @@ dipole_moment_weight = args.dipole_moment_weight
 energy_weight = args.energy_weight
 forces_weight = args.forces_weight 
 learning_rate = args.learning_rate
+stop_at_learning_rate = args.stop_at_learning_rate
 
 for phase in training_phases:
     args.df_weight = 0.0 
@@ -122,6 +123,7 @@ for phase in training_phases:
     args.energy_weight = 0.0
     args.forces_weight = 0.0
     args.learning_rate = learning_rate
+    args.stop_at_learning_rate = stop_at_learning_rate
     if phase == 'df_coeffs':
         args.df_weight = df_weight 
     elif phase == 'density':
@@ -131,7 +133,8 @@ for phase in training_phases:
     elif phase == 'dipole_moment':
         args.dipole_moment_weight = dipole_moment_weight
         if density_weight > 0:
-            args.learning_rate = args.learning_rate / 50
+            args.learning_rate = args.learning_rate / 100
+            args.stop_at_learning_rate = args.stop_at_learning_rate/10
         elif df_weight > 0:
             args.learning_rate = args.learning_rate / 10
     elif phase == 'energy':
