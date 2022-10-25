@@ -51,9 +51,9 @@ class ErrorDict:
             coord_weights = None
         for key in self.loss_weights.keys():
             if self.loss_weights[key] > 0:
-                print('key', key)
-                print('predictions shape', predictions[key].shape)
-                print('data shape', data[key].shape)
+                # print('key', key)
+                # print('predictions shape', predictions[key].shape)
+                # print('data shape', data[key].shape)
                 if key == "energy_min":
                     if exclude_energy_min:
                         continue
@@ -63,7 +63,7 @@ class ErrorDict:
                 else:
                     diff = predictions[key] - (data[key])
                     if key == 'df_coeffs':
-                        diff = predictions[key] - transform_df_coeffs.transform(data[key], data['atom_numbers']) 
+                        diff = predictions[key] - transform_df_coeffs.transform(data[key], data['batch_atom_numbers']) 
                         if self.df_loss_weights:
                             diff = diff * predictions['df_weights']
 
