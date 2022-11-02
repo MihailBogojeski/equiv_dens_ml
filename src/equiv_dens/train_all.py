@@ -677,7 +677,7 @@ test_data_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.tes
 
 loss_weights = {}
 loss_weights['density'] = args.density_weight
-loss_weights['dipole_moment'] = args.dipole_moment_weight
+loss_weights['dipole_moment'] = args.density_weight
 loss_weights['energy'] = args.energy_weight
 loss_weights['forces'] = args.forces_weight
 print('loss weights test', loss_weights)
