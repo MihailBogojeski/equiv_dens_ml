@@ -260,7 +260,7 @@ class Trainer:
         start_time = time.time()
         while self.step < n_steps + 1:
             # get the next batch
-            self._train_step(use_gpu)
+            self._train_step(use_gpu, backprop=(self.step != 0))
             # run validation each validation_interval
             if self.step % self.validation_interval == 0:
                 if self.verbose > 0:
@@ -324,7 +324,7 @@ class Trainer:
         # close summary writer
         self.summary.close()
 
-    def _train_step(self, use_gpu):
+    def _train_step(self, use_gpu, backprop=True):
         start = time.time()
         try:
             data = next(self.train_iterator)
@@ -413,22 +413,23 @@ class Trainer:
         #         print('prediction type', key, predictions[key].type())
         #         print('prediction grad fn', key, predictions[key].grad_fn)
         # print(errors['loss'].type())
-        errors['loss'].backward()
-        if self.timing:
-            print('backward time', time.time() - start_bw)
-        # if self.verbose > 2:
-        #     print('train step after backward:', torch.cuda.memory_summary())
+        if backprop:
+            errors['loss'].backward()
+            if self.timing:
+                print('backward time', time.time() - start_bw)
+            # if self.verbose > 2:
+            #     print('train step after backward:', torch.cuda.memory_summary())
 
-        # apply gradient clipping
-        if self.clip_norm > 0:
-            norm = torch.nn.utils.clip_grad_norm_(
-                self._module.parameters(), self.clip_norm)
-            self.gradient_norm += (norm - self.gradient_norm) / (self.train_batch_num + 1)
+            # apply gradient clipping
+            if self.clip_norm > 0:
+                norm = torch.nn.utils.clip_grad_norm_(
+                    self._module.parameters(), self.clip_norm)
+                self.gradient_norm += (norm - self.gradient_norm) / (self.train_batch_num + 1)
 
-        # optimization step
-        start_step = time.time()
-        for optimizer in self.optimizers:
-            optimizer.step()
+            # optimization step
+            start_step = time.time()
+            for optimizer in self.optimizers:
+                optimizer.step()
         if self.timing:
             print('step time', time.time() - start_step)
 
