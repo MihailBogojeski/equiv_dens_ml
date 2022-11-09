@@ -72,6 +72,10 @@ else:
 required_properties = []
 if args.density_weight > 0:
     required_properties.append('density')
+if args.df_weight > 0:
+    required_properties.append('df_coeffs')
+if args.dipole_moment_weight > 0:
+    required_properties.append('dipole_moment')
 if args.energy_weight > 0:
     required_properties.append('energy')
 if args.forces_weight > 0:
@@ -219,6 +223,7 @@ test_data_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.tes
                                                collate_fn=collate_fn)
 
 # define model
+print('args.df_weight', args.df_weight)
 model = load_model(args, dataset)
 
 if use_gpu:
@@ -258,6 +263,8 @@ for test_batch_num, data in enumerate(test_data_loader):
 
     # print('spherical density integral', torch.sum(predictions['density'] * data['coord_weights'], dim=-1))
     # compute error metrics
+    print('predictions keys', predictions.keys())
+    print('data keys', data.keys())
     errors = error_dict.compute(predictions, data)
 
     # update test_errors (running average)
