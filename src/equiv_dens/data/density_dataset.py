@@ -337,8 +337,6 @@ class AtomsDensityData(Dataset):
             # print('atom center', positions.mean(axis=0))
             positions -= torch.sum(positions * atom_numbers, 0)/torch.sum(atom_numbers, 1)
         properties["_idx"] = torch.LongTensor(np.array(idx, dtype=np.int))
-        if self.calc_dpm:
-            properties = orbitals.calc_dipole_moment(properties) 
 
         nl = utils.TorchNeighborList(self.cutoff)
         idx_is, idx_js, _ = nl.get_neighbors(properties)
@@ -378,6 +376,9 @@ class AtomsDensityData(Dataset):
             properties['batch_forces'] = properties['forces'] * 1
             properties['forces'] = properties['forces'].view(1, -1, *properties['forces'].shape[2:])
             properties['forces'] = properties['forces'][:, properties['atom_mask']]
+
+        if self.calc_dpm:
+            properties = orbitals.calc_dipole_moment(properties) 
 
         for prop in self.fixed_properties.keys():
             properties[prop] = self.fixed_properties[prop]
