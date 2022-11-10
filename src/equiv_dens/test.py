@@ -148,6 +148,7 @@ if args.center_energy:
 loss_weights = {}
 loss_weights['df_coeffs'] = args.df_weight
 loss_weights['density'] = args.density_weight
+loss_weights['dipole_moment'] = args.dipole_moment_weight
 loss_weights['energy'] = args.energy_weight
 loss_weights['forces'] = args.forces_weight
 loss_weights['energy_min'] = args.energy_min_weight
@@ -263,16 +264,12 @@ for test_batch_num, data in enumerate(test_data_loader):
 
     # print('spherical density integral', torch.sum(predictions['density'] * data['coord_weights'], dim=-1))
     # compute error metrics
-    print('predictions keys', predictions.keys())
-    print('data keys', data.keys())
     errors = error_dict.compute(predictions, data)
 
     # update test_errors (running average)
     for key in errors.keys():
         test_errors[key] += (errors[key].item() -
                              test_errors[key]) / (test_batch_num + 1)
-    if 'density' in predictions.keys():
-        print('density shape', predictions['density'].shape)
     predictions = None
     data = None
     errors = None

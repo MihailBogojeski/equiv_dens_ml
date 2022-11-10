@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 import equiv_dens.scripts.transform_df_coeffs as transform_df_coeffs
+from equiv_dens.utils import orbitals
 
 
 _sqrt2 = np.sqrt(2)
@@ -62,6 +63,12 @@ class ErrorDict:
                     error_dict[key + "_rmse"] = loss
                 else:
                     diff = predictions[key] - (data[key])
+                    # if key == 'dipole_moment':
+                    #     # print('predictions', predictions[key])
+                    #     # print('data', data[key])
+                    #     # print('diff', diff)
+                    #     # print('calc dipole predictions', orbitals.calc_dipole_moment(predictions)['dipole_moment'])
+                    #     # print('calc dipole data', orbitals.calc_dipole_moment(data)['dipole_moment'])
                     if key == 'df_coeffs':
                         diff = predictions[key] - transform_df_coeffs.transform(data[key], data['batch_atom_numbers']) 
                         if self.df_loss_weights:

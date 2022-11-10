@@ -5,6 +5,7 @@ import ase.io
 import torch
 import ase.data
 import pyscf
+from pyscf.data import nist
 import math
 
 to_bohr = 1/pyscf.lib.param.BOHR
@@ -65,6 +66,12 @@ def kcal_to_eV(en):
 
 def kcal_to_kelvin(en):
     return en / 0.001987191686485529
+
+def au_to_debye(dpm):
+    return dpm * nist.AU2DEBYE
+
+def internal_to_debye(dpm):
+    return dpm * nist.AU2DEBYE * to_bohr
 
 
 def random_rotation_matrix():
