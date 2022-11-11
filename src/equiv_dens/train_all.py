@@ -115,6 +115,10 @@ energy_weight = args.energy_weight
 forces_weight = args.forces_weight 
 learning_rate = args.learning_rate
 stop_at_learning_rate = args.stop_at_learning_rate
+validation_interval = args.validation_interval
+decay_patience = args.decay_patience
+max_steps = args.max_steps
+
 
 for phase in training_phases:
     args.df_weight = 0.0 
@@ -124,8 +128,15 @@ for phase in training_phases:
     args.forces_weight = 0.0
     args.learning_rate = learning_rate
     args.stop_at_learning_rate = stop_at_learning_rate
+    args.validation_interval = validation_interval
+    args.decay_patience = decay_patience
+    args.max_steps = max_steps
     if phase == 'df_coeffs':
         args.df_weight = df_weight 
+        if density_weight > 0:
+            args.max_steps = args.max_steps / 10
+            args.validation_interval = args.validation_interval / 10
+            args.decay_patience = args.decay_patience * 2 
     elif phase == 'density':
         args.density_weight = density_weight
         if df_weight > 0:
