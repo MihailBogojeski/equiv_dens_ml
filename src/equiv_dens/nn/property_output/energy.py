@@ -524,6 +524,8 @@ class RepresentationEnergyNetwork(nn.Module):
 
         atom_en = self.energy_output(fs)[0].squeeze(-1).squeeze(-1)
 
+        print('atom_en shape', atom_en.shape)
+        print('positions shape', atoms['positions'].shape)
         energy = torch.zeros(1, atoms['batch_atom_numbers'].shape[0]).to(atoms['positions'])
         energy = energy.scatter_add(1, atoms['atom_batch_idx'], atom_en)
         energy = torch.t(energy)

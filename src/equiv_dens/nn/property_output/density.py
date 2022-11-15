@@ -6,7 +6,7 @@ from equiv_dens.nn.modules.spherical_harmonic_layers import SphericalLinear
 from equiv_dens.utils.spherical_harmonics import spherical_harmonics
 from equiv_dens.utils.orbitals import combine_orbital_basis,\
     gaussian_rbf, get_max_order, get_n_electrons, coeffs_dict_to_vector
-from equiv_dens.utils.base import calculate_distances_and_directions
+from equiv_dens.utils.base import calculate_distances_and_directions, batch_compressed_atoms_v2
 import numpy as np
 import time
 
@@ -192,89 +192,66 @@ class DensityCoeffsNetwork(nn.Module):
     """
 
     def extract_coefficients(self, sph_fs, rad_width, rad_scale, atoms):
-        extract_start = time.time()
-        atom_numbers = atoms['atom_numbers']
-        atom_count = atom_numbers.shape[1]
-        batch_atom_numbers = atoms['batch_atom_numbers']
-        batch_size = batch_atom_numbers.shape[0]
-        batch_atom_count = batch_atom_numbers.shape[1]
-        spherical_coeffs = [None] * batch_atom_count
-        radial_width = [None] * batch_atom_count
-        radial_scale = [None] * batch_atom_count
-        coeff_weights = [None] * batch_atom_count 
-        # print('batch atom numbers max', torch.max(batch_atom_numbers, dim=0)[0])
-        # print('batch_atom_numbers shape', batch_atom_numbers.shape)
-        # print('atom numbers positions', atoms['atom_numbers_first_positions'])
-        # print('atom batch idx', atoms['atom_batch_idx'])
-        # print('atom batch idx shape', atoms['atom_batch_idx'].shape)
-        # print('atom count', atom_count)
-        # print('batch size', batch_size)
-        # print('batch atom count', batch_atom_count)
-        atom_idx = 0
-        prev_z = int(atoms['atom_numbers'][0, 0])
-        prev_batch_num = int(atoms['atom_batch_idx'][:, 0])
-        for i in range(atom_count):
-            print('i', i)
-            iter_start = time.time()
-            z = int(atom_numbers[0, i])
-            batch_num = int(atoms['atom_batch_idx'][:, i])
-            # print('atom count', i)
-            # print('z', z)
-            # print('prev z', prev_z)
-            # print('batch num', batch_num)
-            # print('prev batch num', prev_batch_num)
-            if z != prev_z or batch_num != prev_batch_num:
-                atom_idx = atoms['atom_numbers_first_positions'][z]
-            prev_z = z
-            # print('atom_idx', atom_idx)
-            prev_batch_num = batch_num
-            if spherical_coeffs[atom_idx] is None:
-                spherical_coeffs[atom_idx] = {}
-                radial_width[atom_idx] = {}
-                radial_scale[atom_idx] = {}
-                coeff_weights[atom_idx] = {}
+        atom_numbers = atoms['batch_atom_numbers']
+        atom_num = sph_fs[0].shape[1]
+        spherical_coeffs = [None] * atom_num
+        radial_width = [None] * atom_num
+        radial_scale = [None] * atom_num
+        coeff_weights = [None] * atom_num
+        # print('len radial width', len(radial_width))
+        # print('len rad width', len(rad_width))
+        for i in range(atom_num):
+            spherical_coeffs[i] = {}
+            radial_width[i] = {}
+            radial_scale[i] = {}
+            coeff_weights[i] = {}
+            z = int(max(atom_numbers[:, i]))
+            if z == 0:
+                continue
             for orb in self.spherical_spec[z]:
-                orb_start = time.time()
                 L = orb[2]
                 key = (z, L)
                 inds = self.sph_dict[key]
                 sph_fs_i = sph_fs[L][:, [i], :, :]
-                if key not in spherical_coeffs[atom_idx].keys():
-                    create_start = time.time()
-                    spherical_coeffs[atom_idx][key] = torch.zeros(batch_size, *sph_fs_i.shape[1:-1], len(inds)).to(sph_fs_i)
-                    radial_width[atom_idx][key] = torch.zeros(*spherical_coeffs[atom_idx][key].shape[:2], self.r_max[key], orb[1]).to(sph_fs_i)
-                    radial_scale[atom_idx][key] = torch.zeros(*spherical_coeffs[atom_idx][key].shape[:2], self.r_max[key], orb[1]).to(sph_fs_i)
-                    # print('create time', time.time() - create_start)
-                #     print('sph zero init size', spherical_coeffs[atom_idx][key].shape)
-                # print('sph_fs_i shape', sph_fs_i.shape)
-                spherical_coeffs[atom_idx][key][batch_num, :] = sph_fs_i[0, ..., inds]
-                alloc_start = time.time()
+                # print('sph l=', L, 'shape:', sph_fs[L].shape)
+                # print('inds', inds)
+                spherical_coeffs[i][key] = sph_fs_i[..., inds]
                 if self.coeff_weights is not None:
-                    coeff_weights[atom_idx][key] = torch.sum(self.coeff_weight(key), dim=-2, keepdim=True)
-                    coeff_weights[atom_idx][key] = coeff_weights[atom_idx][key].expand(-1, -1 , spherical_coeffs[atom_idx][key].shape[-2], -1).clone()
-                # print('alloc time', time.time() - alloc_start)
-                radial_start = time.time()
+                    coeff_weights[i][key] = torch.sum(self.coeff_weight(key), dim=-2, keepdim=True)
+                    coeff_weights[i][key] = coeff_weights[i][key].expand(-1, -1 , spherical_coeffs[i][key].shape[-2], -1).clone()
+                # spherical_coeffs[i][key] = torch.ones_like(sph_fs_i[..., inds])
+                # print('spherical coeffs shape', spherical_coeffs[i][key].shape)
+                # print('i', i)
+                # print('L', L)
+                radial_width[i][key] = torch.zeros(*sph_fs_i.shape[:2], self.r_max[key], orb[1]).to(sph_fs_i)
+                radial_scale[i][key] = torch.zeros(*sph_fs_i.shape[:2], self.r_max[key], orb[1]).to(sph_fs_i)
                 if self.pred_radial_coeffs and z != 0:
                     inds = self.rad_dict[key]
                     rad_w_i = rad_width[L][:, [i], :, :]
                     rad_s_i = rad_scale[L][:, [i], :, :]
+                    # print('rad fs l=', L, 'shape:', rad_w_i.shape)
+                    # print('inds', inds)
                     r_curr = 0
                     for k, r_num in enumerate(self.radial_count[z][L]):
+                        # print('radial width ', i, key, 'shape', radial_width[i][key].shape)
                         rad_inds = inds[r_curr: r_curr + r_num]
                         r_curr += r_num
-                        radial_width[atom_idx][key][batch_num, ..., :r_num, k] = rad_w_i[0, ..., 0, rad_inds]
-                        radial_scale[atom_idx][key][batch_num, ..., :r_num, k] = rad_s_i[0, ..., 0, rad_inds]
+                        radial_width[i][key][..., :r_num, k] = rad_w_i[..., 0, rad_inds]
+                        radial_scale[i][key][..., :r_num, k] = rad_s_i[..., 0, rad_inds]
+                # print('radial width shape', radial_width[i][key].shape)
+                # print('radial width', radial_width[i][key][0])
+                # print('self.init coeffs', self.init_coeffs)
                 if self.init_coeffs is not None and L == 0:
-                    spherical_coeffs[atom_idx][key] = spherical_coeffs[atom_idx][key] + self.init_sph(key)
+                    # print('spherical_coeffs[i][key] before shape', spherical_coeffs[i][key].shape)
+                    # print('self.init_sph(i, key)', self.init_sph(i, key))
+                    spherical_coeffs[i][key] = spherical_coeffs[i][key] + self.init_sph(key)
                     if self.pred_radial_coeffs:
-                        radial_width[atom_idx][key] = torch.clamp(radial_width[atom_idx][key] + self.init_width(key), -0.999999, 0.99999)
-                        radial_scale[atom_idx][key] = radial_scale[atom_idx][key] + self.init_scale(key)
-                # print('radial time', time.time() - radial_start)
-            atom_idx += 1
-            print('extract iter time', time.time() - iter_start)
-        
-        print('extract internal time', time.time() - extract_start)
+                        radial_width[i][key] = torch.clamp(radial_width[i][key] + self.init_width(key), -0.999999, 0.99999)
+                        radial_scale[i][key] = radial_scale[i][key] + self.init_scale(key)
+                    # print('spherical_coeffs[i][key] after shape', spherical_coeffs[i][key].shape)
+
         return spherical_coeffs, radial_width, radial_scale, coeff_weights
+
 
     """
     Counts how many features of each order are needed to collect the orbital coefficients
@@ -360,6 +337,9 @@ class DensityCoeffsNetwork(nn.Module):
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
             print('Memory cached', torch.cuda.memory_cached() / 1024**2)
         start = time.time()
+        # atoms['sph_repr_batch'] = [repr * 1 for repr in atoms['sph_repr']]
+        # atoms = batch_compressed_atoms_v2(atoms, ['sph_repr_batch'])
+        # fs = atoms['sph_repr_batch']
         fs = atoms['sph_repr']
         if self.verbose > 3:
             print('distances', atoms['distances'])
@@ -386,22 +366,22 @@ class DensityCoeffsNetwork(nn.Module):
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
             print('Memory cached', torch.cuda.memory_cached() / 1024**2)
         coeff_weighting = self.coeff_weights is not None
-        if self.timing:
-            print('density coeffs setup time:', time.time() - start)
-        extract_start = time.time()
+        # if self.timing:
+        #     print('density coeffs setup time:', time.time() - start)
+        # extract_start = time.time()
         atoms['spherical_coeffs'], atoms['radial_width'], atoms['radial_scale'], atoms['coeff_weights'] =\
             self.extract_coefficients(out_sph, out_width, out_scale, atoms)
-        if self.timing:
-            print('density coeffs extract time:', time.time() - extract_start)
+        # if self.timing:
+        #     print('density coeffs extract time:', time.time() - extract_start)
         all_coeffs = coeffs_dict_to_vector(atoms, self.orbital_basis,
                                            atoms['batch_atom_numbers'],
                                            radial_coeffs=False, coeff_weighting=coeff_weighting)
-        df_start = time.time()
+        # df_start = time.time()
         atoms['df_coeffs'] = all_coeffs['spherical_coeffs'] 
         if coeff_weighting:
             atoms['df_weights'] = all_coeffs['coeff_weights'] 
-        if self.timing:
-            print('density coeffs df vector time:', time.time() - df_start)
+        # if self.timing:
+        #     print('density coeffs df vector time:', time.time() - df_start)
         if self.verbose > 2:
             print('density coeffs forward extract coeffs:')
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
