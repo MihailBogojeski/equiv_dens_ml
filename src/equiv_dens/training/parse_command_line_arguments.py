@@ -42,6 +42,7 @@ def parse_command_line_arguments(arg_file=None):
                                   help="angular order for interactions for energy prediction")
     args_hyperparams.add_argument("--num_features", metavar='INT', type=int, default=32, help="dimensionality of feature vectors")
     args_hyperparams.add_argument("--num_basis_functions", metavar='INT', type=int, default=32, help="number of radial basis functions")
+    args_hyperparams.add_argument("--num_en_basis_functions", metavar='INT', type=int, default=32, help="number of radial basis functions for energy prediction")
     args_hyperparams.add_argument("--num_radial_components", metavar='INT', type=int, default=32,
                                   help="number of radial basis components used for the density radial functions")
     args_hyperparams.add_argument("--num_energy_features", metavar='INT', type=int, default=None,
