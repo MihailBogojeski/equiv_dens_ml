@@ -6,7 +6,7 @@ from equiv_dens.nn.modules.spherical_harmonic_layers import SphericalLinear
 from equiv_dens.utils.spherical_harmonics import spherical_harmonics
 from equiv_dens.utils.orbitals import combine_orbital_basis,\
     gaussian_rbf, get_max_order, get_n_electrons, coeffs_dict_to_vector
-from equiv_dens.utils.base import calculate_distances_and_directions, batch_compressed_atoms_v2
+from equiv_dens.utils.base import calculate_distances_and_directions, batch_compressed_atoms
 import numpy as np
 import time
 
@@ -337,10 +337,9 @@ class DensityCoeffsNetwork(nn.Module):
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
             print('Memory cached', torch.cuda.memory_cached() / 1024**2)
         start = time.time()
-        # atoms['sph_repr_batch'] = [repr * 1 for repr in atoms['sph_repr']]
-        # atoms = batch_compressed_atoms_v2(atoms, ['sph_repr_batch'])
-        # fs = atoms['sph_repr_batch']
-        fs = atoms['sph_repr']
+        atoms['sph_repr_batch'] = [repr * 1 for repr in atoms['sph_repr']]
+        atoms = batch_compressed_atoms(atoms, ['sph_repr_batch'])
+        fs = atoms['sph_repr_batch']
         if self.verbose > 3:
             print('distances', atoms['distances'])
             print('fs[0]:', fs[0][:, 0, :, :10])
