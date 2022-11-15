@@ -192,6 +192,7 @@ class DensityCoeffsNetwork(nn.Module):
     """
 
     def extract_coefficients(self, sph_fs, rad_width, rad_scale, atoms):
+        extract_start = time.time()
         atom_numbers = atoms['atom_numbers']
         atom_count = atom_numbers.shape[1]
         batch_atom_numbers = atoms['batch_atom_numbers']
@@ -213,6 +214,8 @@ class DensityCoeffsNetwork(nn.Module):
         prev_z = int(atoms['atom_numbers'][0, 0])
         prev_batch_num = int(atoms['atom_batch_idx'][:, 0])
         for i in range(atom_count):
+            print('i', i)
+            iter_start = time.time()
             z = int(atom_numbers[0, i])
             batch_num = int(atoms['atom_batch_idx'][:, i])
             # print('atom count', i)
@@ -231,20 +234,26 @@ class DensityCoeffsNetwork(nn.Module):
                 radial_scale[atom_idx] = {}
                 coeff_weights[atom_idx] = {}
             for orb in self.spherical_spec[z]:
+                orb_start = time.time()
                 L = orb[2]
                 key = (z, L)
                 inds = self.sph_dict[key]
                 sph_fs_i = sph_fs[L][:, [i], :, :]
                 if key not in spherical_coeffs[atom_idx].keys():
+                    create_start = time.time()
                     spherical_coeffs[atom_idx][key] = torch.zeros(batch_size, *sph_fs_i.shape[1:-1], len(inds)).to(sph_fs_i)
                     radial_width[atom_idx][key] = torch.zeros(*spherical_coeffs[atom_idx][key].shape[:2], self.r_max[key], orb[1]).to(sph_fs_i)
                     radial_scale[atom_idx][key] = torch.zeros(*spherical_coeffs[atom_idx][key].shape[:2], self.r_max[key], orb[1]).to(sph_fs_i)
+                    # print('create time', time.time() - create_start)
                 #     print('sph zero init size', spherical_coeffs[atom_idx][key].shape)
                 # print('sph_fs_i shape', sph_fs_i.shape)
                 spherical_coeffs[atom_idx][key][batch_num, :] = sph_fs_i[0, ..., inds]
+                alloc_start = time.time()
                 if self.coeff_weights is not None:
                     coeff_weights[atom_idx][key] = torch.sum(self.coeff_weight(key), dim=-2, keepdim=True)
                     coeff_weights[atom_idx][key] = coeff_weights[atom_idx][key].expand(-1, -1 , spherical_coeffs[atom_idx][key].shape[-2], -1).clone()
+                # print('alloc time', time.time() - alloc_start)
+                radial_start = time.time()
                 if self.pred_radial_coeffs and z != 0:
                     inds = self.rad_dict[key]
                     rad_w_i = rad_width[L][:, [i], :, :]
@@ -260,8 +269,11 @@ class DensityCoeffsNetwork(nn.Module):
                     if self.pred_radial_coeffs:
                         radial_width[atom_idx][key] = torch.clamp(radial_width[atom_idx][key] + self.init_width(key), -0.999999, 0.99999)
                         radial_scale[atom_idx][key] = radial_scale[atom_idx][key] + self.init_scale(key)
+                # print('radial time', time.time() - radial_start)
             atom_idx += 1
+            print('extract iter time', time.time() - iter_start)
         
+        print('extract internal time', time.time() - extract_start)
         return spherical_coeffs, radial_width, radial_scale, coeff_weights
 
     """
@@ -374,15 +386,22 @@ class DensityCoeffsNetwork(nn.Module):
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
             print('Memory cached', torch.cuda.memory_cached() / 1024**2)
         coeff_weighting = self.coeff_weights is not None
+        if self.timing:
+            print('density coeffs setup time:', time.time() - start)
+        extract_start = time.time()
         atoms['spherical_coeffs'], atoms['radial_width'], atoms['radial_scale'], atoms['coeff_weights'] =\
             self.extract_coefficients(out_sph, out_width, out_scale, atoms)
+        if self.timing:
+            print('density coeffs extract time:', time.time() - extract_start)
         all_coeffs = coeffs_dict_to_vector(atoms, self.orbital_basis,
                                            atoms['batch_atom_numbers'],
                                            radial_coeffs=False, coeff_weighting=coeff_weighting)
+        df_start = time.time()
         atoms['df_coeffs'] = all_coeffs['spherical_coeffs'] 
         if coeff_weighting:
             atoms['df_weights'] = all_coeffs['coeff_weights'] 
-                             
+        if self.timing:
+            print('density coeffs df vector time:', time.time() - df_start)
         if self.verbose > 2:
             print('density coeffs forward extract coeffs:')
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)

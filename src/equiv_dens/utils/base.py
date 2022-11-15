@@ -667,6 +667,26 @@ def batch_compressed_atoms(atoms, relevant_keys):
     return atoms
 
 
+def batch_compressed_atoms_v2(atoms, relevant_keys):
+    batch_idx_pos = atoms['batch_idx_pos']
+    batch_nums = atoms['batch_atom_numbers']
+    batch_size = batch_nums.shape[0]
+    batch_atom_count = batch_nums.shape[1]
+    batch_props = {key: torch.zeros((batch_size * batch_atom_count, *atoms[key].shape[2:])).to(atoms[key]) for key in relevant_keys}
+
+    for key in relevant_keys:
+        print('key', key)
+        print('atom_key shape', atoms[key].shape)
+        print('batch props_key shape', batch_props[key].shape)
+        batch_props[key][batch_idx_pos] = atoms[key]
+        print('batch props_key shape', batch_props[key].shape)
+        batch_props[key] = batch_props[key].view(batch_size, batch_atom_count, *atoms[key].shape[2:])
+        print('batch props_key shape', batch_props[key].shape)
+        atoms[key] = batch_props[key]
+
+    return atoms
+
+
 def get_atom_num_first_positions(atom_numbers):
     if atom_numbers.ndim > 1:
         if isinstance(atom_numbers, np.ndarray):
