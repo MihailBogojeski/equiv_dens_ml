@@ -5,7 +5,7 @@ import torch.nn as nn
 from equiv_dens.nn.dft_network import DFTNetwork
 from equiv_dens.nn.representation.spherical_harmonic import EquivariantSphericalHarmonics
 from equiv_dens.nn.property_output.energy import SphericalHarmonicsEnergyNetwork,\
-    SphericalLinearEnergyNetwork
+    SphericalLinearEnergyNetwork, RepresentationEnergyNetwork
 from equiv_dens.nn.property_output.density import DensityCoeffsNetwork, DensityExpansion
 from equiv_dens.nn.property_output.dipole_moment import DipoleMomentCalc
 from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
@@ -175,6 +175,17 @@ def load_model(args, dataset, train=False):
                 timing=args.timing,
                 pred_radial_coeffs=args.pred_radial_coeffs,
                 normalize=args.normalize_en,
+            )
+        elif args.energy_model == 'representation':
+            print('building representation energy model')
+            en_model = RepresentationEnergyNetwork(
+                order=args.order_en,
+                num_features=args.num_energy_features,
+                activation=args.activation,
+                clebsch_gordan=clebsch_gordan,
+                calculate_forces=calculate_forces,
+                verbose=args.verbose,
+                timing=args.timing,
             )
         else:
             args.energy_model = None
