@@ -430,8 +430,8 @@ class Trainer:
             start_step = time.time()
             for optimizer in self.optimizers:
                 optimizer.step()
-        if self.timing:
-            print('step time', time.time() - start_step)
+            if self.timing:
+                print('step time', time.time() - start_step)
 
         # print('model embedding layer after backward', self._model.density_repr_model[0].embedding.embedding.element_embedding)
         # update parameter averages

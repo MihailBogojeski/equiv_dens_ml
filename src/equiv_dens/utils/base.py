@@ -632,37 +632,61 @@ def compress_batch_atoms(numbers, props_dict, basis_size=None):
     return batch_nums, batch_props
 
 
+# def batch_compressed_atoms(atoms, relevant_keys):
+#     atom_numbers = atoms['atom_numbers']
+#     batch_idx = atoms['atom_batch_idx']
+#     batch_nums = atoms['batch_atom_numbers']
+#     atom_count = atom_numbers.shape[1]
+#     batch_size = batch_nums.shape[0]
+#     batch_atom_count = batch_nums.shape[1]
+#     batch_props = {key: torch.zeros((batch_size, batch_atom_count, atoms[key].shape[-1])).to(atoms[key]) for key in relevant_keys}
+#     atom_idx = 0
+#     prev_z = int(atom_numbers[0, 0])
+#     prev_batch_num = int(batch_idx[:, 0])
+#
+#     for i in range(atom_count):
+#         z = int(atom_numbers[0, i])
+#         batch_num = int(atoms['atom_batch_idx'][:, i])
+#         # print('atom count', i)
+#         # print('z', z)
+#         # print('prev z', prev_z)
+#         # print('batch num', batch_num)
+#         # print('prev batch num', prev_batch_num)
+#         if z != prev_z or batch_num != prev_batch_num:
+#             atom_idx = atoms['atom_numbers_first_positions'][z]
+#         prev_z = z
+#         # print('atom_idx', atom_idx)
+#         prev_batch_num = batch_num
+#         for key in relevant_keys:
+#             batch_props[key][batch_num, atom_idx] = atoms[key][0, i]
+#         atom_idx += 1
+#
+#     for key in relevant_keys:
+#         atoms[key] = batch_props[key]
+#
+#     return atoms
+
+
 def batch_compressed_atoms(atoms, relevant_keys):
-    atom_numbers = atoms['atom_numbers']
-    batch_idx = atoms['atom_batch_idx']
+    batch_idx_pos = atoms['batch_idx_pos']
     batch_nums = atoms['batch_atom_numbers']
-    atom_count = atom_numbers.shape[1]
     batch_size = batch_nums.shape[0]
     batch_atom_count = batch_nums.shape[1]
-    batch_props = {key: torch.zeros((batch_size, batch_atom_count, atoms[key].shape[-1])).to(atoms[key]) for key in relevant_keys}
-    atom_idx = 0
-    prev_z = int(atom_numbers[0, 0])
-    prev_batch_num = int(batch_idx[:, 0])
-
-    for i in range(atom_count):
-        z = int(atom_numbers[0, i])
-        batch_num = int(atoms['atom_batch_idx'][:, i])
-        # print('atom count', i)
-        # print('z', z)
-        # print('prev z', prev_z)
-        # print('batch num', batch_num)
-        # print('prev batch num', prev_batch_num)
-        if z != prev_z or batch_num != prev_batch_num:
-            atom_idx = atoms['atom_numbers_first_positions'][z]
-        prev_z = z
-        # print('atom_idx', atom_idx)
-        prev_batch_num = batch_num
-        for key in relevant_keys:
-            batch_props[key][batch_num, atom_idx] = atoms[key][0, i]
-        atom_idx += 1
-
+    batch_props = {}
     for key in relevant_keys:
-        atoms[key] = batch_props[key]
+        if isinstance(atoms[key], list):
+            batch_props[key] = [torch.zeros((batch_size * batch_atom_count,
+                                             *atoms[key][i].shape[2:])).to(atoms[key][i])
+                                             for i in range(len(atoms[key]))]
+            for i in range(len(atoms[key])):
+                batch_props[key][i][batch_idx_pos] = atoms[key][i]
+                batch_props[key][i] = batch_props[key][i].view(batch_size, batch_atom_count, *atoms[key][i].shape[2:])
+                atoms[key][i] = batch_props[key][i]
+        else:
+            batch_props[key] = torch.zeros((batch_size * batch_atom_count, *atoms[key].shape[2:])).to(atoms[key])
+            batch_props[key][batch_idx_pos] = atoms[key]
+            batch_props[key] = batch_props[key].view(batch_size, batch_atom_count, *atoms[key].shape[2:])
+            atoms[key] = batch_props[key]
 
     return atoms
 

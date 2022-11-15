@@ -465,3 +465,80 @@ class SphericalLinearEnergyNetwork(nn.Module):
         if self.timing:
             print('simple energy time', time.time() - start)
         return atoms
+
+class RepresentationEnergyNetwork(nn.Module):
+    """
+    Neural network for computing the energy of a molecule based on the density coefficients
+    """
+    def __init__(self,
+                 order=1,  # maximum order of spherical harmonics features
+                 num_features=32,  # dimensionality of the feature space
+                 activation='swish',
+                 clebsch_gordan=None,  # instance of the clebsch gordan matrix
+                 calculate_forces=False,
+                 verbose=0,
+                 timing=False,
+                 ):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
+        super().__init__()
+
+        # variables to control the flow of the forward graph
+        # (calculate full_hamiltonian / core_hamiltonian / overlap_matrix / energy / forces?)
+
+        self.calculate_forces = calculate_forces
+
+        self.order = order
+        self.num_features = num_features
+        self.activation = activation
+        self.verbose = verbose
+        self.timing = timing
+
+        if not isinstance(self.order, list):
+            self.order = [self.order] * 1 
+
+        if clebsch_gordan is None:
+            self.clebsch_gordan = ClebschGordanMatrix()
+        else:
+            self.clebsch_gordan = clebsch_gordan
+        # extract nuclear charges from orbitals, determine maximum order, and
+        # build the occupation mask (for extracting occupied orbitals in energy prediction)
+        if self.activation == 'swish':
+            self.out_activation = Swish(self.num_features)
+        elif self.activation == 'ssp':
+            self.out_activation = ShiftedSoftplus(self.num_features)
+        else:
+            print("Unsupported activation function:", self.activation)
+            quit()
+
+        self.energy_output = SphericalLinear(self.order[-1], self.num_features, 0, 1, self.clebsch_gordan)
+
+    def radial_scale_filters(self, L):
+        return getattr(self, "radial_scale_filters_{}".format(L))
+
+    def radial_width_filters(self, L):
+        return getattr(self, "radial_width_filters_{}".format(L))
+
+    def forward(self, atoms):
+        start = time.time()
+        fs = atoms['sph_repr']
+        fs[0] = self.out_activation(fs[0])
+
+        atom_en = self.energy_output(fs)[0].squeeze(-1).squeeze(-1)
+
+        print('atom_en shape', atom_en.shape)
+        print('positions shape', atoms['positions'].shape)
+        energy = torch.zeros(1, atoms['batch_atom_numbers'].shape[0]).to(atoms['positions'])
+        energy = energy.scatter_add(1, atoms['atom_batch_idx'], atom_en)
+        energy = torch.t(energy)
+
+        atoms['energy'] = energy
+        if self.calculate_forces:
+            forces = -torch.autograd.grad(torch.sum(energy), atoms['positions'], create_graph=self.training)[0]
+            atoms['forces'] = forces
+
+        # raise Exception('Random exception')
+
+        if self.timing:
+            print('simple energy time', time.time() - start)
+        return atoms
+
+
