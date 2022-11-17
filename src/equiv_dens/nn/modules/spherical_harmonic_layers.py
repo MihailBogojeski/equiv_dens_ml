@@ -69,7 +69,7 @@ class SphericalLinear(nn.Module):
         return ys
 
 
-class SelfMixing_old(nn.Module):
+class SelfMixing(nn.Module):
     """
     Mixes features of different orders
     """
