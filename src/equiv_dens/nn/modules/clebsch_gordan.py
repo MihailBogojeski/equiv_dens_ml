@@ -84,3 +84,32 @@ def construct_cg_matrix(order_max):
     masked_cg = cg_matrix * cg_mask
 
     return cg_matrix, masked_cg
+
+
+def sparsify_cg_matrix(
+    cg: torch.Tensor,
+    ):
+    """
+    Convert Clebsch-Gordon tensor to sparse format.
+    Args:
+        cg: dense tensor Clebsch-Gordon coefficients
+            [(lmax_1+1)^2, (lmax_2+1)^2, (lmax_out+1)^2]
+    Returns:
+        cg_sparse: vector of non-zeros CG coefficients
+        idx_in_1: indices for first set of irreps
+        idx_in_2: indices for second set of irreps
+        idx_out: indices for output set of irreps
+    """
+    idx = torch.nonzero(cg)
+    # print('idx', idx)
+    idx_in_1, idx_in_2, idx_out = torch.split(idx, 1, dim=1)
+    idx_in_1, idx_in_2, idx_out = (
+        idx_in_1[:, 0],
+        idx_in_2[:, 0],
+        idx_out[:, 0],
+    )
+    # print('idx_in_1', idx_in_1)
+    # print('idx_in_2', idx_in_2)
+    # print('idx_out', idx_out)
+    cg_sparse = cg[idx_in_1, idx_in_2, idx_out]
+    return cg_sparse, idx_in_1, idx_in_2, idx_out

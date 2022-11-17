@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 import numpy as np
+import equiv_dens.utils.base as utils
+from equiv_dens.nn.modules.clebsch_gordan import sparsify_cg_matrix
 
 
 class SphericalLinear(nn.Module):
@@ -67,7 +69,7 @@ class SphericalLinear(nn.Module):
         return ys
 
 
-class SelfMixing(nn.Module):
+class SelfMixing_old(nn.Module):
     """
     Mixes features of different orders
     """
@@ -287,3 +289,113 @@ class PairMixing(nn.Module):
                     )
         # print('ys pairmix norm', [float(torch.mean(ys[L] ** 2)) for L in range(len(ys))])
         return ys
+
+class SelfMixing_new(nn.Module):
+    """
+    Mixes features of different orders
+    """
+
+    def __init__(self, order_in, order_out, num_features, clebsch_gordan, normalize=0):
+        super().__init__()
+        self.order_in = order_in
+        self.order_out = order_out
+        self.num_features = num_features
+        self.clebsch_gordan = clebsch_gordan
+        self.normalize = normalize
+        # coefficients for mixing
+        for l1 in range(self.order_in + 1):
+            for l2 in range(l1 + 1, self.order_in + 1):
+                for L in range(abs(l1 - l2), min(l1 + l2, self.order_out) + 1):
+                    name = "mixcoeff_{}_{}_{}".format(l1, l2, L)
+                    self.register_parameter(
+                        name, nn.Parameter(torch.Tensor(self.num_features))
+                    )
+        for L in range(min(self.order_in, self.order_out) + 1):
+            name = "keepcoeff_{}".format(L)
+            self.register_parameter(name, nn.Parameter(torch.Tensor(self.num_features)))
+        _, cg_matrix = self.clebsch_gordan(self.order_in, self.order_in, self.order_out)
+        cg_matrix, in_idx_1, in_idx_2, out_idx = sparsify_cg_matrix(cg_matrix) 
+        self.register_buffer("in_idx_1", in_idx_1, persistent=False)
+        self.register_buffer("in_idx_2", in_idx_2, persistent=False)
+        self.register_buffer("out_idx",  out_idx, persistent=False)
+        self.register_buffer("cg_matrix", cg_matrix, persistent=False)
+        mix_idx_1 = torch.floor(torch.sqrt(in_idx_1)).to(torch.long)
+        mix_idx_2 = torch.floor(torch.sqrt(in_idx_2)).to(torch.long)
+        mix_idx_out = torch.floor(torch.sqrt(out_idx)).to(torch.long)
+        self.register_buffer("mix_idx_1", mix_idx_1, persistent=False)
+        self.register_buffer("mix_idx_2", mix_idx_2, persistent=False)
+        self.register_buffer("mix_idx_out",  mix_idx_out, persistent=False)
+        self.register_parameter(
+            'mixcoeffs', nn.Parameter(torch.Tensor(self.order_in + 1, self.order_in + 1, self.order_out + 1, self.num_features))
+        )
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        count = [1 for L in range(self.order_out + 1)]
+        # for L in range(min(self.order_in, self.order_out) + 1):
+        #     count[L] += 1
+        for l1 in range(self.order_in + 1):
+            for l2 in range(l1 + 1, self.order_in + 1):
+                for L in range(abs(l1 - l2), min(l1 + l2, self.order_out) + 1):
+                    count[L] += 1
+
+        # print('count L', count)
+        for L in range(min(self.order_in, self.order_out) + 1):
+            if self.normalize:
+                norm_factor = (L + 1)
+            else:
+                norm_factor = 1
+            nn.init.uniform_(
+                self.keepcoeff(L), a=-np.sqrt(3 * norm_factor/count[L]), b=np.sqrt(3 * norm_factor/count[L])
+            )
+
+        for l1 in range(self.order_in + 1):
+            for l2 in range(l1 + 1, self.order_in + 1):
+                for L in range(abs(l1 - l2), min(l1 + l2, self.order_out) + 1):
+                    if self.normalize:
+                        norm_factor = (L + 1)
+                    else:
+                        norm_factor = 1
+                    # nn.init.uniform_(
+                    #     self.mixcoeff(l1, l2, L),
+                    #     a=-np.sqrt(3 * norm_factor/count[L]),
+                    #     b=np.sqrt(3 * norm_factor/count[L]),
+                    # )
+                    nn.init.uniform_(
+                        self.mixcoeffs[l1, l2, L, :],
+                        a=-np.sqrt(3 * norm_factor/count[L]),
+                        b=np.sqrt(3 * norm_factor/count[L]),
+                    )
+
+    def keepcoeff(self, L):
+        return getattr(self, "keepcoeff_{}".format(L))
+
+    def mixcoeff(self, l1, l2, L):
+        return getattr(self, "mixcoeff_{}_{}_{}".format(l1, l2, L))
+
+    def forward(self, xs):
+        # print('in', self.order_in, 'out', self.order_out)
+        # print('xs norm selfmix', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
+        # initialize output
+        ys = [
+            self.keepcoeff(L) * xs[L]
+            if L <= self.order_in
+            else torch.zeros_like(xs[0]).repeat(
+                *(1,) * len(xs[0].shape[:-2]), 2 * L + 1, 1
+            )
+            for L in range(self.order_out + 1)
+        ]
+        xs = torch.cat(xs, dim=2)
+        ys = torch.cat(ys, dim=2)
+        # print('ys', [float(torch.mean(ys[L]**2)) for L in range(len(ys))])
+        # loop over all combinations of orders
+        # print('ys norm selfmix', [float(torch.mean(ys[L]**2)) for L in range(len(ys))])
+        x1 = xs[:, :, self.in_idx_1, :]
+        x2 = xs[:, :, self.in_idx_2, :]
+        # print(self.cg_matrix.shape)
+        mixcoeff = self.mixcoeffs[self.mix_idx_1, self.mix_idx_2, self.mix_idx_out]
+        # print(mixcoeff.shape)
+        y = x1 * x2 * self.cg_matrix[None, None, :, None] * mixcoeff[None, None, :]
+        ys += utils.scatter_add(y, self.out_idx, dim_size=(self.order_out + 1) ** 2, dim=2)
+
+        return [ys[:, :, l ** 2:(l + 1) ** 2] for l in range(self.order_out + 1)]
