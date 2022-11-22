@@ -266,6 +266,8 @@ def parse_command_line_arguments(arg_file=None):
                                help="The step at which grid scaling starts.")
     args_training.add_argument("--projected_density", metavar='True|False', type=str2bool, default=False,
                                choices=[True, False], help="Use density fitting basis for labels.")
+    args_training.add_argument("--fast_df", metavar='True|False', type=str2bool, default=False,
+                               choices=[True, False], help="Do a fast/shorter density fitting training procedure.")
 
 
     # arguments for simulations

@@ -134,9 +134,10 @@ for phase in training_phases:
     if phase == 'df_coeffs':
         args.df_weight = df_weight 
         if density_weight > 0:
-            args.max_steps = args.max_steps / 10
-            args.validation_interval = args.validation_interval / 10
-            args.decay_patience = args.decay_patience * 2 
+            if args.fast_df:
+                args.max_steps = args.max_steps / 10
+                args.validation_interval = args.validation_interval / 10
+                args.decay_patience = args.decay_patience * 2 
     elif phase == 'density':
         args.density_weight = density_weight
         if df_weight > 0:
