@@ -539,7 +539,7 @@ print('Starting test evaluation!!!')
 
 args.df_weight = 0.0 
 args.density_weight = 1.0
-args.dipole_moment_weight = dipole_moment_weight 
+args.dipole_moment_weight = 1.0 
 args.energy_weight = 1.0
 args.forces_weight = 1.0
 required_properties = []

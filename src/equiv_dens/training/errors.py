@@ -55,6 +55,9 @@ class ErrorDict:
                 # print('key', key)
                 # print('predictions shape', predictions[key].shape)
                 # print('data shape', data[key].shape)
+                # if key == 'energy':
+                #     print('predictions energy', predictions[key])
+                #     print('data energy', data[key])
                 if key == "energy_min":
                     if exclude_energy_min:
                         continue
