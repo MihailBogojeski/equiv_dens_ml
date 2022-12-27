@@ -88,16 +88,6 @@ def run_molecular_dynamics(args, dataset, model):
     )
 
     simulation_hooks = []
-    if args.langevin:
-        # Set temperature and thermostat constant
-        bath_temperature = args.temperature  # K
-        time_constant = 100  # fs
-
-
-        # Initialize the thermostat
-        langevin = thermostats.LangevinThermostat(bath_temperature, time_constant)
-        simulation_hooks.append(langevin)
-        print('initialized thermostat')
 
     if args.log_suffix != '':
         args.log_suffix = '_' + args.log_suffix
@@ -132,8 +122,27 @@ def run_molecular_dynamics(args, dataset, model):
     # Update the simulation hooks
     simulation_hooks.append(checkpoint)
 
+    if args.langevin or args.warm_up:
+        # Set temperature and thermostat constant
+        bath_temperature = args.temperature  # K
+        time_constant = 100  # fs
+
+        # Initialize the thermostat
+        langevin = thermostats.LangevinThermostat(bath_temperature, time_constant)
+        print('initialized thermostat')
+
+        if args.langevin:
+            simulation_hooks.append(langevin)
+        else:
+            warmup_hooks = simulation_hooks + [langevin]
+            warmup_simulator = Simulator(md_system, md_integrator, md_calculator,
+                                     simulator_hooks=warmup_hooks)
+            warmup_simulator.simulate(args.md_steps//20)
+            print('finishing warm up')
+
     md_simulator = Simulator(md_system, md_integrator, md_calculator,
                              simulator_hooks=simulation_hooks)
+
     if os.path.exists(chk_file):
         print('restarting past model')
         state_dict = torch.load(chk_file)

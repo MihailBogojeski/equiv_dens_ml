@@ -284,6 +284,8 @@ def parse_command_line_arguments(arg_file=None):
                                  help="Number of molecular dynamic steps.")
     args_simulation.add_argument("--langevin", metavar='True|False', type=str2bool, default=True,
                                  choices=[True, False], help="If true use Langevin dynamics, else use velocity Verlet.")
+    args_simulation.add_argument("--warm_up", metavar="True|False", type=str2bool, default=True,
+                                 choices=[True, False], help="If true use Langevin as warm up for 5% of all simulation steps, and then switch to Verlet.")
     args_simulation.add_argument("--simulation_type", metavar='STR', type=str, default='md',
                                  choices=['md', 'opt'], help="type of simulation to run.")
     args_simulation.add_argument("--port_num", metavar='INT', type=int, default=50007,
