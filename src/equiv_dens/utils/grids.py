@@ -225,7 +225,7 @@ def cubical_sampling(grid_spec, n_samp, _, pos):
         return flat_coords, torch.ones((flat_coords.shape[1], )) * grid_spec[1]
     else:
         rand_idx = np.random.choice(np.arange(flat_coords.shape[1]), size=n_samp, replace=False)
-        return flat_coords[:, rand_idx, :], torch.ones((n_samp, ) * grid_spec[1])
+        return flat_coords[:, rand_idx, :], torch.ones((n_samp, )) * grid_spec[1]
 
 
 def dftpy_grid(lattice, gap):
