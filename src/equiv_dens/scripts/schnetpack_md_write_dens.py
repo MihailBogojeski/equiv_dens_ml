@@ -21,7 +21,7 @@ file = sys.argv[1]
 batch = int(sys.argv[2])
 every = int(sys.argv[3])
 
-args, hyperparam_args = parse_command_line_arguments(arg_file='ethanol_all_001_md.txt')
+args, hyperparam_args = parse_command_line_arguments(arg_file=file)
 
 print('type dtype', type(args.dtype))
 args.fix_arguments = True
@@ -154,6 +154,7 @@ for j in range(atoms['positions'].shape[0]):
     mol['coords'], mol['coord_weights'] = dataset.sampling_fn(dataset.grid_spec, dataset.density_n_samp,
                                                                 mol['atom_numbers'],
                                                                 mol['positions'])
+    mol['coords'] += torch.mean(mol['positions'], axis=(0, 1))
     coeffs = orbitals.vector_to_coeffs_dict(mol, dataset.orbital_basis_num, mol['atom_numbers'])
     for key in coeffs:
         mol[key] = coeffs[key]
