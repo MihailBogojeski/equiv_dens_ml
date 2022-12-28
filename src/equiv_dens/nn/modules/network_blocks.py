@@ -335,11 +335,11 @@ class InteractionBlock(nn.Module):
             vs[L] = (yi[L] * scale).index_add(
                 1, idx_i, scale * (vs[L] + self.radial_fn[L](rbf) * norm_rbf * a[L] * yj[0])
             )
-            print('vs L norm 1:', float(torch.mean(vs[L]**2)))
-            print('num neighbours', self.num_neighbours)
-            print('norm sph', norm_sph)
+            # print('vs L norm 1:', float(torch.mean(vs[L]**2)))
+            # print('num neighbours', self.num_neighbours)
+            # print('norm sph', norm_sph)
             vs[L] = vs[L] * norm_sph / self.num_neighbours
-            print('vs L norm 2:', float(torch.mean(vs[L]**2)))
+            # print('vs L norm 2:', float(torch.mean(vs[L]**2)))
             # print('vs ' + str(L) + ' norm:', float(torch.mean(vs[L]**2)))
             # vs[L] = yi[L] + torch.scatter_reduce(
             #         vs[L] + self.radial_fn[L](rbf) * a[L] * yj[0], 1, idx_i_scat, 
@@ -347,7 +347,7 @@ class InteractionBlock(nn.Module):
             #     print('yi[0]', yi[L])
             # if L == 0:
             #     print('vs[0]', vs[L])
-        print('vs norm:', [float(torch.mean(vs[L]**2)) for L in range(len(vs))])
+        # print('vs norm:', [float(torch.mean(vs[L]**2)) for L in range(len(vs))])
 
         if self.mixing_order != self.order:
             vs = self.linear_contract(vs)        # interaction refinement
