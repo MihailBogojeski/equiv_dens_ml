@@ -371,8 +371,8 @@ def calculate_distances_and_directions(R, idx_i=None, idx_j=None, center=None):
     else:
         Ri = R.view(R.shape[0], 1, *R.shape[1:])
         Rj = R.view(*R.shape[:-1], 1, R.shape[-1])
-    print('Ri shape', Ri.shape)
-    print('Rj shape', Rj.shape)
+    # print('Ri shape', Ri.shape)
+    # print('Rj shape', Rj.shape)
     rij = Rj - Ri  # displacement vectors
     dij = torch.norm(rij, dim=-1, keepdim=True)  # distances
     uij = rij / dij  # unit displacement vectors
