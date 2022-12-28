@@ -1,5 +1,6 @@
 # !/usr/bin/env python3
 import os
+import sys
 import torch
 from equiv_dens.training.parse_command_line_arguments import parse_command_line_arguments
 from equiv_dens.data.density_dataset import AtomsDensityData
@@ -20,6 +21,7 @@ from schnetpack.md import Simulator
 from schnetpack.md.simulation_hooks import thermostats
 from schnetpack.md.simulation_hooks import logging_hooks
 from schnetpack.md.calculators import MDCalculator, MDCalculatorError
+from schnetpack.md.utils import HDF5Loader
 
 
 # MD calculator class
@@ -48,7 +50,6 @@ class DummyCalculator(MDCalculator):
         self.props = props
         self.time_step = time_step / 1000
         self.step = 0
-        # density prediction model
 
     def calculate(self, system):
         """
@@ -61,7 +62,7 @@ class DummyCalculator(MDCalculator):
         # set model to evaluation mode to disable graph creation
         i = self.step
         mols = utils.npy_to_ase(props['_positions'][i].squeeze(0) * 10,
-                                utils.numbers_to_symbols(props['_atomic_numbers'][0]))
+                                props['_atomic_numbers'])
         system.load_molecules(mols)
         # print('masses', system.masses)
         # print('masses shape', system.masses.shape)
@@ -83,10 +84,12 @@ class DummyCalculator(MDCalculator):
         self.step += 1
 
 
-props = dict(np.load('simulation_gpu_dipole_test_new_lvl4_all.npz', allow_pickle=True))
-log_file = 'simulation_gpu_dipole_test_new_lvl4_all.hdf5'
-if os.path.exists(log_file):
-    os.remove(log_file)
+load_file = sys.argv[1] 
+data = HDF5Loader(load_file, load_properties=True)
+props = data.properties 
+save_file = load_file[:-5] + '_compressed.hdf5' 
+if os.path.exists(save_file):
+    os.remove(save_file)
 n_replicas = 1
 md_system = System(n_replicas, device='cpu')
 time_step = 0.5  # fs
@@ -118,10 +121,11 @@ data_streams = [
 buffer_size = 100
 # create the file logger
 file_logger = logging_hooks.FileLogger(
-    log_file,
+    save_file,
     buffer_size,
     data_streams=data_streams
 )
+print('save file', save_file)
 
 md_simulator = Simulator(md_system, md_integrator, md_calculator,
                          simulator_hooks=[file_logger],
