@@ -218,6 +218,7 @@ else:
         return test_dataset.get_properties(batch)
 
 print('test dataset size', len(test_dataset))
+print('args.test batch_size', args.test_batch_size)
 test_data_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.test_batch_size,
                                                num_workers=args.num_workers, pin_memory=use_gpu,
                                                shuffle=True,
@@ -247,7 +248,7 @@ for test_batch_num, data in enumerate(test_data_loader):
         print('test load time', time.time() - start)
     # forward step
     print('step', test_batch_num)
-    print('batch size', data['positions'].shape[0])
+    # print('positions shape', data['positions'].shape)
     data = model.conversions_in(data)
     data = model.scaling(data)
     predictions = model(data)
