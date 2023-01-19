@@ -27,6 +27,12 @@ convention_dict = {
         orbital_sign_map={'s': [1], 'p': [1, 1, 1], 'd': [1, 1, 1, 1, 1]},
         orbital_order_map={'H': [0, 1, 2], 'O': [0, 1, 2, 3, 4, 5], 'C': [0, 1, 2, 3, 4, 5], 'N': [0, 1, 2, 3, 4, 5]},
     ),
+    'def2-SVP_to_pyscf_210': Namespace(
+        atom_to_orbitals_map={'H': 'ssp', 'O': 'sssppd', 'C': 'sssppd', 'N': 'sssppd'},
+        orbital_idx_map={'s': [0], 'p': [2, 1, 0], 'd': [0, 1, 2, 3, 4]},
+        orbital_sign_map={'s': [1], 'p': [1, 1, 1], 'd': [1, 1, 1, 1, 1]},
+        orbital_order_map={'H': [0, 1, 2], 'O': [0, 1, 2, 3, 4, 5], 'C': [0, 1, 2, 3, 4, 5], 'N': [0, 1, 2, 3, 4, 5]},
+    ),
     'aims': Namespace(
         atom_to_orbitals_map={'H': 'ssp', 'O': 'sssppd', 'C': 'sssppd', 'N': 'sssppd'},
         orbital_idx_map={'s': [0], 'p': [0, 1, 2], 'd': [0, 1, 2, 3, 4]},
@@ -89,19 +95,20 @@ convention_dict = {
 #     return hamiltonians_new
 
 
-def transform(hamiltonians, atoms, convention='svr'):
+def transform(hamiltonians, atoms, convention='svp'):
+    # print('convention', convention)
     conv = convention_dict[convention]
-    print('atoms', atoms)
+    # print('atoms', atoms)
     orbitals = ''
     orbitals_order = []
     for a in atoms:
         offset = len(orbitals_order)
-        print('svr aroms to orbs', conv.atom_to_orbitals_map[a])
+        # print('atoms to orbs', conv.atom_to_orbitals_map[a])
         orbitals += conv.atom_to_orbitals_map[a]
         orbitals_order += [idx + offset for idx in conv.orbital_order_map[a]]
 
-    print('orbitals', orbitals)
-    print('orbitals order', orbitals_order)
+    # print('orbitals', orbitals)
+    # print('orbitals order', orbitals_order)
 
     transform_indices = []
     transform_signs = []
@@ -114,14 +121,16 @@ def transform(hamiltonians, atoms, convention='svr'):
 
     transform_indices = [transform_indices[idx] for idx in orbitals_order]
     transform_signs = [transform_signs[idx] for idx in orbitals_order]
-    print('transform_indices', transform_indices)
     transform_indices = np.concatenate(transform_indices).astype(np.int)
     transform_signs = np.concatenate(transform_signs)
+    # print('transform_indices', transform_indices)
 
     hamiltonians_new = hamiltonians[:, transform_indices, :]
     hamiltonians_new = hamiltonians_new[:, :, transform_indices]
     hamiltonians_new = hamiltonians_new * transform_signs[:, None]
     hamiltonians_new = hamiltonians_new * transform_signs[None, :]
+    # print('hamiltonians old', hamiltonians[0, 0, :])
+    # print('hamiltonians new', hamiltonians_new[0, 0, :])
 
     return hamiltonians_new
 

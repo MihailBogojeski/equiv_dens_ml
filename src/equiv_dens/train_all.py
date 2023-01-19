@@ -98,7 +98,7 @@ else:
 if checkpoint is None or 'training_phases' not in checkpoint:
     training_phases = []
     if args.df_weight > 0:
-        training_phases.append('df_coeffs')
+        training_phases.append('df')
     if args.density_weight > 0:
         training_phases.append('density')
     if args.dipole_moment_weight > 0:
@@ -131,7 +131,7 @@ for phase in training_phases:
     args.validation_interval = validation_interval
     args.decay_patience = decay_patience
     args.max_steps = max_steps
-    if phase == 'df_coeffs':
+    if phase == 'df':
         args.df_weight = df_weight 
         if density_weight > 0:
             if args.fast_df:
@@ -514,6 +514,7 @@ for phase in training_phases:
                       optimizers=optimizers, schedulers=schedulers,
                       train_loader=train_data_loader,
                       validation_loaders=validation_loaders,
+                      keep_n_checkpoints=args.keep_checkpoints,
                       checkpoint_interval=args.checkpoint_interval,
                       validation_interval=args.validation_interval,
                       summary_interval=args.summary_interval,

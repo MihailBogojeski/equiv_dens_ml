@@ -376,10 +376,12 @@ def vector_to_coeffs_dict(coeffs, orbital_basis, a_num, radial_coeffs=True):
 
 def orbitals_from_hamiltonian(hamiltonians, overlaps):
     orbital_coeffs = []
+    ens = []
     for i in range(hamiltonians.shape[0]):
         en, coefs = sp.linalg.eigh(a=hamiltonians[i], b=overlaps[i])
         orbital_coeffs.append(coefs)
-    return orbital_coeffs
+        ens.append(en)
+    return orbital_coeffs, ens
 
 
 def parse_orbitals(orbitals, atom_types, basis_def):
