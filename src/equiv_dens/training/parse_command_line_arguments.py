@@ -42,7 +42,7 @@ def parse_command_line_arguments(arg_file=None):
                                   help="angular order for interactions for energy prediction")
     args_hyperparams.add_argument("--num_features", metavar='INT', type=int, default=32, help="dimensionality of feature vectors")
     args_hyperparams.add_argument("--num_basis_functions", metavar='INT', type=int, default=32, help="number of radial basis functions")
-    args_hyperparams.add_argument("--num_en_basis_functions", metavar='INT', type=int, default=32, help="number of radial basis functions for energy prediction")
+    args_hyperparams.add_argument("--num_en_basis_functions", metavar='INT', type=int, default=None, help="number of radial basis functions for energy prediction")
     args_hyperparams.add_argument("--num_radial_components", metavar='INT', type=int, default=32,
                                   help="number of radial basis components used for the density radial functions")
     args_hyperparams.add_argument("--num_energy_features", metavar='INT', type=int, default=None,
@@ -267,7 +267,7 @@ def parse_command_line_arguments(arg_file=None):
                                help="The step at which grid scaling starts.")
     args_training.add_argument("--projected_density", metavar='True|False', type=str2bool, default=False,
                                choices=[True, False], help="Use density fitting basis for labels.")
-    args_training.add_argument("--fast_df", metavar='True|False', type=str2bool, default=False,
+    args_training.add_argument("--fast_df", metavar='True|False', type=str2bool, default=True,
                                choices=[True, False], help="Do a fast/shorter density fitting training procedure.")
 
 

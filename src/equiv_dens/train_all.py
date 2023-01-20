@@ -145,8 +145,8 @@ for phase in training_phases:
     elif phase == 'dipole_moment':
         args.dipole_moment_weight = dipole_moment_weight
         if density_weight > 0:
-            args.learning_rate = args.learning_rate / 100
-            args.stop_at_learning_rate = args.stop_at_learning_rate/10
+            args.learning_rate = args.learning_rate / 1000
+            args.stop_at_learning_rate = args.stop_at_learning_rate/100
         elif df_weight > 0:
             args.learning_rate = args.learning_rate / 10
     elif phase == 'energy':
@@ -535,6 +535,7 @@ for phase in training_phases:
     # with torch.autograd.detect_anomaly():
     trainer.run(args.max_steps, use_gpu=use_gpu, dtype=args.dtype)
     ongoing_phases.remove(phase)
+    restore = False
 print('Starting test evaluation!!!')
 
 args.df_weight = 0.0 
@@ -692,6 +693,10 @@ loss_weights['density'] = args.density_weight
 loss_weights['dipole_moment'] = args.density_weight
 loss_weights['energy'] = args.energy_weight
 loss_weights['forces'] = args.forces_weight
+if training_phases[-1] == 'dipole_moment':
+    loss_weights['energy'] = 0
+    loss_weights['forces'] = 0
+
 print('loss weights test', loss_weights)
 
 error_dict = ErrorDict(loss_weights, weights_balance=args.weights_balance,
@@ -700,7 +705,7 @@ error_dict = ErrorDict(loss_weights, weights_balance=args.weights_balance,
                        )
 model = load_model(args, dataset, train=False)
 test_errors = error_dict.empty()
-for test_batch_num, data in enumerate(valid_data_loader):
+for test_batch_num, data in enumerate(test_data_loader):
     model.eval()
     # send data to GPU
     if use_gpu:

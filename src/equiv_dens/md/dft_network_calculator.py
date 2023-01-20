@@ -64,16 +64,21 @@ class DFTNetworkCalculator(MDCalculator):
 
         inputs = self._generate_input(system)
 
-        for key in inputs.keys():
-            if isinstance(inputs[key], torch.Tensor) or isinstance(inputs[key], np.ndarray):
-                print(key, 'type', inputs[key].type())
-            else:
-                print(key, 'type', type(inputs[key]))
+        # for key in inputs.keys():
+        #     if isinstance(inputs[key], torch.Tensor) or isinstance(inputs[key], np.ndarray):
+        #         print(key, 'type', inputs[key].type())
+        #     else:
+        #         print(key, 'type', type(inputs[key]))
 
+        start_model = time.time()
         results = self.model(inputs)
+        print('Model time:', time.time() - start_model)
         # print('density integral', torch.sum(results['density'] * results['coord_weights'], -1))
+        start_coeffs = time.time()
         vector_coeffs = orbitals.coeffs_dict_to_vector(results, self.model.density_repr_model[0].orbital_basis,
-                                                                          results['atom_numbers'])
+                                                       results['atom_numbers'])
+        print('Coeffs time:', time.time() - start_coeffs)
+        start_other = time.time()
         results['spherical_coeffs'] = vector_coeffs['spherical_coeffs']
         results['radial_width'] = vector_coeffs['radial_width']
         results['radial_scale'] = vector_coeffs['radial_scale']
@@ -95,6 +100,7 @@ class DFTNetworkCalculator(MDCalculator):
         # print('system before', system.properties)
         self._update_system(system)
         # print('system after', system.properties)
+        print('Other time:', time.time() - start_other)
 
         print('Step time:', time.time() - start)
 
