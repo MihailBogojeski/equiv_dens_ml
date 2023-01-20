@@ -128,6 +128,8 @@ def load_model(args, dataset, train=False):
 
     if args.num_energy_features is None:
         args.num_energy_features = args.num_features
+    if args.num_en_basis_functions is None:
+        args.num_en_basis_functions = args.num_basis_functions
     if args.num_en_modules is None:
         args.num_en_modules = args.num_modules
 

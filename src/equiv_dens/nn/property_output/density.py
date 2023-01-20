@@ -62,11 +62,11 @@ class DensityCoeffsNetwork(nn.Module):
             self.clebsch_gordan = clebsch_gordan
 
         # error checking
-        if (2 * self.order) < self.orbitals_max_order:
-            print("An orbital with L={} was found, but the neural network was initialized with L={}".format(
-                self.orbitals_max_order, self.order))
-            print("The neural network MUST have an order of at least 1/2 of the maximum order of all orbitals!")
-            quit()
+        # if (2 * self.order) < self.orbitals_max_order:
+        #     print("An orbital with L={} was found, but the neural network was initialized with L={}".format(
+        #         self.orbitals_max_order, self.order))
+        #     print("The neural network MUST have an order of at least 1/2 of the maximum order of all orbitals!")
+        #     quit()
 
         self.spherical_spec, self.radial_spec, self.radial_count = combine_orbital_basis(self.orbital_basis, self.orbitals_max_order)
         if self.verbose > 0:
