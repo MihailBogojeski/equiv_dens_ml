@@ -110,11 +110,11 @@ class EquivariantSphericalHarmonics(nn.Module):
             self.mixing_order = [self.mixing_order[-1]] * self.num_modules
 
         # error checking
-        if (2 * self.order[-1]) < self.orbitals_max_order:
-            print("An orbital with L={} was found, but the neural network was initialized with L={}".format(
-                self.orbitals_max_order, self.order[-1]))
-            print("The neural network MUST have an order of at least 1/2 of the maximum order of all orbitals!")
-            quit()
+        # if (2 * self.order[-1]) < self.orbitals_max_order:
+        #     print("An orbital with L={} was found, but the neural network was initialized with L={}".format(
+        #         self.orbitals_max_order, self.order[-1]))
+        #     print("The neural network MUST have an order of at least 1/2 of the maximum order of all orbitals!")
+        #     quit()
 
         self.order_max = max(self.mixing_order)
         # declare modules and parameters
