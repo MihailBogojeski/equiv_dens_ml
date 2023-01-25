@@ -72,12 +72,12 @@ class DFTNetworkCalculator(MDCalculator):
 
         start_model = time.time()
         results = self.model(inputs)
-        print('Model time:', time.time() - start_model)
+        # print('Model time:', time.time() - start_model)
         # print('density integral', torch.sum(results['density'] * results['coord_weights'], -1))
         start_coeffs = time.time()
         vector_coeffs = orbitals.coeffs_dict_to_vector(results, self.model.density_repr_model[0].orbital_basis,
-                                                       results['atom_numbers'])
-        print('Coeffs time:', time.time() - start_coeffs)
+                                                       results['batch_atom_numbers'])
+        # print('Coeffs time:', time.time() - start_coeffs)
         start_other = time.time()
         results['spherical_coeffs'] = vector_coeffs['spherical_coeffs']
         results['radial_width'] = vector_coeffs['radial_width']
@@ -100,9 +100,9 @@ class DFTNetworkCalculator(MDCalculator):
         # print('system before', system.properties)
         self._update_system(system)
         # print('system after', system.properties)
-        print('Other time:', time.time() - start_other)
+        # print('Other time:', time.time() - start_other)
 
-        print('Step time:', time.time() - start)
+        # print('Step time:', time.time() - start)
 
     def _generate_input(self, system):
         """
@@ -139,6 +139,8 @@ class DFTNetworkCalculator(MDCalculator):
 
         nl = utils.TorchNeighborList(self.cutoff)
         idx_is, idx_js, _ = nl.get_neighbors(inputs)
+        # print('inputs positions shape', inputs['positions'].shape)
+        # print('idx_is', idx_is)
         prev_max=0
         for i in range(len(idx_is)):
             idx_is[i] += prev_max

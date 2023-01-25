@@ -31,8 +31,8 @@ def run_molecular_dynamics(args, dataset, model):
     print('dataset atoms positions type', dataset.atoms['positions'].dtype)
     atoms_data = dataset.get_properties(start_idx)
     print('data positions type', type(atoms_data['positions']))
-    mols = utils.npy_to_ase(atoms_data['positions'].detach().cpu().numpy(),
-                            atoms_data['atom_numbers'].detach().cpu().numpy())
+    mols = utils.npy_to_ase(atoms_data['batch_positions'].detach().cpu().numpy(),
+                            atoms_data['batch_atom_numbers'].detach().cpu().numpy())
     print('positions shape', atoms_data['positions'].shape)
     # Check if a GPU is available and use a CPU otherwise
     if args.use_gpu:
