@@ -90,7 +90,7 @@ class ModularBlock(nn.Module):
             clebsch_gordan,
             mix_orders,
             activation,
-            normalize
+            normalize,
             parity=parity,
         )
 

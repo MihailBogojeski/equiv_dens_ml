@@ -89,6 +89,8 @@ class SelfMixing(nn.Module):
         for l1 in range(self.order_in + 1):
             for l2 in range(l1 + 1, self.order_in + 1):
                 for L in range(abs(l1 - l2), min(l1 + l2, self.order_out) + 1):
+                    if l1 + l2 % 2 != L % 2 and self.parity:
+                        continue
                     name = "mixcoeff_{}_{}_{}".format(l1, l2, L)
                     self.register_parameter(
                         name, nn.Parameter(torch.Tensor(self.num_features))
@@ -105,6 +107,8 @@ class SelfMixing(nn.Module):
         for l1 in range(self.order_in + 1):
             for l2 in range(l1 + 1, self.order_in + 1):
                 for L in range(abs(l1 - l2), min(l1 + l2, self.order_out) + 1):
+                    if l1 + l2 % 2 != L % 2 and self.parity:
+                        continue
                     count[L] += 1
 
         # print('count L', count)
@@ -120,6 +124,8 @@ class SelfMixing(nn.Module):
         for l1 in range(self.order_in + 1):
             for l2 in range(l1 + 1, self.order_in + 1):
                 for L in range(abs(l1 - l2), min(l1 + l2, self.order_out) + 1):
+                    if l1 + l2 % 2 != L % 2 and self.parity:
+                        continue
                     if self.normalize:
                         norm_factor = (L + 1)
                     else:
@@ -219,6 +225,8 @@ class PairMixing(nn.Module):
         for l1 in range(self.order_in1 + 1):
             for l2 in range(self.order_in2 + 1):
                 for L in range(abs(l1 - l2), min(l1 + l2, self.order_out) + 1):
+                    if l1 + l2 % 2 != L % 2 and self.parity:
+                        continue
                     name = "coeff_{}_{}_{}".format(l1, l2, L)
                     self.add_module(
                         name,
@@ -233,6 +241,8 @@ class PairMixing(nn.Module):
         for l1 in range(self.order_in1 + 1):
             for l2 in range(self.order_in2 + 1):
                 for L in range(abs(l1 - l2), min(l1 + l2, self.order_out) + 1):
+                    if l1 + l2 % 2 != L % 2 and self.parity:
+                        continue
                     nn.init.orthogonal_(self.coeff(l1, l2, L).weight)
                     self.L_count[L] += 1
 
