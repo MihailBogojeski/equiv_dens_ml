@@ -95,7 +95,7 @@ class DensityCoeffsNetwork(nn.Module):
         self.spherical_output = SphericalLinear(self.order, self.num_features,
                                                 self.orbitals_max_order,
                                                 max(self.sph_counts), self.clebsch_gordan, bias=self.output_bias,
-                                                zero_init=self.output_zero_init, normalize=self.normalize
+                                                zero_init=self.output_zero_init, normalize=self.normalize,
                                                 parity=parity)
         print('self.pred_radial_coeffs', self.pred_radial_coeffs)
         if self.pred_radial_coeffs:
