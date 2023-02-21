@@ -30,6 +30,7 @@ class DensityCoeffsNetwork(nn.Module):
                  pred_radial_coeffs=True,
                  scale_sph_order=True,
                  normalize=0,
+                 parity=False,
                  ):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
         super().__init__()
 
@@ -94,7 +95,8 @@ class DensityCoeffsNetwork(nn.Module):
         self.spherical_output = SphericalLinear(self.order, self.num_features,
                                                 self.orbitals_max_order,
                                                 max(self.sph_counts), self.clebsch_gordan, bias=self.output_bias,
-                                                zero_init=self.output_zero_init, normalize=self.normalize)
+                                                zero_init=self.output_zero_init, normalize=self.normalize
+                                                parity=parity)
         print('self.pred_radial_coeffs', self.pred_radial_coeffs)
         if self.pred_radial_coeffs:
             self.radial_width = nn.ModuleList([nn.Linear(self.num_features, self.rad_counts[L])

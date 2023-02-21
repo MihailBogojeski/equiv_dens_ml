@@ -27,6 +27,7 @@ class ModularBlock(nn.Module):
         activation="swish",
         num_neighbours=1,
         normalize=0,
+        parity=False,
     ):
         super(ModularBlock, self).__init__()
         # initialize attributes
@@ -60,6 +61,7 @@ class ModularBlock(nn.Module):
             activation,
             num_neighbours,
             normalize=normalize,
+            parity=parity,
         )
         self.residual_pre_x = ResidualStack(
             self.num_residual_pre_x,
@@ -69,6 +71,7 @@ class ModularBlock(nn.Module):
             mix_orders,
             activation,
             normalize,
+            parity=parity,
         )
         self.residual_post_x = ResidualStack(
             self.num_residual_post_x,
@@ -78,6 +81,7 @@ class ModularBlock(nn.Module):
             mix_orders,
             activation,
             normalize,
+            parity=parity,
         )
         self.residual_out = ResidualStack(
             self.num_residual_output,
@@ -87,6 +91,7 @@ class ModularBlock(nn.Module):
             mix_orders,
             activation,
             normalize
+            parity=parity,
         )
 
     def forward(self, xs, rbf, sph, idx_i, idx_j, neighbor_mask=1):
@@ -122,6 +127,7 @@ class InteractionBlock(nn.Module):
         activation="swish",
         num_neighbours=1,
         normalize=0,
+        parity=False,
     ):
         super(InteractionBlock, self).__init__()
         # initialiye attributes
@@ -160,6 +166,7 @@ class InteractionBlock(nn.Module):
             clebsch_gordan,
             mix_orders=False,
             normalize=normalize,
+            parity=parity,
         )
         self.angular_fn2 = SphericalLinear(
             self.mixing_order,
@@ -169,6 +176,7 @@ class InteractionBlock(nn.Module):
             clebsch_gordan,
             mix_orders=False,
             normalize=normalize,
+            parity=parity,
         )
         self.radial_fn = nn.ModuleList(
             [
@@ -184,6 +192,7 @@ class InteractionBlock(nn.Module):
             self.num_features,
             clebsch_gordan,
             normalize=normalize,
+            parity=parity,
         )
         self.linear_i = SphericalLinear(
             min(2 * self.input_order, self.order),
@@ -193,6 +202,7 @@ class InteractionBlock(nn.Module):
             clebsch_gordan,
             mix_orders,
             normalize=normalize,
+            parity=parity,
         )
         self.linear_j = SphericalLinear(
             min(2 * self.input_order, self.order),
@@ -202,6 +212,7 @@ class InteractionBlock(nn.Module):
             clebsch_gordan,
             mix_orders,
             normalize=normalize,
+            parity=parity,
         )
         self.linear_v = SphericalLinear(
             self.order,
@@ -211,6 +222,7 @@ class InteractionBlock(nn.Module):
             clebsch_gordan,
             mix_orders,
             normalize=normalize,
+            parity=parity,
         )
         if self.mixing_order != self.order:
             self.linear_contract = SphericalLinear(
@@ -221,6 +233,7 @@ class InteractionBlock(nn.Module):
                 clebsch_gordan,
                 mix_orders,
                 normalize=normalize,
+            parity=parity,
             )
         self.residual_pre_vi = ResidualStack(
             self.num_residual_pre_vi,
@@ -230,6 +243,7 @@ class InteractionBlock(nn.Module):
             mix_orders,
             activation,
             normalize,
+            parity=parity,
         )
         self.residual_pre_vj = ResidualStack(
             self.num_residual_pre_vj,
@@ -239,6 +253,7 @@ class InteractionBlock(nn.Module):
             mix_orders,
             activation,
             normalize,
+            parity=parity,
         )
         self.residual_post_v = ResidualStack(
             self.num_residual_post_v,
@@ -248,6 +263,7 @@ class InteractionBlock(nn.Module):
             mix_orders,
             activation,
             normalize,
+            parity=parity,
         )
 
         self.reset_parameters()
@@ -374,6 +390,7 @@ class ResidualStack(nn.Module):
         mix_orders=True,
         activation="swish",
         normalize=0,
+        parity=False,
     ):
         super(ResidualStack, self).__init__()
         self.num_blocks = num_blocks
@@ -388,6 +405,7 @@ class ResidualStack(nn.Module):
                     mix_orders,
                     activation,
                     normalize,
+                    parity=parity,
                 )
                 for i in range(self.num_blocks)
             ]
@@ -416,6 +434,7 @@ class ResidualBlock(nn.Module):
         activation="swish",
         normalize=0,
         order_out = None,
+        parity=False,
     ):
         super(ResidualBlock, self).__init__()
         self.order = order
@@ -445,6 +464,7 @@ class ResidualBlock(nn.Module):
             clebsch_gordan,
             self.mix_orders,
             normalize=normalize,
+            parity=parity,
         )
         self.linear2 = SphericalLinear(
             self.order_out,
@@ -455,6 +475,7 @@ class ResidualBlock(nn.Module):
             self.mix_orders,
             zero_init=True,
             normalize=normalize,
+            parity=parity,
         )
         self.reset_parameters()
 
