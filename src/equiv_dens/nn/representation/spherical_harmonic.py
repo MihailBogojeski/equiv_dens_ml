@@ -49,6 +49,7 @@ class EquivariantSphericalHarmonics(nn.Module):
                  verbose=0,
                  num_neighbours=1,
                  normalize=0,
+                 parity=False,
                  ):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
         super().__init__()
 
@@ -143,20 +144,21 @@ class EquivariantSphericalHarmonics(nn.Module):
                                 self.num_residual_pre_x, self.num_residual_post_x, self.num_residual_pre_vi,
                                 self.num_residual_pre_vj, self.num_residual_post_v, self.num_residual_output,
                                 self.clebsch_gordan, True, self.mixing_order[0], 0, self.activation,
-                                self.num_neighbours, normalize)]
+                                self.num_neighbours, normalize, parity=parity)]
         modules.extend([ModularBlock(self.order[i], self.num_features, self.num_basis_functions,
                                      self.num_residual_pre_x, self.num_residual_post_x, self.num_residual_pre_vi,
                                      self.num_residual_pre_vj, self.num_residual_post_v, self.num_residual_output,
                                      self.clebsch_gordan, True, self.mixing_order[i], self.order[i - 1],
-                                     self.activation, self.num_neighbours, normalize) for i in range(1, self.num_modules)])
+                                     self.activation, self.num_neighbours, normalize, parity=parity) for i in range(1, self.num_modules)])
         self.module = nn.ModuleList(modules)
         self.order_change = [nn.Identity()]
         for i in range(1, self.num_modules):
             if self.order[i] != self.order[i - 1]:
                 self.order_change.append(ResidualBlock(self.order[i - 1], self.num_features,
-                                                         clebsch_gordan=self.clebsch_gordan,
-                                                         activation=self.activation,
-                                                         order_out=self.order[i], normalize=normalize))
+                                                       clebsch_gordan=self.clebsch_gordan,
+                                                       activation=self.activation,
+                                                       order_out=self.order[i], normalize=normalize,
+                                                       parity=parity))
             else:
                 self.order_change.append(nn.Identity())
         self.order_change = nn.ModuleList(self.order_change)

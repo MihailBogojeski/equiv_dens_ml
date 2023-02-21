@@ -49,6 +49,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
                  pred_radial_coeffs=True,
                  num_neighbours=1,
                  normalize=0,
+                 parity=False,
                  ):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
         super().__init__()
 
@@ -158,29 +159,31 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
                                 self.num_residual_pre_x, self.num_residual_post_x, self.num_residual_pre_vi,
                                 self.num_residual_pre_vj, self.num_residual_post_v, self.num_residual_output,
                                 self.clebsch_gordan, True, self.mixing_order[0], 0, self.activation,
-                                self.num_neighbours, normalize)]
+                                self.num_neighbours, normalize, parity=parity)]
         modules.extend([ModularBlock(self.order[i], self.num_features, self.num_basis_functions,
                                      self.num_residual_pre_x, self.num_residual_post_x, self.num_residual_pre_vi,
                                      self.num_residual_pre_vj, self.num_residual_post_v, self.num_residual_output,
                                      self.clebsch_gordan, True, self.mixing_order[i], self.order[i - 1],
-                                     self.activation, self.num_neighbours, normalize) for i in range(1, self.num_modules)])
+                                     self.activation, self.num_neighbours, normalize, parity=parity) for i in range(1, self.num_modules)])
         self.module = nn.ModuleList(modules)
 
         self.order_change = []
         if self.orbitals_max_order != self.order[0]:
             print('orbitals max order', self.orbitals_max_order)
             self.order_change.append(ResidualBlock(self.orbitals_max_order, self.num_features,
-                                                     clebsch_gordan=self.clebsch_gordan,
-                                                     activation=self.activation,
-                                                     order_out=self.order[0], normalize=normalize))
+                                                   clebsch_gordan=self.clebsch_gordan,
+                                                   activation=self.activation,
+                                                   order_out=self.order[0], normalize=normalize,
+                                                   parity=parity))
         else:
             self.order_change.append(nn.Identity())
         for i in range(1, self.num_modules):
             if self.order[i] != self.order[i - 1]:
                 self.order_change.append(ResidualBlock(self.order[i - 1], self.num_features,
-                                                         clebsch_gordan=self.clebsch_gordan,
-                                                         activation=self.activation,
-                                                         order_out=self.order[i], normalize=normalize))
+                                                       clebsch_gordan=self.clebsch_gordan,
+                                                       activation=self.activation,
+                                                       order_out=self.order[i], normalize=normalize,
+                                                       parity=parity))
             else:
                 self.order_change.append(nn.Identity())
         self.order_change = nn.ModuleList(self.order_change)
@@ -195,7 +198,8 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
             print("Unsupported activation function:", self.activation)
             quit()
 
-        self.energy_output = SphericalLinear(self.order[-1], self.num_features, 0, 1, self.clebsch_gordan)
+        self.energy_output = SphericalLinear(self.order[-1], self.num_features,
+                                             0, 1, self.clebsch_gordan, parity=parity)
 
     def radial_scale_filters(self, L):
         return getattr(self, "radial_scale_filters_{}".format(L))
@@ -299,6 +303,7 @@ class SphericalLinearEnergyNetwork(nn.Module):
                  timing=False,
                  pred_radial_coeffs=True,
                  normalize=0,
+                 parity=False,
                  ):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
         super().__init__()
 
@@ -383,23 +388,25 @@ class SphericalLinearEnergyNetwork(nn.Module):
         for i in range(1, self.num_modules):
             if self.order[i] != self.order[i - 1]:
                 self.order_change.append(ResidualBlock(self.order[i - 1], self.num_features,
-                                                         clebsch_gordan=self.clebsch_gordan,
-                                                         activation=self.activation,
-                                                         order_out=self.order[i], normalize=self.normalize))
+                                                       clebsch_gordan=self.clebsch_gordan,
+                                                       activation=self.activation,
+                                                       order_out=self.order[i], normalize=self.normalize,
+                                                       parity=parity))
             else:
                 self.order_change.append(nn.Identity())
         self.order_change = nn.ModuleList(self.order_change)
 
         modules = [ResidualBlock(self.order[0], self.num_features, clebsch_gordan=self.clebsch_gordan,
                                  activation=self.activation,
-                                 normalize=self.normalize)]
+                                 normalize=self.normalize, parity=parity)]
         modules.extend([ResidualBlock(self.order[i], self.num_features,
                                      clebsch_gordan=self.clebsch_gordan,
                                      activation=self.activation,
-                                     normalize=self.normalize) for i in range(1, self.num_modules)])
+                                     normalize=self.normalize, parity=parity) for i in range(1, self.num_modules)])
         self.module = nn.ModuleList(modules)
 
-        self.energy_output = SphericalLinear(self.order[-1], self.num_features, 0, 1, self.clebsch_gordan, normalize=self.normalize)
+        self.energy_output = SphericalLinear(self.order[-1], self.num_features, 0, 1,
+                                             self.clebsch_gordan, parity=parity)
 
     def radial_scale_filters(self, L):
         return getattr(self, "radial_scale_filters_{}".format(L))
@@ -478,6 +485,7 @@ class RepresentationEnergyNetwork(nn.Module):
                  calculate_forces=False,
                  verbose=0,
                  timing=False,
+                 parity=False,
                  ):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
         super().__init__()
 
@@ -509,7 +517,8 @@ class RepresentationEnergyNetwork(nn.Module):
             print("Unsupported activation function:", self.activation)
             quit()
 
-        self.energy_output = SphericalLinear(self.order[-1], self.num_features, 0, 1, self.clebsch_gordan)
+        self.energy_output = SphericalLinear(self.order[-1], self.num_features,
+                                             0, 1, self.clebsch_gordan, parity=parity)
 
     def radial_scale_filters(self, L):
         return getattr(self, "radial_scale_filters_{}".format(L))
