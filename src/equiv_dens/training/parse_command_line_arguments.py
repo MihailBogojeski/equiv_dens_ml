@@ -104,8 +104,10 @@ def parse_command_line_arguments(arg_file=None):
                                   help="Internal normalization in network.")
     args_hyperparams.add_argument("--normalize_en", metavar='INT', type=int, default=0,
                                   help="Internal normalization in energy network.")
-    args_hyperparams.add_argument("--parity", metavar='True|False', type=str2bool, default=False,
-                                  choices=[True, False], help="Include parity equivariance.")
+    args_hyperparams.add_argument("--parity_dens", metavar='True|False', type=str2bool, default=False,
+                                  choices=[True, False], help="Include parity equivariance for density prediction.")
+    args_hyperparams.add_argument("--parity_en", metavar='True|False', type=str2bool, default=False,
+                                  choices=[True, False], help="Include parity equivariance for energy prediction.")
     hyperparam_args = [act.dest for act in args_hyperparams._group_actions]
 
     # arguments for training

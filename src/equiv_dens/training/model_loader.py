@@ -91,7 +91,7 @@ def load_model(args, dataset, train=False):
         verbose=args.verbose,
         timing=args.timing,
         normalize=args.normalize,
-        parity=args.parity,
+        parity=args.parity_dens,
     )
 
     density_coeffs_network = DensityCoeffsNetwork
@@ -110,7 +110,7 @@ def load_model(args, dataset, train=False):
         pred_radial_coeffs=args.pred_radial_coeffs,
         scale_sph_order=args.scale_sph_order,
         normalize=args.normalize,
-        parity=args.parity,
+        parity=args.parity_dens,
     )
 
     if args.density_weight + args.dipole_moment_weight > 0:
@@ -162,7 +162,7 @@ def load_model(args, dataset, train=False):
                 verbose=args.verbose,
                 timing=args.timing,
                 normalize=args.normalize_en,
-                parity=args.parity,
+                parity=args.parity_en,
             )
         elif args.energy_model == 'spherical_linear':
             print('building spherical linear energy model')
@@ -180,7 +180,7 @@ def load_model(args, dataset, train=False):
                 timing=args.timing,
                 pred_radial_coeffs=args.pred_radial_coeffs,
                 normalize=args.normalize_en,
-                parity=args.parity,
+                parity=args.parity_en,
             )
         elif args.energy_model == 'representation':
             print('building representation energy model')
@@ -192,7 +192,7 @@ def load_model(args, dataset, train=False):
                 calculate_forces=calculate_forces,
                 verbose=args.verbose,
                 timing=args.timing,
-                parity=args.parity,
+                parity=args.parity_en,
             )
         else:
             args.energy_model = None
