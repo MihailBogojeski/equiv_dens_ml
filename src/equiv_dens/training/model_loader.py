@@ -11,8 +11,7 @@ from equiv_dens.nn.property_output.dipole_moment import DipoleMomentCalc
 from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
 from equiv_dens.utils.scaling import UnitConversion, VarianceScaling
 import equiv_dens.utils.base as utils
-from equiv_dens.utils.grids import dftpy_grid, CubicalGrid
-from dftpy.pseudo import LocalPseudo
+from equiv_dens.utils.grids import CubicalGrid
 from equiv_dens.density_functionals.LDA import LDAFunctional
 
 import numpy as np
@@ -21,38 +20,6 @@ import numpy as np
 def load_model(args, dataset, train=False):
     use_gpu = args.use_gpu and torch.cuda.is_available()
     z_vals = dataset.atoms['atom_numbers']
-    if args.energy_min_weight > 0:
-        grid_extent = np.array([args.cube_extent] * 3)
-        grid_cl = CubicalGrid(dataset.atoms, nx=args.cube_size, ny=args.cube_size, nz=args.cube_size,
-                              origin=[0, 0, 0], extent=utils.angstrom_to_bohr(grid_extent),
-                              use_gpu=use_gpu, dtype=args.dtype)
-
-        cube_gap = utils.angstrom_to_bohr(args.cube_extent) / args.cube_size
-        print('cube_extent', utils.angstrom_to_bohr(args.cube_extent))
-        print('cube_size', args.cube_size)
-        print('cube_gap', cube_gap)
-        grid = dftpy_grid(np.diag(utils.angstrom_to_bohr(grid_extent)), cube_gap)
-        # print('grid.lattice', grid.lattice)
-        # print('grid size', grid.r.shape)
-        # print('ions lattice', dataset.ions[0].pos.cell.lattice)
-
-        file_names = {'H': 'H.pbe-kjpaw_psl.0.1.UPF', 'C': 'C.pbe-kjpaw_psl.0.1.UPF',
-                      'O': 'O.pbe-n-kjpaw_psl.0.1.UPF'}
-        PP_list = {key: os.path.join(args.pseudo_pot_path, file_names[key]) for key in file_names.keys()}
-        # print('pseudo potentials', PP_list)
-        pseudo_pot = LocalPseudo(grid=grid, ions=None, PP_list=PP_list, PME=True)
-        pseudo_pot.restart(grid=grid, ions=dataset.ions[0])
-
-        dataset.add_fixed_properties({'grid': grid_cl, 'dftpy_grid': grid, 'pseudo_pot': pseudo_pot})
-
-        z_vals = []
-        print('ions0', dataset.ions[0])
-        for t in dataset.atoms['atom_types']:
-            z_vals.append(dataset.ions[0].Zval[t])
-        z_vals = np.array(z_vals)
-        print(dataset.atoms['atom_numbers'])
-        print(z_vals)
-    # define model
     clebsch_gordan = ClebschGordanMatrix()
     print('args energy_unit_in', args.energy_unit_in)
     print('args energy_unit_out', args.energy_unit_out)

@@ -1,7 +1,6 @@
-"""
-This module contains all functionalities required to load atomistic data,
+""" This module contains all functionalities required to load atomistic data,
 generate batches and compute statistics. It makes use of the ASE database
-for atoms [#ase2]_.
+for atoms [#ase2].
 
 References
 ----------
@@ -23,15 +22,13 @@ from pyscf import gto
 from pyscf.dft import numint
 from pyscf.lib import param
 from equiv_dens.utils.grids import spherical_grid,\
-    spherical_radial_sampling, treutler_atomic_radii_adjust 
+    spherical_radial_sampling, treutler_atomic_radii_adjust
 import equiv_dens.utils.base as utils
 from equiv_dens.utils import orbitals
-from dftpy.formats import ase_io
 from pyscf.dft import radi
 # import time
 
 logger = logging.getLogger(__name__)
-
 
 class AtomsDataError(Exception):
     pass
@@ -119,7 +116,6 @@ class AtomsDensityData(Dataset):
         self.mols = []
         self.coeffs = []
         self.density_fitting = {}
-        self.ions = []
         ase_atoms = utils.npy_to_ase(self.atoms['shifted_positions'], self.atoms['atom_numbers'])
         # for i in range(10):
         for i in range(len(self.atoms['positions'])):
@@ -134,14 +130,13 @@ class AtomsDensityData(Dataset):
                 if 'df_coeff' in calc_dict:
                     if 'df_coeffs' not in self.density_fitting.keys():
                         self.density_fitting['auxbasis'] = calc_dict['auxbasis']
-                        df_coeffs_split = orbitals.split_df_coeffs(mol_dict['atom'], calc_dict['df_coeff'], self.orbital_basis_size) 
+                        df_coeffs_split = orbitals.split_df_coeffs(mol_dict['atom'], calc_dict['df_coeff'], self.orbital_basis_size)
                         self.density_fitting['df_coeffs'] = [df_coeffs_split]
                     else:
-                        df_coeffs_split = orbitals.split_df_coeffs(mol_dict['atom'], calc_dict['df_coeff'], self.orbital_basis_size) 
+                        df_coeffs_split = orbitals.split_df_coeffs(mol_dict['atom'], calc_dict['df_coeff'], self.orbital_basis_size)
                         self.density_fitting['df_coeffs'].append(df_coeffs_split)
             a = ase_atoms[i]
             a.set_cell(grid_extent)
-            self.ions.append(ase_io.ase2ions(a))
 
         if radial_coeffs_file is not None:
             self.radial_coeffs = {}
@@ -265,6 +260,24 @@ class AtomsDensityData(Dataset):
         if self.verbose > 0:
             print('energy after centering', np.mean(self.atoms['energy']))
 
+    def normalize_energy(self, atom_energies):
+        """Normalize energies by subtracting the sum of atom energies.
+
+        Args:
+        atom_energies (dict): dictionary of atom energies
+        """
+        if self.verbose > 0:
+            print('energy before normalization', np.mean(self.atoms['energy']))
+        if not self.energy_centered:
+            for i in range(self.atoms['atom_numbers'].shape[0]):
+                at_en = 0
+                for j in range(self.atoms['atom_numbers'].shape[1]):
+                    at_en += atom_energies[self.atoms['atom_numbers'][i, j]]
+                self.atoms['energy'][i] -= at_en
+            self.energy_centered = True
+        if self.verbose > 0:
+            print('energy after normalization', np.mean(self.atoms['energy']))
+
     @property
     def energy(self):
         if self.subset is None:
@@ -331,12 +344,11 @@ class AtomsDensityData(Dataset):
         properties['atom_numbers'] = torch.LongTensor(atom_numbers)
         properties['atom_mask'] = properties['atom_numbers'] > 0
         properties['idx'] = torch.LongTensor(idx).unsqueeze(-1)
-        # properties['ions'] = [self.ions[i] for i in idx]
         # print('positions', positions)
         if self.centered_positions:
             # print('atom center', positions.mean(axis=0))
             positions -= torch.sum(positions * atom_numbers, 0)/torch.sum(atom_numbers, 1)
-        properties["_idx"] = torch.LongTensor(np.array(idx, dtype=np.int))
+        properties["_idx"] = torch.LongTensor(np.array(idx, dtype=int))
 
         nl = utils.TorchNeighborList(self.cutoff)
         idx_is, idx_js, _ = nl.get_neighbors(properties)
@@ -417,12 +429,11 @@ class AtomsDensityData(Dataset):
         # extract/calculate structure
         properties['positions'] = positions
         properties['atom_numbers'] = torch.LongTensor(atom_numbers)
-        # properties['ions'] = [self.ions[i] for i in idx]
         # print('positions', positions)
         if self.centered_positions:
             # print('atom center', positions.mean(axis=0))
             positions -= torch.sum(positions * atom_numbers, 0)/torch.sum(atom_numbers, 1)
-        properties["_idx"] = torch.LongTensor(np.array(idx, dtype=np.int))
+        properties["_idx"] = torch.LongTensor(np.array(idx, dtype=int))
         
         for prop in self.fixed_properties.keys():
             properties[prop] = self.fixed_properties[prop]
@@ -516,5 +527,10 @@ class AtomsDensityData(Dataset):
         return dens
 
     def add_fixed_properties(self, property_dict):
+        """Add fixed properties to the dataset.
+
+        Args:
+        property_dict (dict): Dictionary of properties to add to the dataset.
+        """
         for prop in property_dict.keys():
             self.fixed_properties[prop] = property_dict[prop]

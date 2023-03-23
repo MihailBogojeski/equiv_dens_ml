@@ -5,16 +5,13 @@ from equiv_dens.training.parse_command_line_arguments import parse_command_line_
 from equiv_dens.training.errors import ErrorDict
 from equiv_dens.data.density_dataset import AtomsDensityData
 from equiv_dens.data.hamiltonian_dataset import seeded_random_split
-from equiv_dens.utils.grids import cubical_grid, cubical_sampling,\
-    dftpy_grid, CubicalGrid, spherical_grid, spherical_radial_sampling
 from equiv_dens.training.model_loader import load_model
-import equiv_dens.utils.base as utils
 
 import numpy as np
 from functools import partial
 import time
+from equiv_dens.data.custom_samplers import set_up_data_loader
 
-from dftpy.pseudo import LocalPseudo
 # from torch import autograd
 
 """
@@ -136,13 +133,19 @@ if args.np_dataset_test is not None:
 
 print('args center energy')
 if args.center_energy:
-    train_ind = train_dataset.indices
-    energy_mean = dataset.atoms['energy'][train_ind].mean()
-    dataset.center_energy(energy_mean)
-    print('centering training energy')
-    if args.np_dataset_test is not None:
-        print('centering test energy')
-        test_dataset.dataset.center_energy(energy_mean)
+    if args.atomic_energies is None:
+        train_ind = train_dataset.indices
+        energy_mean = dataset.atoms['energy'][train_ind].mean()
+        dataset.center_energy(energy_mean)
+        print('centering training energy')
+        if args.np_dataset_test is not None:
+            print('centering test energy')
+            test_dataset.dataset.center_energy(energy_mean)
+    else:
+        atomic_energies = np.load(args.atomic_energies).item()
+        dataset.normalize_energy(atomic_energies)
+        if args.np_dataset_test is not None:
+            test_dataset.dataset.normalize_energy(atomic_energies)
 
 # determine weights of different quantities for scaling loss
 loss_weights = {}
@@ -159,37 +162,6 @@ error_dict = ErrorDict(loss_weights, weights_balance=args.weights_balance,
                       )
 
 z_vals = dataset.atoms['atom_numbers']
-if loss_weights['energy_min']:
-    grid_origin = args.cube_origin
-    grid_extent = np.array([args.cube_extent] * 3)
-    grid_cl = CubicalGrid(dataset.atoms, nx=args.cube_size, ny=args.cube_size, nz=args.cube_size,
-                          origin=[0, 0, 0], extent=utils.angstrom_to_bohr(grid_extent), use_gpu=use_gpu, dtype=args.dtype)
-
-    cube_gap = utils.angstrom_to_bohr(args.cube_extent) / args.cube_size
-    print('cube_extent', utils.angstrom_to_bohr(args.cube_extent))
-    print('cube_size', args.cube_size)
-    print('cube_gap', cube_gap)
-    grid = dftpy_grid(np.diag(utils.angstrom_to_bohr(grid_extent)), cube_gap)
-# print('grid.lattice', grid.lattice)
-# print('grid size', grid.r.shape)
-# print('ions lattice', dataset.ions[0].pos.cell.lattice)
-
-    file_names = {'H': 'H.pbe-kjpaw_psl.0.1.UPF', 'C': 'C.pbe-kjpaw_psl.0.1.UPF',
-                  'O': 'O.pbe-n-kjpaw_psl.0.1.UPF'}
-    PP_list = {key: os.path.join(args.pseudo_pot_path, file_names[key]) for key in file_names.keys()}
-# print('pseudo potentials', PP_list)
-    pseudo_pot = LocalPseudo(grid=grid, ions=None, PP_list=PP_list, PME=True)
-    pseudo_pot.restart(grid=grid, ions=dataset.ions[0])
-
-    dataset.add_fixed_properties({'grid': grid_cl, 'dftpy_grid': grid, 'pseudo_pot': pseudo_pot})
-
-    z_vals = []
-    print('ions0', dataset.ions[0])
-    for t in dataset.atoms['atom_types']:
-        z_vals.append(dataset.ions[0].Zval[t])
-    z_vals = np.array(z_vals)
-    print('dataset atom numbers', dataset.atoms['atom_numbers'])
-    print('z_vals', z_vals)
 # determine weights of different quantities for scaling loss
 # loss_weights['full_hamiltonian'] = args.full_hamiltonian_weight
 # loss_weights['core_hamiltonian'] = args.core_hamiltonian_weight
@@ -219,10 +191,8 @@ else:
 
 print('test dataset size', len(test_dataset))
 print('args.test batch_size', args.test_batch_size)
-test_data_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.test_batch_size,
-                                               num_workers=args.num_workers, pin_memory=use_gpu,
-                                               shuffle=True,
-                                               collate_fn=collate_fn)
+test_data_loader = set_up_data_loader(test_dataset, args.test_batch_size,
+                                      args.electron_num_batching, use_gpu, False)
 
 # define model
 print('args.df_weight', args.df_weight)

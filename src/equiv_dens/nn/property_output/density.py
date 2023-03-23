@@ -620,12 +620,12 @@ class DensityExpansion(nn.Module):
                     L0_int = torch.sum(L0_dens * atoms['coord_weights'], dim=-1)
                     L0_integrals.append(L0_int)
                     if self.verbose > 2:
-                        print('L0_dens integral', L0_int) 
+                        print('L0_dens integral', L0_int)
                         print('l0 dens shape', L0_dens.shape)
                         print('atoms density shape', atoms['density'].shape)
-                    atoms['density'] += L0_dens 
+                    atoms['density'] += L0_dens
         if self.verbose > 0:
-            print('L0_int sum', np.sum(L0_integrals))
+            print('L0_int sum', torch.sum(torch.cat(L0_integrals)))
             print('sum neg integrals', torch.sum((atoms['density'] * atoms['coord_weights'])[atoms['density'] < 0], dim=-1))
         if self.expansion_constraint == 'sq':
             atoms['density'] = atoms['density']**2
