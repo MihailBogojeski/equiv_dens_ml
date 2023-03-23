@@ -9,6 +9,7 @@ import sys
 
 class Trainer:
     """Class to train a model.
+
     This contains an internal training loop which takes care of validation and can be
     extended with custom functionality using hooks.
     Args:
@@ -93,7 +94,7 @@ class Trainer:
         self.error_dict = error_dict
         self.optimizers = optimizers
         self.schedulers = schedulers
-        
+
         print('trainer restore', restore)
         if os.path.exists(self.checkpoint_path) and restore:
             self.restore_checkpoint()

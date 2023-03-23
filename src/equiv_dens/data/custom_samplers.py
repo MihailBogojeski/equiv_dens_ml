@@ -1,29 +1,45 @@
 import torch
-from torch.utils.data import Sampler
+from torch.utils.data import Sampler, Dataset
 import numpy as np
 from typing import Iterator, List, Iterable, Union
 
 
 class SimilarSizeSampler(Sampler[int]):
-    r"""Samples elements randomly. If without replacement, then sample from a shuffled dataset.
-    If with replacement, then user can specify :attr:`num_samples` to draw.
+    """Sample the data while attempting to sample molecules of the similar size (wrt. number of electrons) in the same batch."""
 
-    Args:
+    def __init__(self, data_source: Dataset, replacement: bool = False,
+                 num_samples: int = None, generator: torch.Generator = None,
+                 shuffle: bool = False, max_bucket_size: int = None,
+                 electron_batch_size: int = None) -> None:
+        """Initialize a new instance of the SimilarSizeSampler class.
+
+        Args:
         data_source (Dataset): dataset to sample from
-        replacement (bool): samples are drawn on-demand with replacement if ``True``, default=``False``
-        num_samples (int): number of samples to draw, default=`len(dataset)`.
-        generator (Generator): Generator used in sampling.
-    """
-    def __init__(self, data_source, replacement: bool = False,
-                 num_samples=None, generator=None, shuffle=False, max_bucket_size=None) -> None:
+        replacement (bool): whether the samples are with or without replacement
+        num_samples (int): number of samples to draw. If None, draw as many as possible.
+        generator (torch.Generator): Generator used in sampling.
+        shuffle (bool): set to True to have the sampler shuffle dataset.
+        max_bucket_size (int): maximum number of samples in a bucket. If None,
+        estimate bucket size so that it fits number of electrons for batching.
+        electron_batch_size (int): Maximum number of total electrons in a batch.
+        Used to estimate bucket size if necessary.
+        """
+        super().__init__(data_source)
         self.data_source = data_source
+        self.dataset = None
         self.replacement = replacement
         self._num_samples = num_samples
         self.max_bucket_size = max_bucket_size
         self.generator = generator
         self.shuffle = shuffle
+        self.electron_batch_size = electron_batch_size
 
-        if max_bucket_size is None:
+        if isinstance(self.data_source, torch.utils.data.Subset):
+            self.dataset = self.data_source.dataset
+        else:
+            self.dataset = self.data_source
+
+        if max_bucket_size is None and electron_batch_size is None:
             self.max_bucket_size = (self.num_samples / 10) + 1
 
         if not isinstance(self.replacement, bool):
@@ -39,8 +55,11 @@ class SimilarSizeSampler(Sampler[int]):
         self.num_electrons = []
         for i in range(self.num_samples):
             idx = self.data_source[i]
-            self.num_electrons.append(torch.sum(self.data_source.get_basic_properties([idx])['atom_numbers']).item())
+            self.num_electrons.append(torch.sum(self.dataset.get_basic_properties([idx])['atom_numbers']).item())
         sort_idx = np.argsort(self.num_electrons)
+        if self.max_bucket_size is None:
+            min_elec_num = self.num_electrons[sort_idx[0]]
+            self.max_bucket_size = self.electron_batch_size // min_elec_num
         num_buckets = np.ceil(len(sort_idx)/self.max_bucket_size).astype(int)
         idxs = np.linspace(0, len(sort_idx) - 1, num=num_buckets).astype(int)
         self.elec_num_groups = {}
@@ -82,6 +101,7 @@ class SimilarSizeSampler(Sampler[int]):
                 perm_idx = torch.randperm(len(groups), generator=generator).to(dtype=torch.long)
                 groups = torch.index_select(groups, 0, perm_idx).tolist()
             all_idxs = []
+            groups = groups.tolist()
             for group in groups:
                 idxs = torch.tensor(self.elec_num_groups[group])
                 if self.shuffle:
@@ -104,19 +124,7 @@ class SimilarSizeSampler(Sampler[int]):
                         idxs = torch.index_select(idxs, 0, perm_idx)
                     all_idxs.extend(idxs.tolist())
                 yield from all_idxs
-                groups = torch.tensor(list(self.elec_num_groups.keys()))
-                if self.shuffle:
-                    perm_idx = torch.randperm(len(groups), generator=generator).to(dtype=torch.long)
-                    groups = torch.index_select(groups, 0, perm_idx).tolist()
-                all_idxs = []
-                for group in groups:
-                    idxs = torch.tensor(self.elec_num_groups[group])
-                    if self.shuffle:
-                        perm_idx = torch.randperm(len(idxs), generator=generator).to(dtype=torch.long)
-                        idxs = torch.index_select(idxs, 0, perm_idx)
-                    all_idxs.extend(idxs.tolist())
-                yield from all_idxs[:self.num_samples % n]
-            
+
     def __len__(self) -> int:
         return self.num_samples
 
@@ -192,3 +200,34 @@ class AdaptiveBatchSampler(Sampler[List[int]]):
             return len(self.sampler) // self.max_elec_num  # type: ignore[arg-type]
         else:
             return (len(self.sampler) + self.max_elec_num - 1) // self.max_elec_num  # type: ignore[arg-type]
+
+def set_up_data_loader(dataset: Dataset, batch_size: int = 1,
+                       electron_num_batching: bool = False,
+                       use_gpu: bool = False, shuffle: bool = True):
+    """Set up data loader for the dataset.
+
+    Args:
+    dataset (Dataset): The dataset to be used in the loader.
+    batch_size (int): The batch size.
+    electron_num_batching (bool): True to use adaptive batching based on number of electrons.
+    use_gpu (bool): True to use GPU.
+    """
+    if isinstance(dataset, torch.utils.data.Subset):
+        def collate_fn(batch):
+            return dataset.dataset.get_properties(batch)
+    else:
+        def collate_fn(batch):
+            return dataset.get_properties(batch)
+    if electron_num_batching:
+        sampler = SimilarSizeSampler(dataset, shuffle=shuffle, electron_batch_size=batch_size)
+        batch_sampler = AdaptiveBatchSampler(sampler, max_num_elec=batch_size,
+                                             drop_last=False)
+        data_loader = torch.utils.data.DataLoader(dataset, batch_sampler=batch_sampler,
+                                                  num_workers=0, pin_memory=use_gpu,
+                                                  collate_fn=collate_fn)
+    else:
+        data_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size,
+                                                  num_workers=0, pin_memory=use_gpu,
+                                                  shuffle=shuffle,
+                                                  collate_fn=collate_fn)
+    return data_loader

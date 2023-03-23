@@ -11,15 +11,15 @@ from equiv_dens.data.density_dataset import AtomsDensityData
 from equiv_dens.data.hamiltonian_dataset import seeded_random_split
 from equiv_dens.training.lookahead import Lookahead
 from equiv_dens.utils.grids import cubical_grid, cubical_sampling,\
-    dftpy_grid, CubicalGrid, spherical_grid, spherical_radial_sampling
+    CubicalGrid, spherical_grid, spherical_radial_sampling
 import equiv_dens.utils.base as utils
 from equiv_dens.training.model_loader import load_model
 import copy
+from equiv_dens.data.custom_samplers import set_up_data_loader
 
 import numpy as np
 from functools import partial
 
-from dftpy.pseudo import LocalPseudo
 # from torch import autograd
 
 """
@@ -280,21 +280,34 @@ for phase in training_phases:
 
         valid_cube_dataset = torch.utils.data.Subset(cube_dataset, valid_dataset.indices)
 
-
     if args.center_energy:
-        train_ind = train_dataset.indices
-        energy_mean = dataset.atoms['energy'][train_ind].mean()
-        dataset.center_energy(energy_mean)
-        if isinstance(test_dataset, torch.utils.data.Subset):
-            test_dataset.dataset.center_energy(energy_mean)
+        if args.atomic_energies is None:
+            train_ind = train_dataset.indices
+            energy_mean = dataset.atoms['energy'][train_ind].mean()
+            dataset.center_energy(energy_mean)
+            if isinstance(test_dataset, torch.utils.data.Subset):
+                test_dataset.dataset.center_energy(energy_mean)
+            else:
+                test_dataset.center_energy(energy_mean)
+            if isinstance(valid_dataset, torch.utils.data.Subset):
+                valid_dataset.dataset.center_energy(energy_mean)
+            else:
+                valid_dataset.center_energy(energy_mean)
+            if args.cube_grid_valid:
+                cube_dataset.center_energy(energy_mean)
         else:
-            test_dataset.center_energy(energy_mean)
-        if isinstance(valid_dataset, torch.utils.data.Subset):
-            valid_dataset.dataset.center_energy(energy_mean)
-        else:
-            valid_dataset.center_energy(energy_mean)
-        if args.cube_grid_valid:
-            cube_dataset.center_energy(energy_mean)
+            atomic_energies = np.load(args.atomic_energies, allow_pickle=True).item()
+            dataset.normalize_energy(atomic_energies)
+            if isinstance(test_dataset, torch.utils.data.Subset):
+                test_dataset.dataset.normalize_energy(atomic_energies)
+            else:
+                test_dataset.normalize_energy(atomic_energies)
+            if isinstance(valid_dataset, torch.utils.data.Subset):
+                valid_dataset.dataset.normalize_energy(atomic_energies)
+            else:
+                valid_dataset.normalize_energy(atomic_energies)
+            if args.cube_grid_valid:
+                cube_dataset.normalize_energy(atomic_energies)
 
     loss_weights = {}
     loss_weights['density'] = args.density_weight
@@ -332,37 +345,6 @@ for phase in training_phases:
 
 # print('error dict relative en', error_dict.relative_en)
     z_vals = dataset.atoms['atom_numbers']
-    if loss_weights['energy_min']:
-        grid_extent = np.array([args.cube_extent] * 3)
-        grid_cl = CubicalGrid(dataset.atoms, nx=args.cube_size, ny=args.cube_size, nz=args.cube_size,
-                              origin=[0, 0, 0], extent=utils.angstrom_to_bohr(grid_extent),
-                              use_gpu=use_gpu, dtype=args.dtype)
-
-        cube_gap = utils.angstrom_to_bohr(args.cube_extent) / args.cube_size
-        print('cube_extent', utils.angstrom_to_bohr(args.cube_extent))
-        print('cube_size', args.cube_size)
-        print('cube_gap', cube_gap)
-        grid = dftpy_grid(np.diag(utils.angstrom_to_bohr(grid_extent)), cube_gap)
-        # print('grid.lattice', grid.lattice)
-        # print('grid size', grid.r.shape)
-        # print('ions lattice', dataset.ions[0].pos.cell.lattice)
-
-        file_names = {'H': 'H.pbe-kjpaw_psl.0.1.UPF', 'C': 'C.pbe-kjpaw_psl.0.1.UPF',
-                      'O': 'O.pbe-n-kjpaw_psl.0.1.UPF'}
-        PP_list = {key: os.path.join(args.pseudo_pot_path, file_names[key]) for key in file_names.keys()}
-        # print('pseudo potentials', PP_list)
-        pseudo_pot = LocalPseudo(grid=grid, ions=None, PP_list=PP_list, PME=True)
-        pseudo_pot.restart(grid=grid, ions=dataset.ions[0])
-
-        dataset.add_fixed_properties({'grid': grid_cl, 'dftpy_grid': grid, 'pseudo_pot': pseudo_pot})
-
-        z_vals = []
-        print('ions0', dataset.ions[0])
-        for t in dataset.atoms['atom_types']:
-            z_vals.append(dataset.ions[0].Zval[t])
-        z_vals = np.array(z_vals)
-        print(dataset.atoms['atom_numbers'])
-        print(z_vals)
 # determine weights of different quantities for scaling loss
 # loss_weights['full_hamiltonian'] = args.full_hamiltonian_weight
 # loss_weights['core_hamiltonian'] = args.core_hamiltonian_weight
@@ -376,41 +358,15 @@ for phase in training_phases:
 # if the MAE is smaller than a certain threshold.
 
 # prepare data loaders
-    if isinstance(train_dataset, torch.utils.data.Subset):
-        def collate_fn(batch):
-            return train_dataset.dataset.get_properties(batch)
-    else:
-        def collate_fn(batch):
-            return train_dataset.get_properties(batch)
-    train_data_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.train_batch_size,
-                                                    num_workers=args.num_workers, pin_memory=use_gpu,
-                                                    shuffle=True,
-                                                    collate_fn=collate_fn)
-    if isinstance(valid_dataset, torch.utils.data.Subset):
-        def collate_fn(batch):
-            return valid_dataset.dataset.get_properties(batch)
-    else:
-        def collate_fn(batch):
-            return valid_dataset.get_properties(batch)
-    valid_data_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=args.valid_batch_size,
-                                                    num_workers=args.num_workers, pin_memory=use_gpu,
-                                                    shuffle=False,
-                                                    collate_fn=collate_fn)
-    if isinstance(test_dataset, torch.utils.data.Subset):
-        def collate_fn(batch):
-            return test_dataset.dataset.get_properties(batch)
-    else:
-        def collate_fn(batch):
-            return test_dataset.get_properties(batch)
-    test_data_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.test_batch_size,
-                                                   num_workers=args.num_workers, pin_memory=use_gpu,
-                                                   shuffle=True,
-                                                   collate_fn=collate_fn)
+    train_data_loader = set_up_data_loader(train_dataset, args.train_batch_size,
+                                           args.electron_num_batching, use_gpu, True)
+    valid_data_loader = set_up_data_loader(valid_dataset, args.valid_batch_size,
+                                           args.electron_num_batching, use_gpu, False)
+    test_data_loader = set_up_data_loader(test_dataset, args.test_batch_size,
+                                          args.electron_num_batching, use_gpu, False)
     if args.cube_grid_valid:
-        valid_cube_loader = torch.utils.data.DataLoader(valid_cube_dataset, batch_size=args.valid_batch_size,
-                                                        num_workers=args.num_workers, pin_memory=use_gpu,
-                                                        shuffle=True,
-                                                        collate_fn=lambda batch: valid_cube_dataset.get_properties(batch))
+        valid_cube_loader = set_up_data_loader(valid_cube_dataset, args.valid_batch_size,
+                                               args.electron_num_batching, use_gpu, False)
 
 # define model
     model = load_model(args, dataset, train=True)
@@ -645,49 +601,38 @@ if args.np_dataset_test is not None:
 
     test_dataset = torch.utils.data.Subset(test_dataset, np.arange(test_size))
 
-if args.center_energy:
-    train_ind = train_dataset.indices
-    energy_mean = dataset.atoms['energy'][train_ind].mean()
-    dataset.center_energy(energy_mean)
-    if isinstance(test_dataset, torch.utils.data.Subset):
-        test_dataset.dataset.center_energy(energy_mean)
-    else:
-        test_dataset.center_energy(energy_mean)
-    if isinstance(valid_dataset, torch.utils.data.Subset):
-        valid_dataset.dataset.center_energy(energy_mean)
-    else:
-        valid_dataset.center_energy(energy_mean)
 
-if isinstance(train_dataset, torch.utils.data.Subset):
-    def collate_fn(batch):
-        return train_dataset.dataset.get_properties(batch)
-else:
-    def collate_fn(batch):
-        return train_dataset.get_properties(batch)
-train_data_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.train_batch_size,
-                                                num_workers=args.num_workers, pin_memory=use_gpu,
-                                                shuffle=True,
-                                                collate_fn=collate_fn)
-if isinstance(valid_dataset, torch.utils.data.Subset):
-    def collate_fn(batch):
-        return valid_dataset.dataset.get_properties(batch)
-else:
-    def collate_fn(batch):
-        return valid_dataset.get_properties(batch)
-valid_data_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=args.valid_batch_size,
-                                                num_workers=args.num_workers, pin_memory=use_gpu,
-                                                shuffle=False,
-                                                collate_fn=collate_fn)
-if isinstance(test_dataset, torch.utils.data.Subset):
-    def collate_fn(batch):
-        return test_dataset.dataset.get_properties(batch)
-else:
-    def collate_fn(batch):
-        return test_dataset.get_properties(batch)
-test_data_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.test_batch_size,
-                                               num_workers=args.num_workers, pin_memory=use_gpu,
-                                               shuffle=True,
-                                               collate_fn=collate_fn)
+if args.center_energy:
+    if args.atomic_energies is None:
+        train_ind = train_dataset.indices
+        energy_mean = dataset.atoms['energy'][train_ind].mean()
+        dataset.center_energy(energy_mean)
+        if isinstance(test_dataset, torch.utils.data.Subset):
+            test_dataset.dataset.center_energy(energy_mean)
+        else:
+            test_dataset.center_energy(energy_mean)
+        if isinstance(valid_dataset, torch.utils.data.Subset):
+            valid_dataset.dataset.center_energy(energy_mean)
+        else:
+            valid_dataset.center_energy(energy_mean)
+    else:
+        atomic_energies = np.load(args.atomic_energies, allow_pickle=True).item()
+        dataset.normalize_energy(atomic_energies)
+        if isinstance(test_dataset, torch.utils.data.Subset):
+            test_dataset.dataset.normalize_energy(atomic_energies)
+        else:
+            test_dataset.normalize_energy(atomic_energies)
+        if isinstance(valid_dataset, torch.utils.data.Subset):
+            valid_dataset.dataset.normalize_energy(atomic_energies)
+        else:
+            valid_dataset.normalize_energy(atomic_energies)
+
+train_data_loader = set_up_data_loader(train_dataset, args.train_batch_size,
+                                       args.electron_num_batching, use_gpu, True)
+valid_data_loader = set_up_data_loader(valid_dataset, args.valid_batch_size,
+                                       args.electron_num_batching, use_gpu, False)
+test_data_loader = set_up_data_loader(test_dataset, args.test_batch_size,
+                                      args.electron_num_batching, use_gpu, False)
 
 loss_weights = {}
 loss_weights['density'] = args.density_weight
@@ -720,7 +665,6 @@ for test_batch_num, data in enumerate(test_data_loader):
     predictions = model(data)
     data = model.scaling.transform_back(data)
     data = model.conversions_out(data)
-    # print(lkajsdlkjasfd)
     # print('energy pred', predictions['energy'])
     if args.verbose > 1:
         if 'density' in predictions.keys():
