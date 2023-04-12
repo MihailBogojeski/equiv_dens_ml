@@ -18,7 +18,8 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-from schnetpack.data.partitioning import train_test_split
+#from schnetpack.data.partitioning import train_test_split
+from schnetpack.data.splitting import random_split
 from pyscf import gto
 from pyscf.dft import numint
 from pyscf.lib import param
@@ -205,7 +206,7 @@ class AtomsDensityData(Dataset):
             "use schnetpack.data.train_test_split instead",
             DeprecationWarning,
         )
-        return train_test_split(self, num_train, num_val, split_file)
+        return random_split(self, num_train, num_val, split_file)
 
     def create_subset(self, idx):
         """
@@ -222,7 +223,7 @@ class AtomsDensityData(Dataset):
         )
         return type(self)(
             np_path=self.np_path,
-            desnity_path=self.density_path,
+            density_path=self.density_path,
             orbitals_path=self.orbitals_path,
             density_n_samp=self.density_n_samp,
             subset=subidx,

@@ -12,7 +12,7 @@ from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
 from equiv_dens.utils.scaling import UnitConversion, VarianceScaling
 import equiv_dens.utils.base as utils
 from equiv_dens.utils.grids import dftpy_grid, CubicalGrid
-from dftpy.pseudo import LocalPseudo
+from dftpy.functional import LocalPseudo
 from equiv_dens.density_functionals.LDA import LDAFunctional
 
 import numpy as np
