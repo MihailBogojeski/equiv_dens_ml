@@ -28,7 +28,6 @@ extract_orbital_coeffs.ipynb
 Final_ORCA_to_PySCF_reordering.ipynb
 get_orbital_gradients.ipynb
 GTO_integrals.ipynb
-src/equiv_dens/utils/orca_parser.py
 calculate_atomic_densities.ipynb
 .ipynb_checkpoints/calculate_atomic_densities-checkpoint.ipynb
 .ipynb_checkpoints/Density calc compare ORCA and pyscf-checkpoint.ipynb
@@ -163,3 +162,8 @@ thiophene_check_calc.ipynb
 water_dimer_density_test.ipynb
 water_dimer_setup.ipynb
 water_pyscf_calc.ipynb
+Prepare_bayer_ai_data.ipynb
+test_prepare_data.hdf5
+test_prepare_data.npy
+equiv_dens_ml_notebooks/.ipynb_checkpoints/Second Part Testing-checkpoint.ipynb
+.ipynb_checkpoints/Prepare_bayer_ai_data-checkpoint.ipynb
