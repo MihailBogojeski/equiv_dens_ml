@@ -294,6 +294,7 @@ class Trainer:
                 self.train_batch_num = -1
 
             # increment step counter
+
             self.step += 1
             for key in self.error_dict.loss_weights.keys():
                 if self.error_dict.loss_weights[key] > self.error_dict.weights_min[key]:
