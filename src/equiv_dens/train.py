@@ -2,7 +2,7 @@
 import os
 import torch
 from datetime import datetime
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 from equiv_dens.training.parse_command_line_arguments import parse_command_line_arguments
 from equiv_dens.utils.misc import generate_id
 from equiv_dens.training.errors import ErrorDict
@@ -144,7 +144,8 @@ if __name__ == '__main__':
                             grid_origin=grid_origin,
                             verbose=args.verbose,
                             cutoff=args.cutoff,
-                            df_loss_weights=args.df_loss_weights)
+                            df_loss_weights=args.df_loss_weights,
+                            mode="non_equal")
 
     # split into train / valid / test
     if data_split_indices is None and args.np_dataset_valid is None:
@@ -436,7 +437,7 @@ if __name__ == '__main__':
             optimizers[1], mode='min', factor=args.decay_factor, patience=args.decay_patience, verbose=args.verbose))
 
     # create summary writer for tensorboard
-    summary = SummaryWriter(logdir=os.path.join(
+    summary = SummaryWriter(log_dir=os.path.join(
         directory, 'logs'), purge_step=step)
 
     total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -517,3 +518,4 @@ if __name__ == '__main__':
         errors = None
 
     print('test errors', test_errors)
+

@@ -66,7 +66,7 @@ def transform_from_orca(orbitals, atoms):
         transform_signs = np.concatenate((transform_signs, np.array(map_sign)))
 
     print('transform_indices', transform_indices)
-    transform_indices = transform_indices.astype(np.int)
+    transform_indices = transform_indices.astype(np.int32)
 
     orbitals_new = orbitals[:, :, transform_indices]
     orbitals_new = orbitals_new * transform_signs
@@ -93,7 +93,7 @@ def transform_from_svp(orbitals, atoms):
         transform_signs = np.concatenate((transform_signs, np.array(map_sign)))
 
     print('transform_indices', transform_indices)
-    transform_indices = transform_indices.astype(np.int)
+    transform_indices = transform_indices.astype(np.int32)
 
     orbitals_new = orbitals[:, :, transform_indices]
     orbitals_new = orbitals_new * transform_signs

@@ -9,9 +9,16 @@ import equiv_dens.utils.base as utils
 from pyscf import gto
 
 
-def spherical_grid(atoms, level=2):
-    numbers = np.unique(atoms['atom_numbers'].flatten()).astype(int)
-    numbers = numbers[numbers > 0]
+def spherical_grid(atoms, level=2,mode="non_equal"):
+
+    if mode == "non_equal":
+        numbers = np.unique(np.array(atoms["all_atom_numbers"])).astype(int)
+        numbers = numbers[numbers>0]
+    
+    else:
+        numbers = np.unique(atoms['atom_numbers'].flatten()).astype(int)
+        numbers = numbers[numbers > 0]
+        
     positions = []
     for n in numbers:
         positions.append([0, 0, n])
@@ -308,7 +315,7 @@ class CubicalGrid():
             fac = 2 * np.pi
             bg = fac * torch.inverse(self.lattice)
             reciprocal_lat = bg.T
-            self.rec_grid = ReciprocalGrid(np.array(self.shape).astype(np.int),
+            self.rec_grid = ReciprocalGrid(np.array(self.shape).astype(np.int32),
                                            reciprocal_lat, use_gpu=self.use_gpu,
                                            dtype=self.dtype)
         return self.rec_grid

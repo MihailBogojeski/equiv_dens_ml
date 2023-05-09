@@ -112,11 +112,16 @@ def load_model(args, dataset, train=False):
     )
 
     if args.density_weight + args.dipole_moment_weight > 0:
+
+        # n_electrons not used in density expansion therefore dummy vars added
+        # n_electrons=sum(z_vals)
+        n_electron = np.array([1])
+
         expansion_model = density_expansion(dataset.orbital_basis_num, radial_coeffs=dataset.radial_coeffs,
                                             expansion_constraint=args.expansion_constraint,
                                             integral_constraint=args.integral_constraint,
                                             integral_scale=args.integral_scale,
-                                            softmax_norm=args.softmax_norm, n_electrons=sum(z_vals),
+                                            softmax_norm=args.softmax_norm, n_electrons=n_electron,
                                             verbose=args.verbose,
                                             timing=args.timing,
                                             grid_scaling_factor=args.grid_scaling_factor,

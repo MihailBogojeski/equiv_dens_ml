@@ -167,3 +167,7 @@ test_prepare_data.hdf5
 test_prepare_data.npy
 equiv_dens_ml_notebooks/.ipynb_checkpoints/Second Part Testing-checkpoint.ipynb
 .ipynb_checkpoints/Prepare_bayer_ai_data-checkpoint.ipynb
+src/equiv_dens/.vscode/launch.json
+src/equiv_dens/.vscode/launch.json
+src/equiv_dens/EP_only_tmp_test.py
+src/equiv_dens/scripts/cluster_convert_data.py
