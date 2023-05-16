@@ -69,9 +69,6 @@ if __name__ == '__main__':
     args.np_dataset = np_dataset
     args.dens_dataset = dens_dataset
 
-
-
-
     # read arguments
     args, hyperparam_args = parse_command_line_arguments()
 
@@ -730,5 +727,11 @@ if __name__ == '__main__':
         predictions = None
         data = None
         errors = None
+
+    print('test errors', test_errors)
+    print(f"Removing temporally folder {tmp_np_dataset}")
+    print(f"Removing temporally folder {tmp_dens_dataset}")
+    rmtree(tmp_dir)
+
 
     print('test errors', test_errors)
