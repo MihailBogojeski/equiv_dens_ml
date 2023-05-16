@@ -1,2 +1,20 @@
 *.pyc
 *.vim
+.ipynb_checkpoints/calculate_atomic_densities-checkpoint.ipynb
+.ipynb_checkpoints/Density calc compare ORCA and pyscf-checkpoint.ipynb
+.ipynb_checkpoints/Final_ORCA_to_PySCF_reordering-checkpoint.ipynb
+.ipynb_checkpoints/ForTestingGSchnet_Debugging-checkpoint.ipynb
+.ipynb_checkpoints/H2_experiments-checkpoint.ipynb
+.ipynb_checkpoints/Hydrogen_dm in MO basis-checkpoint.ipynb
+.ipynb_checkpoints/Notebook for Testing cG-Schnet with added QMugs class and data preparation-checkpoint.ipynb
+.ipynb_checkpoints/OLD_orbital conversion-checkpoint.ipynb
+.ipynb_checkpoints/Prepare_bayer_ai_data-checkpoint.ipynb
+.ipynb_checkpoints/Second Part Testing-checkpoint.ipynb
+.ipynb_checkpoints/Untitled1-checkpoint.ipynb
+.ipynb_checkpoints/water_dimer_setup-checkpoint.ipynb
+.ipynb_checkpoints/water_pyscf_calc-checkpoint.ipynb
+.ipynb_checkpoints/water_pyscf_calc-EP-checkpoint.ipynb
+src/equiv_dens/EP_only_tmp_test.py
+src/equiv_dens/compare_pyscf_orca.py
+src/equiv_dens/scripts/cluster_convert_data.py
+src/equiv_dens/.vscode/launch.json
