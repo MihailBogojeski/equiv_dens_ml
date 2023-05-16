@@ -217,6 +217,7 @@ def load_model(args, dataset, train=False):
             model_dict = torch.load(os.path.join(args.load_from, 'best_' + load_code + '.pth'), map_location='cpu')
             for key in model_dict.keys():
                 if 'property_models.density' in key:
+                    print('key', key)
                     state_dict[key] = model_dict[key]
         missing, unexpected = model.load_state_dict(state_dict, strict=False)
         if len(unexpected) > 0:
