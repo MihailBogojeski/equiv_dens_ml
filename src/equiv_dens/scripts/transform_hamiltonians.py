@@ -121,7 +121,7 @@ def transform(hamiltonians, atoms, convention='svp'):
 
     transform_indices = [transform_indices[idx] for idx in orbitals_order]
     transform_signs = [transform_signs[idx] for idx in orbitals_order]
-    transform_indices = np.concatenate(transform_indices).astype(np.int)
+    transform_indices = np.concatenate(transform_indices).astype(np.int32)
     transform_signs = np.concatenate(transform_signs)
     # print('transform_indices', transform_indices)
 

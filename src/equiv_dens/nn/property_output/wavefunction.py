@@ -44,7 +44,7 @@ class WavefunctionCoeffsNetwork(nn.Module):
         # build the occupation mask (for extracting occupied orbitals in energy prediction)
         self.orbitals_max_order = get_max_order(orbitals)
         self.n_electrons = get_n_electrons(orbitals)
-        self.n_orbitals = np.ceil(self.n_electrons / 2).astype(np.int)
+        self.n_orbitals = np.ceil(self.n_electrons / 2).astype(np.int32)
         # for calculating nucleus - nucleus repulsion
 
         print('orbitals', self.orbitals)

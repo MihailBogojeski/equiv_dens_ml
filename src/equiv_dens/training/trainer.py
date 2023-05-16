@@ -1,6 +1,6 @@
 import os
 import torch
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 import math
 import time
 from equiv_dens.training.exponential_moving_average import ExponentialMovingAverage
@@ -107,7 +107,7 @@ class Trainer:
             self.valid_errors = [self.error_dict.empty(fill_value=math.inf) for i in range(len(self.validation_loaders))]
 
         self.train_errors = self.error_dict.empty()  # reset train error metrics
-        self.summary = SummaryWriter(logdir=os.path.join(self.model_path, 'logs'), purge_step=self.step)
+        self.summary = SummaryWriter(log_dir=os.path.join(self.model_path, 'logs'), purge_step=self.step)
 
     def store_checkpoint(self, best=False):
         if self.training_phases is None:
@@ -295,6 +295,7 @@ class Trainer:
                 self.train_batch_num = -1
 
             # increment step counter
+
             self.step += 1
             for key in self.error_dict.loss_weights.keys():
                 if self.error_dict.loss_weights[key] > self.error_dict.weights_min[key]:

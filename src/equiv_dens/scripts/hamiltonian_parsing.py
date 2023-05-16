@@ -36,7 +36,7 @@ def extract_basis_definition_aims(output_dirs):
     # load raw data, transform strings into bool flags and skip first two lines
     basis_definition = np.genfromtxt(basis_indices, dtype=np.int,
                                      skip_header=2, encoding=None,
-                                     converters={1: lambda x: np.int(
+                                     converters={1: lambda x: np.int32(
                                          basis_types['atomic'])})
     basis_definition[:, 0] -= 1
     basis_definition[:, 2] -= 1
@@ -49,7 +49,7 @@ def extract_basis_definition_aims(output_dirs):
     aidx = basis_definition[:, 0] - offsets
 
     basis_def = np.zeros((np.max(atoms.numbers) + 1, np.max(aidx) + 1, 5),
-                         dtype=np.int)
+                         dtype=np.int32)
     for i, z in enumerate(atoms.numbers):
         zidx = basis_definition[:, 2] == i
         bdi = basis_definition[zidx]
@@ -97,7 +97,7 @@ def extract_basis_definition_orca(output_files):
         max_atom_basis = max(nlm[element].shape[0], max_atom_basis)
 
     # Construct and populate output array
-    basis_def = np.zeros((np.max(atoms.numbers) + 1, max_atom_basis, 5), dtype=np.int)
+    basis_def = np.zeros((np.max(atoms.numbers) + 1, max_atom_basis, 5), dtype=np.int32)
 
     for atom_type in nlm.keys():
         n_entries = nlm[atom_type].shape[0]
@@ -417,10 +417,10 @@ class AimsHamiltonianParser(HamiltonianParser):
 
         Hraw = np.loadtxt(hpath)
         Sraw = np.loadtxt(spath)
-        size = np.max(Hraw[:, 0].astype(np.int))
+        size = np.max(Hraw[:, 0].astype(np.int32))
 
-        mu = Hraw[:, 0].astype(np.int) - 1
-        nu = Hraw[:, 1].astype(np.int) - 1
+        mu = Hraw[:, 0].astype(np.int32) - 1
+        nu = Hraw[:, 1].astype(np.int32) - 1
 
         H = np.zeros((size, size))
         S = np.zeros((size, size))

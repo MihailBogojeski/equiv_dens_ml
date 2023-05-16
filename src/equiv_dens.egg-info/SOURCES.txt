@@ -1,6 +1,7 @@
 README.md
 setup.py
 src/equiv_dens/__init__.py
+src/equiv_dens/compare_pyscf_orca.py
 src/equiv_dens/test.py
 src/equiv_dens/test_dens.py
 src/equiv_dens/test_dens_en.py
@@ -63,6 +64,7 @@ src/equiv_dens/utils/grids.py
 src/equiv_dens/utils/misc.py
 src/equiv_dens/utils/orbitals.py
 src/equiv_dens/utils/orbitals_legacy.py
+src/equiv_dens/utils/orca_parser.py
 src/equiv_dens/utils/scaling.py
 src/equiv_dens/utils/spherical_harmonics.py
 src/equiv_dens/utils/spherical_harmonics_simple.py

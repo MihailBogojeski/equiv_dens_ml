@@ -9,9 +9,16 @@ import equiv_dens.utils.base as utils
 from pyscf import gto
 
 
-def spherical_grid(atoms, level=2):
-    numbers = np.unique(atoms['atom_numbers'].flatten()).astype(int)
-    numbers = numbers[numbers > 0]
+def spherical_grid(atoms, level=2,mode="non_equal"):
+
+    if mode == "non_equal":
+        numbers = np.unique(np.array(atoms["all_atom_numbers"])).astype(int)
+        numbers = numbers[numbers>0]
+    
+    else:
+        numbers = np.unique(atoms['atom_numbers'].flatten()).astype(int)
+        numbers = numbers[numbers > 0]
+        
     positions = []
     for n in numbers:
         positions.append([0, 0, n])
@@ -143,7 +150,7 @@ def spherical_radial_sampling(grid_spec, n_samp, atom_numbers, positions,
                 rot_mat = torch.eye(3).to(pos)
             if atom_numbers[i,j] > 0:
                 pos_idx += 1
-            t = utils.numbers_to_symbols([z])[0]
+            t = utils.numbers_to_symbols([z])
             # print('rot_mat type', rot_mat.type())
             # print('grid spec type', grid_spec[t][0].type())
             coords = pos[:, [j], :] + (grid_spec[t][0].unsqueeze(0) @ rot_mat)
@@ -308,7 +315,7 @@ class CubicalGrid():
             fac = 2 * np.pi
             bg = fac * torch.inverse(self.lattice)
             reciprocal_lat = bg.T
-            self.rec_grid = ReciprocalGrid(np.array(self.shape).astype(np.int),
+            self.rec_grid = ReciprocalGrid(np.array(self.shape).astype(np.int32),
                                            reciprocal_lat, use_gpu=self.use_gpu,
                                            dtype=self.dtype)
         return self.rec_grid

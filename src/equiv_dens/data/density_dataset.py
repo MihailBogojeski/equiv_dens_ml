@@ -17,7 +17,8 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-from schnetpack.data.partitioning import train_test_split
+#from schnetpack.data.partitioning import train_test_split
+from schnetpack.data.splitting import random_split
 from pyscf import gto
 from pyscf.dft import numint
 from pyscf.lib import param
@@ -61,6 +62,7 @@ class AtomsDensityData(Dataset):
         projected_density=False,
         cutoff=7.937658158457616,
         df_loss_weights=False,
+        mode = "non_equal"
     ):
         self.density_path = density_path
         self.np_path = np_path
@@ -81,6 +83,7 @@ class AtomsDensityData(Dataset):
         self.energy_centered = False
         self.projected_density = projected_density
         self.cutoff = cutoff
+        self.mode = mode
         if required_properties is None:
             self.required_properties = self.available_properties
         if 'dipole_moment' in self.required_properties:
@@ -92,13 +95,32 @@ class AtomsDensityData(Dataset):
             self.calc_dpm = False
         self.centered_positions = center_positions
         self.atoms = np.load(np_path, allow_pickle=True).item()
-        if self.atoms['atom_numbers'].ndim == 1:
-            self.atoms['atom_numbers'] = self.atoms['atom_numbers'][None, :]
-        if self.atoms['atom_numbers'].shape[0] != self.atoms['positions'].shape[0]:
-            self.atoms['atom_numbers'] = np.tile(self.atoms['atom_numbers'], (self.atoms['positions'].shape[0], 1))
 
-        all_atom_numbers = np.unique(self.atoms['atom_numbers'].flatten())
-        all_atom_numbers = all_atom_numbers[all_atom_numbers > 0]
+        if mode == "non_equal":
+
+            # circumvent all_atom_numbers checking
+            all_atom_numbers = self.atoms["all_atom_numbers"]
+            all_atom_numbers = [n for n in all_atom_numbers if n > 0]
+
+            for pos in self.atoms["positions"]:
+
+                self.atoms['shifted_positions'] = pos - grid_origin
+
+            # ase atoms not needed, ions not needed
+
+        else:
+            # outcommented ions function, since I think it is not needed anymore (nowhere used in src)
+            self.ions = []
+            if self.atoms['atom_numbers'].ndim == 1:
+                self.atoms['atom_numbers'] = self.atoms['atom_numbers'][None, :]
+            if self.atoms['atom_numbers'].shape[0] != self.atoms['positions'].shape[0]:
+                self.atoms['atom_numbers'] = np.tile(self.atoms['atom_numbers'], (self.atoms['positions'].shape[0], 1))
+
+            all_atom_numbers = np.unique(self.atoms['atom_numbers'].flatten())
+            all_atom_numbers = all_atom_numbers[all_atom_numbers > 0]
+            self.atoms['shifted_positions'] = self.atoms['positions'] - grid_origin
+            ase_atoms = utils.npy_to_ase(self.atoms['shifted_positions'], self.atoms['atom_numbers'])
+
         self.orbital_basis = np.load(orbitals_path, allow_pickle=True).item()
         self.orbital_basis_num = {}
         self.orbital_basis_size = {}
@@ -110,13 +132,13 @@ class AtomsDensityData(Dataset):
                 for orb in self.orbital_basis_num[z]:
                     self.orbital_basis_size[z] += orb[1] * ((2 * orb[2]) + 1)
 
-        self.atoms['shifted_positions'] = self.atoms['positions'] - grid_origin
+        
         if self.density_path is not None:
             calc_results = np.load(density_path, allow_pickle=True)
         self.mols = []
         self.coeffs = []
         self.density_fitting = {}
-        ase_atoms = utils.npy_to_ase(self.atoms['shifted_positions'], self.atoms['atom_numbers'])
+        
         # for i in range(10):
         for i in range(len(self.atoms['positions'])):
             if self.verbose > 3:
@@ -135,8 +157,9 @@ class AtomsDensityData(Dataset):
                     else:
                         df_coeffs_split = orbitals.split_df_coeffs(mol_dict['atom'], calc_dict['df_coeff'], self.orbital_basis_size)
                         self.density_fitting['df_coeffs'].append(df_coeffs_split)
-            a = ase_atoms[i]
-            a.set_cell(grid_extent)
+            #a = ase_atoms[i]
+            #a.set_cell(grid_extent)
+            #self.ions.append(ase_io.ase2ions(a))
 
         if radial_coeffs_file is not None:
             self.radial_coeffs = {}
@@ -177,7 +200,7 @@ class AtomsDensityData(Dataset):
         else:
             self.L0_coeffs = None
 
-        self.grid_spec = grid_fn(self.atoms)
+        self.grid_spec = grid_fn(self.atoms,mode=self.mode)
         if isinstance(self.grid_spec, dict):
             for key in self.grid_spec.keys():
                 self.grid_spec[key] = (self.grid_spec[key][0].type(self.dtype),
@@ -200,7 +223,7 @@ class AtomsDensityData(Dataset):
             "use schnetpack.data.train_test_split instead",
             DeprecationWarning,
         )
-        return train_test_split(self, num_train, num_val, split_file)
+        return random_split(self, num_train, num_val, split_file)
 
     def create_subset(self, idx):
         """
@@ -217,7 +240,7 @@ class AtomsDensityData(Dataset):
         )
         return type(self)(
             np_path=self.np_path,
-            desnity_path=self.density_path,
+            density_path=self.density_path,
             orbitals_path=self.orbitals_path,
             density_n_samp=self.density_n_samp,
             subset=subidx,
@@ -306,8 +329,12 @@ class AtomsDensityData(Dataset):
             idx = [idx]
 
         # extract properties
-        atom_numbers = self.atoms['atom_numbers'][idx]
-        atom_props = {'positions': self.atoms['positions'][idx]}
+        if self.mode == "non_equal":
+            atom_numbers = [self.atoms['atom_numbers'][idx_] for idx_ in idx]
+            #atom_props = {'positions': self.atoms['positions'][idx_] for idx_ in idx}
+        else:
+            atom_numbers = self.atoms['atom_numbers'][idx]
+        atom_props = {'positions': [self.atoms['positions'][idx_] for idx_ in idx]}
         mol_props = {}
         for pname in self.required_properties:
             if pname in self.atoms.keys():
@@ -348,7 +375,7 @@ class AtomsDensityData(Dataset):
         if self.centered_positions:
             # print('atom center', positions.mean(axis=0))
             positions -= torch.sum(positions * atom_numbers, 0)/torch.sum(atom_numbers, 1)
-        properties["_idx"] = torch.LongTensor(np.array(idx, dtype=int))
+        properties["_idx"] = torch.LongTensor(np.array(idx, dtype=np.int32))
 
         nl = utils.TorchNeighborList(self.cutoff)
         idx_is, idx_js, _ = nl.get_neighbors(properties)
@@ -433,7 +460,7 @@ class AtomsDensityData(Dataset):
         if self.centered_positions:
             # print('atom center', positions.mean(axis=0))
             positions -= torch.sum(positions * atom_numbers, 0)/torch.sum(atom_numbers, 1)
-        properties["_idx"] = torch.LongTensor(np.array(idx, dtype=int))
+        properties["_idx"] = torch.LongTensor(np.array(idx, dtype=np.int32))
         
         for prop in self.fixed_properties.keys():
             properties[prop] = self.fixed_properties[prop]

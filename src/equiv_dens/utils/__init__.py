@@ -4,3 +4,5 @@ from .grids import *
 from .misc import *
 from .orbitals import *
 from .spherical_harmonics import *
+from .orca_parser import *
+

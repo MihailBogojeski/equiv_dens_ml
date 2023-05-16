@@ -2,8 +2,11 @@ import torch
 import torch.utils.data
 import torch.nn as nn
 import numpy as np
-from .sqlite_database import HamiltonianDatabase
 
+try:
+    from .sqlite_database import HamiltonianDatabase
+except:
+   print("package apsw not found")
 
 class HamiltonianDataset(torch.utils.data.Dataset):
     def __init__(self, filepath, dtype=torch.float32):
