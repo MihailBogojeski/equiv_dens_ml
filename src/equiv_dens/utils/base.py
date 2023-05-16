@@ -9,8 +9,8 @@ import pyscf
 from pyscf.data import nist
 import math
 
-to_bohr = 1/pyscf.lib.param.BOHR
-to_angstrom = pyscf.lib.param.BOHR 
+to_bohr = 1 / pyscf.lib.param.BOHR
+to_angstrom = pyscf.lib.param.BOHR
 
 
 def angstrom_to_bohr(pos):
@@ -482,7 +482,6 @@ def compute_shifts(cell, pbc, cutoff):
         :class:`torch.Tensor`: long tensor of shifts. the center cell and
             symmetric cells are not included.
     """
-    # type: (Tensor, Tensor, float) -> Tensor
     reciprocal_cell = cell.inverse().t()
     inv_distances = reciprocal_cell.norm(2, -1)
     num_repeats = torch.ceil(cutoff * inv_distances).to(pbc).type(torch.long)
@@ -513,7 +512,8 @@ def compute_shifts(cell, pbc, cutoff):
 
 
 def neighbor_pairs(padding_mask, coordinates, cell, shifts, cutoff):
-    """Compute pairs of atoms that are neighbors
+    """Compute pairs of atoms that are neighbors.
+
     Copyright 2018- Xiang Gao and other ANI developers
     (https://github.com/aiqm/torchani/blob/master/torchani/aev.py)
 
@@ -527,8 +527,6 @@ def neighbor_pairs(padding_mask, coordinates, cell, shifts, cutoff):
         cutoff (float): the cutoff inside which atoms are considered pairs
         shifts (:class:`torch.Tensor`): tensor of shape (?, 3) storing shifts
     """
-    # type: (Tensor, Tensor, Tensor, Tensor, float) -> Tuple[Tensor, Tensor, Tensor, Tensor]
-
     coordinates = coordinates.detach()
     cell = cell.detach()
     num_atoms = padding_mask.shape[0]
@@ -590,7 +588,7 @@ def compress_batch_atoms(numbers, props_dict, basis_size=None):
         nums = np.array(numbers[i])
         new_nums = np.zeros((len(common_numbers),))
         new_props = {}
-        for key in props.keys(): 
+        for key in props.keys():
             if isinstance(props[key], np.ndarray):
                 new_props[key] = np.zeros((len(common_numbers), props[key].shape[1]))
             elif basis_size is not None:
@@ -631,7 +629,6 @@ def compress_batch_atoms(numbers, props_dict, basis_size=None):
         batch_props[key] = np.array(batch_props[key])
 
     return batch_nums, batch_props
-
 
 # def batch_compressed_atoms(atoms, relevant_keys):
 #     atom_numbers = atoms['atom_numbers']
@@ -680,7 +677,7 @@ def batch_compressed_atoms(atoms, relevant_keys):
 
             batch_props[key] = [torch.zeros((batch_size * batch_atom_count,
                                              *atoms[key][i].shape[2:])).to(atoms[key][i])
-                                             for i in range(len(atoms[key]))]
+                                for i in range(len(atoms[key]))]
             for i in range(len(atoms[key])):
 
 
@@ -700,7 +697,7 @@ def get_atom_num_first_positions(atom_numbers):
     if atom_numbers.ndim > 1:
         if isinstance(atom_numbers, np.ndarray):
             atom_numbers = np.max(atom_numbers, axis=0)
-        else: 
+        else:
             atom_numbers, _ = torch.max(atom_numbers, dim=0)
     atom_numbers_first_positions = {}
     for i in range(len(atom_numbers)):
@@ -710,7 +707,7 @@ def get_atom_num_first_positions(atom_numbers):
 
     return atom_numbers_first_positions
 
-            
+
 def calc_dict_to_npy(data, convert_forces=True, compress_atoms=True):
     data_npy = {}
     data_npy['energy'] = []

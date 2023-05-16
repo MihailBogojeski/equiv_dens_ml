@@ -104,6 +104,10 @@ def parse_command_line_arguments(arg_file=None):
                                   help="Internal normalization in network.")
     args_hyperparams.add_argument("--normalize_en", metavar='INT', type=int, default=0,
                                   help="Internal normalization in energy network.")
+    args_hyperparams.add_argument("--parity_dens", metavar='True|False', type=str2bool, default=False,
+                                  choices=[True, False], help="Include parity equivariance for density prediction.")
+    args_hyperparams.add_argument("--parity_en", metavar='True|False', type=str2bool, default=False,
+                                  choices=[True, False], help="Include parity equivariance for energy prediction.")
     hyperparam_args = [act.dest for act in args_hyperparams._group_actions]
 
     # arguments for training
@@ -131,6 +135,8 @@ def parse_command_line_arguments(arg_file=None):
     args_training.add_argument("--train_batch_size", metavar='INT', type=int, default=1, help="batch size for training")
     args_training.add_argument("--valid_batch_size", metavar='INT', type=int, default=1, help="batch size for validation")
     args_training.add_argument("--test_batch_size", metavar='INT', type=int, default=1, help="batch size for validation")
+    args_training.add_argument("--electron_num_batching", metavar='True|False', type=str2bool, default=False,
+                               help="Use adaptive batching based on number of electrons.")
     args_training.add_argument("--num_workers", metavar='INT', type=int, default=0, help="number of worker threads for preparing batches")
     args_training.add_argument("--split_seed", metavar='INT', type=int, default=42,
                                help="seed for splitting the dataset in training, validation and test sets")
@@ -158,7 +164,7 @@ def parse_command_line_arguments(arg_file=None):
                                help="momentum for the optimizer (only relevant for SGD)")
     args_training.add_argument("--density_weight", metavar='FLOAT', type=float, default=1.0,
                                help="weight of the density in the loss function")
-    args_training.add_argument("--df_weight", metavar='FLOAT', type=float, default=1.0,
+    args_training.add_argument("--df_weight", metavar='FLOAT', type=float, default=0.0,
                                help="weight of the density fitting coeffs in the loss function")
     args_training.add_argument("--dipole_moment_weight", metavar='FLOAT', type=float, default=0.0,
                                help="weight of the dipole moment in the loss function")
@@ -203,15 +209,17 @@ def parse_command_line_arguments(arg_file=None):
     args_training.add_argument("--energy_min_weight_decay", metavar='FLOAT', type=float, default=1.0,
                                help="decay of the weight of the energy minimization loss")
     args_training.add_argument("--max_energy_error", metavar='FLOAT', type=float, default=0.1,
-                               help="for better stability at beginning of training: maximum allowed MAE" +
+                               help="for better stability at beginning of training: maximum allowed MAE " +
                                "in energy (higher errors are clamped)")
     args_training.add_argument("--max_forces_error", metavar='FLOAT', type=float, default=0.1,
-                               help="for better stability at beginning of training: maximum allowed MAE" +
+                               help="for better stability at beginning of training: maximum allowed MAE " +
                                "in forces (higher errors are clamped)")
     args_training.add_argument("--df_loss_weights",  metavar='True|False', type=str2bool, default=False, choices=[True, False],
                                help="Incorporate weighting based on radial coefficients for density fitting loss.")
     args_training.add_argument("--center_energy", metavar='True|False', type=str2bool, default=True,
                                choices=[True, False], help="set energy mean to zero.")
+    args_training.add_argument("--atomic_energies", metavar='STR', type=str, default=None, help='File containing ' +
+                               'atomic energies that will be used for normalization of total_energy')
     args_training.add_argument("--clip_norm", metavar='FLOAT', type=float, default=0.0,
                                help="gradient clip norm (only when --use_gradient_clipping is active)")
     args_training.add_argument("--use_parameter_averaging", metavar='True|False', type=str2bool, default=True,

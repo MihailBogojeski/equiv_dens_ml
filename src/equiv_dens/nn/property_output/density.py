@@ -30,6 +30,7 @@ class DensityCoeffsNetwork(nn.Module):
                  pred_radial_coeffs=True,
                  scale_sph_order=True,
                  normalize=0,
+                 parity=False,
                  ):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
         super().__init__()
 
@@ -94,7 +95,8 @@ class DensityCoeffsNetwork(nn.Module):
         self.spherical_output = SphericalLinear(self.order, self.num_features,
                                                 self.orbitals_max_order,
                                                 max(self.sph_counts), self.clebsch_gordan, bias=self.output_bias,
-                                                zero_init=self.output_zero_init, normalize=self.normalize)
+                                                zero_init=self.output_zero_init, normalize=self.normalize,
+                                                parity=parity)
         print('self.pred_radial_coeffs', self.pred_radial_coeffs)
         if self.pred_radial_coeffs:
             self.radial_width = nn.ModuleList([nn.Linear(self.num_features, self.rad_counts[L])
@@ -618,12 +620,12 @@ class DensityExpansion(nn.Module):
                     L0_int = torch.sum(L0_dens * atoms['coord_weights'], dim=-1)
                     L0_integrals.append(L0_int)
                     if self.verbose > 2:
-                        print('L0_dens integral', L0_int) 
+                        print('L0_dens integral', L0_int)
                         print('l0 dens shape', L0_dens.shape)
                         print('atoms density shape', atoms['density'].shape)
-                    atoms['density'] += L0_dens 
+                    atoms['density'] += L0_dens
         if self.verbose > 0:
-            print('L0_int sum', np.sum(L0_integrals))
+            print('L0_int sum', torch.sum(torch.cat(L0_integrals)))
             print('sum neg integrals', torch.sum((atoms['density'] * atoms['coord_weights'])[atoms['density'] < 0], dim=-1))
         if self.expansion_constraint == 'sq':
             atoms['density'] = atoms['density']**2

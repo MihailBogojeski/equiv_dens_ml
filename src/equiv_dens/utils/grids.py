@@ -3,8 +3,8 @@ from pyscf.dft import gen_grid, radi
 from .base import random_rotation_matrix
 from pyscf import lib
 import torch
-from dftpy.math_utils import bestFFTsize
-from dftpy.grid import DirectGrid
+# from dftpy.math_utils import bestFFTsize
+# from dftpy.grid import DirectGrid
 import equiv_dens.utils.base as utils
 from pyscf import gto
 
@@ -235,20 +235,20 @@ def cubical_sampling(grid_spec, n_samp, _, pos):
         return flat_coords[:, rand_idx, :], torch.ones((n_samp, )) * grid_spec[1]
 
 
-def dftpy_grid(lattice, gap):
-    nr = np.zeros(3, dtype='int32')
-    metric = np.dot(lattice.T, lattice)
-    # print('lattice', lattice)
-    # print('metric', np.sqrt(metric[0, 0]))
-    # print('gap', gap)
-    for i in range(3):
-        nr[i] = int(np.sqrt(metric[i, i]) / gap)
-    # print('The initial grid size is ', nr)
-    for i in range(3):
-        nr[i] = bestFFTsize(nr[i])
-    # print('The final grid size is ', nr)
-    grid = DirectGrid(lattice=lattice, nr=nr, units=None, full=False)
-    return grid
+# def dftpy_grid(lattice, gap):
+#     nr = np.zeros(3, dtype='int32')
+#     metric = np.dot(lattice.T, lattice)
+#     # print('lattice', lattice)
+#     # print('metric', np.sqrt(metric[0, 0]))
+#     # print('gap', gap)
+#     for i in range(3):
+#         nr[i] = int(np.sqrt(metric[i, i]) / gap)
+#     # print('The initial grid size is ', nr)
+#     for i in range(3):
+#         nr[i] = bestFFTsize(nr[i])
+#     # print('The final grid size is ', nr)
+#     grid = DirectGrid(lattice=lattice, nr=nr, units=None, full=False)
+#     return grid
 
 
 class CubicalGrid():
