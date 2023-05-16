@@ -18,6 +18,10 @@ from equiv_dens.training.model_loader import load_model
 import argparse
 import numpy as np
 from functools import partial
+import shutil
+from shutil import rmtree,copyfile
+import sys
+from logging import log
 
 from dftpy.functional import LocalPseudo
 # from torch import autograd
@@ -47,6 +51,29 @@ if __name__ == '__main__':
 
     # read arguments
     args, hyperparam_args = parse_command_line_arguments(filename)
+    #### Adding for cluster
+    np_dataset = args.np_dataset
+    dens_dataset = args.dens_dataset
+
+    tmp_dir = os.path.join("/tmp/elron/{}.{}".format(
+            os.environ.get("SGE_JOB_ID"), os.environ.get("SGE_TASK_ID"))
+        )
+    if not os.path.exists(tmp_dir):
+        os.makedirs(tmp_dir)
+    
+    tmp_np_dataset = os.path.join(tmp_dir, os.path.basename(np_dataset))
+    tmp_dens_dataset = os.path.join(tmp_dir, os.path.basename(dens_dataset))
+
+    print(f"Moving database temporally to {tmp_dir}")
+    shutil.copyfile(np_dataset, tmp_np_dataset)
+    shutil.copyfile(dens_dataset,tmp_dens_dataset)
+
+    np_dataset = tmp_np_dataset
+    dens_dataset = tmp_dens_dataset
+
+    args.np_dataset = np_dataset
+    args.dens_dataset = dens_dataset
+
 
     # no restart directory specified
     if args.restart is None:
@@ -518,4 +545,8 @@ if __name__ == '__main__':
         errors = None
 
     print('test errors', test_errors)
+    print(f"Removing temporally folder {tmp_np_dataset}")
+    print(f"Removing temporally folder {tmp_dens_dataset}")
+    rmtree(tmp_dir)
+
 

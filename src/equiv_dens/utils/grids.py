@@ -150,7 +150,7 @@ def spherical_radial_sampling(grid_spec, n_samp, atom_numbers, positions,
                 rot_mat = torch.eye(3).to(pos)
             if atom_numbers[i,j] > 0:
                 pos_idx += 1
-            t = utils.numbers_to_symbols([z])[0]
+            t = utils.numbers_to_symbols([z])
             # print('rot_mat type', rot_mat.type())
             # print('grid spec type', grid_spec[t][0].type())
             coords = pos[:, [j], :] + (grid_spec[t][0].unsqueeze(0) @ rot_mat)

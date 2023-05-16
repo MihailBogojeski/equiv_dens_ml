@@ -676,10 +676,14 @@ def batch_compressed_atoms(atoms, relevant_keys):
     batch_props = {}
     for key in relevant_keys:
         if isinstance(atoms[key], list):
+
+
             batch_props[key] = [torch.zeros((batch_size * batch_atom_count,
                                              *atoms[key][i].shape[2:])).to(atoms[key][i])
                                              for i in range(len(atoms[key]))]
             for i in range(len(atoms[key])):
+
+
                 batch_props[key][i][batch_idx_pos] = atoms[key][i]
                 batch_props[key][i] = batch_props[key][i].view(batch_size, batch_atom_count, *atoms[key][i].shape[2:])
                 atoms[key][i] = batch_props[key][i]
