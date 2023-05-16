@@ -278,7 +278,6 @@ def parse_command_line_arguments(arg_file=None):
     args_training.add_argument("--fast_df", metavar='True|False', type=str2bool, default=True,
                                choices=[True, False], help="Do a fast/shorter density fitting training procedure.")
 
-
     # arguments for simulations
     args_simulation = parser.add_argument_group("simulation hyperparameters")
     args_simulation.add_argument("--temperature", metavar='INT', type=int, default=300,
