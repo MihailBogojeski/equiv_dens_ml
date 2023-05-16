@@ -13,6 +13,9 @@ from equiv_dens.training.lookahead import Lookahead
 from equiv_dens.training.model_loader import load_model
 from equiv_dens.data.custom_samplers import set_up_data_loader
 
+from equiv_dens.utils.grids import cubical_grid, cubical_sampling,\
+    CubicalGrid, spherical_grid, spherical_radial_sampling
+
 import argparse
 import numpy as np
 from functools import partial
