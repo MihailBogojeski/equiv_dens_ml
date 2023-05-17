@@ -55,16 +55,28 @@ class SimilarSizeSampler(Sampler[int]):
         self.num_electrons = []
         for i in range(self.num_samples):
             idx = self.data_source[i]
-            self.num_electrons.append(torch.sum(self.dataset.get_basic_properties([idx])['atom_numbers']).item())
+            # history was that idx was in list but slicing with lists is not possible
+            self.num_electrons.append(torch.sum(self.dataset.get_basic_properties(idx)['atom_numbers']).item())
         sort_idx = np.argsort(self.num_electrons)
         if self.max_bucket_size is None:
             min_elec_num = self.num_electrons[sort_idx[0]]
             self.max_bucket_size = self.electron_batch_size // min_elec_num
-        num_buckets = np.ceil(len(sort_idx)/self.max_bucket_size).astype(int)
+        # if max_bucket_size is 0 no indices for the subset can be generated
+        try:
+            num_buckets = np.ceil(len(sort_idx)/self.max_bucket_size).astype(int)
+        except:
+            num_buckets = self.num_samples
         idxs = np.linspace(0, len(sort_idx) - 1, num=num_buckets).astype(int)
         self.elec_num_groups = {}
-        for i in range(len(idxs) - 1):
-            self.elec_num_groups[i] = sort_idx[idxs[i]:idxs[i + 1]]
+
+        # if len idxs is equal on slicing does not work properly, all indices belong then to the grouping
+        if len(idxs) == 1:
+            self.elec_num_groups[0] = sort_idx
+        else:
+            for i in range(len(idxs)-1): # -1
+                self.elec_num_groups[i] = sort_idx[idxs[i]:idxs[i + 1]]
+        #
+        #self.elec_num_groups[0] = sort_idx
 
     @property
     def num_samples(self) -> int:
