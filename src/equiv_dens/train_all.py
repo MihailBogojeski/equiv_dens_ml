@@ -675,12 +675,12 @@ def train(filename):
 
     loss_weights = {}
     loss_weights['density'] = args.density_weight
-    loss_weights['dipole_moment'] = args.density_weight
-    loss_weights['energy'] = args.energy_weight
-    loss_weights['forces'] = args.forces_weight
-    if training_phases[-1] == 'dipole_moment':
-        loss_weights['energy'] = 0
-        loss_weights['forces'] = 0
+    #loss_weights['dipole_moment'] = args.density_weight
+    #loss_weights['energy'] = args.energy_weight
+    #loss_weights['forces'] = args.forces_weight
+    #if training_phases[-1] == 'dipole_moment':
+    #    loss_weights['energy'] = 0
+    #    loss_weights['forces'] = 0
 
     print('loss weights test', loss_weights)
 
@@ -733,5 +733,6 @@ def train(filename):
 
     print('test errors', test_errors)
 
-filename = sys.argv[1]
+filename = "/home/elron/phd/projects/bayer/uv_stability_data/equiv_dens_ml_notebooks/inputfiles/test_sanity_run_bayer_aiqu_S0_09052023.txt"
+#filename = sys.argv[1]
 train(filename)
