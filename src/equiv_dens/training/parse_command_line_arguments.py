@@ -323,50 +323,50 @@ def parse_command_line_arguments(arg_file=None):
                            choices=[True, False], help="If true use old density network code, else use the most recent version.")
 
     # actually parse command line arguments
-    if len(sys.argv) == 1:  # no arguments were specified, print help message
-        args = parser.parse_args(["--help"])
+    #if len(sys.argv) == 1:  # no arguments were specified, print help message
+    #    args = parser.parse_args(["--help"])
+    #else:
+    if arg_file is not None:
+        with open(arg_file, 'r') as f:
+            args_str = f.read()
+            args = parser.parse_args(args_str.split())
     else:
-        if arg_file is not None:
-            with open(arg_file, 'r') as f:
-                args_str = f.read()
-                args = parser.parse_args(args_str.split())
-        else:
-            args = parser.parse_args()
-        # convert dtype argument to the proper torch type
-        if args.dtype == 'torch.float32':
-            args.dtype = torch.float32
-        elif args.dtype == 'torch.float64':
-            args.dtype = torch.float64
+        args = parser.parse_args()
+    # convert dtype argument to the proper torch type
+    if args.dtype == 'torch.float32':
+        args.dtype = torch.float32
+    elif args.dtype == 'torch.float64':
+        args.dtype = torch.float64
 
-        # necessary because None is not properly by argparse (special case)
-        if args.restart == 'None':
-            args.restart = None
-        if args.dens_dataset == 'None':
-            args.dens_dataset = None
-        if args.dens_dataset_test == 'None':
-            args.dens_dataset_test = None
-        if args.np_dataset_test == 'None':
-            args.np_dataset_test = None
-        if args.dens_dataset_valid == 'None':
-            args.dens_dataset_valid = None
-        if args.np_dataset_valid == 'None':
-            args.np_dataset_valid = None
-        if args.radial_coeffs_file == 'None':
-            args.args.radial_coeffs_file = None
-        if args.load_from == 'None':
-            args.load_from = None
-        if args.expansion_constraint == 'None':
-            args.expansion_constraint = None
-        if args.integral_constraint == 'None':
-            args.integral_constraint = None
-        if args.integral_constraint == 'True':
-            args.integral_constraint = True
-        if args.energy_model == 'None':
-            args.energy_model = None
-        if args.start_idx[0] == -1:
-            args.start_idx = None
+    # necessary because None is not properly by argparse (special case)
+    if args.restart == 'None':
+        args.restart = None
+    if args.dens_dataset == 'None':
+        args.dens_dataset = None
+    if args.dens_dataset_test == 'None':
+        args.dens_dataset_test = None
+    if args.np_dataset_test == 'None':
+        args.np_dataset_test = None
+    if args.dens_dataset_valid == 'None':
+        args.dens_dataset_valid = None
+    if args.np_dataset_valid == 'None':
+        args.np_dataset_valid = None
+    if args.radial_coeffs_file == 'None':
+        args.args.radial_coeffs_file = None
+    if args.load_from == 'None':
+        args.load_from = None
+    if args.expansion_constraint == 'None':
+        args.expansion_constraint = None
+    if args.integral_constraint == 'None':
+        args.integral_constraint = None
+    if args.integral_constraint == 'True':
+        args.integral_constraint = True
+    if args.energy_model == 'None':
+        args.energy_model = None
+    if args.start_idx[0] == -1:
+        args.start_idx = None
 
-        args.energy_unit_in = args.energy_unit_in.split('/')[0]
-        args.energy_unit_out = args.energy_unit_out.split('/')[0]
+    args.energy_unit_in = args.energy_unit_in.split('/')[0]
+    args.energy_unit_out = args.energy_unit_out.split('/')[0]
 
     return args, hyperparam_args
