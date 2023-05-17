@@ -328,8 +328,8 @@ class AtomsDensityData(Dataset):
     # collects the molecular properties for the batch, should be used as collate_fn
     def get_properties(self, idx):
         idx = self._subset_index(idx)
-        if not hasattr(idx, '__len__'):
-            idx = [idx]
+        #if not hasattr(idx, '__len__'):
+        #    idx = [idx]
 
         # extract properties
         if self.mode == "non_equal":

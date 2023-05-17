@@ -171,3 +171,4 @@ src/equiv_dens/.vscode/launch.json
 src/equiv_dens/.vscode/launch.json
 src/equiv_dens/EP_only_tmp_test.py
 src/equiv_dens/scripts/cluster_convert_data.py
+src/equiv_dens/syn_cluster.sh
