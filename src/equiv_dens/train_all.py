@@ -19,6 +19,7 @@ from equiv_dens.data.custom_samplers import set_up_data_loader
 import argparse
 import shutil
 import numpy as np
+import sys
 from functools import partial
 
 # from torch import autograd
@@ -36,16 +37,12 @@ def simple_parser():
     return parser
 
 
-if __name__ == '__main__':
 
+def train(filename):
 
-    parser = simple_parser()
-    args = parser.parse_args()
-
-    filename= args.inputfile
-
-    # read arguments
-    args, hyperparam_args = parse_command_line_arguments(filename)
+    
+        # read arguments
+    args, hyperparam_args = parse_command_line_arguments(arg_file=filename)
     #### Adding for cluster
     np_dataset = args.np_dataset
     dens_dataset = args.dens_dataset
@@ -55,7 +52,7 @@ if __name__ == '__main__':
         )
     if not os.path.exists(tmp_dir):
         os.makedirs(tmp_dir)
-    
+
     tmp_np_dataset = os.path.join(tmp_dir, os.path.basename(np_dataset))
     tmp_dens_dataset = os.path.join(tmp_dir, os.path.basename(dens_dataset))
 
@@ -70,7 +67,7 @@ if __name__ == '__main__':
     args.dens_dataset = dens_dataset
 
     # read arguments
-    args, hyperparam_args = parse_command_line_arguments()
+    #args, hyperparam_args = parse_command_line_arguments()
 
     # no restart directory specified
     if args.restart is None:
@@ -483,7 +480,7 @@ if __name__ == '__main__':
                 optimizers[1], mode='min', factor=args.decay_factor, patience=args.decay_patience, verbose=args.verbose))
 
     # create summary writer for tensorboard
-        summary = SummaryWriter(logdir=os.path.join(
+        summary = SummaryWriter(log_dir=os.path.join(
             directory, 'logs'), purge_step=step)
 
         total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -539,9 +536,9 @@ if __name__ == '__main__':
 
     args.df_weight = 0.0 
     args.density_weight = 1.0
-    args.dipole_moment_weight = 1.0 
-    args.energy_weight = 1.0
-    args.forces_weight = 1.0
+    #args.dipole_moment_weight = 1.0 
+    #args.energy_weight = 1.0
+    #args.forces_weight = 1.0
     required_properties = []
     if args.density_weight + args.dipole_moment_weight > 0:
         required_properties.append('density')
@@ -731,7 +728,10 @@ if __name__ == '__main__':
     print('test errors', test_errors)
     print(f"Removing temporally folder {tmp_np_dataset}")
     print(f"Removing temporally folder {tmp_dens_dataset}")
-    rmtree(tmp_dir)
+    shutil.rmtree(tmp_dir)
 
 
     print('test errors', test_errors)
+
+filename = sys.argv[1]
+train(filename)
