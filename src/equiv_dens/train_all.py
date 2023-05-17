@@ -41,7 +41,7 @@ def simple_parser():
 def train(filename):
 
     
-        # read arguments
+    # read arguments
     args, hyperparam_args = parse_command_line_arguments(arg_file=filename)
     #### Adding for cluster
     np_dataset = args.np_dataset
