@@ -74,7 +74,8 @@ class SimilarSizeSampler(Sampler[int]):
             self.elec_num_groups[0] = sort_idx
         else:
             for i in range(len(idxs)-1): # -1
-                self.elec_num_groups[i] = sort_idx[idxs[i]:idxs[i + 1]]
+                # +1 added to inlcude last idx as well
+                self.elec_num_groups[i] = sort_idx[idxs[i]:idxs[i + 1]+1]
         #
         #self.elec_num_groups[0] = sort_idx
 
