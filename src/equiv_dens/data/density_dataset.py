@@ -145,7 +145,10 @@ class AtomsDensityData(Dataset):
                 print('loading sample', i)
             if self.density_path is not None:
                 mol_dict, calc_dict = calc_results[i]
+                # added density matrix (because calculation results are slightly better make error prone)
                 coeff_dict = {'mo_coeff': calc_dict['mo_coeff'], 'mo_occ': calc_dict['mo_occ']}
+                if "density_matrix" in calc_dict:
+                    coeff_dict["density_matrix"] = calc_dict["density_matrix"]
                 mol = gto.Mole(**mol_dict)
                 self.mols.append(mol)
                 self.coeffs.append(coeff_dict)
@@ -430,11 +433,15 @@ class AtomsDensityData(Dataset):
 
     def get_basic_properties(self, idx):
         idx = self._subset_index(idx)
-        if not hasattr(idx, '__len__'):
-            idx = [idx]
+        # Throws an error, because slicing based on lists is not possible
+        #if not hasattr(idx, '__len__'):
+        #    idx = [idx]
 
         # extract properties
-        atom_numbers = self.atoms['atom_numbers'][idx]
+        try:
+            atom_numbers = self.atoms['atom_numbers'][idx]
+        except:
+            atom_numbers = self.atoms["all_atom_numbers"]
         atom_props = {'positions': self.atoms['positions'][idx]}
         mol_props = {}
         for pname in self.required_properties:
@@ -505,13 +512,17 @@ class AtomsDensityData(Dataset):
                 ao = numint.eval_ao(mol, scaled_sample_coords[c])
                 # print('ao time', time.time() - ao_start)
                 # rho_start = time.time()
-                if coeff_dict['mo_occ'].ndim > 1:
-                    rho = 0
-                    for j in range(coeff_dict['mo_occ'].shape[0]):
-                        rho += numint.eval_rho2(mol, ao, mo_occ=coeff_dict['mo_occ'][j], 
-                                                mo_coeff=coeff_dict['mo_coeff'][j])
+                if "density_matrix" in coeff_dict:
+                    # added density matrix because pyscf calculation results are slightly better
+                    rho = numint.eval_rho(mol,ao,dm=coeff_dict["density_matrix"])
                 else:
-                    rho = numint.eval_rho2(mol, ao, **coeff_dict)
+                    if coeff_dict['mo_occ'].ndim > 1:
+                        rho = 0
+                        for j in range(coeff_dict['mo_occ'].shape[0]):
+                            rho += numint.eval_rho2(mol, ao, mo_occ=coeff_dict['mo_occ'][j], 
+                                                    mo_coeff=coeff_dict['mo_coeff'][j])
+                    else:
+                        rho = numint.eval_rho2(mol, ao, **coeff_dict)
                 # print('rho time', time.time() - rho_start)
                 dens[c, :] = torch.from_numpy(rho).type(self.dtype)
                 # print('mol_time', time.time() - mol_start)
