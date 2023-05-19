@@ -5,7 +5,7 @@ import math
 import time
 from equiv_dens.training.exponential_moving_average import ExponentialMovingAverage
 import sys
-
+import logging
 
 class Trainer:
     """Class to train a model.
@@ -359,8 +359,8 @@ class Trainer:
 
         if self.verbose > 0:
             if 'density' in predictions.keys():
-                print('train density intergal', torch.sum(predictions['density'] * predictions['coord_weights'], dim=1))
-                print('true density intergal', torch.sum(data['density'] * data['coord_weights'], dim=1))
+                logging.info(f"train density intergal {torch.sum(predictions['density'] * predictions['coord_weights'], dim=1)}")
+                logging.info(f"true density intergal {torch.sum(data['density'] * data['coord_weights'], dim=1)}")
         if self.verbose > 0:
             if 'energy' in predictions.keys():
                 print('pred energy', predictions['energy'].view((-1, )))
@@ -485,8 +485,8 @@ class Trainer:
             # print('energy pred', predictions['energy'])
             if self.verbose > 0:
                 if 'density' in predictions.keys():
-                    print('valid density intergal', torch.sum(predictions['density'] * predictions['coord_weights'], dim=1))
-                    print('true density intergal', torch.sum(data['density'] * data['coord_weights'], dim=1))
+                    logging.info(f"valid density intergal {torch.sum(predictions['density'] * predictions['coord_weights'], dim=1)}")
+                    logging.info(f"true density intergal {torch.sum(data['density'] * data['coord_weights'], dim=1)}")
                 if 'energy' in predictions.keys():
                     print('pred energy', predictions['energy'].view((-1, )))
                     print('true energy', data['energy'].view((-1, )))

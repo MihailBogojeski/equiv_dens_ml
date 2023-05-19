@@ -89,7 +89,7 @@ log.info(f"max steps: {args.max_steps}")
 use_gpu = args.use_gpu and torch.cuda.is_available()
 
 if use_gpu:
-    log.info(f"GPU is used for training")
+    log.info(f"GPU is used for training {torch.cuda.get_device_name(0)}")
 
 # load dataset(s)
 log.info(f"loading density from {args.dens_dataset}...")
