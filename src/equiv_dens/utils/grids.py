@@ -31,7 +31,7 @@ def spherical_grid(atoms, level=2,mode="non_equal"):
 
     grid_spec = gen_grid.gen_atomic_grids(mol, radi_method=radi.treutler, level=level)
     for key in grid_spec.keys():
-        grid_spec[key] = (torch.tensor(grid_spec[key][0] * utils.to_angstrom),
+        grid_spec[key] = (torch.tensor(grid_spec[key][0] ), # EP * utils.to_angstrom
                           torch.tensor(grid_spec[key][1]))  # convert Bohr grid to Angstrom
 
     return grid_spec
