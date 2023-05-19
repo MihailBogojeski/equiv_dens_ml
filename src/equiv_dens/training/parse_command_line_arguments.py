@@ -1,7 +1,8 @@
 import sys
 import argparse
 import torch
-
+import os
+import shutil
 
 # helper function used in order to support boolean command line arguments
 def str2bool(s):
@@ -11,6 +12,36 @@ def str2bool(s):
         return False
     else:
         return s
+
+# helper function 
+
+def move_data_to_cluster_node(args):
+
+    np_dataset = args.np_dataset
+    dens_dataset = args.dens_dataset
+
+    tmp_dir = os.path.join("/tmp/{}/{}.{}".format
+        (
+        os.environ.get("USERNAME"),
+        os.environ.get("SGE_JOB_ID"), 
+        os.environ.get("SGE_TASK_ID")
+        )
+    )
+    if not os.path.exists(tmp_dir):
+        os.makedirs(tmp_dir)
+
+    tmp_np_dataset = os.path.join(tmp_dir, os.path.basename(np_dataset))
+    tmp_dens_dataset = os.path.join(tmp_dir, os.path.basename(dens_dataset))
+
+
+    shutil.copyfile(np_dataset, tmp_np_dataset)
+    shutil.copyfile(dens_dataset,tmp_dens_dataset)
+
+    np_dataset = tmp_np_dataset
+    dens_dataset = tmp_dens_dataset
+
+    return (np_dataset, dens_dataset,tmp_dir)
+
 
 
 def parse_command_line_arguments(arg_file=None):
@@ -323,15 +354,15 @@ def parse_command_line_arguments(arg_file=None):
                            choices=[True, False], help="If true use old density network code, else use the most recent version.")
 
     # actually parse command line arguments
-    #if len(sys.argv) == 1:  # no arguments were specified, print help message
-    #    args = parser.parse_args(["--help"])
-    #else:
-    if arg_file is not None:
-        with open(arg_file, 'r') as f:
-            args_str = f.read()
-            args = parser.parse_args(args_str.split())
+    if len(sys.argv) == 1:  # no arguments were specified, print help message
+        args = parser.parse_args(["--help"])
     else:
-        args = parser.parse_args()
+        if arg_file is not None:
+            with open(arg_file, 'r') as f:
+                args_str = f.read()
+                args = parser.parse_args(args_str.split())
+        else:
+            args = parser.parse_args()
     # convert dtype argument to the proper torch type
     if args.dtype == 'torch.float32':
         args.dtype = torch.float32
