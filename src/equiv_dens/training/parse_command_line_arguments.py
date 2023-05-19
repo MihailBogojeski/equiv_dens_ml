@@ -20,9 +20,11 @@ def move_data_to_cluster_node(args):
     np_dataset = args.np_dataset
     dens_dataset = args.dens_dataset
 
+
+
     tmp_dir = os.path.join("/tmp/{}/{}.{}".format
         (
-        os.environ.get("USERNAME"),
+        os.environ.get("HOME").split("/home/")[-1],
         os.environ.get("SGE_JOB_ID"), 
         os.environ.get("SGE_TASK_ID")
         )
