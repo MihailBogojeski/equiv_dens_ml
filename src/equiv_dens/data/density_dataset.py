@@ -16,7 +16,7 @@ import warnings
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-
+from itertools import zip_longest
 #from schnetpack.data.partitioning import train_test_split
 from schnetpack.data.splitting import random_split
 from pyscf import gto
@@ -96,30 +96,19 @@ class AtomsDensityData(Dataset):
         self.centered_positions = center_positions
         self.atoms = np.load(np_path, allow_pickle=True).item()
 
-        if mode == "non_equal":
+        self.zero_pad()
+        self.ions = []
+        
+        if self.atoms['atom_numbers'].ndim == 1:
+            self.atoms['atom_numbers'] = self.atoms['atom_numbers'][None, :]
 
-            # circumvent all_atom_numbers checking
-            all_atom_numbers = self.atoms["all_atom_numbers"]
-            all_atom_numbers = [n for n in all_atom_numbers if n > 0]
+        if self.atoms['atom_numbers'].shape[0] != self.atoms['positions'].shape[0]:
+            self.atoms['atom_numbers'] = np.tile(self.atoms['atom_numbers'], (self.atoms['positions'].shape[0], 1))
 
-            for pos in self.atoms["positions"]:
-
-                self.atoms['shifted_positions'] = pos - grid_origin
-
-            # ase atoms not needed, ions not needed
-
-        else:
-            # outcommented ions function, since I think it is not needed anymore (nowhere used in src)
-            self.ions = []
-            if self.atoms['atom_numbers'].ndim == 1:
-                self.atoms['atom_numbers'] = self.atoms['atom_numbers'][None, :]
-            if self.atoms['atom_numbers'].shape[0] != self.atoms['positions'].shape[0]:
-                self.atoms['atom_numbers'] = np.tile(self.atoms['atom_numbers'], (self.atoms['positions'].shape[0], 1))
-
-            all_atom_numbers = np.unique(self.atoms['atom_numbers'].flatten())
-            all_atom_numbers = all_atom_numbers[all_atom_numbers > 0]
-            self.atoms['shifted_positions'] = self.atoms['positions'] - grid_origin
-            ase_atoms = utils.npy_to_ase(self.atoms['shifted_positions'], self.atoms['atom_numbers'])
+        all_atom_numbers = np.unique(self.atoms['atom_numbers'].flatten())
+        all_atom_numbers = all_atom_numbers[all_atom_numbers > 0]
+        self.atoms['shifted_positions'] = self.atoms['positions'] - grid_origin
+        ase_atoms = utils.npy_to_ase(self.atoms['shifted_positions'], self.atoms['atom_numbers'])
 
         self.orbital_basis = np.load(orbitals_path, allow_pickle=True).item()
         self.orbital_basis_num = {}
@@ -325,19 +314,38 @@ class AtomsDensityData(Dataset):
         else:
             return self.atoms['atom_numbers'][self.subset]
 
+
+    def zero_pad(self):
+
+        # zero padding atom numbers and positions at the end to match biggest array
+        # should be used if input is list of different sized arrays
+
+        self.atoms["atom_numbers"] = np.array(list(zip_longest(*self.atoms["atom_numbers"], fillvalue=0))).T
+        max_pad = np.array([self.atoms["positions"][n].shape[0] for n in range(len(self.atoms["positions"]))]).max()
+        to_pad = np.zeros((max_pad,3))
+
+        new_pos = []
+        for n in range(len(self.atoms["positions"])):
+
+            to_pad = np.zeros( (max_pad - self.atoms["positions"][n].shape[0],3))
+            new_pos.append(np.concatenate((self.atoms["positions"][n],to_pad)))
+
+        self.atoms["positions"] = np.array(new_pos)
+
     # collects the molecular properties for the batch, should be used as collate_fn
     def get_properties(self, idx):
         idx = self._subset_index(idx)
-        #if not hasattr(idx, '__len__'):
-        #    idx = [idx]
+        if not hasattr(idx, '__len__'):
+            idx = [idx]
 
         # extract properties
-        if self.mode == "non_equal":
-            atom_numbers = [self.atoms['atom_numbers'][idx_] for idx_ in idx]
-            #atom_props = {'positions': self.atoms['positions'][idx_] for idx_ in idx}
-        else:
-            atom_numbers = self.atoms['atom_numbers'][idx]
-        atom_props = {'positions': [self.atoms['positions'][idx_] for idx_ in idx]}
+        #if self.mode == "non_equal":
+        #    atom_numbers = [self.atoms['atom_numbers'][idx_] for idx_ in idx]
+        #    #atom_props = {'positions': self.atoms['positions'][idx_] for idx_ in idx}
+
+        #self.zero_pad()
+        atom_numbers = self.atoms['atom_numbers'][idx]
+        atom_props = {'positions': self.atoms['positions'][idx]}
         mol_props = {}
         for pname in self.required_properties:
             if pname in self.atoms.keys():
@@ -434,14 +442,16 @@ class AtomsDensityData(Dataset):
     def get_basic_properties(self, idx):
         idx = self._subset_index(idx)
         # Throws an error, because slicing based on lists is not possible
-        #if not hasattr(idx, '__len__'):
-        #    idx = [idx]
+        if not hasattr(idx, '__len__'):
+            idx = [idx]
 
         # extract properties
-        try:
-            atom_numbers = self.atoms['atom_numbers'][idx]
-        except:
-            atom_numbers = self.atoms["all_atom_numbers"]
+        #try:
+            
+        #except:
+        #    atom_numbers = self.atoms["all_atom_numbers"]
+        #self.zero_pad()
+        atom_numbers = self.atoms['atom_numbers'][idx]
         atom_props = {'positions': self.atoms['positions'][idx]}
         mol_props = {}
         for pname in self.required_properties:
@@ -494,7 +504,7 @@ class AtomsDensityData(Dataset):
         return coords, coord_weights
 
     def sample_density(self, idx, sample_coords):
-        scaled_sample_coords = sample_coords.detach().cpu().numpy() / param.BOHR  # convert Angstrom grid to Bohr
+        scaled_sample_coords = sample_coords.detach().cpu().numpy() # EP / param.BOHR  # convert Angstrom grid to Bohr
         dens = torch.zeros((sample_coords.shape[0], sample_coords.shape[1]), dtype=self.dtype)
         if len(self.mols) > 0:
             for c, i in enumerate(idx):
