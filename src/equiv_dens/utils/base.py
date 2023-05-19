@@ -589,12 +589,12 @@ def compress_batch_atoms(numbers, props_dict, basis_size=None):
             ndim = props["positions"].shape[0]
         else:
             ndim = props["positions"].shape[1]
-        nums = np.array(numbers[i]).reshape(-1) ### !
+        nums = np.array(numbers[i])#.reshape(-1) ### !
         new_nums = np.zeros((len(common_numbers),))
         new_props = {}
         for key in props.keys():
             if isinstance(props[key], np.ndarray):
-                new_props[key] = np.zeros((len(common_numbers), ndim)) # was shape 1 before
+                new_props[key] = np.zeros((len(common_numbers), props[key].shape[1])) # ndim
             elif basis_size is not None:
                 new_props[key] = []
                 for z in common_numbers:
@@ -612,10 +612,10 @@ def compress_batch_atoms(numbers, props_dict, basis_size=None):
                 # print('prop key', key)
                 if isinstance(new_props[key], np.ndarray):
                     # print('numpy array add props')
-                    if props[key][idx].shape[0] == 0:
-                        new_props[key][last_idx:last_idx + len(idx)] = props[key][idx].reshape(-1,1)
-                    else:
-                        new_props[key][last_idx:last_idx + len(idx)] = props[key][idx]
+                    #if props[key][idx].shape[0] == 0:
+                    #    new_props[key][last_idx:last_idx + len(idx)] = props[key][idx].reshape(-1,1)
+                    #else:
+                    new_props[key][last_idx:last_idx + len(idx)] = props[key][idx]
                 else:
                     # print('df coeffs add props')
                     charges = np.array([prop[0] for prop in props[key]])
@@ -635,6 +635,7 @@ def compress_batch_atoms(numbers, props_dict, basis_size=None):
     for key in batch_props.keys():
         batch_props[key] = np.array(batch_props[key])
 
+    # returns the sorted non zero padded original 
     return batch_nums, batch_props
 
 # def batch_compressed_atoms(atoms, relevant_keys):
