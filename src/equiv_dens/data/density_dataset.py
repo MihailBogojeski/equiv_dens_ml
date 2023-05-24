@@ -82,6 +82,7 @@ class AtomsDensityData(Dataset):
         self.energy_centered = False
         self.projected_density = projected_density
         self.cutoff = cutoff
+        self.fixed_properties = fixed_properties
         if required_properties is None:
             self.required_properties = self.available_properties
         if 'dipole_moment' in self.required_properties:
@@ -92,17 +93,19 @@ class AtomsDensityData(Dataset):
         else:
             self.calc_dpm = False
         self.centered_positions = center_positions
+
         self.atoms = np.load(np_path, allow_pickle=True).item()
         self.atoms['shifted_positions'] = self.atoms['positions'] - grid_origin
-        self.zero_pad()
         self.ions = []
+        self.mols = []
+        self.coeffs = []
+        self.density_fitting = {}
+
+
+        self.zero_pad()
+        self.prepare_orbital_basis_radial_coeffs(orbitals_path,radial_coeffs_file,df_loss_weights,L0_coeffs_file)
+        self.prepare_data(density_path)
         
-        if self.atoms['atom_numbers'].ndim == 1:
-            self.atoms['atom_numbers'] = self.atoms['atom_numbers'][None, :]
-
-        if self.atoms['atom_numbers'].shape[0] != self.atoms['positions'].shape[0]:
-            self.atoms['atom_numbers'] = np.tile(self.atoms['atom_numbers'], (self.atoms['positions'].shape[0], 1))
-
         if isinstance(self.grid_spec, dict):
             for key in self.grid_spec.keys():
                 self.grid_spec[key] = (self.grid_spec[key][0].type(self.dtype),
@@ -119,7 +122,41 @@ class AtomsDensityData(Dataset):
 
         print('finished init')
 
-    def prepare_data(self,orbitals_path,radial_coeffs_file,df_loss_weights,L0_coeffs_file):
+    def prepare_data(self,density_path):
+
+        if self.atoms['atom_numbers'].ndim == 1:
+            self.atoms['atom_numbers'] = self.atoms['atom_numbers'][None, :]
+
+        if self.atoms['atom_numbers'].shape[0] != self.atoms['positions'].shape[0]:
+            self.atoms['atom_numbers'] = np.tile(self.atoms['atom_numbers'], (self.atoms['positions'].shape[0], 1))
+
+
+        if self.density_path is not None:
+            calc_results = np.load(density_path, allow_pickle=True)
+ 
+
+        for i in range(len(self.atoms['positions'])):
+            if self.verbose > 3:
+                print('loading sample', i)
+            if self.density_path is not None:
+                mol_dict, calc_dict = calc_results[i]
+                # added density matrix (because calculation results are slightly better make error prone)
+                coeff_dict = {'mo_coeff': calc_dict['mo_coeff'], 'mo_occ': calc_dict['mo_occ']}
+                if "density_matrix" in calc_dict:
+                    coeff_dict["density_matrix"] = calc_dict["density_matrix"]
+                mol = gto.Mole(**mol_dict)
+                self.mols.append(mol)
+                self.coeffs.append(coeff_dict)
+                if 'df_coeff' in calc_dict:
+                    if 'df_coeffs' not in self.density_fitting.keys():
+                        self.density_fitting['auxbasis'] = calc_dict['auxbasis']
+                        df_coeffs_split = orbitals.split_df_coeffs(mol_dict['atom'], calc_dict['df_coeff'], self.orbital_basis_size)
+                        self.density_fitting['df_coeffs'] = [df_coeffs_split]
+                    else:
+                        df_coeffs_split = orbitals.split_df_coeffs(mol_dict['atom'], calc_dict['df_coeff'], self.orbital_basis_size)
+                        self.density_fitting['df_coeffs'].append(df_coeffs_split)
+
+    def prepare_orbital_basis_radial_coeffs(self,orbitals_path,radial_coeffs_file,df_loss_weights,L0_coeffs_file):
 
         # unique elements 
         all_atom_numbers = np.unique(self.atoms['atom_numbers'].flatten())
