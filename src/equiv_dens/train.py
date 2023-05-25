@@ -122,7 +122,9 @@ dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_datas
                            grid_origin=grid_origin,
                            verbose=args.verbose,
                            cutoff=args.cutoff,
-                           df_loss_weights=args.df_loss_weights)
+                           df_loss_weights=args.df_loss_weights,
+                           projected_density=args.projected_density
+                           )
 
 # split into train / valid / test
 if data_split_indices is None and args.np_dataset_valid is None:
@@ -149,7 +151,9 @@ elif args.np_dataset_valid is not None:
                                      grid_origin=grid_origin,
                                      verbose=args.verbose,
                                      cutoff=args.cutoff,
-                                     df_loss_weights=args.df_loss_weights)
+                                     df_loss_weights=args.df_loss_weights,
+                                     projected_density=args.projected_density
+                                     )
     if data_split_indices is None or args.ignore_split_indices:
         train_inds = np.random.choice(np.arange(len(dataset)), args.num_train, replace=False)
         valid_inds = np.random.choice(np.arange(len(valid_dataset)), args.num_valid, replace=False)
@@ -186,7 +190,9 @@ if args.np_dataset_test is not None:
                                     grid_extent=grid_extent,
                                     grid_origin=grid_origin,
                                     cutoff=args.cutoff,
-                                    df_loss_weights=args.df_loss_weights)
+                                    df_loss_weights=args.df_loss_weights,
+                                    projected_density=args.projected_density
+                                    )
 
     if args.num_test is not None:
         test_size = args.num_test
