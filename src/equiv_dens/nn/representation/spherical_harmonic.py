@@ -46,6 +46,7 @@ class EquivariantSphericalHarmonics(nn.Module):
                  clebsch_gordan=None,  # instance of the clebsch gordan matrix
                  Zmax=87,
                  timing=False,
+                 memory=False,
                  verbose=0,
                  num_neighbours=1,
                  normalize=0,
@@ -76,6 +77,7 @@ class EquivariantSphericalHarmonics(nn.Module):
         self.activation = activation
         self.Zmax = Zmax
         self.timing = timing
+        self.memory = memory
         self.verbose = verbose
         self.num_neighbours = num_neighbours
         self.normalize = normalize
@@ -195,7 +197,7 @@ class EquivariantSphericalHarmonics(nn.Module):
         # extract nuclear charges from orbitals, determine maximum order, and
         # build the occupation mask (for extracting occupied orbitals in energy prediction)
 
-        if self.verbose > 2:
+        if self.memory:
             print('repr forward start:')
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
             print('Memory cached', torch.cuda.memory_cached() / 1024**2)
@@ -213,7 +215,7 @@ class EquivariantSphericalHarmonics(nn.Module):
         # print('uij shape', uij.shape)
         # print('R shape', R.shape)
         # print('dij', dij)
-        if self.verbose > 2:
+        if self.memory:
             print('repr forward distances:')
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
             print('Memory cached', torch.cuda.memory_cached() / 1024**2)
@@ -242,7 +244,7 @@ class EquivariantSphericalHarmonics(nn.Module):
         # print('xs norm representation before:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
 
         # perform iterations over modular building blocks to get environment - dependent features
-        if self.verbose > 2:
+        if self.memory:
             print('repr forward before module blocks:')
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
             print('Memory cached', torch.cuda.memory_cached() / 1024**2)
@@ -270,7 +272,7 @@ class EquivariantSphericalHarmonics(nn.Module):
             # print('ys norm:', [float(torch.mean(ys[L]**2)) for L in range(len(ys))])
             # print('fs norm:', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
             # print('')
-            if self.verbose > 2:
+            if self.memory:
                 print('repr forward after module', i, ':')
                 print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
                 print('Memory cached', torch.cuda.memory_cached() / 1024**2)
@@ -278,7 +280,7 @@ class EquivariantSphericalHarmonics(nn.Module):
         atoms['sph_repr'] = fs
         if self.timing:
             print('sph repr time', time.time() - start)
-        if self.verbose > 2:
+        if self.memory:
             print('repr forward end:')
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
             print('Memory cached', torch.cuda.memory_cached() / 1024**2)

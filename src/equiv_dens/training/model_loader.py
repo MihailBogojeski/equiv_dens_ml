@@ -57,6 +57,7 @@ def load_model(args, dataset, train=False):
         clebsch_gordan=clebsch_gordan,
         verbose=args.verbose,
         timing=args.timing,
+        memory=args.memory,
         normalize=args.normalize,
         parity=args.parity_dens,
     )
@@ -72,6 +73,7 @@ def load_model(args, dataset, train=False):
         clebsch_gordan=clebsch_gordan,
         verbose=args.verbose,
         timing=args.timing,
+        memory=args.memory,
         init_coeffs=dataset.L0_coeffs,
         coeff_weights=dataset.coeff_weights,
         pred_radial_coeffs=args.pred_radial_coeffs,
@@ -88,6 +90,7 @@ def load_model(args, dataset, train=False):
                                             softmax_norm=args.softmax_norm, n_electrons=sum(z_vals),
                                             verbose=args.verbose,
                                             timing=args.timing,
+                                            memory=args.memory,
                                             grid_scaling_factor=args.grid_scaling_factor,
                                             )
     else:
@@ -192,6 +195,7 @@ def load_model(args, dataset, train=False):
     model = DFTNetwork(density_model, property_models,
                        calculate_forces_dict=calculate_forces_dict,
                        verbose=args.verbose,
+                       memory=args.memory,
                        conversions_in=conversions_in,
                        conversions_out=conversions_out,
                        scaling=force_scaling,

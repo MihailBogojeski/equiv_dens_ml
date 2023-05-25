@@ -255,6 +255,8 @@ def parse_command_line_arguments(arg_file=None):
     args_training.add_argument("--verbose", metavar='INT', type=int, default=0, help="Verbosity level.")
     args_training.add_argument("--timing", metavar='True|False', type=str2bool, default=False,
                                choices=[True, False], help="Timing runtime.")
+    args_training.add_argument("--memory", metavar='True|False', type=str2bool, default=False,
+                               choices=[True, False], help="Memory statistics.")
     args_training.add_argument("--energy_unit_in", metavar='STR', type=str, default='kcal/mol',
                                choices=['kcal/mol', 'hartree', 'eV', 'kelvin', 'millihartree'],
                                help="energy input unit")
@@ -317,7 +319,7 @@ def parse_command_line_arguments(arg_file=None):
     # misc arguments
     args_misc = parser.add_argument_group("miscelleaneous")
     args_misc.add_argument("--dtype", metavar='torch.float32|torch.float64', type=str, default='torch.float32',
-                           choices=['torch.float32', 'torch.float64'], help="floating point type used during training")
+                           choices=['torch.float16', 'torch.float32', 'torch.float64'], help="floating point type used during training")
     args_misc.add_argument('--legacy', metavar='True|False', type=str2bool, default=False,
                            choices=[True, False], help="If true use old density network code, else use the most recent version.")
 
@@ -334,6 +336,8 @@ def parse_command_line_arguments(arg_file=None):
         # convert dtype argument to the proper torch type
         if args.dtype == 'torch.float32':
             args.dtype = torch.float32
+        if args.dtype == 'torch.float16':
+            args.dtype = torch.float16
         elif args.dtype == 'torch.float64':
             args.dtype = torch.float64
 
