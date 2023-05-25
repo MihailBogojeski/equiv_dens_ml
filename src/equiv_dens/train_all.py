@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import os
-import torch
 from datetime import datetime
+import torch
 from tensorboardX import SummaryWriter
 from equiv_dens.training.parse_command_line_arguments import parse_command_line_arguments
 from equiv_dens.utils.misc import generate_id
@@ -11,7 +11,7 @@ from equiv_dens.data.density_dataset import AtomsDensityData
 from equiv_dens.data.hamiltonian_dataset import seeded_random_split
 from equiv_dens.training.lookahead import Lookahead
 from equiv_dens.utils.grids import cubical_grid, cubical_sampling,\
-    CubicalGrid, spherical_grid, spherical_radial_sampling
+    spherical_grid, spherical_radial_sampling
 import equiv_dens.utils.base as utils
 from equiv_dens.training.model_loader import load_model
 import copy
@@ -73,8 +73,12 @@ else:
 
 print('model code:', model_code)
 print('max steps:', args.max_steps)
+print('normalize dens', args.normalize)
+print('normalize en', args.normalize_en)
 # determine whether GPU is used for training
+print('before use gpu')
 use_gpu = args.use_gpu and torch.cuda.is_available()
+print('after use gpu')
 
 # load dataset(s)
 print("loading density from" + str(args.dens_dataset) + "...")
@@ -466,6 +470,9 @@ for phase in training_phases:
     model.to(args.dtype)
     sample = dataset.get_properties([0])
 
+    print('restore before training', phase, restore)
+    print('num neighbors', args.num_neighbours)
+    print('normalize_en', args.normalize_en)
     trainer = Trainer(model_path=directory, model=model, error_dict=error_dict,
                       optimizers=optimizers, schedulers=schedulers,
                       train_loader=train_data_loader,
