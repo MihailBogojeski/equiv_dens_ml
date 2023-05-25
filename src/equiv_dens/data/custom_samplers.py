@@ -26,6 +26,7 @@ class SimilarSizeSampler(Sampler[int]):
         """
         super().__init__(data_source)
         self.data_source = data_source
+        print('data source len', len(data_source))
         self.dataset = None
         self.replacement = replacement
         self._num_samples = num_samples
