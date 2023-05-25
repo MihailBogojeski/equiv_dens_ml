@@ -354,7 +354,8 @@ class InteractionBlock(nn.Module):
             # print('vs L norm 1:', float(torch.mean(vs[L]**2)))
             # print('num neighbours', self.num_neighbours)
             # print('norm sph', norm_sph)
-            vs[L] = vs[L] * norm_sph / self.num_neighbours
+            if self.normalize:
+                vs[L] = vs[L] * norm_sph / self.num_neighbours
             # print('vs L norm 2:', float(torch.mean(vs[L]**2)))
             # print('vs ' + str(L) + ' norm:', float(torch.mean(vs[L]**2)))
             # vs[L] = yi[L] + torch.scatter_reduce(
