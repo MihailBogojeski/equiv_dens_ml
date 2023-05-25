@@ -370,8 +370,10 @@ class Trainer:
                 print('pred energy', predictions['energy'].view((-1, )))
                 print('true energy', data['energy'].view((-1, )))
             if 'forces' in predictions.keys():
-                print('pred forces', predictions['forces'].sum((-1, -2)).view((-1, )))
-                print('true forces', data['forces'].sum((-1, -2)).view((-1, )))
+                # print('pred forces', predictions['forces'].sum((-1, -2)).view((-1, )))
+                # print('true forces', data['forces'].sum((-1, -2)).view((-1, )))
+                print('pred forces', predictions['forces'][:,0,:].view((-1, )))
+                print('true forces', data['forces'][:,0,:].view((-1, )))
 
         if 'density' in data.keys() and torch.any(torch.isnan(data['density'])):
             print('Nans found in label density, skipping batch')
@@ -497,8 +499,10 @@ class Trainer:
                     print('pred energy', predictions['energy'].view((-1, )))
                     print('true energy', data['energy'].view((-1, )))
                 if 'forces' in predictions.keys():
-                    print('pred forces', predictions['forces'].sum((-1, -2)).view((-1, )))
-                    print('true forces', data['forces'].sum((-1, -2)).view((-1, )))
+                    # print('pred forces', predictions['forces'].sum((-1, -2)).view((-1, )))
+                    # print('true forces', data['forces'].sum((-1, -2)).view((-1, )))
+                    print('pred forces', predictions['forces'][:,0,:].view((-1, )))
+                    print('true forces', data['forces'][:,0,:].view((-1, )))
             if 'density' in data.keys() and torch.any(torch.isnan(data['density'])):
                 print('Nans found in label density, skipping batch')
                 continue
