@@ -200,7 +200,8 @@ else:
 print('test dataset size', len(test_dataset))
 print('args.test batch_size', args.test_batch_size)
 test_data_loader = set_up_data_loader(test_dataset, args.test_batch_size,
-                                      args.electron_num_batching, use_gpu, False)
+                                      args.electron_num_batching,
+                                      args.batch_efficiency, use_gpu, False)
 
 # define model
 print('args.df_weight', args.df_weight)
