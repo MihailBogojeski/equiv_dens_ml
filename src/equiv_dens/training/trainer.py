@@ -350,7 +350,7 @@ class Trainer:
             print('train load memory allocated', torch.cuda.memory_allocated() / 1024**2)
             print('train load memory cached', torch.cuda.memory_cached() / 1024**2)
         if self.verbose > 0:
-            print('batch atom_numbers', torch.sum(data['batch_atom_numbers'], dim=1).view(-1))
+            print('batch electron num', torch.sum(data['batch_atom_numbers'], dim=1).view(-1))
         # zero the parameter gradients
         for optimizer in self.optimizers:
             optimizer.zero_grad()
