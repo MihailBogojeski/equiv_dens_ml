@@ -421,9 +421,9 @@ class Trainer:
             errors['loss'].backward()
             if self.timing:
                 print('backward time', time.time() - start_bw)
-        if self.memory:
-            print('backward memory allocated', torch.cuda.memory_allocated() / 1024**2)
-            print('backward memory cached', torch.cuda.memory_cached() / 1024**2)
+            if self.memory:
+                print('backward memory allocated', torch.cuda.memory_allocated() / 1024**2)
+                print('backward memory cached', torch.cuda.memory_cached() / 1024**2)
 
             # apply gradient clipping
             if self.clip_norm > 0:

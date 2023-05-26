@@ -11,10 +11,8 @@ from equiv_dens.data.density_dataset import AtomsDensityData
 from equiv_dens.data.hamiltonian_dataset import seeded_random_split
 from equiv_dens.training.lookahead import Lookahead
 from equiv_dens.utils.grids import cubical_grid, cubical_sampling,\
-    CubicalGrid, spherical_grid, spherical_radial_sampling
-import equiv_dens.utils.base as utils
+    spherical_grid, spherical_radial_sampling
 from equiv_dens.training.model_loader import load_model
-import copy
 from equiv_dens.data.custom_samplers import set_up_data_loader
 
 import numpy as np

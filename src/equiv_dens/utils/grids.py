@@ -209,9 +209,9 @@ def collect_and_sample_grid(grid_coords, grid_weights, n_samp):
         return grid_coords, grid_weights
     else:
         rand_idx = np.random.choice(np.arange(grid_coords.shape[1]), size=n_samp, replace=False)
-        print('grid_coords shape', grid_coords.shape)
-        print('grid_weights shape', grid_weights.shape)
-        print('rand idx', rand_idx)
+        # print('grid_coords shape', grid_coords.shape)
+        # print('grid_weights shape', grid_weights.shape)
+        # print('rand idx', rand_idx)
         return grid_coords[:, rand_idx, :], grid_weights[:, rand_idx]
 
 
