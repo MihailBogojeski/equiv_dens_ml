@@ -493,6 +493,7 @@ for phase in training_phases:
                       valid_check_best=valid_check_best,
                       verbose=args.verbose,
                       timing=args.timing,
+                      memory=args.memory,
                       data_split_indices=data_split_indices,
                       grid_scaling_annealing=args.grid_scaling_annealing,
                       grid_scaling_start=args.grid_scaling_start,
