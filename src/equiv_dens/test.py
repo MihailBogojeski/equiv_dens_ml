@@ -6,6 +6,8 @@ from equiv_dens.training.errors import ErrorDict
 from equiv_dens.data.density_dataset import AtomsDensityData
 from equiv_dens.data.hamiltonian_dataset import seeded_random_split
 from equiv_dens.training.model_loader import load_model
+from equiv_dens.utils.grids import cubical_grid, cubical_sampling,\
+    spherical_grid, spherical_radial_sampling
 
 import numpy as np
 from functools import partial
@@ -111,6 +113,7 @@ else:
 if args.num_test is not None:
     test_dataset.indices = test_dataset.indices[:args.num_test]
 
+print('args dataset test', args.np_dataset_test)
 if args.np_dataset_test is not None:
     test_dataset = AtomsDensityData(np_path=args.np_dataset_test, density_path=args.dens_dataset_test,
                                     orbitals_path=args.orbitals_file,
@@ -135,6 +138,7 @@ if args.np_dataset_test is not None:
 
     test_dataset = torch.utils.data.Subset(test_dataset, np.arange(test_size))
 
+print('test dataset len', len(test_dataset))
 print('args center energy')
 if args.center_energy:
     if args.atomic_energies is None:
@@ -146,7 +150,7 @@ if args.center_energy:
             print('centering test energy')
             test_dataset.dataset.center_energy(energy_mean)
     else:
-        atomic_energies = np.load(args.atomic_energies).item()
+        atomic_energies = np.load(args.atomic_energies, allow_pickle=True).item()
         dataset.normalize_energy(atomic_energies)
         if args.np_dataset_test is not None:
             test_dataset.dataset.normalize_energy(atomic_energies)
