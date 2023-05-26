@@ -146,7 +146,8 @@ class AdaptiveBatchSampler(Sampler[List[int]]):
         [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
     """
 
-    def __init__(self, sampler: Union[Sampler[int], Iterable[int]], max_num_elec: int, drop_last: bool) -> None:
+    def __init__(self, sampler: Union[Sampler[int], Iterable[int]], max_num_elec: int, drop_last: bool,
+                 batch_efficiency: int = 0) -> None:
         # Since collections.abc.Iterable does not check for `__getitem__`, which
         # is one way for an object to be an iterable, we don't do an `isinstance`
         # check here.
@@ -159,6 +160,7 @@ class AdaptiveBatchSampler(Sampler[List[int]]):
                              "drop_last={}".format(drop_last))
         self.sampler = sampler
         self.max_num_elec = max_num_elec
+        self.batch_efficiency = batch_efficiency
         self.drop_last = drop_last
 
     def __iter__(self) -> Iterator[List[int]]:
@@ -169,10 +171,16 @@ class AdaptiveBatchSampler(Sampler[List[int]]):
                 try:
                     batch = []
                     sum_elec = 0
+                    max_elec = 0
+                    count = 0
                     while True:
                         idx = next(sampler_iter)
-                        sum_elec += self.sampler.num_electrons[idx]
-                        if sum_elec > self.max_num_elec:
+                        num_elec = self.sampler.num_electrons[idx]
+                        sum_elec += num_elec
+                        count += 1
+                        max_elec = max(max_elec, num_elec)
+                        usage = sum_elec / (count * max_elec)
+                        if sum_elec > self.max_num_elec or usage < self.batch_efficiency:
                             break
                         batch.append(idx)
                     yield batch
@@ -181,12 +189,19 @@ class AdaptiveBatchSampler(Sampler[List[int]]):
         else:
             batch = []
             sum_elec = 0
+            max_elec = 0
+            count = 0
             for idx in self.sampler:
                 num_elec = self.sampler.num_electrons[idx]
                 sum_elec += num_elec
-                if sum_elec > self.max_num_elec:
+                count += 1
+                max_elec = max(max_elec, num_elec)
+                usage = sum_elec / (count * max_elec)
+                if sum_elec > self.max_num_elec or usage < self.batch_efficiency:
                     yield batch
                     sum_elec = num_elec
+                    max_elec = num_elec
+                    count = 1
                     batch = []
                 batch.append(idx)
             if sum_elec > 0:
@@ -204,6 +219,7 @@ class AdaptiveBatchSampler(Sampler[List[int]]):
 
 def set_up_data_loader(dataset: Dataset, batch_size: int = 1,
                        electron_num_batching: bool = False,
+                       batch_efficiency: float = 0.7,
                        use_gpu: bool = False, shuffle: bool = True):
     """Set up data loader for the dataset.
 
@@ -222,7 +238,7 @@ def set_up_data_loader(dataset: Dataset, batch_size: int = 1,
     if electron_num_batching:
         sampler = SimilarSizeSampler(dataset, shuffle=shuffle, electron_batch_size=batch_size)
         batch_sampler = AdaptiveBatchSampler(sampler, max_num_elec=batch_size,
-                                             drop_last=False)
+                                             batch_efficiency=batch_efficiency, drop_last=False)
         data_loader = torch.utils.data.DataLoader(dataset, batch_sampler=batch_sampler,
                                                   num_workers=0, pin_memory=use_gpu,
                                                   collate_fn=collate_fn)

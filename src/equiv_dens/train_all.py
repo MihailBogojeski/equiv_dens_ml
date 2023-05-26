@@ -361,14 +361,18 @@ for phase in training_phases:
 
 # prepare data loaders
     train_data_loader = set_up_data_loader(train_dataset, args.train_batch_size,
-                                           args.electron_num_batching, use_gpu, True)
+                                           args.electron_num_batching,
+                                           args.batch_efficiency, use_gpu, True)
     valid_data_loader = set_up_data_loader(valid_dataset, args.valid_batch_size,
-                                           args.electron_num_batching, use_gpu, False)
+                                           args.electron_num_batching,
+                                           args.batch_efficiency, use_gpu, False)
     test_data_loader = set_up_data_loader(test_dataset, args.test_batch_size,
-                                          args.electron_num_batching, use_gpu, False)
+                                          args.electron_num_batching,
+                                          args.batch_efficiency, use_gpu, False)
     if args.cube_grid_valid:
         valid_cube_loader = set_up_data_loader(valid_cube_dataset, args.valid_batch_size,
-                                               args.electron_num_batching, use_gpu, False)
+                                               args.electron_num_batching,
+                                               args.batch_efficiency, use_gpu, False)
 
 # define model
     model = load_model(args, dataset, train=True)
@@ -489,6 +493,7 @@ for phase in training_phases:
                       valid_check_best=valid_check_best,
                       verbose=args.verbose,
                       timing=args.timing,
+                      memory=args.memory,
                       data_split_indices=data_split_indices,
                       grid_scaling_annealing=args.grid_scaling_annealing,
                       grid_scaling_start=args.grid_scaling_start,
@@ -633,11 +638,14 @@ if args.center_energy:
             valid_dataset.normalize_energy(atomic_energies)
 
 train_data_loader = set_up_data_loader(train_dataset, args.train_batch_size,
-                                       args.electron_num_batching, use_gpu, True)
+                                       args.electron_num_batching,
+                                       args.batch_efficiency, use_gpu, True)
 valid_data_loader = set_up_data_loader(valid_dataset, args.valid_batch_size,
-                                       args.electron_num_batching, use_gpu, False)
+                                       args.electron_num_batching,
+                                       args.batch_efficiency, use_gpu, False)
 test_data_loader = set_up_data_loader(test_dataset, args.test_batch_size,
-                                      args.electron_num_batching, use_gpu, False)
+                                      args.electron_num_batching,
+                                      args.batch_efficiency, use_gpu, False)
 
 loss_weights = {}
 loss_weights['density'] = args.density_weight
