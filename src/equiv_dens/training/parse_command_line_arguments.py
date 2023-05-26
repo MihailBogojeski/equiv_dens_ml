@@ -137,6 +137,8 @@ def parse_command_line_arguments(arg_file=None):
     args_training.add_argument("--test_batch_size", metavar='INT', type=int, default=1, help="batch size for validation")
     args_training.add_argument("--electron_num_batching", metavar='True|False', type=str2bool, default=False,
                                help="Use adaptive batching based on number of electrons.")
+    args_training.add_argument("--batch_efficiency", metavar='FLOAT', type=float, default=0.7,
+                               help="Efficiency of batching based on number of electrons, expressed as the fraction of non-padded entries.")
     args_training.add_argument("--num_workers", metavar='INT', type=int, default=0, help="number of worker threads for preparing batches")
     args_training.add_argument("--split_seed", metavar='INT', type=int, default=42,
                                help="seed for splitting the dataset in training, validation and test sets")
