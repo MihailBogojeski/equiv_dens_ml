@@ -280,6 +280,7 @@ class Trainer:
                             self.valid_errors[i], is_best = self._validate(valid_data_loader, use_gpu, check_best=self.valid_check_best[i])
                     if self.valid_check_best[i]:
                         new_best = is_best
+                torch.cuda.empty_cache()
                 self._module.train()
             # write summary to console
             if self.step % self.summary_interval == 0:
@@ -348,6 +349,8 @@ class Trainer:
         if self.memory:
             print('train load memory allocated', torch.cuda.memory_allocated() / 1024**2)
             print('train load memory cached', torch.cuda.memory_cached() / 1024**2)
+        if self.verbose > 0:
+            print('batch electron num', torch.sum(data['batch_atom_numbers'], dim=1).view(-1))
         # zero the parameter gradients
         for optimizer in self.optimizers:
             optimizer.zero_grad()
