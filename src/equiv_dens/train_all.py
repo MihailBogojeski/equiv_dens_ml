@@ -2,7 +2,7 @@
 import os
 from datetime import datetime
 import torch
-from tensorboardX import SummaryWriter
+import wandb
 from equiv_dens.training.parse_command_line_arguments import parse_command_line_arguments
 from equiv_dens.utils.misc import generate_id
 from equiv_dens.training.errors import ErrorDict
@@ -27,6 +27,7 @@ from functools import partial
 """
 # read arguments
 args, hyperparam_args = parse_command_line_arguments()
+wandb.login()
 
 # no restart directory specified
 if args.restart is None:
@@ -69,6 +70,16 @@ else:
     restore = True
     data_split_indices = checkpoint['data_split_indices']
 
+args_dict = vars(args)
+if args.args_file_name is not None:
+    wandb_id = args.args_file_name + '_'
+else:
+    wandb_id = ''
+wandb_date = directory.split('/')[-1].split('_')[0]
+wandb_name = wandb_id + wandb_date
+wandb_id = wandb_name + '_' + model_code
+wandb_run = wandb.init(project='equiv_dens', config=args_dict,
+                       name=wandb_name, id=wandb_id, resume='allow')
 print('model code:', model_code)
 print('max steps:', args.max_steps)
 print('normalize dens', args.normalize)
@@ -110,11 +121,11 @@ if checkpoint is None or 'training_phases' not in checkpoint:
 else:
     training_phases = checkpoint['training_phases']
 ongoing_phases = [phase for phase in training_phases]
-df_weight = args.df_weight 
-density_weight = args.density_weight 
-dipole_moment_weight = args.dipole_moment_weight 
+df_weight = args.df_weight
+density_weight = args.density_weight
+dipole_moment_weight = args.dipole_moment_weight
 energy_weight = args.energy_weight
-forces_weight = args.forces_weight 
+forces_weight = args.forces_weight
 learning_rate = args.learning_rate
 stop_at_learning_rate = args.stop_at_learning_rate
 validation_interval = args.validation_interval
@@ -123,7 +134,7 @@ max_steps = args.max_steps
 
 
 for phase in training_phases:
-    args.df_weight = 0.0 
+    args.df_weight = 0.0
     args.density_weight = 0.0
     args.dipole_moment_weight = 0.0
     args.energy_weight = 0.0
@@ -134,12 +145,12 @@ for phase in training_phases:
     args.decay_patience = decay_patience
     args.max_steps = max_steps
     if phase == 'df':
-        args.df_weight = df_weight 
+        args.df_weight = df_weight
         if density_weight > 0:
             if args.fast_df:
                 args.max_steps = args.max_steps / 10
                 args.validation_interval = args.validation_interval / 10
-                args.decay_patience = args.decay_patience * 2 
+                args.decay_patience = args.decay_patience * 2
     elif phase == 'density':
         args.density_weight = density_weight
         if df_weight > 0:
@@ -446,10 +457,6 @@ for phase in training_phases:
         schedulers.append(torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizers[1], mode='min', factor=args.decay_factor, patience=args.decay_patience, verbose=args.verbose))
 
-# create summary writer for tensorboard
-    summary = SummaryWriter(logdir=os.path.join(
-        directory, 'logs'), purge_step=step)
-
     total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print('Total params is {}'.format(total_params))
     validation_loaders = [valid_data_loader]
@@ -483,6 +490,7 @@ for phase in training_phases:
                       checkpoint_interval=args.checkpoint_interval,
                       validation_interval=args.validation_interval,
                       summary_interval=args.summary_interval,
+                      wandb=wandb_run,
                       ema_params=ema_params,
                       args=args,
                       hyperparam_args=hyperparam_args,
@@ -699,4 +707,6 @@ for test_batch_num, data in enumerate(test_data_loader):
     data = None
     errors = None
 
+for key in test_errors.keys():
+    wandb_run.summary[key + '_test'] = test_errors[key]
 print('test errors', test_errors)
