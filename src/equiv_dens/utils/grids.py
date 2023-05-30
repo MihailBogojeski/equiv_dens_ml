@@ -9,15 +9,11 @@ import equiv_dens.utils.base as utils
 from pyscf import gto
 
 
-def spherical_grid(atoms, level=2,mode="non_equal"):
+def spherical_grid(atoms, level=2):
 
-    if mode == "non_equal":
-        numbers = np.unique(np.array(atoms["all_atom_numbers"])).astype(int)
-        numbers = numbers[numbers>0]
-    
-    else:
-        numbers = np.unique(atoms['atom_numbers'].flatten()).astype(int)
-        numbers = numbers[numbers > 0]
+
+    numbers = np.unique(atoms['atom_numbers'].flatten()).astype(int)
+    numbers = numbers[numbers > 0]
         
     positions = []
     for n in numbers:
