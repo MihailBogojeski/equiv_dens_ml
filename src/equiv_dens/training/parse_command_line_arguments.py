@@ -368,21 +368,16 @@ def parse_command_line_arguments(arg_file=None):
                 args = parser.parse_args(args_str.split())
         else:
             args = parser.parse_args()
-<<<<<<< HEAD
+
+
     # convert dtype argument to the proper torch type
     if args.dtype == 'torch.float32':
         args.dtype = torch.float32
+    if args.dtype == 'torch.float16':
+        args.dtype = torch.float16
     elif args.dtype == 'torch.float64':
         args.dtype = torch.float64
-=======
-        # convert dtype argument to the proper torch type
-        if args.dtype == 'torch.float32':
-            args.dtype = torch.float32
-        if args.dtype == 'torch.float16':
-            args.dtype = torch.float16
-        elif args.dtype == 'torch.float64':
-            args.dtype = torch.float64
->>>>>>> master
+
 
     # necessary because None is not properly by argparse (special case)
     if args.restart == 'None':
