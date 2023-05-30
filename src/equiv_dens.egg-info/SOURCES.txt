@@ -11,6 +11,7 @@ src/equiv_dens/train_all.py
 src/equiv_dens/train_dens.py
 src/equiv_dens/train_dens_en.py
 src/equiv_dens/train_dens_func.py
+src/equiv_dens/train_dens_func_test.py
 src/equiv_dens/train_only_en.py
 src/equiv_dens.egg-info/PKG-INFO
 src/equiv_dens.egg-info/SOURCES.txt
@@ -36,14 +37,12 @@ src/equiv_dens/nn/modules/__init__.py
 src/equiv_dens/nn/modules/activations.py
 src/equiv_dens/nn/modules/clebsch_gordan.py
 src/equiv_dens/nn/modules/embeddings.py
-src/equiv_dens/nn/modules/general_interaction.py
 src/equiv_dens/nn/modules/network_blocks.py
 src/equiv_dens/nn/modules/radial_basis_functions.py
 src/equiv_dens/nn/modules/spherical_harmonic_layers.py
 src/equiv_dens/nn/property_output/__init__.py
 src/equiv_dens/nn/property_output/density.py
 src/equiv_dens/nn/property_output/density_legacy.py
-src/equiv_dens/nn/property_output/density_transfer.py
 src/equiv_dens/nn/property_output/dipole_moment.py
 src/equiv_dens/nn/property_output/energy.py
 src/equiv_dens/nn/property_output/wavefunction.py
@@ -58,7 +57,6 @@ src/equiv_dens/training/parse_command_line_arguments.py
 src/equiv_dens/training/trainer.py
 src/equiv_dens/utils/__init__.py
 src/equiv_dens/utils/base.py
-src/equiv_dens/utils/cubetools.py
 src/equiv_dens/utils/electron_configurations.py
 src/equiv_dens/utils/grids.py
 src/equiv_dens/utils/misc.py

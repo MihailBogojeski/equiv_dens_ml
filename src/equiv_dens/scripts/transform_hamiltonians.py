@@ -21,12 +21,12 @@ convention_dict = {
         orbital_sign_map={'s': [1], 'p': [1, 1, 1], 'd': [1, 1, 1, 1, 1]},
         orbital_order_map={'H': [0, 1, 2], 'O': [0, 1, 2, 3, 4, 5], 'C': [0, 1, 2, 3, 4, 5], 'N': [0, 1, 2, 3, 4, 5]},
     ),
-    # 'def2-SVP_to_pyscf_210': Namespace(
-    #     atom_to_orbitals_map={'H': 'ssp', 'O': 'sssppd', 'C': 'sssppd', 'N': 'sssppd'},
-    #     orbital_idx_map={'s': [0], 'p': [2, 1, 0], 'd': [0, 1, 2, 3, 4]},
-    #     orbital_sign_map={'s': [1], 'p': [1, 1, 1], 'd': [1, 1, 1, 1, 1]},
-    #     orbital_order_map={'H': [0, 1, 2], 'O': [0, 1, 2, 3, 4, 5], 'C': [0, 1, 2, 3, 4, 5], 'N': [0, 1, 2, 3, 4, 5]},
-    # ),
+    'def2-SVP_to_pyscf_210': Namespace(
+        atom_to_orbitals_map={'H': 'ssp', 'O': 'sssppd', 'C': 'sssppd', 'N': 'sssppd'},
+        orbital_idx_map={'s': [0], 'p': [2, 1, 0], 'd': [0, 1, 2, 3, 4]},
+        orbital_sign_map={'s': [1], 'p': [1, 1, 1], 'd': [1, 1, 1, 1, 1]},
+        orbital_order_map={'H': [0, 1, 2], 'O': [0, 1, 2, 3, 4, 5], 'C': [0, 1, 2, 3, 4, 5], 'N': [0, 1, 2, 3, 4, 5]},
+    ),
     # 'def2-SVP_to_pyscf_210': Namespace(
     #     atom_to_orbitals_map={'H': 'ssp', 'O': 'sssppd', 'C': 'sssppd', 'N': 'sssppd'},
     #     orbital_idx_map={'s': [0], 'p': [2, 1, 0], 'd': [0, 1, 2, 3, 4]},
@@ -121,7 +121,11 @@ def transform(hamiltonians, atoms, convention='svp'):
 
     transform_indices = [transform_indices[idx] for idx in orbitals_order]
     transform_signs = [transform_signs[idx] for idx in orbitals_order]
+<<<<<<< HEAD
     transform_indices = np.concatenate(transform_indices).astype(np.int32)
+=======
+    transform_indices = np.concatenate(transform_indices).astype(int)
+>>>>>>> master
     transform_signs = np.concatenate(transform_signs)
     # print('transform_indices', transform_indices)
 

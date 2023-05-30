@@ -363,6 +363,10 @@ class AtomsDensityData(Dataset):
         atom_numbers, props = utils.compress_batch_atoms(atom_numbers, atom_props, basis_size=self.orbital_basis_size)
         props.update(mol_props)
         # atom_numbers = torch.from_numpy(atom_numbers).type(self.dtype)
+        if 'positions' not in props.keys():
+            print('idx', idx)
+            print('atom_props', atom_props)
+            print('props', props)
         positions = torch.from_numpy(props['positions']).type(self.dtype)
         properties = {}
         for pname in self.required_properties:

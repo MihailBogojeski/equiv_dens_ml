@@ -25,6 +25,7 @@ class DensityCoeffsNetwork(nn.Module):
                  verbose=0,
                  compressed_extraction=False,
                  timing=False,
+                 memory=False,
                  init_coeffs=None,
                  coeff_weights=None,
                  pred_radial_coeffs=True,
@@ -46,6 +47,7 @@ class DensityCoeffsNetwork(nn.Module):
         self.verbose = verbose
         self.compressed_extraction = compressed_extraction
         self.timing = timing
+        self.memory = memory
         self.init_coeffs = init_coeffs
         self.pred_radial_coeffs = pred_radial_coeffs
         self.scale_sph_order = scale_sph_order
@@ -334,7 +336,7 @@ class DensityCoeffsNetwork(nn.Module):
     """
 
     def forward(self, atoms):
-        if self.verbose > 2:
+        if self.memory:
             print('density coeffs forward start:')
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
             print('Memory cached', torch.cuda.memory_cached() / 1024**2)
@@ -362,7 +364,7 @@ class DensityCoeffsNetwork(nn.Module):
                     out_scale.append(F.softplus(self.radial_scale[L](fs[0])))
                 else:
                     out_scale.append(self.radial_scale[L](fs[0]))
-        if self.verbose > 2:
+        if self.memory:
             print('density coeffs forward outputs:')
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
             print('Memory cached', torch.cuda.memory_cached() / 1024**2)
@@ -383,7 +385,7 @@ class DensityCoeffsNetwork(nn.Module):
             atoms['df_weights'] = all_coeffs['coeff_weights'] 
         # if self.timing:
         #     print('density coeffs df vector time:', time.time() - df_start)
-        if self.verbose > 2:
+        if self.memory:
             print('density coeffs forward extract coeffs:')
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
             print('Memory cached', torch.cuda.memory_cached() / 1024**2)
@@ -396,7 +398,7 @@ class DensityCoeffsNetwork(nn.Module):
             atoms['sph_dict'] = {key: self.sph_dict[key].to('cpu') for key in self.sph_dict.keys()}
         if self.timing:
             print('density coeffs time:', time.time() - start)
-        if self.verbose > 2:
+        if self.memory:
             print('density coeffs forward end:')
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
             print('Memory cached', torch.cuda.memory_cached() / 1024**2)
@@ -417,6 +419,7 @@ class DensityExpansion(nn.Module):
                  integral_scale=False,
                  verbose=0,
                  timing=False,
+                 memory=False,
                  grid_scaling_factor=False,
                  ):
         super().__init__()
@@ -425,6 +428,7 @@ class DensityExpansion(nn.Module):
         self.integral_constraint = integral_constraint
         self.softmax_norm = softmax_norm
         self.timing = timing
+        self.memory = memory
         self.verbose = verbose
         if grid_scaling_factor:
             self.register_buffer('grid_scaling_factor', torch.ones(size=(1,)))
@@ -516,7 +520,7 @@ class DensityExpansion(nn.Module):
         L0_width = []
         n_electrons = get_n_electrons(atoms['atom_numbers'])
         for i in range(n_eval):
-            if self.verbose > 2:
+            if self.verbose > 1 and self.memory:
                 print('Atom', i)
                 print('density density expansion:')
                 print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)

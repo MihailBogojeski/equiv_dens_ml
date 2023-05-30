@@ -170,6 +170,8 @@ def parse_command_line_arguments(arg_file=None):
     args_training.add_argument("--test_batch_size", metavar='INT', type=int, default=1, help="batch size for validation")
     args_training.add_argument("--electron_num_batching", metavar='True|False', type=str2bool, default=False,
                                help="Use adaptive batching based on number of electrons.")
+    args_training.add_argument("--batch_efficiency", metavar='FLOAT', type=float, default=0.7,
+                               help="Efficiency of batching based on number of electrons, expressed as the fraction of non-padded entries.")
     args_training.add_argument("--num_workers", metavar='INT', type=int, default=0, help="number of worker threads for preparing batches")
     args_training.add_argument("--split_seed", metavar='INT', type=int, default=42,
                                help="seed for splitting the dataset in training, validation and test sets")
@@ -288,6 +290,8 @@ def parse_command_line_arguments(arg_file=None):
     args_training.add_argument("--verbose", metavar='INT', type=int, default=0, help="Verbosity level.")
     args_training.add_argument("--timing", metavar='True|False', type=str2bool, default=False,
                                choices=[True, False], help="Timing runtime.")
+    args_training.add_argument("--memory", metavar='True|False', type=str2bool, default=False,
+                               choices=[True, False], help="Memory statistics.")
     args_training.add_argument("--energy_unit_in", metavar='STR', type=str, default='kcal/mol',
                                choices=['kcal/mol', 'hartree', 'eV', 'kelvin', 'millihartree'],
                                help="energy input unit")
@@ -310,7 +314,6 @@ def parse_command_line_arguments(arg_file=None):
                                choices=[True, False], help="Use density fitting basis for labels.")
     args_training.add_argument("--fast_df", metavar='True|False', type=str2bool, default=True,
                                choices=[True, False], help="Do a fast/shorter density fitting training procedure.")
-
 
     # arguments for simulations
     args_simulation = parser.add_argument_group("simulation hyperparameters")
@@ -351,7 +354,7 @@ def parse_command_line_arguments(arg_file=None):
     # misc arguments
     args_misc = parser.add_argument_group("miscelleaneous")
     args_misc.add_argument("--dtype", metavar='torch.float32|torch.float64', type=str, default='torch.float32',
-                           choices=['torch.float32', 'torch.float64'], help="floating point type used during training")
+                           choices=['torch.float16', 'torch.float32', 'torch.float64'], help="floating point type used during training")
     args_misc.add_argument('--legacy', metavar='True|False', type=str2bool, default=False,
                            choices=[True, False], help="If true use old density network code, else use the most recent version.")
 
@@ -365,11 +368,21 @@ def parse_command_line_arguments(arg_file=None):
                 args = parser.parse_args(args_str.split())
         else:
             args = parser.parse_args()
+<<<<<<< HEAD
     # convert dtype argument to the proper torch type
     if args.dtype == 'torch.float32':
         args.dtype = torch.float32
     elif args.dtype == 'torch.float64':
         args.dtype = torch.float64
+=======
+        # convert dtype argument to the proper torch type
+        if args.dtype == 'torch.float32':
+            args.dtype = torch.float32
+        if args.dtype == 'torch.float16':
+            args.dtype = torch.float16
+        elif args.dtype == 'torch.float64':
+            args.dtype = torch.float64
+>>>>>>> master
 
     # necessary because None is not properly by argparse (special case)
     if args.restart == 'None':

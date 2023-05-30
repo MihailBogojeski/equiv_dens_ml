@@ -6,6 +6,8 @@ from equiv_dens.training.errors import ErrorDict
 from equiv_dens.data.density_dataset import AtomsDensityData
 from equiv_dens.data.hamiltonian_dataset import seeded_random_split
 from equiv_dens.training.model_loader import load_model
+from equiv_dens.utils.grids import cubical_grid, cubical_sampling,\
+    spherical_grid, spherical_radial_sampling
 
 import numpy as np
 from functools import partial
@@ -91,7 +93,9 @@ dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_datas
                            grid_origin=grid_origin,
                            verbose=args.verbose,
                            cutoff=args.cutoff,
-                           df_loss_weights=args.df_loss_weights)
+                           df_loss_weights=args.df_loss_weights,
+                           projected_density=args.projected_density,
+                           )
 
 if data_split_indices is None or args.ignore_split_indices:
     num_test = 0 if args.np_dataset_test is not None else args.num_test
@@ -109,6 +113,7 @@ else:
 if args.num_test is not None:
     test_dataset.indices = test_dataset.indices[:args.num_test]
 
+print('args dataset test', args.np_dataset_test)
 if args.np_dataset_test is not None:
     test_dataset = AtomsDensityData(np_path=args.np_dataset_test, density_path=args.dens_dataset_test,
                                     orbitals_path=args.orbitals_file,
@@ -122,7 +127,9 @@ if args.np_dataset_test is not None:
                                     grid_extent=grid_extent,
                                     grid_origin=grid_origin,
                                     cutoff=args.cutoff,
-                                    df_loss_weights=args.df_loss_weights)
+                                    df_loss_weights=args.df_loss_weights,
+                                    projected_density=args.projected_density,
+                                    )
 
     if args.num_test is not None:
         test_size = args.num_test
@@ -131,6 +138,7 @@ if args.np_dataset_test is not None:
 
     test_dataset = torch.utils.data.Subset(test_dataset, np.arange(test_size))
 
+print('test dataset len', len(test_dataset))
 print('args center energy')
 if args.center_energy:
     if args.atomic_energies is None:
@@ -142,7 +150,7 @@ if args.center_energy:
             print('centering test energy')
             test_dataset.dataset.center_energy(energy_mean)
     else:
-        atomic_energies = np.load(args.atomic_energies).item()
+        atomic_energies = np.load(args.atomic_energies, allow_pickle=True).item()
         dataset.normalize_energy(atomic_energies)
         if args.np_dataset_test is not None:
             test_dataset.dataset.normalize_energy(atomic_energies)
@@ -192,7 +200,8 @@ else:
 print('test dataset size', len(test_dataset))
 print('args.test batch_size', args.test_batch_size)
 test_data_loader = set_up_data_loader(test_dataset, args.test_batch_size,
-                                      args.electron_num_batching, use_gpu, False)
+                                      args.electron_num_batching,
+                                      args.batch_efficiency, use_gpu, False)
 
 # define model
 print('args.df_weight', args.df_weight)

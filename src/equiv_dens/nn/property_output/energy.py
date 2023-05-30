@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from equiv_dens.nn.modules.network_blocks import ModularBlock, ResidualBlock
+from equiv_dens.nn.modules.network_blocks import ModularBlock, ResidualBlock, layer_norm
 from equiv_dens.nn.modules.radial_basis_functions import BernsteinRadialBasisFunctions,\
     GaussianRadialBasisFunctions, ExponentialBernsteinRadialBasisFunctions, ExponentialGaussianRadialBasisFunctions
 from equiv_dens.nn.modules.activations import Swish, ShiftedSoftplus
@@ -247,12 +247,17 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
         for L in range(len(xs)):
             xs[L] = self.input_layer[L](xs[L])
 
+        if self.normalize > 1:
+            for L in range(len(xs)):
+                xs[L] = layer_norm(xs[L], dims=(-2, -1)) 
         # print('xs energy norm after input layer:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
         # perform iterations over modular building blocks to get environment - dependent features
         fs = [0 for _ in range(max(self.order_max, self.orbitals_max_order) + 1)]  # output features
         for i in range(len(xs)):
             fs[i] = fs[i] + xs[i]
+        # print('fs norm start :', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
         # fs = [torch.zeros_like(x) for x in xs]  # output features
+        
         for i, module in enumerate(self.module):
             xs = self.order_change[i](xs)
             # print('xs norm module ', i, ':', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
@@ -262,6 +267,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
                     scale = 1
                 else:
                     scale = np.sqrt(1/2)
+                    # print('self normalize en', self.normalize)
                 fs[L] = ys[L] * scale + fs[L] * scale
                 # print('module', i, 'fs[0]', fs[0])
             # print('fs norm ', i, ':', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])

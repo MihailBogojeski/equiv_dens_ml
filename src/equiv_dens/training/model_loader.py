@@ -57,6 +57,7 @@ def load_model(args, dataset, train=False):
         clebsch_gordan=clebsch_gordan,
         verbose=args.verbose,
         timing=args.timing,
+        memory=args.memory,
         normalize=args.normalize,
         parity=args.parity_dens,
     )
@@ -72,6 +73,7 @@ def load_model(args, dataset, train=False):
         clebsch_gordan=clebsch_gordan,
         verbose=args.verbose,
         timing=args.timing,
+        memory=args.memory,
         init_coeffs=dataset.L0_coeffs,
         coeff_weights=dataset.coeff_weights,
         pred_radial_coeffs=args.pred_radial_coeffs,
@@ -93,6 +95,7 @@ def load_model(args, dataset, train=False):
                                             softmax_norm=args.softmax_norm, n_electrons=n_electron,
                                             verbose=args.verbose,
                                             timing=args.timing,
+                                            memory=args.memory,
                                             grid_scaling_factor=args.grid_scaling_factor,
                                             )
     else:
@@ -197,6 +200,7 @@ def load_model(args, dataset, train=False):
     model = DFTNetwork(density_model, property_models,
                        calculate_forces_dict=calculate_forces_dict,
                        verbose=args.verbose,
+                       memory=args.memory,
                        conversions_in=conversions_in,
                        conversions_out=conversions_out,
                        scaling=force_scaling,
@@ -222,6 +226,7 @@ def load_model(args, dataset, train=False):
             model_dict = torch.load(os.path.join(args.load_from, 'best_' + load_code + '.pth'), map_location='cpu')
             for key in model_dict.keys():
                 if 'property_models.density' in key:
+                    print('key', key)
                     state_dict[key] = model_dict[key]
         missing, unexpected = model.load_state_dict(state_dict, strict=False)
         if len(unexpected) > 0:

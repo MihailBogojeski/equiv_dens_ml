@@ -51,6 +51,7 @@ class Trainer:
         valid_check_best=None,
         verbose=0,
         timing=False,
+        memory=False,
         data_split_indices=None,
         grid_scaling_annealing=1.0,
         grid_scaling_start=10000,
@@ -76,6 +77,7 @@ class Trainer:
         self.stop_at_learning_rate_patience = stop_at_learning_rate_patience
         self.verbose = verbose
         self.timing = timing
+        self.memory = memory
         self.data_split_indices = data_split_indices
         self.grid_scaling_annealing = grid_scaling_annealing
         self.grid_scaling_start = grid_scaling_start
@@ -278,6 +280,7 @@ class Trainer:
                             self.valid_errors[i], is_best = self._validate(valid_data_loader, use_gpu, check_best=self.valid_check_best[i])
                     if self.valid_check_best[i]:
                         new_best = is_best
+                torch.cuda.empty_cache()
                 self._module.train()
             # write summary to console
             if self.step % self.summary_interval == 0:
@@ -344,6 +347,11 @@ class Trainer:
                     data[key] = data[key].cuda()
         if self.timing:
             print('train load time', time.time() - start)
+        if self.memory:
+            print('train load memory allocated', torch.cuda.memory_allocated() / 1024**2)
+            print('train load memory cached', torch.cuda.memory_cached() / 1024**2)
+        if self.verbose > 0:
+            print('batch electron num', torch.sum(data['batch_atom_numbers'], dim=1).view(-1))
         # zero the parameter gradients
         for optimizer in self.optimizers:
             optimizer.zero_grad()
@@ -366,8 +374,10 @@ class Trainer:
                 print('pred energy', predictions['energy'].view((-1, )))
                 print('true energy', data['energy'].view((-1, )))
             if 'forces' in predictions.keys():
-                print('pred forces', predictions['forces'].sum((-1, -2)).view((-1, )))
-                print('true forces', data['forces'].sum((-1, -2)).view((-1, )))
+                # print('pred forces', predictions['forces'].sum((-1, -2)).view((-1, )))
+                # print('true forces', data['forces'].sum((-1, -2)).view((-1, )))
+                print('pred forces', predictions['forces'][:,0,:].view((-1, )))
+                print('true forces', data['forces'][:,0,:].view((-1, )))
 
         if 'density' in data.keys() and torch.any(torch.isnan(data['density'])):
             print('Nans found in label density, skipping batch')
@@ -407,8 +417,6 @@ class Trainer:
             torch.save(self._module.state_dict(), self.model_code + '_model_crash_dump_train_' + str(self.step) + '.pth')
             return
 
-        # if self.verbose > 2:
-        #     print('train step before backward:', torch.cuda.memory_summary())
         start_bw = time.time()
         # for key in ['df_coeffs', 'density', 'energy', 'forces']:
         #     if key in predictions.keys():
@@ -419,8 +427,9 @@ class Trainer:
             errors['loss'].backward()
             if self.timing:
                 print('backward time', time.time() - start_bw)
-            # if self.verbose > 2:
-            #     print('train step after backward:', torch.cuda.memory_summary())
+            if self.memory:
+                print('backward memory allocated', torch.cuda.memory_allocated() / 1024**2)
+                print('backward memory cached', torch.cuda.memory_cached() / 1024**2)
 
             # apply gradient clipping
             if self.clip_norm > 0:
@@ -434,6 +443,9 @@ class Trainer:
                 optimizer.step()
             if self.timing:
                 print('step time', time.time() - start_step)
+            if self.memory:
+                print('backward step memory allocated', torch.cuda.memory_allocated() / 1024**2)
+                print('backward step memory cached', torch.cuda.memory_cached() / 1024**2)
 
         # print('model embedding layer after backward', self._model.density_repr_model[0].embedding.embedding.element_embedding)
         # update parameter averages
@@ -450,6 +462,9 @@ class Trainer:
                                        self.train_errors[key]) / (self.train_batch_num + 1)
         if self.timing:
             print('train step time', time.time() - start)
+        if self.memory:
+            print('after step memory allocated', torch.cuda.memory_allocated() / 1024**2)
+            print('after step memory cached', torch.cuda.memory_cached() / 1024**2)
 
     def _validate(self, valid_data_loader, use_gpu, check_best=False):
         is_best = False
@@ -468,11 +483,10 @@ class Trainer:
                         data[key] = data[key].cuda()
             if self.timing:
                 print('valid load time', time.time() - start)
+            if self.memory:
+                print('valid load memory allocated', torch.cuda.memory_allocated() / 1024**2)
+                print('valid load memory cached', torch.cuda.memory_cached() / 1024**2)
 
-            # forward step
-            # if self.verbose > 2:
-            #     print('validate before prediction:', torch.cuda.memory_summary())
-            # print('pre-conversion forces:', data['forces'])
             data = self._module.conversions_in(data)
             data = self._module.scaling(data)
             # print('post-conversion forces:', data['forces'])
@@ -481,8 +495,6 @@ class Trainer:
             data = self._module.conversions_out(data)
             # print('post-post-conversion forces:', data['forces'])
             # if self.verbose > 2:
-            #     print('validate after prediction:', torch.cuda.memory_summary())
-            # print('energy pred', predictions['energy'])
             if self.verbose > 0:
                 if 'density' in predictions.keys():
                     logging.info(f"valid density intergal {torch.sum(predictions['density'] * predictions['coord_weights'], dim=1)}")
@@ -491,8 +503,10 @@ class Trainer:
                     print('pred energy', predictions['energy'].view((-1, )))
                     print('true energy', data['energy'].view((-1, )))
                 if 'forces' in predictions.keys():
-                    print('pred forces', predictions['forces'].sum((-1, -2)).view((-1, )))
-                    print('true forces', data['forces'].sum((-1, -2)).view((-1, )))
+                    # print('pred forces', predictions['forces'].sum((-1, -2)).view((-1, )))
+                    # print('true forces', data['forces'].sum((-1, -2)).view((-1, )))
+                    print('pred forces', predictions['forces'][:,0,:].view((-1, )))
+                    print('true forces', data['forces'][:,0,:].view((-1, )))
             if 'density' in data.keys() and torch.any(torch.isnan(data['density'])):
                 print('Nans found in label density, skipping batch')
                 continue
@@ -542,6 +556,9 @@ class Trainer:
                                       valid_errors[key]) / (valid_batch_num + 1)
             if self.timing:
                 print('valid step time:', time.time() - start)
+            if self.memory:
+                print('valid step memory allocated', torch.cuda.memory_allocated() / 1024**2)
+                print('valid step memory cached', torch.cuda.memory_cached() / 1024**2)
             predictions = None
             data = None
             errors = None

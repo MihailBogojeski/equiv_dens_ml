@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 import os
-import torch
 from datetime import datetime
 import logging
+import torch
 from torch.utils.tensorboard import SummaryWriter
 from equiv_dens.training.parse_command_line_arguments import parse_command_line_arguments, move_data_to_cluster_node
 from equiv_dens.utils.misc import generate_id
@@ -12,10 +12,8 @@ from equiv_dens.data.density_dataset import AtomsDensityData
 from equiv_dens.data.hamiltonian_dataset import seeded_random_split
 from equiv_dens.training.lookahead import Lookahead
 from equiv_dens.utils.grids import cubical_grid, cubical_sampling,\
-    CubicalGrid, spherical_grid, spherical_radial_sampling
-import equiv_dens.utils.base as utils
+    spherical_grid, spherical_radial_sampling
 from equiv_dens.training.model_loader import load_model
-import copy
 from equiv_dens.data.custom_samplers import set_up_data_loader
 import argparse
 import shutil
@@ -85,9 +83,10 @@ args.np_dataset = np_dataset
 args.dens_dataset = dens_dataset
 log.info(f"model code: {model_code}")
 log.info(f"max steps: {args.max_steps}")
+log.info(f"normalize dens {args.normalize}")
+log.info(f"normalize en {args.normalize_en}")
 # determine whether GPU is used for training
 use_gpu = args.use_gpu and torch.cuda.is_available()
-
 if use_gpu:
     log.info(f"GPU is used for training {torch.cuda.get_device_name(0)}")
 
@@ -375,14 +374,18 @@ for phase in training_phases:
 
 # prepare data loaders
     train_data_loader = set_up_data_loader(train_dataset, args.train_batch_size,
-                                        args.electron_num_batching, use_gpu, True)
+                                           args.electron_num_batching,
+                                           args.batch_efficiency, use_gpu, True)
     valid_data_loader = set_up_data_loader(valid_dataset, args.valid_batch_size,
-                                        args.electron_num_batching, use_gpu, False)
+                                           args.electron_num_batching,
+                                           args.batch_efficiency, use_gpu, False)
     test_data_loader = set_up_data_loader(test_dataset, args.test_batch_size,
-                                        args.electron_num_batching, use_gpu, False)
+                                          args.electron_num_batching,
+                                          args.batch_efficiency, use_gpu, False)
     if args.cube_grid_valid:
         valid_cube_loader = set_up_data_loader(valid_cube_dataset, args.valid_batch_size,
-                                            args.electron_num_batching, use_gpu, False)
+                                               args.electron_num_batching,
+                                               args.batch_efficiency, use_gpu, False)
 
 # define model
     model = load_model(args, dataset, train=True)
@@ -482,7 +485,13 @@ for phase in training_phases:
     model.to(args.dtype)
     sample = dataset.get_properties([0])
 
-    trainer = Trainer(model_path=directory, model=model, error_dict=error_dict,
+    print('restore before training', phase, restore)
+    print('num neighbors', args.num_neighbours)
+    print('normalize_en', args.normalize_en)
+    trainer = Trainer(
+                    model_path=directory,
+                    model=model, 
+                    error_dict=error_dict,
                     optimizers=optimizers, schedulers=schedulers,
                     train_loader=train_data_loader,
                     validation_loaders=validation_loaders,
@@ -500,6 +509,7 @@ for phase in training_phases:
                     valid_check_best=valid_check_best,
                     verbose=args.verbose,
                     timing=args.timing,
+                    memory=args.memory,
                     data_split_indices=data_split_indices,
                     grid_scaling_annealing=args.grid_scaling_annealing,
                     grid_scaling_start=args.grid_scaling_start,
@@ -644,12 +654,14 @@ if args.center_energy:
             valid_dataset.normalize_energy(atomic_energies)
 
 train_data_loader = set_up_data_loader(train_dataset, args.train_batch_size,
-                                    args.electron_num_batching, use_gpu, True)
+                                       args.electron_num_batching,
+                                       args.batch_efficiency, use_gpu, True)
 valid_data_loader = set_up_data_loader(valid_dataset, args.valid_batch_size,
-                                    args.electron_num_batching, use_gpu, False)
+                                       args.electron_num_batching,
+                                       args.batch_efficiency, use_gpu, False)
 test_data_loader = set_up_data_loader(test_dataset, args.test_batch_size,
-                                    args.electron_num_batching, use_gpu, False)
-
+                                      args.electron_num_batching,
+                                      args.batch_efficiency, use_gpu, False)
 loss_weights = {}
 loss_weights['density'] = args.density_weight
 #loss_weights['dipole_moment'] = args.density_weight
