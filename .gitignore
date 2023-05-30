@@ -1,3 +1,4 @@
 *.pyc
 src/equiv_dens/.vscode/launch.json
 src/equiv_dens/syn_cluster.sh
+src/equiv_dens/data/tmp_remove_later.py

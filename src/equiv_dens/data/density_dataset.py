@@ -100,9 +100,9 @@ class AtomsDensityData(Dataset):
         self.mols = []
         self.coeffs = []
         self.density_fitting = {}
-        self.grid_spec = grid_fn(self.atoms,mode=self.mode)
+        self.grid_spec = grid_fn(self.atoms)
 
-        self.zero_pad()
+        #self.zero_pad()
         self.prepare_orbital_basis_radial_coeffs(orbitals_path,radial_coeffs_file,df_loss_weights,L0_coeffs_file)
         self.prepare_data(density_path)
         

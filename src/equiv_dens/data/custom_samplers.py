@@ -56,7 +56,7 @@ class SimilarSizeSampler(Sampler[int]):
         for i in range(self.num_samples):
             idx = self.data_source[i]
             # history was that idx was in list but slicing with lists is not possible
-            self.num_electrons.append(torch.sum(self.dataset.get_basic_properties(idx)['atom_numbers']).item())
+            self.num_electrons.append(torch.sum(self.dataset.get_basic_properties([idx])['atom_numbers']).item())
         sort_idx = np.argsort(self.num_electrons)
         if self.max_bucket_size is None:
             min_elec_num = self.num_electrons[sort_idx[0]]
