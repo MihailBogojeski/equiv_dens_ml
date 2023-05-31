@@ -193,6 +193,7 @@ for phase in training_phases:
                                grid_extent=grid_extent,
                                grid_origin=grid_origin,
                                verbose=args.verbose,
+                               timing=args.timing,
                                cutoff=args.cutoff,
                                df_loss_weights=args.df_loss_weights)
 

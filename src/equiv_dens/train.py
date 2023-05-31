@@ -134,6 +134,7 @@ dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_datas
                            grid_extent=grid_extent,
                            grid_origin=grid_origin,
                            verbose=args.verbose,
+                           timing=args.timing,
                            cutoff=args.cutoff,
                            df_loss_weights=args.df_loss_weights,
                            projected_density=args.projected_density

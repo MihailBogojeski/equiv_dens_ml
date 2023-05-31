@@ -82,7 +82,7 @@ if args.forces_weight > 0:
 
 dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_dataset,
                            orbitals_path=args.orbitals_file,
-                           density_n_samp=args.density_subsamples,
+                           density_n_samp=1000000000000000000,
                            required_properties=required_properties,
                            center_positions=False,
                            radial_coeffs_file=args.radial_coeffs_file,
@@ -117,7 +117,7 @@ print('args dataset test', args.np_dataset_test)
 if args.np_dataset_test is not None:
     test_dataset = AtomsDensityData(np_path=args.np_dataset_test, density_path=args.dens_dataset_test,
                                     orbitals_path=args.orbitals_file,
-                                    density_n_samp=args.density_subsamples,
+                                    density_n_samp=10000000000000000000000,
                                     required_properties=required_properties,
                                     center_positions=False,
                                     radial_coeffs_file=args.radial_coeffs_file,
