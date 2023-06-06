@@ -30,7 +30,7 @@ def load_model(args, dataset, train=False):
         en_conversion_func=getattr(utils, 'kcal_to_' + args.energy_unit_out),
         dist_conversion_func=getattr(utils, 'angstrom_to_' + args.distance_unit_out))
     force_scaling = VarianceScaling()
-    if args.output_scaling:
+    if args.output_scaling and 'forces' in dataset.required_properties:
         force_scaling = VarianceScaling(conversions_in.en_conversion_func(dataset.forces)/conversions_in.dist_conversion_func(1))
     print('conversions in', conversions_in.en_conversion_func)
     print('conversions out', conversions_out.en_conversion_func)

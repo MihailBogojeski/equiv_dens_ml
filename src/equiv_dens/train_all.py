@@ -282,7 +282,7 @@ for phase in training_phases:
 
         valid_cube_dataset = torch.utils.data.Subset(cube_dataset, valid_dataset.indices)
 
-    if args.center_energy:
+    if args.center_energy and 'energy' in required_properties:
         if args.atomic_energies is None:
             train_ind = train_dataset.indices
             energy_mean = dataset.atoms['energy'][train_ind].mean()
@@ -612,7 +612,7 @@ if args.np_dataset_test is not None:
     test_dataset = torch.utils.data.Subset(test_dataset, np.arange(test_size))
 
 
-if args.center_energy:
+if args.center_energy and 'energy' in required_properties:
     if args.atomic_energies is None:
         train_ind = train_dataset.indices
         energy_mean = dataset.atoms['energy'][train_ind].mean()

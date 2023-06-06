@@ -7,6 +7,7 @@ import torch
 # from dftpy.grid import DirectGrid
 import equiv_dens.utils.base as utils
 from pyscf import gto
+import time
 
 
 def spherical_grid(atoms, level=2):
