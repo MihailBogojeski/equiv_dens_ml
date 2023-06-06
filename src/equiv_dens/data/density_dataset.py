@@ -26,7 +26,7 @@ from equiv_dens.utils.grids import spherical_grid,\
 import equiv_dens.utils.base as utils
 from equiv_dens.utils import orbitals
 from pyscf.dft import radi
-# import time
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +56,7 @@ class AtomsDensityData(Dataset):
         grid_origin=0,
         fixed_properties={},
         verbose=0,
+        timing=False,
         use_gpu=False,
         radii_adjust=True,
         projected_density=False,
@@ -79,6 +80,7 @@ class AtomsDensityData(Dataset):
         self.use_gpu = use_gpu
         self.radii_adjust = radii_adjust
         self.energy_centered = False
+        self.timing=timing
         self.projected_density = projected_density
         self.cutoff = cutoff
         if required_properties is None:
@@ -280,17 +282,23 @@ class AtomsDensityData(Dataset):
 
     @property
     def energy(self):
-        if self.subset is None:
-            return self.atoms['energy']
+        if 'energy' in self.required_properties:
+            if self.subset is None:
+                return self.atoms['energy']
+            else:
+                return self.atoms['energy'][self.subset]
         else:
-            return self.atoms['energy'][self.subset]
+            raise KeyError('Energy not in required properties')
 
     @property
     def forces(self):
-        if self.subset is None:
-            return self.atoms['forces']
+        if 'forces' in self.required_properties:
+            if self.subset is None:
+                return self.atoms['forces']
+            else:
+                return self.atoms['forces'][self.subset]
         else:
-            return self.atoms['forces'][self.subset]
+            raise KeyError('Forces not in required properties')
 
     @property
     def atom_numbers(self):
@@ -329,18 +337,27 @@ class AtomsDensityData(Dataset):
             print('props', props)
         positions = torch.from_numpy(props['positions']).type(self.dtype)
         properties = {}
+        dens_start = time.time()
         for pname in self.required_properties:
             # fallback for properties stored directly
             # in the row
             if pname == 'coords' or pname == 'density':
+                coords_start = time.time()
                 properties['coords'], properties['coord_weights'] = self.get_coords(positions, atom_numbers)
+                if self.timing:
+                    print('coords time:', time.time() - coords_start)
                 if pname == 'density':
+                    density_start = time.time()
                     if self.projected_density:
                         properties[pname] = self.sample_projected_density(idx, properties['coords'])
                     else:
                         properties[pname] = self.sample_density(idx, properties['coords'])
+                    if self.timing:
+                        print('density time:', time.time() - density_start)
             else:
                 properties[pname] = torch.from_numpy(props[pname]).type(self.dtype)
+        if self.timing:
+            print('dens total time', time.time() - dens_start)
 
         # extract/calculate structure
         properties['atom_numbers_first_positions'] = utils.get_atom_num_first_positions(atom_numbers)
@@ -468,20 +485,22 @@ class AtomsDensityData(Dataset):
         dens = torch.zeros((sample_coords.shape[0], sample_coords.shape[1]), dtype=self.dtype)
         if len(self.mols) > 0:
             for c, i in enumerate(idx):
-                # mol_start = time.time()
+                mol_start = time.time()
                 # print('c, i', c, i)
                 mol = self.mols[i]
                 if not mol._built:
-                    # build_start = time.time()
+                    build_start = time.time()
                     if self.verbose > 3:
                         print('building mol', i)
                     mol.build()
-                    # print('build time', time.time() - build_start)
+                    if self.timing:
+                        print('build time', time.time() - build_start)
                 coeff_dict = self.coeffs[i]
-                # ao_start = time.time()
+                ao_start = time.time()
                 ao = numint.eval_ao(mol, scaled_sample_coords[c])
-                # print('ao time', time.time() - ao_start)
-                # rho_start = time.time()
+                if self.timing:
+                    print('ao time', time.time() - ao_start)
+                rho_start = time.time()
                 if coeff_dict['mo_occ'].ndim > 1:
                     rho = 0
                     for j in range(coeff_dict['mo_occ'].shape[0]):
@@ -489,9 +508,11 @@ class AtomsDensityData(Dataset):
                                                 mo_coeff=coeff_dict['mo_coeff'][j])
                 else:
                     rho = numint.eval_rho2(mol, ao, **coeff_dict)
-                # print('rho time', time.time() - rho_start)
+                if self.timing:
+                    print('rho time', time.time() - rho_start)
                 dens[c, :] = torch.from_numpy(rho).type(self.dtype)
-                # print('mol_time', time.time() - mol_start)
+                if self.timing:
+                    print('mol_time', time.time() - mol_start)
 
         return dens
 
