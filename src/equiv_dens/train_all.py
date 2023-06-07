@@ -84,7 +84,14 @@ print("loading atoms from" + args.np_dataset + "...")
 
 # density_file = '/home/mihail/data/water_rot/full_densities.hdf5'
 # np_file = 'h2o_overlap_static.npy'
-if args.cube_grid:
+rotate = False
+if args.pyscf_grid:
+    grid_fn = partial(spherical_grid, level=args.spherical_grid_level)
+    sampling_fn = None
+    grid_origin = 0
+    grid_extent = None
+    rotate = True
+elif args.cube_grid:
     grid_origin = args.cube_origin
     grid_extent = np.array([args.cube_extent] * 3)
     grid_fn = partial(cubical_grid, nx=args.cube_size, ny=args.cube_size, nz=args.cube_size,
@@ -178,6 +185,8 @@ for phase in training_phases:
                                L0_coeffs_file=args.L0_coeffs_file,
                                dtype=args.dtype,
                                grid_fn=grid_fn,
+                               pyscf_grid=args.pyscf_grid,
+                               pyscf_rotate=rotate,
                                sampling_fn=sampling_fn,
                                grid_extent=grid_extent,
                                grid_origin=grid_origin,
@@ -205,6 +214,8 @@ for phase in training_phases:
                                          L0_coeffs_file=args.L0_coeffs_file,
                                          dtype=args.dtype,
                                          grid_fn=grid_fn,
+                                         pyscf_grid=args.pyscf_grid,
+                                         pyscf_rotate=rotate,
                                          sampling_fn=sampling_fn,
                                          grid_extent=grid_extent,
                                          grid_origin=grid_origin,
@@ -243,6 +254,8 @@ for phase in training_phases:
                                         radial_coeffs_file=args.radial_coeffs_file,
                                         dtype=args.dtype,
                                         grid_fn=grid_fn,
+                                        pyscf_grid=args.pyscf_grid,
+                                        pyscf_rotate=rotate,
                                         sampling_fn=sampling_fn,
                                         grid_extent=grid_extent,
                                         grid_origin=grid_origin,
@@ -531,6 +544,8 @@ dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_datas
                            radial_coeffs_file=args.radial_coeffs_file,
                            L0_coeffs_file=args.L0_coeffs_file,
                            dtype=args.dtype,
+                           pyscf_grid=args.pyscf_grid,
+                           pyscf_rotate=rotate,
                            grid_fn=grid_fn,
                            sampling_fn=sampling_fn,
                            grid_extent=grid_extent,
@@ -559,6 +574,8 @@ elif args.np_dataset_valid is not None:
                                      L0_coeffs_file=args.L0_coeffs_file,
                                      dtype=args.dtype,
                                      grid_fn=grid_fn,
+                                     pyscf_grid=args.pyscf_grid,
+                                     pyscf_rotate=rotate,
                                      sampling_fn=sampling_fn,
                                      grid_extent=grid_extent,
                                      grid_origin=grid_origin,
@@ -597,6 +614,8 @@ if args.np_dataset_test is not None:
                                     radial_coeffs_file=args.radial_coeffs_file,
                                     dtype=args.dtype,
                                     grid_fn=grid_fn,
+                                    pyscf_grid=args.pyscf_grid,
+                                    pyscf_rotate=rotate,
                                     sampling_fn=sampling_fn,
                                     grid_extent=grid_extent,
                                     grid_origin=grid_origin,

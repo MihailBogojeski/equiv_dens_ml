@@ -10,7 +10,7 @@ from pyscf import gto
 import time
 
 
-def spherical_grid(atoms, level=2):
+def spherical_grid(atoms, level=2, bohr=False):
     numbers = np.unique(atoms['atom_numbers'].flatten()).astype(int)
     numbers = numbers[numbers > 0]
     positions = []
@@ -25,8 +25,12 @@ def spherical_grid(atoms, level=2):
 
     grid_spec = gen_grid.gen_atomic_grids(mol, radi_method=radi.treutler, level=level)
     for key in grid_spec.keys():
-        grid_spec[key] = (torch.tensor(grid_spec[key][0] * utils.to_angstrom),
-                          torch.tensor(grid_spec[key][1]))  # convert Bohr grid to Angstrom
+        if bohr:
+            grid_spec[key] = (torch.tensor(grid_spec[key][0]),
+                              torch.tensor(grid_spec[key][1]))  # convert Bohr grid to Angstrom
+        else:
+            grid_spec[key] = (torch.tensor(grid_spec[key][0] * utils.to_angstrom),
+                              torch.tensor(grid_spec[key][1]))  # convert Bohr grid to Angstrom
 
     return grid_spec
 
