@@ -26,11 +26,7 @@ from equiv_dens.utils.grids import spherical_grid,\
     spherical_radial_sampling, treutler_atomic_radii_adjust
 import equiv_dens.utils.base as utils
 from equiv_dens.utils import orbitals
-<<<<<<< HEAD
 from pyscf.dft import gen_grid, radi
-=======
-from pyscf.dft import radi
->>>>>>> wandb
 import time
 
 logger = logging.getLogger(__name__)
@@ -348,29 +344,20 @@ class AtomsDensityData(Dataset):
             print('props', props)
         positions = torch.from_numpy(props['positions']).type(self.dtype)
         properties = {}
-<<<<<<< HEAD
-=======
         if self.timing:
             print('props time', time.time() - props_start)
->>>>>>> wandb
         dens_start = time.time()
         for pname in self.required_properties:
             # fallback for properties stored directly
             # in the row
             if pname == 'coords' or pname == 'density':
                 coords_start = time.time()
-<<<<<<< HEAD
                 if self.pyscf_grid:
                     properties['coords'], properties['coord_weights'] = self.get_pyscf_coords(idx)
                 else:
                     properties['coords'], properties['coord_weights'] = self.get_coords(positions, atom_numbers)
                 if self.timing:
                     print('coords time:', time.time() - coords_start)
-=======
-                properties['coords'], properties['coord_weights'] = self.get_coords(positions, atom_numbers)
-                if self.timing:
-                    print('coords time', time.time() - coords_start)
->>>>>>> wandb
                 if pname == 'density':
                     density_start = time.time()
                     if self.projected_density:
@@ -583,21 +570,13 @@ class AtomsDensityData(Dataset):
                     if self.verbose > 3:
                         print('building mol', i)
                     mol.build()
-<<<<<<< HEAD
-                    print('build time', time.time() - build_start)
-=======
                     if self.timing:
                         print('molecule build time', time.time() - build_start)
->>>>>>> wandb
                 coeff_dict = self.coeffs[i]
                 ao_start = time.time()
                 ao = numint.eval_ao(mol, scaled_sample_coords[c])
                 if self.timing:
-<<<<<<< HEAD
-                    print('ao time', time.time() - ao_start)
-=======
                     print('molecule ao time', time.time() - ao_start)
->>>>>>> wandb
                 rho_start = time.time()
                 if coeff_dict['mo_occ'].ndim > 1:
                     rho = 0
@@ -611,11 +590,8 @@ class AtomsDensityData(Dataset):
                 dens[c, :] = torch.from_numpy(rho).type(self.dtype)
                 if self.timing:
                     print('mol_time', time.time() - mol_start)
-<<<<<<< HEAD
-=======
         if self.timing:
             print('density time', time.time() - dens_start)
->>>>>>> wandb
 
         return dens
 
