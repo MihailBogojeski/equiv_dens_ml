@@ -369,9 +369,6 @@ class AtomsDensityData(Dataset):
             else:
                 properties[pname] = torch.from_numpy(props[pname]).type(self.dtype)
         if self.timing:
-            print('dens total time', time.time() - dens_start)
-
-        if self.timing:
             print('dens props time', time.time() - dens_start)
         # extract/calculate structure
         properties['atom_numbers_first_positions'] = utils.get_atom_num_first_positions(atom_numbers)
@@ -504,8 +501,8 @@ class AtomsDensityData(Dataset):
                 if self.verbose > 3:
                     print('building mol', i)
                 mol.build()
-                # if self.timing:
-                #     print('build time', time.time() - build_start)
+                if self.timing:
+                    print('build time', time.time() - build_start)
             if self.pyscf_rotate:
                 rot_spec = {key: (self.grid_spec[key][0] @
                                   utils.torch_random_rotation_matrix().to(self.grid_spec[key][0]),
@@ -513,8 +510,6 @@ class AtomsDensityData(Dataset):
                             for key in self.grid_spec.keys()}
             else:
                 rot_spec = self.grid_spec
-            if self.timing:
-                print('rot_coords time', time.time() - loop_start)
             coords, weights = gen_grid.get_partition(mol, rot_spec)
             # print('coords shape', coords.shape)
             # print('weights shape', weights)
@@ -531,8 +526,6 @@ class AtomsDensityData(Dataset):
             all_weights.append(weights)
         pad_coords = nn.utils.rnn.pad_sequence(all_coords, batch_first=True, padding_value=0) * utils.to_angstrom
         pad_weights = nn.utils.rnn.pad_sequence(all_weights, batch_first=True, padding_value=0)
-        if self.timing:
-            print('grid time', time.time() - start)
         return pad_coords, pad_weights
 
     def get_coords(self, positions, atom_numbers):
@@ -567,7 +560,7 @@ class AtomsDensityData(Dataset):
                 mol = self.mols[i]
                 if not mol._built:
                     build_start = time.time()
-                    if self.verbose > 3:
+                    if self.verbose > 2:
                         print('building mol', i)
                     mol.build()
                     if self.timing:
@@ -575,7 +568,7 @@ class AtomsDensityData(Dataset):
                 coeff_dict = self.coeffs[i]
                 ao_start = time.time()
                 ao = numint.eval_ao(mol, scaled_sample_coords[c])
-                if self.timing:
+                if self.timing and self.verbose > 2:
                     print('molecule ao time', time.time() - ao_start)
                 rho_start = time.time()
                 if coeff_dict['mo_occ'].ndim > 1:
@@ -585,13 +578,11 @@ class AtomsDensityData(Dataset):
                                                 mo_coeff=coeff_dict['mo_coeff'][j])
                 else:
                     rho = numint.eval_rho2(mol, ao, **coeff_dict)
-                if self.timing:
+                if self.timing and self.verbose > 2:
                     print('rho time', time.time() - rho_start)
                 dens[c, :] = torch.from_numpy(rho).type(self.dtype)
-                if self.timing:
+                if self.timing and self.verbose > 2:
                     print('mol_time', time.time() - mol_start)
-        if self.timing:
-            print('density time', time.time() - dens_start)
 
         return dens
 
