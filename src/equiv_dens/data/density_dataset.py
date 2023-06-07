@@ -26,7 +26,11 @@ from equiv_dens.utils.grids import spherical_grid,\
     spherical_radial_sampling, treutler_atomic_radii_adjust
 import equiv_dens.utils.base as utils
 from equiv_dens.utils import orbitals
+<<<<<<< HEAD
 from pyscf.dft import gen_grid, radi
+=======
+from pyscf.dft import radi
+>>>>>>> wandb
 import time
 
 logger = logging.getLogger(__name__)
@@ -82,6 +86,7 @@ class AtomsDensityData(Dataset):
         self.grid_extent = grid_extent
         self.grid_origin = grid_origin
         self.verbose = verbose
+        self.timing = timing
         self.use_gpu = use_gpu
         self.radii_adjust = radii_adjust
         self.energy_centered = False
@@ -319,6 +324,7 @@ class AtomsDensityData(Dataset):
             idx = [idx]
 
         # extract properties
+        props_start = time.time()
         atom_numbers = self.atoms['atom_numbers'][idx]
         atom_props = {'positions': self.atoms['positions'][idx]}
         mol_props = {}
@@ -342,18 +348,29 @@ class AtomsDensityData(Dataset):
             print('props', props)
         positions = torch.from_numpy(props['positions']).type(self.dtype)
         properties = {}
+<<<<<<< HEAD
+=======
+        if self.timing:
+            print('props time', time.time() - props_start)
+>>>>>>> wandb
         dens_start = time.time()
         for pname in self.required_properties:
             # fallback for properties stored directly
             # in the row
             if pname == 'coords' or pname == 'density':
                 coords_start = time.time()
+<<<<<<< HEAD
                 if self.pyscf_grid:
                     properties['coords'], properties['coord_weights'] = self.get_pyscf_coords(idx)
                 else:
                     properties['coords'], properties['coord_weights'] = self.get_coords(positions, atom_numbers)
                 if self.timing:
                     print('coords time:', time.time() - coords_start)
+=======
+                properties['coords'], properties['coord_weights'] = self.get_coords(positions, atom_numbers)
+                if self.timing:
+                    print('coords time', time.time() - coords_start)
+>>>>>>> wandb
                 if pname == 'density':
                     density_start = time.time()
                     if self.projected_density:
@@ -367,6 +384,8 @@ class AtomsDensityData(Dataset):
         if self.timing:
             print('dens total time', time.time() - dens_start)
 
+        if self.timing:
+            print('dens props time', time.time() - dens_start)
         # extract/calculate structure
         properties['atom_numbers_first_positions'] = utils.get_atom_num_first_positions(atom_numbers)
         properties['positions'] = positions
@@ -378,7 +397,7 @@ class AtomsDensityData(Dataset):
             # print('atom center', positions.mean(axis=0))
             positions -= torch.sum(positions * atom_numbers, 0)/torch.sum(atom_numbers, 1)
         properties["_idx"] = torch.LongTensor(np.array(idx, dtype=int))
-
+        neighbor_start = time.time()
         nl = utils.TorchNeighborList(self.cutoff)
         idx_is, idx_js, _ = nl.get_neighbors(properties)
         neighbor_batch_idx = []
@@ -395,8 +414,10 @@ class AtomsDensityData(Dataset):
         for i in range(len(atom_numbers)):
             atom_batch_idx[i, :] = i
         atom_batch_idx = torch.LongTensor(atom_batch_idx)
+        if self.timing:
+            print('neighbor time', time.time() - neighbor_start)
 
-
+        final_start = time.time()
         idx_is = torch.cat(idx_is, dim=0)
         idx_js = torch.cat(idx_js, dim=0)
         neighbor_batch_idx = torch.cat(neighbor_batch_idx, dim=0)
@@ -426,6 +447,9 @@ class AtomsDensityData(Dataset):
 
         for prop in self.fixed_properties.keys():
             properties[prop] = self.fixed_properties[prop]
+        if self.timing:
+            print('final props time', time.time() - final_start)
+            print('total time', time.time() - props_start)
 
         return properties
 
@@ -534,9 +558,11 @@ class AtomsDensityData(Dataset):
                                                             atom_numbers,
                                                             positions, radii_adjust=f_radii_adjust)
         else:
+            start = time.time()
             sample_coords, coord_weights = self.sampling_fn(self.grid_spec, self.density_n_samp,
                                                             atom_numbers,
                                                             positions)
+            print('sample coords time', time.time() - start)
         # print('density nans', torch.sum(torch.isnan(properties[pname])))
         coords = sample_coords.type(self.dtype)
         coord_weights = coord_weights.type(self.dtype)
@@ -546,6 +572,7 @@ class AtomsDensityData(Dataset):
     def sample_density(self, idx, sample_coords):
         scaled_sample_coords = sample_coords.detach().cpu().numpy() / param.BOHR  # convert Angstrom grid to Bohr
         dens = torch.zeros((sample_coords.shape[0], sample_coords.shape[1]), dtype=self.dtype)
+        dens_start = time.time()
         if len(self.mols) > 0:
             for c, i in enumerate(idx):
                 mol_start = time.time()
@@ -556,12 +583,21 @@ class AtomsDensityData(Dataset):
                     if self.verbose > 3:
                         print('building mol', i)
                     mol.build()
+<<<<<<< HEAD
                     print('build time', time.time() - build_start)
+=======
+                    if self.timing:
+                        print('molecule build time', time.time() - build_start)
+>>>>>>> wandb
                 coeff_dict = self.coeffs[i]
                 ao_start = time.time()
                 ao = numint.eval_ao(mol, scaled_sample_coords[c])
                 if self.timing:
+<<<<<<< HEAD
                     print('ao time', time.time() - ao_start)
+=======
+                    print('molecule ao time', time.time() - ao_start)
+>>>>>>> wandb
                 rho_start = time.time()
                 if coeff_dict['mo_occ'].ndim > 1:
                     rho = 0
@@ -575,6 +611,11 @@ class AtomsDensityData(Dataset):
                 dens[c, :] = torch.from_numpy(rho).type(self.dtype)
                 if self.timing:
                     print('mol_time', time.time() - mol_start)
+<<<<<<< HEAD
+=======
+        if self.timing:
+            print('density time', time.time() - dens_start)
+>>>>>>> wandb
 
         return dens
 

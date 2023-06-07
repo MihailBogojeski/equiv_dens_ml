@@ -1,10 +1,10 @@
 import os
 import torch
-from tensorboardX import SummaryWriter
 import math
 import time
 from equiv_dens.training.exponential_moving_average import ExponentialMovingAverage
 import sys
+import wandb
 
 
 class Trainer:
@@ -46,6 +46,7 @@ class Trainer:
         restore=False,
         max_steps=100000,
         clip_norm=0,
+        wandb=None,
         stop_at_learning_rate=1e-5,
         stop_at_learning_rate_patience=0,
         valid_check_best=None,
@@ -109,7 +110,7 @@ class Trainer:
             self.valid_errors = [self.error_dict.empty(fill_value=math.inf) for i in range(len(self.validation_loaders))]
 
         self.train_errors = self.error_dict.empty()  # reset train error metrics
-        self.summary = SummaryWriter(logdir=os.path.join(self.model_path, 'logs'), purge_step=self.step)
+        self.wandb = wandb
 
     def store_checkpoint(self, best=False):
         if self.training_phases is None:
@@ -143,7 +144,6 @@ class Trainer:
             'training_phases': self.training_phases
         }
         torch.save(checkpoint, os.path.join(self.checkpoint_path, chk_name))
-        self.summary.add_text('checkpoints', 'saved checkpoint', self.step)
 
         # remove oldest checkpoints
         if self.keep_n_checkpoints >= 0 and not best:  # for negative arguments, all checkpoints are kept
@@ -306,7 +306,6 @@ class Trainer:
             # save checkpoint (always the last step)
             if self.step % self.checkpoint_interval == 0:
                 self.store_checkpoint()
-                self.summary.add_text('checkpoints', 'saved checkpoint', self.step)
 
             # decide whether to stop the run based on learning rate
             stop_training = True
@@ -325,8 +324,6 @@ class Trainer:
                 print("Learning rate is smaller than " +
                       str(self.stop_at_learning_rate) + "! Training stopped.")
                 break
-        # close summary writer
-        self.summary.close()
 
     def _train_step(self, use_gpu, backprop=True):
         start = time.time()
@@ -573,11 +570,6 @@ class Trainer:
                 self.best_errors = valid_errors
                 torch.save(self._module.state_dict(), os.path.join(self.model_path, 'best_' + str(self.model_code) + '.pth'))
                 self.store_checkpoint(best=True)
-                # construct message for logging
-                message = ''
-                for key in self.best_errors.keys():
-                    message += key + ': %.6f' % self.best_errors[key] + '\n'
-                self.summary.add_text('best models', message, self.step)
 
         # swap back to original parameters for training
         if self.exponential_moving_average:
@@ -587,21 +579,25 @@ class Trainer:
 
     def write_summary(self, new_valid, new_best):
         for key in self.train_errors.keys():
-            self.summary.add_scalar(key + '/train', self.train_errors[key], self.step)
+            # self.summary.add_scalar(key + '/train', self.train_errors[key], self.step)
+            self.wandb.log({key + '_train': self.train_errors[key]})
 
         if new_valid:
             for valid_err in self.valid_errors:
                 for key in valid_err.keys():
-                    self.summary.add_scalar(key + '/valid', valid_err[key], self.step)
+                    # self.summary.add_scalar(key + '/valid', valid_err[key], self.step)
+                    self.wandb.log({key + '_valid': valid_err[key]})
             new_valid = False
 
         if new_best:
             for key in self.best_errors.keys():
-                self.summary.add_scalar(key + '/best', self.best_errors[key], self.step)
+                # self.summary.add_scalar(key + '/best', self.best_errors[key], self.step)
+                self.wandb.summary[key + '_valid_best'] = self.best_errors[key]
             new_best = False
 
         if self.clip_norm > 0:
-            self.summary.add_scalar('gradient/norm', self.gradient_norm, self.step)
+            # self.summary.add_scalar('gradient/norm', self.gradient_norm, self.step)
+            self.wandb.log({'gradient_norm': self.gradient_norm})
 
         # write optional summaries for model parameters
         if self.args.write_parameter_summaries:
@@ -613,8 +609,10 @@ class Trainer:
                     first = 'nn'
                     last = splitted_name[0]
                 if param.numel() > 1 and param.requires_grad:  # only tensors get written as histogram
-                    self.summary.add_histogram(
-                        first + '/' + last, param.clone().cpu().data.numpy(), self.step)
+                    hist = wandb.Histogram(param.clone().cpu().data.numpy())
+                    self.wandb.log({first + '_' + last: hist})
+                    # self.summary.add_histogram(
+                    #     first + '/' + last, param.clone().cpu().data.numpy(), self.step)
 
         # print progress to consoles
         progress_string = str(self.step).zfill(
@@ -633,7 +631,7 @@ class Trainer:
                 progress_string += "     best mae: %10.6f" % self.best_errors[key + '_mae']
                 progress_string += "     best rmse: %10.6f" % self.best_errors[key + '_rmse']
                 progress_string += "    best loss: %10.6f" % self.best_errors['loss']
-          
+
         for optimizer in self.optimizers:
             for param_group in optimizer.param_groups:
                 progress_string += "    lr: %10.6f" % param_group['lr']
