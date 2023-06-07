@@ -161,13 +161,13 @@ def spherical_radial_sampling(grid_spec, n_samp, atom_numbers, positions,
             weights = weights * pbecke[:, pos_idx] * (1.0 / pbecke.sum(1))
             grid_coords[i].append(coords)
             grid_weights[i].append(weights)
-            print('sampling time for atom', j, z, time.time() - start_jz)
+            # print('sampling time for atom', j, z, time.time() - start_jz)
             # print('i', i)
-        print('sampling time for mol', i, time.time() - start_i)
+        # print('sampling time for mol', i, time.time() - start_i)
     # print('len grid coords', len(grid_coords))
     # print('len grid coords[0]', len(grid_coords[0]))
     # print('shape grid coords[0][0]', grid_coords[0][0].shape)
-    print('sampling time after loop', time.time() - start)
+    # print('sampling time after loop', time.time() - start)
 
     grid_coords = [list(coord) for coord in zip(*grid_coords)]
     grid_weights = [list(coord) for coord in zip(*grid_weights)]
@@ -180,7 +180,7 @@ def spherical_radial_sampling(grid_spec, n_samp, atom_numbers, positions,
     else:
         grid_coords = [np.concatenate(atoms, axis=0) for atoms in grid_coords]
         grid_weights = [np.concatenate(atoms, axis=0) for atoms in grid_weights]
-    print('sampling time before collect', time.time() - start)
+    # print('sampling time before collect', time.time() - start)
 
     return collect_and_sample_grid(grid_coords, grid_weights, n_samp)
 
@@ -199,7 +199,7 @@ def spherical_radial_sampling_fast(grid_spec, n_samp, atom_numbers, positions,
     coords = [grid_spec[atom_symbols_max[i]][0].unsqueeze(0) @
               torch.tensor(random_rotation_matrix().to(positions)) + pos[:, i]
               for i in range(len(atom_symbols_max))]
-    print('sampling time after loop', time.time() - start)
+    # print('sampling time after loop', time.time() - start)
 
     grid_coords = [list(coord) for coord in zip(*grid_coords)]
     grid_weights = [list(coord) for coord in zip(*grid_weights)]
@@ -212,7 +212,7 @@ def spherical_radial_sampling_fast(grid_spec, n_samp, atom_numbers, positions,
     else:
         grid_coords = [np.concatenate(atoms, axis=0) for atoms in grid_coords]
         grid_weights = [np.concatenate(atoms, axis=0) for atoms in grid_weights]
-    print('sampling time before collect', time.time() - start)
+    # print('sampling time before collect', time.time() - start)
 
     return collect_and_sample_grid(grid_coords, grid_weights, n_samp)
 
