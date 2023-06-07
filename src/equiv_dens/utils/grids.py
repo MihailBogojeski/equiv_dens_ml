@@ -3,6 +3,7 @@ from pyscf.dft import gen_grid, radi
 from .base import random_rotation_matrix
 from pyscf import lib
 import torch
+import time
 # from dftpy.math_utils import bestFFTsize
 # from dftpy.grid import DirectGrid
 import equiv_dens.utils.base as utils
@@ -130,23 +131,26 @@ def spherical_radial_sampling(grid_spec, n_samp, atom_numbers, positions,
     grid_coords = []
     grid_weights = []
     # print('pos type', pos.type())
+    start = time.time()
     atom_numbers_max = np.amax(atom_numbers, axis=0).astype(int)
     for i in range(len(atom_numbers)):
         grid_coords.append([])
         grid_weights.append([])
+        start_i = time.time()
         # print('i', i)
         pos = positions[[i]]
         mask = atom_numbers[i] > 0
-        pos_nz = pos[:, mask, :] 
+        pos_nz = pos[:, mask, :]
         pos_idx = -1
         for j, z in enumerate(atom_numbers_max):
+            start_jz = time.time()
             if z <= 0:
                 continue
             if rotate:
                 rot_mat = torch.tensor(random_rotation_matrix()).to(pos)
             else:
                 rot_mat = torch.eye(3).to(pos)
-            if atom_numbers[i,j] > 0:
+            if atom_numbers[i, j] > 0:
                 pos_idx += 1
             t = utils.numbers_to_symbols([z])[0]
             # print('rot_mat type', rot_mat.type())
@@ -157,10 +161,13 @@ def spherical_radial_sampling(grid_spec, n_samp, atom_numbers, positions,
             weights = weights * pbecke[:, pos_idx] * (1.0 / pbecke.sum(1))
             grid_coords[i].append(coords)
             grid_weights[i].append(weights)
+            print('sampling time for atom', j, z, time.time() - start_jz)
             # print('i', i)
+        print('sampling time for mol', i, time.time() - start_i)
     # print('len grid coords', len(grid_coords))
     # print('len grid coords[0]', len(grid_coords[0]))
     # print('shape grid coords[0][0]', grid_coords[0][0].shape)
+    print('sampling time after loop', time.time() - start)
 
     grid_coords = [list(coord) for coord in zip(*grid_coords)]
     grid_weights = [list(coord) for coord in zip(*grid_weights)]
@@ -173,6 +180,39 @@ def spherical_radial_sampling(grid_spec, n_samp, atom_numbers, positions,
     else:
         grid_coords = [np.concatenate(atoms, axis=0) for atoms in grid_coords]
         grid_weights = [np.concatenate(atoms, axis=0) for atoms in grid_weights]
+    print('sampling time before collect', time.time() - start)
+
+    return collect_and_sample_grid(grid_coords, grid_weights, n_samp)
+
+
+def spherical_radial_sampling_fast(grid_spec, n_samp, atom_numbers, positions,
+                                   radii_adjust=None,
+                                   rotate=False):
+    grid_coords = []
+    grid_weights = []
+    # print('pos type', pos.type())
+    start = time.time()
+    atom_numbers_max = np.amax(atom_numbers, axis=0).astype(int)
+    atom_symbols_max = utils.number_to_symbols(atom_numbers_max)
+
+    pos = positions.unqsqueeze(2)
+    coords = [grid_spec[atom_symbols_max[i]][0].unsqueeze(0) @
+              torch.tensor(random_rotation_matrix().to(positions)) + pos[:, i]
+              for i in range(len(atom_symbols_max))]
+    print('sampling time after loop', time.time() - start)
+
+    grid_coords = [list(coord) for coord in zip(*grid_coords)]
+    grid_weights = [list(coord) for coord in zip(*grid_weights)]
+    # print('len grid coords', len(grid_coords))
+    # print('len grid coords[0]', len(grid_coords[0]))
+    # print('shape grid coords[0][0]', grid_coords[0][0].shape)
+    if isinstance(grid_coords[0][0], torch.Tensor):
+        grid_coords = [torch.cat(atoms, dim=0) for atoms in grid_coords]
+        grid_weights = [torch.cat(atoms, dim=0) for atoms in grid_weights]
+    else:
+        grid_coords = [np.concatenate(atoms, axis=0) for atoms in grid_coords]
+        grid_weights = [np.concatenate(atoms, axis=0) for atoms in grid_weights]
+    print('sampling time before collect', time.time() - start)
 
     return collect_and_sample_grid(grid_coords, grid_weights, n_samp)
 
