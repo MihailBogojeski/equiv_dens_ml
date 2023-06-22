@@ -177,7 +177,7 @@ elif args.np_dataset_valid is not None:
                                      verbose=args.verbose,
                                      cutoff=args.cutoff,
                                      df_loss_weights=args.df_loss_weights,
-                                     projected_density=args.projected_density
+                                     projected_density=args.projected_density,
                                      )
     if data_split_indices is None or args.ignore_split_indices:
         train_inds = np.random.choice(np.arange(len(dataset)), args.num_train, replace=False)
@@ -218,7 +218,7 @@ if args.np_dataset_test is not None:
                                     grid_origin=grid_origin,
                                     cutoff=args.cutoff,
                                     df_loss_weights=args.df_loss_weights,
-                                    projected_density=args.projected_density
+                                    projected_density=args.projected_density,
                                     )
 
     if args.num_test is not None:
