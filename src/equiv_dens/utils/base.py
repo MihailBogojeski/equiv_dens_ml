@@ -280,7 +280,7 @@ def npy_to_ase(arr, atom_list):
     mols = []
     for i in range(arr.shape[0]):
         nonzero = atom_list[i] != 0
-        mols.append(ase.Atoms(atom_list[i][nonzero], positions=arr[i][nonzero]))
+        mols.append(ase.Atoms(atom_list[i][nonzero], positions=arr[i, nonzero]))
 
     return mols
 
