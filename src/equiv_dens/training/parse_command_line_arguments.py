@@ -305,8 +305,8 @@ def parse_command_line_arguments(arg_file=None):
                                  choices=['md', 'opt'], help="type of simulation to run.")
     args_simulation.add_argument("--port_num", metavar='INT', type=int, default=50007,
                                  help="Port number for communication.")
-    args_simulation.add_argument("--force_conversion", metavar='STR', default='kcal/mol/A', type=str, help="Force conversion unit.")
-    args_simulation.add_argument("--position_conversion", metavar='STR', default='A', type=str, help="Position conversion unit.")
+    args_simulation.add_argument("--force_conversion", metavar='STR', default='kcal/mol/Ang', type=str, help="Force conversion unit.")
+    args_simulation.add_argument("--position_conversion", metavar='STR', default='Ang', type=str, help="Position conversion unit.")
     args_simulation.add_argument("--energy_conversion", metavar='STR', default='kcal/mol', type=str, help="Energy conversion unit.")
     args_simulation.add_argument("--start_idx", metavar='INT', type=int, default=[-1], nargs='+', help="Start indices for the simulation.")
 

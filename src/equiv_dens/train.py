@@ -273,7 +273,7 @@ if args.center_energy:
         if args.cube_grid_valid:
             cube_dataset.center_energy(energy_mean)
     else:
-        atomic_energies = np.load(args.atomic_energies).item()
+        atomic_energies = np.load(args.atomic_energies, allow_pickle=True).item()
         dataset.normalize_energy(atomic_energies)
         if isinstance(test_dataset, torch.utils.data.Subset):
             test_dataset.dataset.normalize_energy(atomic_energies)
