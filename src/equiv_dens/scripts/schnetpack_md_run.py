@@ -235,7 +235,7 @@ if __name__ == "__main__":
     dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_dataset,
                                orbitals_path=args.orbitals_file,
                                density_n_samp=10000000000,
-                               required_properties=['energy', 'forces', 'coords'],
+                               required_properties=['energy', 'forces'],
                                center_positions=False,
                                radial_coeffs_file=args.radial_coeffs_file,
                                dtype=args.dtype,
@@ -248,6 +248,21 @@ if __name__ == "__main__":
                                verbose=args.verbose,
                                df_loss_weights=args.df_loss_weights)
 
+    test_dataset = AtomsDensityData(np_path=args.np_dataset_test, density_path=args.dens_dataset_test,
+                                    orbitals_path=args.orbitals_file,
+                                    density_n_samp=10000000000,
+                                    required_properties=['energy', 'forces'],
+                                    center_positions=False,
+                                    radial_coeffs_file=args.radial_coeffs_file,
+                                    dtype=args.dtype,
+                                    grid_fn=grid_fn,
+                                    pyscf_grid=args.pyscf_grid,
+                                    sampling_fn=sampling_fn,
+                                    grid_extent=grid_extent,
+                                    grid_origin=grid_origin,
+                                    cutoff=args.cutoff,
+                                    verbose=args.verbose,
+                                    df_loss_weights=args.df_loss_weights)
     # if args.center_energy:
     #     if args.atomic_energies is None:
     #         energy_mean = dataset.atoms['energy'].mean()
@@ -265,7 +280,7 @@ if __name__ == "__main__":
         os.makedirs(args.md_log_dir)
 
     if args.simulation_type == 'md':
-        run_molecular_dynamics(args, dataset, model)
+        run_molecular_dynamics(args, test_dataset, model)
     # elif args.simulation_type == 'opt':
     #     run_optimization(args, dataset, model)
     else:
