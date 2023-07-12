@@ -236,6 +236,8 @@ def parse_command_line_arguments(arg_file=None):
     args_training.add_argument("--weight_decay", metavar='FLOAT', type=float, default=0.0, help="regularization term for weights")
     args_training.add_argument("--use_gpu", metavar='True|False', type=str2bool, default=True,
                                choices=[True, False], help="use GPU(s) for training (if available)")
+    args_training.add_argument("--multiple_gpus", metavar='True|False', type=str2bool, default=False,
+                               choices=[True, False], help="use multiple GPUs for training (if available)")
     args_training.add_argument("--coord_weights", metavar='True|False', type=str2bool, default=True,
                                choices=[True, False], help="weight grid coordinates based on grid density")
     args_training.add_argument("--weights_balance", metavar='FLOAT', type=float, default=1.0,
