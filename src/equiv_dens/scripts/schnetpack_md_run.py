@@ -25,8 +25,15 @@ from schnetpack.md.simulation_hooks import callback_hooks
 def wandb_summary(wandb, md_system):
     wandb.log({'energy': torch.mean(md_system.energy)})
     wandb.log({'forces': torch.mean(torch.norm(md_system.forces, dim=-1))})
+    print('energy shape', md_system.energy.shape)
+    print('forces shape', md_system.forces.shape)
     pos = md_system.positions
+    print('pos shape', pos.shape)
+    n_mols = md_system.n_molecules
+    pos = torch.reshape(pos, (n_mols, -1, 3))
+    print('pos shape', pos.shape)
     distances, _ = utils.calculate_distances_and_directions(pos)
+    print('distances shape', distances.shape)
     wandb.log({'distances': torch.mean(distances)})
 
 
@@ -160,8 +167,8 @@ def run_molecular_dynamics(args, dataset, model):
             warmup_simulator = warmup_simulator.to(args.dtype)
             steps = 0
             while steps < args.md_steps//20:
-                steps += 100
-                warmup_simulator.simulate(100)
+                steps += 10
+                warmup_simulator.simulate(10)
                 wandb_summary(wandb_run, md_system)
             print('finishing warm up')
 
@@ -178,8 +185,8 @@ def run_molecular_dynamics(args, dataset, model):
 
     steps = 0
     while steps < args.md_steps:
-        steps += 100
-        md_simulator.simulate(100)
+        steps += 10
+        md_simulator.simulate(10)
         wandb_summary(wandb_run, md_system)
 
 
