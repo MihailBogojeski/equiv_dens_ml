@@ -253,7 +253,7 @@ def load_model(args, dataset, train=False):
         # "module" is used whenever direct access is needed, e.g. for parameters,
         # whereas "model" may be DataParallel and is used for inference only
 
-        if args.use_gpu and torch.cuda.device_count() > 1:
+        if args.use_gpu and args.multiple_gpus and torch.cuda.device_count() > 1:
             model = torch.nn.DataParallel(model)
 
     return model

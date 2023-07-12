@@ -520,8 +520,8 @@ class AtomsDensityData(Dataset):
             else:
                 rand_idx = np.random.choice(np.arange(coords.shape[0]),
                                             size=self.density_n_samp, replace=False)
-                coords = torch.tensor(coords[:, rand_idx]).to(self.dtype)
-                weights = torch.tensor(weights[:, rand_idx]).to(self.dtype)
+                coords = torch.tensor(coords[rand_idx]).to(self.dtype)
+                weights = torch.tensor(weights[rand_idx]).to(self.dtype)
             all_coords.append(coords)
             all_weights.append(weights)
         pad_coords = nn.utils.rnn.pad_sequence(all_coords, batch_first=True, padding_value=0) * utils.to_angstrom

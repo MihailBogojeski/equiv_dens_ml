@@ -237,14 +237,16 @@ class Trainer:
 
         self._aux_to(use_gpu, dtype)
 
-        if use_gpu and torch.cuda.device_count() > 1:
+        if use_gpu and self.args.multiple_gpus and torch.cuda.device_count() > 1:
             self._model = torch.nn.DataParallel(self._model)
             self._module = self._model.module
         else:
             self._module = self._model
 
-        if use_gpu:
+        if use_gpu and self.args.multiple_gpus:
             print("Training on " + str(torch.cuda.device_count()) + " GPUs:")
+        elif use_gpu:
+            print("Training on one GPU:")
         else:
             print("Training on the CPU:")
 

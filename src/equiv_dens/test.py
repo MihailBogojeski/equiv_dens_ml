@@ -8,6 +8,7 @@ from equiv_dens.data.hamiltonian_dataset import seeded_random_split
 from equiv_dens.training.model_loader import load_model
 from equiv_dens.utils.grids import cubical_grid, cubical_sampling,\
     spherical_grid, spherical_radial_sampling
+from equiv_dens.utils import base as utils
 
 import numpy as np
 from functools import partial
@@ -225,6 +226,8 @@ else:
 
 test_errors = error_dict.empty()
 model.eval()
+prop_stats = {}
+print('required_properties', required_properties)
 for test_batch_num, data in enumerate(test_data_loader):
     start = time.time()
     # send data to GPU
@@ -237,13 +240,15 @@ for test_batch_num, data in enumerate(test_data_loader):
     if args.timing:
         print('test load time', time.time() - start)
     # forward step
-    print('step', test_batch_num)
+    # print('step', test_batch_num)
     # print('positions shape', data['positions'].shape)
     data = model.conversions_in(data)
     data = model.scaling(data)
     predictions = model(data)
     data = model.scaling.transform_back(data)
     data = model.conversions_out(data)
+
+    
     # print(lkajsdlkjasfd)
     # print('energy pred', predictions['energy'])
     if args.verbose > 0:
@@ -256,11 +261,17 @@ for test_batch_num, data in enumerate(test_data_loader):
     # print('spherical density integral', torch.sum(predictions['density'] * data['coord_weights'], dim=-1))
     # compute error metrics
     errors = error_dict.compute(predictions, data)
+    data = utils.batch_compressed_atoms(data, ['positions', 'forces'])
 
     # update test_errors (running average)
     for key in errors.keys():
         test_errors[key] += (errors[key].item() -
                              test_errors[key]) / (test_batch_num + 1)
+    for key in required_properties:
+        if key not in prop_stats.keys():
+            prop_stats[key] = [data[key].detach().cpu().numpy()]
+        else:
+            prop_stats[key].append(data[key].detach().cpu().numpy())
     predictions = None
     data = None
     errors = None
@@ -268,3 +279,8 @@ for test_batch_num, data in enumerate(test_data_loader):
         print('test step time', time.time() - start)
 
 print(test_errors)
+for key in prop_stats.keys():
+    # print(prop_stats[key])
+    prop_stats[key] = np.concatenate(prop_stats[key], axis=0)
+    print(key, 'mean magnitude:', np.mean(np.linalg.norm(prop_stats[key], axis=-1)))
+    print(key, 'std:', np.std(prop_stats[key]))
