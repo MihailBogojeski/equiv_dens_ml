@@ -153,7 +153,7 @@ def run_molecular_dynamics(args, dataset, model):
 
         if args.langevin:
             simulation_hooks.append(langevin)
-        else:
+        elif args.new_run:
             warmup_hooks = simulation_hooks + [langevin]
             warmup_simulator = Simulator(md_system, md_integrator, md_calculator,
                                          simulator_hooks=warmup_hooks)
