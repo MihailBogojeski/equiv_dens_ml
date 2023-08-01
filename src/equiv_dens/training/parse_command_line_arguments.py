@@ -292,7 +292,7 @@ def parse_command_line_arguments(arg_file=None):
     args_simulation = parser.add_argument_group("simulation hyperparameters")
     args_simulation.add_argument("--temperature", metavar='INT', type=int, default=300,
                                  help="Temperature in Kelvin for the simulation.")
-    args_simulation.add_argument("--new_run", metavar='True|False', type=str2bool, default=False,
+    args_simulation.add_argument("--new_run", metavar='True|False', type=str2bool, default=True,
                                  choices=[True, False],
                                  help="If true start new simulation, otherwise continue previous one.")
     args_simulation.add_argument("--log_dir", metavar='STR', default='.', type=str, help="Path to simulation and logs directory.")

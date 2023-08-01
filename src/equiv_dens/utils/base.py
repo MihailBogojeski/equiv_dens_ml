@@ -3,7 +3,6 @@ import scipy
 import ase
 import ase.io
 import torch
-from torch import nn
 import ase.data
 import pyscf
 from pyscf.data import nist
