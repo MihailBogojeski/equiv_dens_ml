@@ -77,9 +77,9 @@ class DFTNetworkCalculator(MDCalculator):
 
         start_model = time.time()
         results = self.model(inputs)
-        print('avg_distance', torch.mean(results['distances']))
-        print('avg_force', torch.mean(torch.norm(results['forces'], dim=-1)))
-        print('avg_energy', torch.mean(results['energy']))
+        # print('avg_distance', torch.mean(results['distances']))
+        # print('avg_force', torch.mean(torch.norm(results['forces'], dim=-1)))
+        # print('avg_energy', torch.mean(results['energy']))
         # print('avg_distance', torch.mean(results['distances']))
         # print('avg_force', torch.mean(torch.norm(results['forces'], dim=-1)))
         # print('avg_energy', torch.mean(results['energy']))
@@ -169,7 +169,7 @@ class DFTNetworkCalculator(MDCalculator):
         for i in range(len(idx_is)):
             idx_is[i] += prev_max
             idx_js[i] += prev_max
-            print('idx_is shape', idx_is[i].shape)
+            # print('idx_is shape', idx_is[i].shape)
             max_i = torch.max(idx_is[i])
             max_j = torch.max(idx_is[i])
             prev_max = max(max_i, max_j) + 1

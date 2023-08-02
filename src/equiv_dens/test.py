@@ -261,7 +261,10 @@ for test_batch_num, data in enumerate(test_data_loader):
     # print('spherical density integral', torch.sum(predictions['density'] * data['coord_weights'], dim=-1))
     # compute error metrics
     errors = error_dict.compute(predictions, data)
-    data = utils.batch_compressed_atoms(data, ['positions', 'forces'])
+    compress_props = ['positions']
+    if args.forces_weight > 0: 
+        compress_props.append('forces')
+    data = utils.batch_compressed_atoms(data, compress_props)
 
     # update test_errors (running average)
     for key in errors.keys():
