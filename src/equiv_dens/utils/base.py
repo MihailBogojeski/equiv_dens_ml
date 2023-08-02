@@ -40,14 +40,6 @@ def kelvin_to_kcal(en):
     return en * 0.001987191686485529
 
 
-# def hartree_to_eV(en):
-#     return en * 27.2116
-#
-#
-# def eV_to_hartree(en):
-#     return en / 27.2116
-
-
 def kcal_to_kcal(en):
     return en
 
@@ -258,15 +250,18 @@ def ase_to_npy(mols):
     return np.array(arr)
 
 
-def ase_to_npy2(mols):
+def ase_to_npy2(mols, batch=True):
     positions = []
     atom_numbers = []
     for m in mols:
         positions.append(m.get_positions())
         atom_numbers.append(m.get_atomic_numbers())
 
-    numbers, props = compress_batch_atoms(numbers, {'positions': positions}) 
-    props['atom_numbers'] = numbers
+    if batch:
+        numbers, props = compress_batch_atoms(atom_numbers, {'positions': positions})
+        props['atom_numbers'] = numbers.astype(int)
+    else:
+        props = {'positions': positions, 'atom_numbers': atom_numbers}
 
     return props
 
