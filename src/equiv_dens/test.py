@@ -88,6 +88,9 @@ if args.energy_weight > 0:
 if args.forces_weight > 0:
     required_properties.append('forces')
 
+if args.no_compare:
+    required_properties = []
+
 dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_dataset,
                            orbitals_path=args.orbitals_file,
                            density_n_samp=1000000000000000000,
@@ -228,6 +231,8 @@ test_errors = error_dict.empty()
 model.eval()
 prop_stats = {}
 print('required_properties', required_properties)
+saved_results = None
+
 for test_batch_num, data in enumerate(test_data_loader):
     start = time.time()
     # send data to GPU
@@ -248,7 +253,6 @@ for test_batch_num, data in enumerate(test_data_loader):
     data = model.scaling.transform_back(data)
     data = model.conversions_out(data)
 
-    
     # print(lkajsdlkjasfd)
     # print('energy pred', predictions['energy'])
     if args.verbose > 0:
@@ -262,6 +266,15 @@ for test_batch_num, data in enumerate(test_data_loader):
     # compute error metrics
     errors = error_dict.compute(predictions, data)
     data = utils.batch_compressed_atoms(data, ['positions', 'forces'])
+    if args.test_save:
+        predictions = utils.batch_compressed_atoms(predictions, ['positions', 'forces'])
+        if saved_results is None:
+            saved_results = {}
+            for key in predictions.keys():
+                saved_results[key] = predictions[key] 
+        else:
+            for key in predictions.keys():
+                saved_results[key] = torch.cat((saved_results[key], predictions[key]), dim=0) 
 
     # update test_errors (running average)
     for key in errors.keys():
@@ -279,6 +292,9 @@ for test_batch_num, data in enumerate(test_data_loader):
         print('test step time', time.time() - start)
 
 print(test_errors)
+if args.test_save:
+    print('saving test output in ', os.path.join(directory, args.test_save_name))
+    np.save(os.path.join(directory, args.test_save_name), saved_results, allow_pickle=True)
 for key in prop_stats.keys():
     # print(prop_stats[key])
     prop_stats[key] = np.concatenate(prop_stats[key], axis=0)
