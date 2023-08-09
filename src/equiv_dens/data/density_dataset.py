@@ -37,7 +37,6 @@ class AtomsDataError(Exception):
 
 class AtomsDensityData(Dataset):
     ENCODING = "utf-8"
-    available_properties = None
 
     def __init__(
         self,
@@ -89,8 +88,6 @@ class AtomsDensityData(Dataset):
         self.timing=timing
         self.projected_density = projected_density
         self.cutoff = cutoff
-        if required_properties is None:
-            self.required_properties = self.available_properties
         if 'dipole_moment' in self.required_properties:
             if 'density' not in self.required_properties:
                 self.required_properties.append('density')
@@ -229,7 +226,7 @@ class AtomsDensityData(Dataset):
             orbitals_path=self.orbitals_path,
             density_n_samp=self.density_n_samp,
             subset=subidx,
-            required_propertie=self.required_properties,
+            required_properties=self.required_properties,
             center_positions=self.centered_positions,
             radial_coeffs_file=self.radial_coeffs_file,
             grid_fn=self.grid_fn,
@@ -596,7 +593,7 @@ class AtomsDensityData(Dataset):
                 # mol_start = time.time()
                 # print('c, i', c, i)
                 mol = self.mols[i]
-                if not mol._built and mol.basis != self.density_fitting['auxbasis']:
+                if not mol._built or mol.basis != self.density_fitting['auxbasis']:
                     mol.basis = self.density_fitting['auxbasis']
                     # build_start = time.time()
                     if self.verbose > 3:
@@ -604,11 +601,14 @@ class AtomsDensityData(Dataset):
                     mol.build()
                     # print('build time', time.time() - build_start)
                 # df_coeff = np.concatenate(self.density_fitting['df_coeffs'][i])
+                # print('mol basis', mol.basis)
                 df_coeff = np.concatenate([coeff[1] for coeff in self.density_fitting['df_coeffs'][i]])
                 # ao_start = time.time()
                 ao = numint.eval_ao(mol, scaled_sample_coords[c])
                 # print('ao time', time.time() - ao_start)
                 # rho_start = time.time()
+                # print('df coeff', df_coeff.shape)
+                # print('ao shape', ao.shape)
                 if df_coeff.ndim > 1:
                     rho = 0
                     for j in range(df_coeff.shape[0]):
