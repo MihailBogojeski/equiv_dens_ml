@@ -67,6 +67,9 @@ for i in range(len(results), len(idx)):
 
 np.save(save_file, results, allow_pickle=True)
 
+res_npy = utils.calc_dict_to_npy(results, compress_atoms=False, convert_forces=False)
+np.save(save_file[:-4] + '_npy.npy', res_npy, allow_pickle=True)
+
 if len(sys.argv) > 3:
     idx = np.concatenate([np.arange(0, 10), np.arange(1000, 1010), np.arange(2000, 2001)])
     # idx = np.concatenate([np.arange(0, 2)])
