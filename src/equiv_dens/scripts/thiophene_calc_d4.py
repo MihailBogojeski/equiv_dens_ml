@@ -5,6 +5,7 @@ from pyscf.scf import hf
 from pyscf import gto, dft
 import equiv_dens.utils.base as utils
 import sys
+import os
 
 import ase.io
 import dftd4.pyscf as d4disp
@@ -22,10 +23,13 @@ xyz_data = list(ase.io.iread(xyz_file))
 # %%
 idx = np.arange(0, len(xyz_data))
 # idx = np.arange(0, 2)
-
-results = []
+if os.path.exists(save_file):
+    results = np.load(save_file, allow_pickle=True).tolist()
+else:
+    results = []
 # for mol in xyz_data:
-for i in idx:
+for i in range(len(results), len(idx)):
+    print('i', i)
     mol = xyz_data[i]
     npy_data = utils.ase_to_npy2([mol])
     pos = npy_data['positions'][0]
@@ -62,6 +66,9 @@ for i in idx:
     np.save(save_file, results, allow_pickle=True)
 
 np.save(save_file, results, allow_pickle=True)
+
+res_npy = utils.calc_dict_to_npy(results, compress_atoms=False, convert_forces=False)
+np.save(save_file[:-4] + '_npy.npy', res_npy, allow_pickle=True)
 
 if len(sys.argv) > 3:
     idx = np.concatenate([np.arange(0, 10), np.arange(1000, 1010), np.arange(2000, 2001)])
