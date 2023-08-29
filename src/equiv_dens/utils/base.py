@@ -671,6 +671,8 @@ def batch_compressed_atoms(atoms, relevant_keys):
     batch_atom_count = batch_nums.shape[1]
     batch_props = {}
     for key in relevant_keys:
+        if key not in atoms.keys():
+            continue
         if isinstance(atoms[key], list):
             batch_props[key] = [torch.zeros((batch_size * batch_atom_count,
                                              *atoms[key][i].shape[2:])).to(atoms[key][i])
