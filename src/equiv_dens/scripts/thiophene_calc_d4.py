@@ -20,7 +20,7 @@ save_file = sys.argv[2]
 xyz_data = list(ase.io.iread(xyz_file))
 
 # %%
-idx = np.arange(0, 21)
+idx = np.arange(0, len(xyz_data))
 # idx = np.arange(0, 2)
 
 results = []
@@ -59,10 +59,14 @@ for i in idx:
     res.append(calc_dict)
     results.append(res)
     print('elapsed time', time.time() - start)
+    np.save(save_file, results, allow_pickle=True)
+
+np.save(save_file, results, allow_pickle=True)
 
 if len(sys.argv) > 3:
     idx = np.concatenate([np.arange(0, 10), np.arange(1000, 1010), np.arange(2000, 2001)])
-    # idx = np.concatenate([np.arange(0, 2)])
+    # idx = np.concatenate([np.arange(0, 5), np.arange(1000, 1010), np.arange(2000, 2001)])
+    # idx = np.concatenate([np.arange(0, 5)])
     npy_file = sys.argv[3]
     thio_poly = np.load(npy_file, allow_pickle=True).item()
     for res_i, i in enumerate(idx):
