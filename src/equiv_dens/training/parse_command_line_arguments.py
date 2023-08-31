@@ -332,7 +332,7 @@ def parse_command_line_arguments(arg_file=None):
                            choices=[True, False], help="If true use old density network code, else use the most recent version.")
     args_misc.add_argument('--test_save', metavar='True|False', type=str2bool, default=False,
                            choices=[True, False], help="Save output from tests as a list.")
-    args_misc.add_argument('--test_save_name', metavar='STR', type=str, default="test_save_results.npy",
+    args_misc.add_argument('--test_save_name', metavar='STR', type=str, default="test_save_results.pt",
                            help="Filename for saved test output.")
     args_misc.add_argument('--no_compare', metavar='True|False', type=str2bool, default=False,
                            choices=[True, False], help="Don't compare accuracy of test samples, just compute predictions.")
