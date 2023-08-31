@@ -6,7 +6,7 @@ from equiv_dens.training.errors import ErrorDict
 from equiv_dens.data.density_dataset import AtomsDensityData
 from equiv_dens.data.hamiltonian_dataset import seeded_random_split
 from equiv_dens.training.model_loader import load_model
-from equiv_dens.utils.grids import cubical_grid, cubical_sampling,\
+from equiv_dens.utils.grids import cubical_grid, cubical_sampling, \
     spherical_grid, spherical_radial_sampling
 from equiv_dens.utils import base as utils
 
@@ -62,7 +62,6 @@ if args.pyscf_grid:
     sampling_fn = None
     grid_origin = 0
     grid_extent = None
-    rotate = True
 elif args.cube_grid:
     grid_origin = args.cube_origin
     grid_extent = np.array([args.cube_extent] * 3)
@@ -72,7 +71,7 @@ elif args.cube_grid:
     sampling_fn = cubical_sampling
 else:
     grid_fn = partial(spherical_grid, level=args.spherical_grid_level)
-    sampling_fn = partial(spherical_radial_sampling, rotate=True)
+    sampling_fn = partial(spherical_radial_sampling, rotate=rotate)
     grid_origin = 0
     grid_extent = None
 
@@ -266,7 +265,7 @@ for test_batch_num, data in enumerate(test_data_loader):
     # compute error metrics
     errors = error_dict.compute(predictions, data)
     compress_props = ['positions']
-    if args.forces_weight > 0: 
+    if args.forces_weight > 0:
         compress_props.append('forces')
     data = utils.batch_compressed_atoms(data, compress_props)
     if args.test_save:
@@ -274,10 +273,10 @@ for test_batch_num, data in enumerate(test_data_loader):
         if saved_results is None:
             saved_results = {}
             for key in predictions.keys():
-                saved_results[key] = predictions[key] 
+                saved_results[key] = predictions[key]
         else:
             for key in predictions.keys():
-                saved_results[key] = torch.cat((saved_results[key], predictions[key]), dim=0) 
+                saved_results[key] = torch.cat((saved_results[key], predictions[key]), dim=0)
 
     # update test_errors (running average)
     for key in errors.keys():
