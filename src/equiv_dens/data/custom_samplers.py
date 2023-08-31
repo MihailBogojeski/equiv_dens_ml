@@ -10,7 +10,7 @@ class SimilarSizeSampler(Sampler[int]):
     def __init__(self, data_source: Dataset, replacement: bool = False,
                  num_samples: int = None, generator: torch.Generator = None,
                  shuffle: bool = False, max_bucket_size: int = None,
-                 electron_batch_size: int = None) -> None:
+                 electron_batch_size: int = None, sort: bool = True) -> None:
         """Initialize a new instance of the SimilarSizeSampler class.
 
         Args:
@@ -34,6 +34,7 @@ class SimilarSizeSampler(Sampler[int]):
         self.generator = generator
         self.shuffle = shuffle
         self.electron_batch_size = electron_batch_size
+        self.sort = sort
 
         if isinstance(self.data_source, torch.utils.data.Subset):
             self.dataset = self.data_source.dataset
