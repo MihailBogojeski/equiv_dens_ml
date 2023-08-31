@@ -227,7 +227,7 @@ for phase in training_phases:
                                          dtype=args.dtype,
                                          grid_fn=grid_fn,
                                          pyscf_grid=args.pyscf_grid,
-                                         pyscf_rotate=rotate,
+                                         pyscf_rotate=False,
                                          sampling_fn=sampling_fn,
                                          grid_extent=grid_extent,
                                          grid_origin=grid_origin,
@@ -267,7 +267,7 @@ for phase in training_phases:
                                         dtype=args.dtype,
                                         grid_fn=grid_fn,
                                         pyscf_grid=args.pyscf_grid,
-                                        pyscf_rotate=rotate,
+                                        pyscf_rotate=False,
                                         sampling_fn=sampling_fn,
                                         grid_extent=grid_extent,
                                         grid_origin=grid_origin,
@@ -527,9 +527,9 @@ for phase in training_phases:
     restore = False
 print('Starting test evaluation!!!')
 
-args.df_weight = 0.0 
+args.df_weight = 0.0
 args.density_weight = 1.0
-args.dipole_moment_weight = 1.0 
+args.dipole_moment_weight = 1.0
 args.energy_weight = 1.0
 args.forces_weight = 1.0
 required_properties = []
@@ -544,6 +544,7 @@ if args.energy_weight > 0:
 if args.forces_weight > 0:
     required_properties.append('forces')
 
+rotate = False
 
 dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_dataset,
                            orbitals_path=args.orbitals_file,
