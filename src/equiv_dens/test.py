@@ -178,10 +178,33 @@ loss_weights['energy'] = args.energy_weight
 loss_weights['forces'] = args.forces_weight
 loss_weights['energy_min'] = args.energy_min_weight
 
+loss_comp = {}
+loss_comp['density'] = args.density_loss_comp
+loss_comp['dipole_moment'] = args.dipole_moment_loss_comp
+loss_comp['df_coeffs'] = args.df_loss_comp
+loss_comp['energy'] = args.energy_loss_comp
+loss_comp['forces'] = args.forces_loss_comp
+
+loss_comp_weights = {}
+loss_comp_weights['density'] = {loss_comp: loss_weight
+                                for loss_comp, loss_weight
+                                in zip(args.density_loss_comp, args.density_loss_comp_weights)}
+loss_comp_weights['df_coeffs'] = {loss_comp: loss_weight
+                                  for loss_comp, loss_weight
+                                  in zip(args.df_loss_comp, args.df_loss_comp_weights)}
+loss_comp_weights['energy'] = {loss_comp: loss_weight
+                               for loss_comp, loss_weight
+                               in zip(args.energy_loss_comp, args.energy_loss_comp_weights)}
+loss_comp_weights['forces'] = {loss_comp: loss_weight
+                               for loss_comp, loss_weight
+                               in zip(args.forces_loss_comp, args.forces_loss_comp_weights)}
+
 error_dict = ErrorDict(loss_weights, weights_balance=args.weights_balance,
                        percentage_error=args.percentage_error,
+                       loss_comp=loss_comp,
+                       loss_comp_weights=loss_comp_weights,
                        # relative_en=True,
-                      )
+                       )
 
 z_vals = dataset.atoms['atom_numbers']
 # determine weights of different quantities for scaling loss

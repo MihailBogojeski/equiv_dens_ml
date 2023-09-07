@@ -700,9 +700,30 @@ if training_phases[-1] == 'dipole_moment':
     loss_weights['forces'] = 0
 
 print('loss weights test', loss_weights)
+loss_comp = {}
+loss_comp['density'] = ['perc_mae', 'perc_rmse']
+loss_comp['dipole_moment'] = args.dipole_moment_loss_comp
+loss_comp['df_coeffs'] = args.df_loss_comp
+loss_comp['energy'] = args.energy_loss_comp
+loss_comp['forces'] = args.forces_loss_comp
+
+loss_comp_weights = {}
+loss_comp_weights['density'] = {'perc_mae': 1, 'perc_rmse': 1}
+loss_comp_weights['df_coeffs'] = {loss_comp: loss_weight
+                                  for loss_comp, loss_weight
+                                  in zip(args.df_loss_comp, args.df_loss_comp_weights)}
+loss_comp_weights['energy'] = {loss_comp: loss_weight
+                               for loss_comp, loss_weight
+                               in zip(args.energy_loss_comp, args.energy_loss_comp_weights)}
+loss_comp_weights['forces'] = {loss_comp: loss_weight
+                               for loss_comp, loss_weight
+                               in zip(args.forces_loss_comp, args.forces_loss_comp_weights)}
+
 
 error_dict = ErrorDict(loss_weights, weights_balance=args.weights_balance,
                        percentage_error=args.percentage_error,
+                       loss_comp=loss_comp,
+                       loss_comp_weights=loss_comp_weights,
                        # relative_en=True,
                        )
 model = load_model(args, dataset, train=False)
