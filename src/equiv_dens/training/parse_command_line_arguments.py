@@ -31,6 +31,8 @@ def parse_command_line_arguments(arg_file=None):
                               help="Do not change arguments after loading checkpoint (except hyperparams).")
     args_restart.add_argument("--args_file_name", metavar='STR', type=str, default=None,
                               help="Save filename of .txt file containing arguments for easier bookkeeping.")
+    args_restart.add_argument("--ignore_missing_keywords", metavar='True|False', type=str2bool, default=False,
+                              choices=[True, False], help="Ignore missing keywords when loading the model.")
 
     # arguments for neural network architecture hyperparameters
     args_hyperparams = parser.add_argument_group("neural network architecture hyperparameters")
