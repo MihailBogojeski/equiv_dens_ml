@@ -192,6 +192,9 @@ loss_comp_weights['density'] = {loss_comp: loss_weight
 loss_comp_weights['df_coeffs'] = {loss_comp: loss_weight
                                   for loss_comp, loss_weight
                                   in zip(args.df_loss_comp, args.df_loss_comp_weights)}
+loss_comp_weights['dipole_moment'] = {loss_comp: loss_weight
+                                      for loss_comp, loss_weight
+                                      in zip(args.dipole_moment_loss_comp, args.dipole_moment_loss_comp_weights)}
 loss_comp_weights['energy'] = {loss_comp: loss_weight
                                for loss_comp, loss_weight
                                in zip(args.energy_loss_comp, args.energy_loss_comp_weights)}
@@ -303,8 +306,11 @@ for test_batch_num, data in enumerate(test_data_loader):
 
     # update test_errors (running average)
     for key in errors.keys():
-        test_errors[key] += (errors[key].item() -
-                             test_errors[key]) / (test_batch_num + 1)
+        if key not in test_errors.keys():
+            test_errors[key] = errors[key].item()
+        else:
+            test_errors[key] += (errors[key].item() -
+                                 test_errors[key]) / (test_batch_num + 1)
     for key in required_properties:
         if key not in prop_stats.keys():
             prop_stats[key] = [data[key].detach().cpu().numpy()]
