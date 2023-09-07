@@ -311,10 +311,24 @@ loss_comp['df_coeffs'] = args.df_loss_comp
 loss_comp['energy'] = args.energy_loss_comp
 loss_comp['forces'] = args.forces_loss_comp
 
+loss_comp_weights = {}
+loss_comp_weights['density'] = {loss_comp: loss_weight
+                                for loss_comp, loss_weight
+                                in zip(args.density_loss_comp, args.density_loss_comp_weights)}
+loss_comp_weights['df_coeffs'] = {loss_comp: loss_weight
+                                  for loss_comp, loss_weight
+                                  in zip(args.df_loss_comp, args.df_loss_comp_weights)}
+loss_comp_weights['energy'] = {loss_comp: loss_weight
+                               for loss_comp, loss_weight
+                               in zip(args.energy_loss_comp, args.energy_loss_comp_weights)}
+loss_comp_weights['forces'] = {loss_comp: loss_weight
+                               for loss_comp, loss_weight
+                               in zip(args.forces_loss_comp, args.forces_loss_comp_weights)}
+
 error_dict = ErrorDict(loss_weights, weights_balance=args.weights_balance,
                        percentage_error=args.percentage_error,
                        weights_decay=weights_decay, weights_min=weights_min,
-                       loss_comp=loss_comp, df_loss_weights=args.df_loss_weights,
+                       loss_comp=loss_comp, loss_comp_weights=loss_comp_weights, df_loss_weights=args.df_loss_weights,
                        )
 
 # print('error dict relative en', error_dict.relative_en)
