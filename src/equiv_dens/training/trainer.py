@@ -108,7 +108,7 @@ class Trainer:
             self.step = 0
             self.best_errors = self.error_dict.empty(fill_value=math.inf)
             self.valid_errors = [self.error_dict.empty(fill_value=math.inf) for i in range(len(self.validation_loaders))]
-
+        # print('init of self.valid_errors', self.valid_errors)
         self.train_errors = self.error_dict.empty()  # reset train error metrics
         self.wandb = wandb
 
@@ -277,9 +277,11 @@ class Trainer:
                         print('validation for', valid_data_loader)
                     if self._module.calculate_forces:
                         self.valid_errors[i], is_best = self._validate(valid_data_loader, use_gpu, check_best=self.valid_check_best[i])
+                        # print('self valid errors i', self.valid_errors[i])
                     else:
                         with torch.no_grad():
                             self.valid_errors[i], is_best = self._validate(valid_data_loader, use_gpu, check_best=self.valid_check_best[i])
+                        # print('self valid errors i', self.valid_errors[i])
                     if self.valid_check_best[i]:
                         new_best = is_best
                 torch.cuda.empty_cache()
@@ -456,7 +458,10 @@ class Trainer:
 
         # update train_errors (running average)
         for key in errors.keys():
-            self.train_errors[key] += (errors[key].item() -
+            if key not in self.train_errors.keys():
+                self.train_errors[key] = errors[key].item()
+            else:
+                self.train_errors[key] += (errors[key].item() -
                                        self.train_errors[key]) / (self.train_batch_num + 1)
         if self.timing:
             print('train step time', time.time() - start)
@@ -549,9 +554,21 @@ class Trainer:
                 torch.save(data, self.model_code + '_true_crash_dump_valid_' + str(self.step) + '.pth')
                 torch.save(self._module.state_dict(), self.model_code + '_model_crash_dump_valid_' + str(self.step) + '.pth')
                 continue
+            # print('valid errors', errors)
             for key in errors.keys():
-                valid_errors[key] += (errors[key].item() -
-                                      valid_errors[key]) / (valid_batch_num + 1)
+                if key not in valid_errors.keys():
+                    # print('first errors key', key, errors[key])
+                    # print('first errors key item', key, errors[key].item())
+                    valid_errors[key] = errors[key].item()
+                    # print('valid_errors', key, 'after', valid_errors[key])
+                else:
+                    # print('valid_errors', key, 'before', valid_errors[key])
+                    valid_errors[key] += (errors[key].item() -
+                                          valid_errors[key]) / (valid_batch_num + 1)
+                    # print('valid_errors', key, 'after', valid_errors[key])
+                    # print('added errors key', key, errors[key])
+                    # print('added errors key item', key, errors[key].item())
+                # print('valid_errors', key, valid_errors[key])
             if self.timing:
                 print('valid step time:', time.time() - start)
             if self.memory:
@@ -623,15 +640,13 @@ class Trainer:
         for key in self.error_dict.loss_weights.keys():
             if self.error_dict.loss_weights[key] > 0:
                 progress_string += "\n  " + key + ":\n"
-                progress_string += "    train mae: %10.6f" % self.train_errors[key + '_mae']
-                progress_string += "    train rmse: %10.6f" % self.train_errors[key + '_rmse']
-                progress_string += "    train loss: %10.6f" % self.train_errors['loss']
+                for loss_key in self.train_errors.keys():
+                    err = '_'.join(loss_key.split('_')[0:]) if len(loss_key.split('_')) > 1 else loss_key
+                    progress_string += "    train " + err + ": %10.6f" % self.train_errors[loss_key]
                 for i in range(len(self.valid_errors)):
                     progress_string += "    valid " + str(i) + " mae: %10.6f" % self.valid_errors[i][key + '_mae']
                     if self.valid_check_best[i]:
                         progress_string += "    valid " + str(i) + " loss: %10.6f" % self.valid_errors[i][key + '_loss']
-                progress_string += "     best mae: %10.6f" % self.best_errors[key + '_mae']
-                progress_string += "     best rmse: %10.6f" % self.best_errors[key + '_rmse']
                 progress_string += "    best loss: %10.6f" % self.best_errors['loss']
 
         for optimizer in self.optimizers:

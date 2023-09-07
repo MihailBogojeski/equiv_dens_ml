@@ -178,16 +178,27 @@ def parse_command_line_arguments(arg_file=None):
                                help="weight of the forces in the loss function")
     args_training.add_argument("--energy_min_weight", metavar='FLOAT', type=float, default=0.0,
                                help="weight of the energy minimization loss")
-    args_training.add_argument("--density_loss_comp", metavar='STR', type=str, default='mae',
-                               choices=['mae', 'rmse', 'mae+rmse'], help="composition of the density loss")
-    args_training.add_argument("--dipole_moment_loss_comp", metavar='STR', type=str, default='mae',
-                               choices=['mae', 'rmse', 'mae+rmse'], help="composition of the dipole moment loss")
-    args_training.add_argument("--df_loss_comp", metavar='STR', type=str, default='mae',
-                               choices=['mae', 'rmse', 'mae+rmse'], help="composition of the density fitting loss")
-    args_training.add_argument("--energy_loss_comp", metavar='STR', type=str, default='mae',
-                               choices=['mae', 'rmse', 'mae+rmse'], help="composition of the energy loss")
-    args_training.add_argument("--forces_loss_comp", metavar='STR', type=str, default='mae',
-                               choices=['mae', 'rmse', 'mae+rmse'], help="composition of the forces loss")
+    args_training.add_argument("--density_loss_comp", metavar='STR', type=str, default=['mae'], nargs='+',
+                               choices=['mae', 'rmse', 'lda_mae', 'lda_rmse', 'coulomb', 'perc_mae', 'perc_rmse', 'mixed_dist_err',
+                                        'perc_mixed_dist_err'], help="composition of the density loss")
+    args_training.add_argument("--dipole_moment_loss_comp", metavar='STR', type=str, default=['mae'], nargs='+',
+                               choices=['mae', 'rmse'], help="composition of the dipole moment loss")
+    args_training.add_argument("--df_loss_comp", metavar='STR', type=str, default=['mae'], nargs='+',
+                               choices=['mae', 'rmse'], help="composition of the density fitting loss")
+    args_training.add_argument("--energy_loss_comp", metavar='STR', type=str, default=['mae'], nargs='+',
+                               choices=['mae', 'rmse'], help="composition of the energy loss")
+    args_training.add_argument("--forces_loss_comp", metavar='STR', type=str, default=['mae'], nargs='+',
+                               choices=['mae', 'rmse'], help="composition of the forces loss")
+    args_training.add_argument("--density_loss_comp_weights", metavar='FLOAT', type=float, default=[1.0], nargs='+',
+                               help="weights of the composition of the density loss")
+    args_training.add_argument("--dipole_moment_loss_comp_weights", metavar='FLOAT', type=float, default=[1.0], nargs='+',
+                               help="weights of the composition of the dipole moment loss")
+    args_training.add_argument("--df_loss_comp_weights", metavar='FLOAT', type=float, default=[1.0], nargs='+',
+                               help="weights of the composition of the density fitting loss")
+    args_training.add_argument("--energy_loss_comp_weights", metavar='FLOAT', type=float, default=[1.0], nargs='+',
+                               help="weights of the composition of the energy loss")
+    args_training.add_argument("--forces_loss_comp_weights", metavar='FLOAT', type=float, default=[1.0], nargs='+',
+                               help="weights of the composition of the forces loss")
     args_training.add_argument("--density_weight_min", metavar='FLOAT', type=float, default=0.0,
                                help="minimum weight of the density in the loss function")
     args_training.add_argument("--dipole_moment_weight_min", metavar='FLOAT', type=float, default=0.0,
