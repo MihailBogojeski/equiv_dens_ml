@@ -91,10 +91,15 @@ class ErrorDict:
                         balanced_weights = 1
                     abs_diff = torch.abs(diff) * balanced_weights
                     sq_diff = (diff ** 2) * balanced_weights
-                    mse = torch.sum(sq_diff, dim=1)
-                    rmse = torch.sqrt(mse)
-                    rmse = torch.mean(rmse)
-                    mae = torch.mean(torch.sum(abs_diff, dim=1))
+                    if key == 'density':
+                        mse = torch.sum(sq_diff, dim=1)
+                        rmse = torch.sqrt(mse)
+                        rmse = torch.mean(rmse)
+                        mae = torch.mean(torch.sum(abs_diff, dim=1))
+                    else:
+                        mse = torch.mean(sq_diff)
+                        rmse = torch.sqrt(mse)
+                        mae = torch.mean(abs_diff)
                     losses = {'mae': mae, 'rmse': rmse}
                     if key == "density":
                         if 'coulomb' in self.loss_comp[key]:
