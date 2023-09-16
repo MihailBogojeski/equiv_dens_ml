@@ -12,7 +12,9 @@
 *.pdf
 *.out
 *.xyz
+*.ipynb
 wandb/
 pseudo_potentials/
 .*
 *.DS_Store
+*.ju.py
