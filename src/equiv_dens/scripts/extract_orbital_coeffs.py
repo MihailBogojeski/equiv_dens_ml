@@ -5,10 +5,9 @@ import sys
 basis = sys.argv[1]
 
 if 'jkfit' in basis:
-    df_str = '_df' 
+    df_str = '_df'
 else:
     df_str = ''
-
 
 mol = gto.M(atom='O  0  0  1; H  0,  0, 2; N 0,  0, 3; C 0, 0, 4; S 0, 0, 5', basis=basis)
 ao_coeffs = {}
@@ -33,9 +32,8 @@ for i in range(mol._bas.shape[0]):
         ao_basis[symbol].append((a_num, nprim, L))
         ao_coeffs[symbol].append((np.array(exp), np.array(ctr[:, j])))
 
-
 ao_coeffs = np.array(ao_coeffs).item()
-print('ao basis', ao_basis)        
+print('ao basis', ao_basis)
 print('ao coeffs', ao_coeffs)
 
 print('ao_coeffs O', ao_coeffs['O'])
@@ -56,7 +54,7 @@ for key in ao_coeffs:
     print('atom :', key)
     for i in range(len(ao_coeffs[key])):
         print('orb', i)
-        #print('new', ao_coeffs[key][i] )
+        #print('new', ao_coeffs[key][i])
         #print('old', ao_coeffs_old[key][i])
         print(np.isclose(ao_coeffs[key][i][0], ao_coeffs_old[key][i][0]))
         print(np.isclose(ao_coeffs[key][i][1], ao_coeffs_old[key][i][1]))

@@ -300,6 +300,9 @@ def parse_command_line_arguments(arg_file=None):
                                choices=[True, False], help="Use density fitting basis for labels.")
     args_training.add_argument("--fast_df", metavar='True|False', type=str2bool, default=True,
                                choices=[True, False], help="Do a fast/shorter density fitting training procedure.")
+    args_training.add_argument("--core_density_basis", metavar='FLOAT', type=float, default=0.0,
+                               help="Choose a fraction of the s orbitals to use as an additional"
+                               + "basis for the core density, and perform the fitting if > 0.")
 
     # arguments for simulations
     args_simulation = parser.add_argument_group("simulation hyperparameters")

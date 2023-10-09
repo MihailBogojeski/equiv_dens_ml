@@ -69,6 +69,7 @@ else:
     step = checkpoint['step']
     restore = True
     data_split_indices = checkpoint['data_split_indices']
+print('args core density basis', args.core_density_basis)
 
 args_dict = vars(args)
 if args.args_file_name is not None:
@@ -127,6 +128,9 @@ if checkpoint is None or 'training_phases' not in checkpoint:
         training_phases.append('energy')
 else:
     training_phases = checkpoint['training_phases']
+
+if args.core_density_basis > 0 and 'core_density' not in training_phases:
+    training_phases.append('core_density')
 ongoing_phases = [phase for phase in training_phases]
 df_weight = args.df_weight
 density_weight = args.density_weight
@@ -138,6 +142,8 @@ stop_at_learning_rate = args.stop_at_learning_rate
 validation_interval = args.validation_interval
 decay_patience = args.decay_patience
 max_steps = args.max_steps
+core_density_basis = args.core_density_basis
+print('training_phases', training_phases)
 
 
 for phase in training_phases:
@@ -162,6 +168,12 @@ for phase in training_phases:
         args.density_weight = density_weight
         if df_weight > 0:
             args.learning_rate = args.learning_rate / 10
+        if core_density_basis > 0:
+            args.core_density_basis = 0
+    elif phase == 'core_density':
+        args.density_weight = density_weight
+        args.core_density_basis = core_density_basis
+        args.learning_rate - args.learning_rate / 10
     elif phase == 'dipole_moment':
         args.dipole_moment_weight = dipole_moment_weight
         if density_weight > 0:
@@ -442,7 +454,7 @@ for phase in training_phases:
         else:
             parameters.append(param)
 
-    if phase == 'energy':
+    if phase == 'energy' or args.core_density_basis > 0:
         for param_group in model.density_repr_model.parameters():
             param_group.requires_grad = False
         # for name, param in model.named_parameters():

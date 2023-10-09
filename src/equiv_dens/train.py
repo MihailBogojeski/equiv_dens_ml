@@ -462,6 +462,10 @@ for name, param in model.named_parameters():
     else:
         parameters.append(param)
 
+if args.core_density_basis > 0:
+    for param_group in model.density_repr_model.parameters():
+        param_group.requires_grad = False
+
 parameter_list = [
     {'params': parameters},
     {'params': weight_decay_parameters, 'weight_decay': float(args.weight_decay)}]
