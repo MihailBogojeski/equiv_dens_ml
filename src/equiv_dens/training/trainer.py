@@ -207,16 +207,21 @@ class Trainer:
         self.epoch = checkpoint['epoch']
         self.best_errors = checkpoint['best_errors']
         self.valid_errors = checkpoint['valid_errors']
-        self._module.load_state_dict(checkpoint['model_state_dict'])
-        self.error_dict = checkpoint['error_dict']
-        self.training_phases = checkpoint['training_phases']
+        missing, unexpected = self._module.load_state_dict(checkpoint['model_state_dict'], strict=False)
+
+        self.data_split_indices = checkpoint['data_split_indices']
         if not hasattr(self.error_dict, 'relative_en'):
             self.error_dict.relative_en = False
-        self.data_split_indices = checkpoint['data_split_indices']
-        for i in range(len(self.optimizers)):
-            self.optimizers[i].load_state_dict(checkpoint['optimizers_state_dict'][i])
         for i in range(len(self.schedulers)):
             self.schedulers[i].load_state_dict(checkpoint['schedulers_state_dict'][i])
+        for i in range(len(self.optimizers)):
+            # try:
+            self.optimizers[i].load_state_dict(checkpoint['optimizers_state_dict'][i])
+            # except Exception:
+            #     self.schedulers[i]['last_lr'] = self.schedulers[i]['last_lr'] / 1000
+            #     for param_group in self.optimizers[i].param_groups:
+            #         param_group['lr'] = param_group['lr'] / 1000
+            #     print('self.optimizers lr', self.optimizers[i].param_groups[0]['lr'])
         if self.ema_params is not None:
             checkpoint_ema = checkpoint['exponential_moving_average']
             if checkpoint_ema is not None:
@@ -229,6 +234,8 @@ class Trainer:
             else:
                 self.exponential_moving_average = None
                 self.ema_params = None
+
+        self.training_phases = checkpoint['training_phases']
 
     def run(self, n_steps, use_gpu=False, dtype=torch.float64):
         self._model.to(dtype)
