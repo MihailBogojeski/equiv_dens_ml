@@ -17,6 +17,36 @@ def density_LDA_loss(pred_dens, target_dens, grid_weights):
     return lda_pred - lda_target
 
 
+def density_hartree_loss(pred_dens, target_dens, grid_coords, grid_weights, subsampling=0):
+    """
+    Compute the dfferences in the hartree energy integral between the predicted and target density.
+
+    Args:
+        dens_diff (torch.Tensor): Pre-computed difference between the densities.
+        grid_coords (torch.Tensor): Coordinates of the integration grid.
+        grid_weights (torch.Tensor): Weights of the integration grid.
+    """
+    if subsampling == 0:
+        idx1 = torch.randperm(pred_dens.shape[1])
+        idx2 = torch.roll(idx1, 1)
+    elif subsampling > 1:
+        idx1 = torch.randint(0, pred_dens.shape[1])
+        idx2 = torch.randint(0, pred_dens.shape[1])
+        while torch.min(torch.abs(idx1 - idx2)) == 0:
+            idx2 = torch.randint(0, pred_dens.shape[1])
+    else:
+        idx = torch.arange(pred_dens.shape[1])
+        idx1 = idx.repeat(pred_dens.shape[1], 1).t().reshape(-1)
+        idx2 = idx.repeat(pred_dens.shape[1]).view(-1)
+    weights1 = grid_weights[:, idx1]
+    weights2 = grid_weights[:, idx2]
+    coords_dist = torch.norm(grid_coords[:, idx1] - grid_coords[:, idx2], dim=2)
+    hartree_pred = torch.sum(weights1 * weights2 * pred_dens[:, idx1] * pred_dens[:, idx2] / coords_dist, dim=1) 
+    hartree_true = torch.sum(weights1 * weights2 * target_dens[:, idx1] * target_dens[:, idx2] / coords_dist, dim=1) 
+
+    return hartree_pred - hartree_true
+
+
 def _density_coulomb_loss(dens_diff, grid_coords, grid_weights, subsampling=0):
     """
     Compute the dfferences in the coulomb energy integral between the predicted and target density.

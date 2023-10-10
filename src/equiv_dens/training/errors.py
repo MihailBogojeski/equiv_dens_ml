@@ -121,6 +121,10 @@ class ErrorDict:
                             lda_diff = density_errors.density_LDA_loss(predictions['density'], data['density'], coord_weights)
                             losses['lda_mae'] = torch.mean(torch.abs(lda_diff))
                             losses['lda_rmse'] = torch.sqrt(torch.mean(lda_diff ** 2))
+                        if 'hartree_mae' in self.loss_comp[key] or 'hartree_rmse' in self.loss_comp[key]:
+                            hartree_diff = density_errors.density_hartree_loss(predictions['density'], data['density'], data['coords'], coord_weights)
+                            losses['hartree_mae'] = torch.mean(torch.abs(hartree_diff))
+                            losses['hartree_rmse'] = torch.sqrt(torch.mean(hartree_diff ** 2))
                     if mae > self.max_errors[key]:
                         losses['mae'] = torch.clamp(losses['mae'], self.max_errors[key])
                         losses['rmse'] = torch.clamp(losses['rmse'], torch.sqrt(2) * self.max_errors[key])
