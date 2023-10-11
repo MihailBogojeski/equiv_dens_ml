@@ -115,3 +115,18 @@ def density_mixed_distance_loss(pred_dens, target_dens, grid_weights, grid_coord
     dens_sq_diff = dens_diff**2 * grid_weights
 
     return _density_mixed_distance_loss(dens_abs_diff, dens_sq_diff, grid_coords, atom_pos, atom_numbers, width)
+
+def density_KL_loss(pred_dens, target_dens, atom_numbers, grid_weights):
+    """
+    Compute the dfferences in the coulomb energy integral between the predicted and target density.
+
+    Args:
+        dens_diff (torch.Tensor): Pre-computed difference between the densities.
+        grid_coords (torch.Tensor): Coordinates of the integration grid.
+        grid_weights (torch.Tensor): Weights of the integration grid.
+    """
+    e_num = torch.sum(atom_numbers, dim=1, keepdim=True)
+    pred_dens = pred_dens / e_num
+    target_dens = torch.clamp(target_dens / e_num, min=1e-8)
+    pred_dens = pred_dens.clamp(min=1e-8)
+    return torch.sum(target_dens * (torch.log(pred_dens) - torch.log(target_dens)) * grid_weights, dim=1)
