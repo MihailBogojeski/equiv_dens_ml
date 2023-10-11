@@ -125,8 +125,8 @@ def density_KL_loss(pred_dens, target_dens, atom_numbers, grid_weights):
         grid_coords (torch.Tensor): Coordinates of the integration grid.
         grid_weights (torch.Tensor): Weights of the integration grid.
     """
-    e_num = torch.sum(atom_numbers, dim=1, keepdim=True)
-    pred_dens = pred_dens / e_num
-    target_dens = torch.clamp(target_dens / e_num, min=1e-8)
+    target_dens = torch.clamp(target_dens, min=1e-8)
+    target_dens = target_dens / torch.sum(target_dens * grid_weights, dim=1, keepdim=True)
     pred_dens = pred_dens.clamp(min=1e-8)
-    return torch.sum(target_dens * (torch.log(pred_dens) - torch.log(target_dens)) * grid_weights, dim=1)
+    pred_dens = pred_dens / torch.sum(pred_dens * grid_weights, dim=1, keepdim=True)
+    return torch.sum(target_dens * (torch.log(target_dens) - torch.log(pred_dens)) * grid_weights, dim=1)
