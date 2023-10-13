@@ -96,11 +96,12 @@ class ErrorDict:
                         rmse = torch.sqrt(mse)
                         rmse = torch.mean(rmse)
                         mae = torch.mean(torch.sum(abs_diff, dim=1))
+                        mse = torch.mean(mse)
                     else:
                         mse = torch.mean(sq_diff)
                         rmse = torch.sqrt(mse)
                         mae = torch.mean(abs_diff)
-                    losses = {'mae': mae, 'rmse': rmse}
+                    losses = {'mae': mae, 'rmse': rmse, 'mse': mse}
                     if key == "density":
                         if 'coulomb' in self.loss_comp[key]:
                             losses['coulomb'] = torch.mean(density_errors._density_coulomb_loss(diff, data['coords'], coord_weights))
@@ -131,6 +132,7 @@ class ErrorDict:
                     if mae > self.max_errors[key]:
                         losses['mae'] = torch.clamp(losses['mae'], self.max_errors[key])
                         losses['rmse'] = torch.clamp(losses['rmse'], torch.sqrt(2) * self.max_errors[key])
+                        losses['mse'] = torch.clamp(losses['mse'], self.max_errors[key]**2)
                     # print('losses', losses)
                     for loss_key in losses.keys():
                         # print('key', key, 'loss_key', loss_key)

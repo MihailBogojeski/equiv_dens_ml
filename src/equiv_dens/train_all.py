@@ -143,6 +143,8 @@ validation_interval = args.validation_interval
 decay_patience = args.decay_patience
 max_steps = args.max_steps
 core_density_basis = args.core_density_basis
+density_loss_comp = args.density_loss_comp
+density_loss_comp_weights = args.density_loss_comp_weights
 print('training_phases', training_phases)
 
 
@@ -170,10 +172,14 @@ for phase in training_phases:
             args.learning_rate = args.learning_rate / 10
         if core_density_basis > 0:
             args.core_density_basis = 0
+        args.density_loss_comp = density_loss_comp
+        args.density_loss_comp_weights = density_loss_comp_weights
     elif phase == 'core_density':
         args.density_weight = density_weight
         args.core_density_basis = core_density_basis
         args.learning_rate - args.learning_rate / 10
+        args.density_loss_comp = ['mse']
+        args.density_loss_comp_weights = [1.0]
     elif phase == 'dipole_moment':
         args.dipole_moment_weight = dipole_moment_weight
         if density_weight > 0:
