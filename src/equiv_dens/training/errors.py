@@ -127,8 +127,13 @@ class ErrorDict:
                             losses['hartree_mae'] = torch.mean(torch.abs(hartree_diff))
                             losses['hartree_rmse'] = torch.sqrt(torch.mean(hartree_diff ** 2))
                         if 'kl_loss' in self.loss_comp[key]:
-                            losses['kl_loss'] = torch.mean(density_errors.density_KL_loss(predictions['density'], data['density'],
-                                                                                          data['batch_atom_numbers'], coord_weights))
+                            losses['kl_loss'] = torch.mean(density_errors.density_KL_loss(
+                                predictions['density'], data['density'],
+                                data['batch_atom_numbers'], coord_weights))
+                        if 'dpm_loss' in self.loss_comp[key]:
+                            losses['dpm_loss'] = torch.mean(density_errors.dipole_pointwise_int_loss(
+                                predictions['density'], data['density'],
+                                data['coords'], coord_weights))
                     if mae > self.max_errors[key]:
                         losses['mae'] = torch.clamp(losses['mae'], self.max_errors[key])
                         losses['rmse'] = torch.clamp(losses['rmse'], torch.sqrt(2) * self.max_errors[key])

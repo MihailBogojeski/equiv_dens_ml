@@ -183,7 +183,7 @@ def parse_command_line_arguments(arg_file=None):
     args_training.add_argument("--density_loss_comp", metavar='STR', type=str, default=['mae'], nargs='+',
                                choices=['mae', 'mse', 'rmse', 'lda_mae', 'lda_rmse', 'hartree_mae', 'hartree_rmse',
                                         'coulomb', 'perc_mae', 'perc_rmse', 'mixed_dist_err',
-                                        'perc_mixed_dist_err', 'kl_loss'], help="composition of the density loss")
+                                        'perc_mixed_dist_err', 'kl_loss', 'dpm_loss'], help="composition of the density loss")
     args_training.add_argument("--dipole_moment_loss_comp", metavar='STR', type=str, default=['mae'], nargs='+',
                                choices=['mae', 'rmse'], help="composition of the dipole moment loss")
     args_training.add_argument("--df_loss_comp", metavar='STR', type=str, default=['mae'], nargs='+',
