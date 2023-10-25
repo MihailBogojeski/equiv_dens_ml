@@ -30,6 +30,8 @@ class DensityCoeffsNetwork(nn.Module):
                  coeff_weights=None,
                  pred_radial_coeffs=True,
                  init_radial_coeffs=None,
+                 ml_width_min=0,
+                 ml_width_max=2,
                  scale_sph_order=True,
                  normalize=0,
                  parity=False,
@@ -57,6 +59,8 @@ class DensityCoeffsNetwork(nn.Module):
         self.coeff_weights = coeff_weights
         self.core_basis_ratio = core_basis_ratio
         self.radial_coeffs = init_radial_coeffs
+        self.ml_width_offset = ml_width_min
+        self.ml_width_scale = (ml_width_max - ml_width_min) / 2
 
         # if core basis ratio > 0, reduce orbital basis to only the highest width s orbitals
         if self.core_basis_ratio > 0:
@@ -318,7 +322,9 @@ class DensityCoeffsNetwork(nn.Module):
                     # print('spherical_coeffs[i][key] after shape', spherical_coeffs[i][key].shape)
                 # print(f'key:{key}, radial width: {radial_width[i][key][0]}')
                 if self.radial_coeffs is not None:
-                    radial_width[i][key] = (radial_width[i][key] + 1) * self.init_radial_width(key)
+                    # the original range of the radial width is [-1, 1]
+                    curr_width = (radial_width[i][key] + 1) * self.ml_width_scale + self.ml_width_offset
+                    radial_width[i][key] = curr_width * self.init_radial_width(key)
                     # print(f'key:{key}, init width ', self.init_radial_width(key))
                     # print(f'key:{key}, radial width after update: {radial_width[i][key][0]}')
                     # if self.integral_constraint is True or self.integral_constraint == 'coeffs':

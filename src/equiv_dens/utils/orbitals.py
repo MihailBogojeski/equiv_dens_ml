@@ -410,13 +410,14 @@ def split_df_coeffs(atom, df_coeffs, basis_size):
 
     return df_coeffs_split
 
-def calc_dipole_moment(atoms, center_coordinates=True):
+def calc_dipole_moment(atoms, center_coordinates=True, normalize_density=True, positive_density=True):
     density = atoms['density']
-    positive_dens = (density >= 0).to(density)
-    density = density * positive_dens
-    n_electrons = get_n_electrons(atoms['batch_atom_numbers'])
-    scaling_factor = n_electrons / torch.sum(density * atoms['coord_weights'], dim=1, keepdim=True)
-    density = density * scaling_factor
+    if positive_density:
+        density = torch.clamp(density, min=0)
+    if normalize_density:
+        n_electrons = get_n_electrons(atoms['batch_atom_numbers'])
+        scaling_factor = n_electrons / torch.sum(density * atoms['coord_weights'], dim=1, keepdim=True)
+        density = density * scaling_factor
     if center_coordinates:
         center_of_mass = torch.sum(atoms['batch_positions'] * atoms['batch_atom_numbers'].unsqueeze(-1), dim=1, keepdim=True)\
                          / torch.sum(atoms['batch_atom_numbers'].unsqueeze(-1), dim=1, keepdim=True)
