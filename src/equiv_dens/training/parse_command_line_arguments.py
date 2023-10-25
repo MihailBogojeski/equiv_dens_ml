@@ -25,7 +25,7 @@ def parse_command_line_arguments(arg_file=None):
     args_restart.add_argument("--load_from", metavar='STR', type=str, default=None,
                               help="initialize model from given pth file (other architecture hyperparameters are ignored)")
     args_restart.add_argument("--no_restore", metavar='True|False', type=str2bool, default=False,
-                                  choices=[True, False], help="Do not restore checkpoint.")
+                              choices=[True, False], help="Do not restore checkpoint.")
     args_restart.add_argument("--fix_arguments", metavar='True|False', type=str2bool, default=False,
                               choices=[True, False],
                               help="Do not change arguments after loading checkpoint (except hyperparams).")
@@ -112,6 +112,10 @@ def parse_command_line_arguments(arg_file=None):
                                   choices=[True, False], help="Include parity equivariance for density prediction.")
     args_hyperparams.add_argument("--parity_en", metavar='True|False', type=str2bool, default=False,
                                   choices=[True, False], help="Include parity equivariance for energy prediction.")
+    args_hyperparams.add_argument("--ml_width_min", metavar='FLOAT', type=float, default=0,
+                                  help="Minimum value for the learned factor that is multiplied to the initial width")
+    args_hyperparams.add_argument("--ml_width_max", metavar='FLOAT', type=float, default=2,
+                                  help="Maximum value of the learned factor that is multiplied to the initial width")
     hyperparam_args = [act.dest for act in args_hyperparams._group_actions]
 
     # arguments for training
