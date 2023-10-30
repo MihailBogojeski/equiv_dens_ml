@@ -113,7 +113,7 @@ def parse_command_line_arguments(arg_file=None):
     args_hyperparams.add_argument("--parity_en", metavar='True|False', type=str2bool, default=False,
                                   choices=[True, False], help="Include parity equivariance for energy prediction.")
     args_hyperparams.add_argument("--ml_width_min", metavar='FLOAT', type=float, default=0,
-                                  help="Minimum value for the learned factor that is multiplied to the initial width")
+                                  help="Minimum value of the learned factor that is multiplied to the initial width")
     args_hyperparams.add_argument("--ml_width_max", metavar='FLOAT', type=float, default=2,
                                   help="Maximum value of the learned factor that is multiplied to the initial width")
     hyperparam_args = [act.dest for act in args_hyperparams._group_actions]
