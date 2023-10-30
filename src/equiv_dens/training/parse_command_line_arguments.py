@@ -308,6 +308,8 @@ def parse_command_line_arguments(arg_file=None):
     args_training.add_argument("--core_density_basis", metavar='FLOAT', type=float, default=0.0,
                                help="Choose a fraction of the s orbitals to use as an additional"
                                + "basis for the core density, and perform the fitting if > 0.")
+    args_training.add_argument('--wandb_mode', metavar='STR', type=str, default='online',
+                               choices=['online', 'offline', 'disabled'], help="Wandb mode.")
 
     # arguments for simulations
     args_simulation = parser.add_argument_group("simulation hyperparameters")

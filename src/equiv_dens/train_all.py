@@ -80,7 +80,7 @@ wandb_date = directory.split('/')[-1].split('_')[0]
 wandb_name = wandb_id + wandb_date
 wandb_id = wandb_name + '_' + model_code
 wandb_run = wandb.init(project='equiv_dens', config=args_dict,
-                       name=wandb_name, id=wandb_id, resume='allow')
+                       name=wandb_name, id=wandb_id, resume='allow', mode=args.wandb_mode)
 print('model code:', model_code)
 print('max steps:', args.max_steps)
 print('normalize dens', args.normalize)
@@ -558,6 +558,7 @@ for phase in training_phases:
                       )
     # with torch.autograd.detect_anomaly():
     trainer.run(args.max_steps, use_gpu=use_gpu, dtype=args.dtype)
+    print('finished trainer run of phase', phase)
     ongoing_phases.remove(phase)
     restore = False
 print('Starting test evaluation!!!')
