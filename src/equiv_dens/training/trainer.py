@@ -124,7 +124,7 @@ class Trainer:
                     self.checkpoint_path, 'checkpoint_' + str(self.step).zfill(10) + phase + '.pth'))
             chk_name = 'latest_checkpoint.pth'
         else:
-            chk_name = 'best_checkpoint.pth'
+            chk_name = 'best_checkpoint' + phase + '.pth'
 
         # overwrite latest checkpoint
         checkpoint = {
