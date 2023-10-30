@@ -271,10 +271,6 @@ class DensityCoeffsNetwork(nn.Module):
             coeff_weights[i] = {}
             z = int(max(atom_numbers[:, i]))
             atom_mask = atoms['batch_atom_mask'][:, i].to(pos)
-            dim_diff = atoms['coords'].dim() - pos.dim()
-            if dim_diff > 0:
-                pos = pos.reshape(pos.shape[:-1] + (1,) * dim_diff + pos.shape[-1:])
-
             dim_diff = 4 - atom_mask.dim()
             if dim_diff > 0:
                 atom_mask = atom_mask.reshape(atom_mask.shape + (1,) * dim_diff)
