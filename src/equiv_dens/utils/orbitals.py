@@ -2,6 +2,9 @@ import numpy as np
 import equiv_dens.utils.base as utils
 import torch
 import scipy as sp
+from pyscf import gto
+from pyscf.dft import numint
+from pyscf.lib import param
 
 pyscf_gto_factor = 3.5449070930480957
 
@@ -234,7 +237,7 @@ def coeffs_dict_to_tensors(coeffs, radial_coeffs=True):
     return all_sph, all_scale, all_width
 
 
-def coeffs_dict_to_vector(coeffs, orbital_basis, a_num, radial_coeffs=True, coeff_weighting=False):
+def coeffs_dict_to_vector(coeffs, orbital_basis, a_num, radial_coeffs=True, coeff_weighting=False, convert_to_pyscf=True):
     relevant_keys = ['spherical_coeffs']
     # sph_coeffs = coeffs['spherical_coeffs']
     if radial_coeffs:
@@ -245,11 +248,27 @@ def coeffs_dict_to_vector(coeffs, orbital_basis, a_num, radial_coeffs=True, coef
         relevant_keys.append('coeff_weights')
         # coeff_weights = coeffs['coeff_weights']
 
+    if convert_to_pyscf:
+        new_coeffs = {key: coeffs[key] for key in coeffs.keys()}
+        new_coeffs['spherical_coeffs'] = []
+        for i in range(len(coeffs['spherical_coeffs'])):
+            new_coeffs['spherical_coeffs'].append({})
+            for key in coeffs['spherical_coeffs'][i].keys():
+                if key[1] == 1:
+                    new_coeffs['spherical_coeffs'][i][key] = coeffs['spherical_coeffs'][i][key]
+                    new_coeffs['spherical_coeffs'][i][key] = new_coeffs['spherical_coeffs'][i][key][:, :, [2, 0, 1], :]
+                else:
+                    new_coeffs['spherical_coeffs'][i][key] = coeffs['spherical_coeffs'][i][key]
+                if key[1] % 2 == 1:
+                    new_coeffs['spherical_coeffs'][i][key] = -1 * new_coeffs['spherical_coeffs'][i][key]
+        coeffs = new_coeffs
+
     all_coeffs = {key: None for key in relevant_keys}
     # all_sph = None
     # all_scale = None
     # all_width = None
     # all_weights = None
+
     for i, z in enumerate(torch.max(a_num, dim=0)[0]):
         orb_ind = {}
         z = int(z)
@@ -327,7 +346,7 @@ def coeffs_dict_to_vector(coeffs, orbital_basis, a_num, radial_coeffs=True, coef
 #     return vector_coeffs
 
 
-def vector_to_coeffs_dict(coeffs, orbital_basis, a_num, radial_coeffs=True):
+def vector_to_coeffs_dict(coeffs, orbital_basis, a_num, radial_coeffs=True, convert_to_equiv_dens=True):
     vec_sph = coeffs['spherical_coeffs']
     dict_sph = []
     if radial_coeffs:
@@ -357,19 +376,29 @@ def vector_to_coeffs_dict(coeffs, orbital_basis, a_num, radial_coeffs=True):
                     rad_count += 1
             else:
                 new_sph = vec_sph[:, sph_count:sph_count + step].unsqueeze(1).unsqueeze(-1)
-                dict_sph[i][key] = torch.cat([dict_sph[i][key], new_sph], dim=-1) 
+                dict_sph[i][key] = torch.cat([dict_sph[i][key], new_sph], dim=-1)
                 sph_count += step
                 if radial_coeffs:
                     new_scale = vec_scale[:, [rad_count]].unsqueeze(1).unsqueeze(-1)
                     new_width = vec_width[:, [rad_count]].unsqueeze(1).unsqueeze(-1)
-                    dict_width[i][key] = torch.cat([dict_width[i][key], new_width], dim=-1) 
-                    dict_scale[i][key] = torch.cat([dict_scale[i][key], new_scale], dim=-1) 
+                    dict_width[i][key] = torch.cat([dict_width[i][key], new_width], dim=-1)
+                    dict_scale[i][key] = torch.cat([dict_scale[i][key], new_scale], dim=-1)
                     rad_count += 1
     dict_coeffs = {}
     dict_coeffs['spherical_coeffs'] = dict_sph
     if radial_coeffs:
         dict_coeffs['radial_width'] = dict_width
         dict_coeffs['radial_scale'] = dict_scale
+
+    if convert_to_equiv_dens:
+        for i in range(len(dict_coeffs['spherical_coeffs'])):
+            for key in dict_coeffs['spherical_coeffs'][i].keys():
+                if key[1] == 1:
+                    dict_coeffs['spherical_coeffs'][i][key] = dict_coeffs['spherical_coeffs'][i][key][:, :, [1, 2, 0], :]
+                else:
+                    dict_coeffs['spherical_coeffs'][i][key] = dict_coeffs['spherical_coeffs'][i][key]
+                if key[1] % 2 == 1:
+                    dict_coeffs['spherical_coeffs'][i][key] = -1 * dict_coeffs['spherical_coeffs'][i][key]
 
     return dict_coeffs
 
@@ -410,8 +439,10 @@ def split_df_coeffs(atom, df_coeffs, basis_size):
 
     return df_coeffs_split
 
-def calc_dipole_moment(atoms, center_coordinates=True, normalize_density=True, positive_density=True):
-    density = atoms['density']
+def calc_dipole_moment(atoms, center_coordinates=True, normalize_density=True, positive_density=True,
+                       density=None):
+    if density is None:
+        density = atoms['density']
     if positive_density:
         density = torch.clamp(density, min=0)
     if normalize_density:
@@ -439,3 +470,32 @@ def calc_dipole_moment(atoms, center_coordinates=True, normalize_density=True, p
 
     atoms['dipole_moment'] = positive_dipole_moment - negative_dipole_moment
     return atoms
+
+
+def sample_projected_density(atoms, df_coeffs, dataset, auxmol=None):
+    df_coeffs = df_coeffs.detach().cpu().numpy()
+    sample_coords = atoms['coords']
+    scaled_sample_coords = atoms['coords'].detach().cpu().numpy() / param.BOHR  # convert Angstrom grid to Bohr
+    dens = torch.zeros((sample_coords.shape[0], sample_coords.shape[1]))
+    # mol_start = time.time()
+    # print('c, i', c, i)
+
+    if auxmol is None:
+        atom = [(int(atoms['batch_atom_numbers'][0, i].detach().cpu().numpy()),
+                atoms['batch_positions'][0, i].detach().cpu().numpy()) for i in range(atoms['batch_positions'].shape[1])]
+        mol = gto.M(atom=atom, basis=dataset.density_fitting['auxbasis'])
+    else:
+        mol = auxmol
+    # ao_start = time.time()
+    ao = numint.eval_ao(mol, scaled_sample_coords[0])
+    # print('ao time', time.time() - ao_start)
+    # rho_start = time.time()
+    # print('df coeff', df_coeff.shape)
+    # print('ao shape', ao.shape)
+    rho = 0
+    for j in range(df_coeffs.shape[0]):
+        rho += np.einsum('ij,j->i', ao, df_coeffs[j])
+    # print('rho time', time.time() - rho_start)
+    dens = torch.from_numpy(rho)
+    # print('mol_time', time.time() - mol_start)
+    return dens

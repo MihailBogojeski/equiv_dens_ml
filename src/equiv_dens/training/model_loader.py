@@ -17,7 +17,7 @@ from equiv_dens.density_functionals.LDA import LDAFunctional
 import numpy as np
 
 
-def load_model(args, dataset, train=False, new_density=False):
+def load_model(args, dataset, train=False):
     use_gpu = args.use_gpu and torch.cuda.is_available()
     z_vals = dataset.atoms['atom_numbers']
     clebsch_gordan = ClebschGordanMatrix()
