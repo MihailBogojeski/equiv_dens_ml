@@ -361,7 +361,7 @@ def parse_command_line_arguments(arg_file=None):
                            choices=[True, False], help="Don't compare accuracy of test samples, just compute predictions.")
 
     # actually parse command line arguments
-    if len(sys.argv) == 1:  # no arguments were specified, print help message
+    if arg_file is None and len(sys.argv) == 1:  # no arguments were specified, print help message
         args = parser.parse_args(["--help"])
     else:
         if arg_file is not None:

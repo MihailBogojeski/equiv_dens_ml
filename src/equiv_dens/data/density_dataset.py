@@ -182,7 +182,10 @@ class AtomsDensityData(Dataset):
         else:
             self.L0_coeffs = None
 
-        self.grid_spec = grid_fn(self.atoms, bohr=self.pyscf_grid)
+        if self.pyscf_grid:
+            self.grid_spec = grid_fn(self.atoms, bohr=True)
+        else:
+            self.grid_spec = grid_fn(self.atoms)
         if isinstance(self.grid_spec, dict):
             for key in self.grid_spec.keys():
                 self.grid_spec[key] = (self.grid_spec[key][0].type(self.dtype),
@@ -382,15 +385,15 @@ class AtomsDensityData(Dataset):
         nl = utils.TorchNeighborList(self.cutoff)
         idx_is, idx_js, _ = nl.get_neighbors(properties)
         neighbor_batch_idx = []
-        prev_max=0
+        prev_max = 0
         for i in range(len(idx_is)):
             idx_is[i] += prev_max
-            idx_js[i] += prev_max 
+            idx_js[i] += prev_max
             max_i = torch.max(idx_is[i])
             max_j = torch.max(idx_is[i])
             prev_max = max(max_i, max_j) + 1
             neighbor_batch_idx.append(torch.ones_like(idx_is[i]) * i)
-        
+
         atom_batch_idx = np.zeros_like(atom_numbers)
         for i in range(len(atom_numbers)):
             atom_batch_idx[i, :] = i

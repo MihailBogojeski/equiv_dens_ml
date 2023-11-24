@@ -453,7 +453,8 @@ class DensityCoeffsNetwork(nn.Module):
         #     print('density coeffs extract time:', time.time() - extract_start)
             all_coeffs = coeffs_dict_to_vector(atoms, self.orbital_basis,
                                                atoms['batch_atom_numbers'],
-                                               radial_coeffs=False, coeff_weighting=coeff_weighting)
+                                               radial_coeffs=False, coeff_weighting=coeff_weighting,
+                                               convert_to_pyscf=True)
             # df_start = time.time()
             atoms['df_coeffs'] = all_coeffs['spherical_coeffs']
             if coeff_weighting:
