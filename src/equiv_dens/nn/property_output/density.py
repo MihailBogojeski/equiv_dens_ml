@@ -325,7 +325,11 @@ class DensityCoeffsNetwork(nn.Module):
                     # print(f'key:{key}, radial width after update: {radial_width[i][key][0]}')
                     # if self.integral_constraint is True or self.integral_constraint == 'coeffs':
                     #     width = torch.clamp(width, 1e-1, 1e+5)
-                    radial_scale[i][key] = (radial_scale[i][key] + self.init_radial_scale(key)) * atom_mask
+                    if self.positive_coeffs:
+                        curr_scale = (radial_scale[i][key] + 1) * self.ml_width_scale + self.ml_width_offset
+                        radial_scale[i][key] = (curr_scale * self.init_radial_scale(key)) * atom_mask
+                    else:
+                        radial_scale[i][key] = (radial_scale[i][key] + self.init_radial_scale(key)) * atom_mask
 
         return spherical_coeffs, radial_width, radial_scale, coeff_weights
 
@@ -435,7 +439,7 @@ class DensityCoeffsNetwork(nn.Module):
                 out_width.append(torch.tanh(self.radial_width[L](fs[0])))
                 # out_width[L] = out_width[L].view(*out_width[L].shape[:-2], self.r_max[L], self.L_counts[L])
                 if self.positive_coeffs:
-                    out_scale.append(F.softplus(self.radial_scale[L](fs[0])))
+                    out_scale.append(torch.tanh(self.radial_scale[L](fs[0])))
                 else:
                     out_scale.append(self.radial_scale[L](fs[0]))
         if self.memory:
