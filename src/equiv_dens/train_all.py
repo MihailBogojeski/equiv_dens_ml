@@ -566,8 +566,13 @@ print('Starting test evaluation!!!')
 args.df_weight = 0.0
 args.density_weight = 1.0
 args.dipole_moment_weight = 1.0
-args.energy_weight = 1.0
-args.forces_weight = 1.0
+if 'energy' in training_phases:
+    args.energy_weight = 1.0
+    args.forces_weight = 1.0
+else:
+    args.energy_weight = 0.0
+    args.forces_weight = 0.0
+
 required_properties = []
 if args.density_weight + args.dipole_moment_weight > 0:
     required_properties.append('density')

@@ -647,6 +647,7 @@ class Trainer:
         for key in self.error_dict.loss_weights.keys():
             if self.error_dict.loss_weights[key] > 0:
                 progress_string += "\n  " + key + ":\n"
+                print('train errors keys', self.train_errors.keys())
                 for loss_key in self.train_errors.keys():
                     err = '_'.join(loss_key.split('_')[0:]) if len(loss_key.split('_')) > 1 else loss_key
                     progress_string += "    train " + err + ": %10.6f" % self.train_errors[loss_key]
