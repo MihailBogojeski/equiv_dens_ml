@@ -55,7 +55,14 @@ print("loading density from" + str(args.dens_dataset) + "...")
 print("loading atoms from" + args.np_dataset + "...")
 print('args num test', args.num_test)
 
-if args.cube_grid:
+rotate = False
+if args.pyscf_grid:
+    grid_fn = partial(spherical_grid, level=args.spherical_grid_level)
+    sampling_fn = None
+    grid_origin = 0
+    grid_extent = None
+    rotate = True
+elif args.cube_grid:
     grid_origin = args.cube_origin
     grid_extent = np.array([args.cube_extent] * 3)
     grid_fn = partial(cubical_grid, nx=args.cube_size, ny=args.cube_size, nz=args.cube_size,
@@ -64,7 +71,7 @@ if args.cube_grid:
     sampling_fn = cubical_sampling
 else:
     grid_fn = partial(spherical_grid, level=args.spherical_grid_level)
-    sampling_fn = spherical_radial_sampling
+    sampling_fn = partial(spherical_radial_sampling, rotate=True)
     grid_origin = 0
     grid_extent = None
 
@@ -88,6 +95,8 @@ dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_datas
                            radial_coeffs_file=args.radial_coeffs_file,
                            dtype=args.dtype,
                            grid_fn=grid_fn,
+                           pyscf_grid=args.pyscf_grid,
+                           pyscf_rotate=rotate,
                            sampling_fn=sampling_fn,
                            grid_extent=grid_extent,
                            grid_origin=grid_origin,
@@ -117,12 +126,14 @@ print('args dataset test', args.np_dataset_test)
 if args.np_dataset_test is not None:
     test_dataset = AtomsDensityData(np_path=args.np_dataset_test, density_path=args.dens_dataset_test,
                                     orbitals_path=args.orbitals_file,
-                                    density_n_samp=100000000000000000,
+                                    density_n_samp=10000000000000000000000,
                                     required_properties=required_properties,
                                     center_positions=False,
                                     radial_coeffs_file=args.radial_coeffs_file,
                                     dtype=args.dtype,
                                     grid_fn=grid_fn,
+                                    pyscf_grid=args.pyscf_grid,
+                                    pyscf_rotate=rotate,
                                     sampling_fn=sampling_fn,
                                     grid_extent=grid_extent,
                                     grid_origin=grid_origin,

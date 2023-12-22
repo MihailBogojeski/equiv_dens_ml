@@ -2,7 +2,7 @@
 import os
 import torch
 from datetime import datetime
-from tensorboardX import SummaryWriter
+import wandb
 from equiv_dens.training.parse_command_line_arguments import parse_command_line_arguments
 from equiv_dens.utils.misc import generate_id
 from equiv_dens.training.errors import ErrorDict
@@ -27,6 +27,7 @@ from functools import partial
 """
 # read arguments
 args, hyperparam_args = parse_command_line_arguments()
+wandb.login()
 
 # no restart directory specified
 if args.restart is None:
@@ -69,8 +70,18 @@ else:
     restore = True
     data_split_indices = checkpoint['data_split_indices']
 
+args_dict = vars(args)
+if args.args_file_name is not None:
+    wandb_id = args.args_file_name + '_'
+else:
+    wandb_id = ''
+wandb_name = wandb_id + datetime.utcnow().strftime("%Y-%m-%d")
+wandb_id = wandb_name + '_' + model_code
+wandb_run = wandb.init(project='equiv_dens', config=args_dict,
+                       name=wandb_name, id=wandb_id, resume='allow')
+
 if args.no_restore:
-    restore=False
+    restore = False
 
 print('model code:', model_code)
 print('max steps:', args.max_steps)
@@ -86,7 +97,14 @@ print("loading atoms from" + args.np_dataset + "...")
 
 # density_file = '/home/mihail/data/water_rot/full_densities.hdf5'
 # np_file = 'h2o_overlap_static.npy'
-if args.cube_grid:
+rotate = False
+if args.pyscf_grid:
+    grid_fn = partial(spherical_grid, level=args.spherical_grid_level)
+    sampling_fn = None
+    grid_origin = 0
+    grid_extent = None
+    rotate = True
+elif args.cube_grid:
     grid_origin = args.cube_origin
     grid_extent = np.array([args.cube_extent] * 3)
     grid_fn = partial(cubical_grid, nx=args.cube_size, ny=args.cube_size, nz=args.cube_size,
@@ -119,10 +137,13 @@ dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_datas
                            L0_coeffs_file=args.L0_coeffs_file,
                            dtype=args.dtype,
                            grid_fn=grid_fn,
+                           pyscf_grid=args.pyscf_grid,
+                           pyscf_rotate=rotate,
                            sampling_fn=sampling_fn,
                            grid_extent=grid_extent,
                            grid_origin=grid_origin,
                            verbose=args.verbose,
+                           timing=args.timing,
                            cutoff=args.cutoff,
                            df_loss_weights=args.df_loss_weights,
                            projected_density=args.projected_density
@@ -148,13 +169,15 @@ elif args.np_dataset_valid is not None:
                                      L0_coeffs_file=args.L0_coeffs_file,
                                      dtype=args.dtype,
                                      grid_fn=grid_fn,
+                                     pyscf_grid=args.pyscf_grid,
+                                     pyscf_rotate=rotate,
                                      sampling_fn=sampling_fn,
                                      grid_extent=grid_extent,
                                      grid_origin=grid_origin,
                                      verbose=args.verbose,
                                      cutoff=args.cutoff,
                                      df_loss_weights=args.df_loss_weights,
-                                     projected_density=args.projected_density
+                                     projected_density=args.projected_density,
                                      )
     if data_split_indices is None or args.ignore_split_indices:
         train_inds = np.random.choice(np.arange(len(dataset)), args.num_train, replace=False)
@@ -188,12 +211,14 @@ if args.np_dataset_test is not None:
                                     radial_coeffs_file=args.radial_coeffs_file,
                                     dtype=args.dtype,
                                     grid_fn=grid_fn,
+                                    pyscf_grid=args.pyscf_grid,
+                                    pyscf_rotate=rotate,
                                     sampling_fn=sampling_fn,
                                     grid_extent=grid_extent,
                                     grid_origin=grid_origin,
                                     cutoff=args.cutoff,
                                     df_loss_weights=args.df_loss_weights,
-                                    projected_density=args.projected_density
+                                    projected_density=args.projected_density,
                                     )
 
     if args.num_test is not None:
@@ -222,6 +247,8 @@ if args.cube_grid_valid:
                                     L0_coeffs_file=args.L0_coeffs_file,
                                     dtype=args.dtype,
                                     grid_fn=cube_grid_fn,
+                                    pyscf_grid=args.pyscf_grid,
+                                    pyscf_rotate=rotate,
                                     sampling_fn=cube_sampling_fn,
                                     verbose=args.verbose,
                                     cutoff=args.cutoff,
@@ -457,10 +484,6 @@ if args.energy_offset:
     schedulers.append(torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizers[1], mode='min', factor=args.decay_factor, patience=args.decay_patience, verbose=args.verbose))
 
-# create summary writer for tensorboard
-summary = SummaryWriter(logdir=os.path.join(
-    directory, 'logs'), purge_step=step)
-
 total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
 print('Total params is {}'.format(total_params))
 validation_loaders = [valid_data_loader]
@@ -479,6 +502,7 @@ trainer = Trainer(model_path=directory, model=model, error_dict=error_dict,
                   checkpoint_interval=args.checkpoint_interval,
                   validation_interval=args.validation_interval,
                   summary_interval=args.summary_interval,
+                  wandb=wandb_run,
                   ema_params=ema_params,
                   args=args,
                   hyperparam_args=hyperparam_args,
@@ -539,4 +563,6 @@ for test_batch_num, data in enumerate(test_data_loader):
     data = None
     errors = None
 
+for key in test_errors.keys():
+    wandb_run.summary[key + '_test'] = test_errors[key]
 print('test errors', test_errors)

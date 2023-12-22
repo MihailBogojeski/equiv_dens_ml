@@ -94,6 +94,11 @@ def rotation_matrix(axis, theta):
     return scipy.linalg.expm(np.cross(np.eye(3), axis * theta))
 
 
+def torch_random_rotation_matrix():
+    torch_mat = torch.tensor(random_rotation_matrix(), dtype=torch.float32)
+    return torch_mat
+
+
 def to_basis3d(X, n2, d=None):
     # Input:
     # X (n, d) matrix where the 3d axis are flattend into last axis
