@@ -97,7 +97,14 @@ print("loading atoms from" + args.np_dataset + "...")
 
 # density_file = '/home/mihail/data/water_rot/full_densities.hdf5'
 # np_file = 'h2o_overlap_static.npy'
-if args.cube_grid:
+rotate = False
+if args.pyscf_grid:
+    grid_fn = partial(spherical_grid, level=args.spherical_grid_level)
+    sampling_fn = None
+    grid_origin = 0
+    grid_extent = None
+    rotate = True
+elif args.cube_grid:
     grid_origin = args.cube_origin
     grid_extent = np.array([args.cube_extent] * 3)
     grid_fn = partial(cubical_grid, nx=args.cube_size, ny=args.cube_size, nz=args.cube_size,
@@ -130,6 +137,8 @@ dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_datas
                            L0_coeffs_file=args.L0_coeffs_file,
                            dtype=args.dtype,
                            grid_fn=grid_fn,
+                           pyscf_grid=args.pyscf_grid,
+                           pyscf_rotate=rotate,
                            sampling_fn=sampling_fn,
                            grid_extent=grid_extent,
                            grid_origin=grid_origin,
@@ -160,13 +169,15 @@ elif args.np_dataset_valid is not None:
                                      L0_coeffs_file=args.L0_coeffs_file,
                                      dtype=args.dtype,
                                      grid_fn=grid_fn,
+                                     pyscf_grid=args.pyscf_grid,
+                                     pyscf_rotate=rotate,
                                      sampling_fn=sampling_fn,
                                      grid_extent=grid_extent,
                                      grid_origin=grid_origin,
                                      verbose=args.verbose,
                                      cutoff=args.cutoff,
                                      df_loss_weights=args.df_loss_weights,
-                                     projected_density=args.projected_density
+                                     projected_density=args.projected_density,
                                      )
     if data_split_indices is None or args.ignore_split_indices:
         train_inds = np.random.choice(np.arange(len(dataset)), args.num_train, replace=False)
@@ -200,12 +211,14 @@ if args.np_dataset_test is not None:
                                     radial_coeffs_file=args.radial_coeffs_file,
                                     dtype=args.dtype,
                                     grid_fn=grid_fn,
+                                    pyscf_grid=args.pyscf_grid,
+                                    pyscf_rotate=rotate,
                                     sampling_fn=sampling_fn,
                                     grid_extent=grid_extent,
                                     grid_origin=grid_origin,
                                     cutoff=args.cutoff,
                                     df_loss_weights=args.df_loss_weights,
-                                    projected_density=args.projected_density
+                                    projected_density=args.projected_density,
                                     )
 
     if args.num_test is not None:
@@ -234,6 +247,8 @@ if args.cube_grid_valid:
                                     L0_coeffs_file=args.L0_coeffs_file,
                                     dtype=args.dtype,
                                     grid_fn=cube_grid_fn,
+                                    pyscf_grid=args.pyscf_grid,
+                                    pyscf_rotate=rotate,
                                     sampling_fn=cube_sampling_fn,
                                     verbose=args.verbose,
                                     cutoff=args.cutoff,
@@ -258,7 +273,7 @@ if args.center_energy:
         if args.cube_grid_valid:
             cube_dataset.center_energy(energy_mean)
     else:
-        atomic_energies = np.load(args.atomic_energies).item()
+        atomic_energies = np.load(args.atomic_energies, allow_pickle=True).item()
         dataset.normalize_energy(atomic_energies)
         if isinstance(test_dataset, torch.utils.data.Subset):
             test_dataset.dataset.normalize_energy(atomic_energies)
@@ -295,11 +310,29 @@ loss_comp['density'] = args.density_loss_comp
 loss_comp['df_coeffs'] = args.df_loss_comp
 loss_comp['energy'] = args.energy_loss_comp
 loss_comp['forces'] = args.forces_loss_comp
+loss_comp['dipole_moment'] = args.dipole_moment_loss_comp
+
+loss_comp_weights = {}
+loss_comp_weights['density'] = {loss_comp: loss_weight
+                                for loss_comp, loss_weight
+                                in zip(args.density_loss_comp, args.density_loss_comp_weights)}
+loss_comp_weights['df_coeffs'] = {loss_comp: loss_weight
+                                  for loss_comp, loss_weight
+                                  in zip(args.df_loss_comp, args.df_loss_comp_weights)}
+loss_comp_weights['dipole_moment'] = {loss_comp: loss_weight
+                                      for loss_comp, loss_weight
+                                      in zip(args.dipole_moment_loss_comp, args.dipole_moment_loss_comp_weights)}
+loss_comp_weights['energy'] = {loss_comp: loss_weight
+                               for loss_comp, loss_weight
+                               in zip(args.energy_loss_comp, args.energy_loss_comp_weights)}
+loss_comp_weights['forces'] = {loss_comp: loss_weight
+                               for loss_comp, loss_weight
+                               in zip(args.forces_loss_comp, args.forces_loss_comp_weights)}
 
 error_dict = ErrorDict(loss_weights, weights_balance=args.weights_balance,
                        percentage_error=args.percentage_error,
                        weights_decay=weights_decay, weights_min=weights_min,
-                       loss_comp=loss_comp, df_loss_weights=args.df_loss_weights,
+                       loss_comp=loss_comp, loss_comp_weights=loss_comp_weights, df_loss_weights=args.df_loss_weights,
                        )
 
 # print('error dict relative en', error_dict.relative_en)
@@ -429,6 +462,10 @@ for name, param in model.named_parameters():
     else:
         parameters.append(param)
 
+if args.core_density_basis > 0:
+    for param_group in model.density_repr_model.parameters():
+        param_group.requires_grad = False
+
 parameter_list = [
     {'params': parameters},
     {'params': weight_decay_parameters, 'weight_decay': float(args.weight_decay)}]
@@ -509,7 +546,7 @@ print('Starting test evaluation!!!')
 error_dict = ErrorDict(loss_weights, weights_balance=args.weights_balance,
                        percentage_error=args.percentage_error,
                        weights_decay=weights_decay, weights_min=weights_min,
-                       loss_comp=loss_comp, df_loss_weights=args.df_loss_weights,
+                       loss_comp=loss_comp, loss_comp_weights=loss_comp_weights, df_loss_weights=args.df_loss_weights,
                        # relative_en=True,
                        )
 test_errors = error_dict.empty()
@@ -542,8 +579,11 @@ for test_batch_num, data in enumerate(test_data_loader):
 
     # update test_errors (running average)
     for key in errors.keys():
-        test_errors[key] += (errors[key].item() -
-                             test_errors[key]) / (test_batch_num + 1)
+        if key not in test_errors.keys():
+            test_errors[key] = errors[key].item()
+        else:
+            test_errors[key] += (errors[key].item() -
+                                 test_errors[key]) / (test_batch_num + 1)
     predictions = None
     data = None
     errors = None

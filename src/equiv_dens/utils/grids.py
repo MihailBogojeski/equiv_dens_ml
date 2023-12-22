@@ -8,9 +8,10 @@ import time
 # from dftpy.grid import DirectGrid
 import equiv_dens.utils.base as utils
 from pyscf import gto
+import time
 
 
-def spherical_grid(atoms, level=2):
+def spherical_grid(atoms, level=2, bohr=False):
     numbers = np.unique(atoms['atom_numbers'].flatten()).astype(int)
     numbers = numbers[numbers > 0]
     positions = []
@@ -25,8 +26,12 @@ def spherical_grid(atoms, level=2):
 
     grid_spec = gen_grid.gen_atomic_grids(mol, radi_method=radi.treutler, level=level)
     for key in grid_spec.keys():
-        grid_spec[key] = (torch.tensor(grid_spec[key][0] * utils.to_angstrom),
-                          torch.tensor(grid_spec[key][1]))  # convert Bohr grid to Angstrom
+        if bohr:
+            grid_spec[key] = (torch.tensor(grid_spec[key][0]),
+                              torch.tensor(grid_spec[key][1]))  # convert Bohr grid to Angstrom
+        else:
+            grid_spec[key] = (torch.tensor(grid_spec[key][0] * utils.to_angstrom),
+                              torch.tensor(grid_spec[key][1]))  # convert Bohr grid to Angstrom
 
     return grid_spec
 
@@ -156,13 +161,13 @@ def spherical_radial_sampling(grid_spec, n_samp, atom_numbers, positions,
             weights = weights * pbecke[:, pos_idx] * (1.0 / pbecke.sum(1))
             grid_coords[i].append(coords)
             grid_weights[i].append(weights)
-            print('sampling time for atom', j, z, time.time() - start_jz)
+            # print('sampling time for atom', j, z, time.time() - start_jz)
             # print('i', i)
-        print('sampling time for mol', i, time.time() - start_i)
+        # print('sampling time for mol', i, time.time() - start_i)
     # print('len grid coords', len(grid_coords))
     # print('len grid coords[0]', len(grid_coords[0]))
     # print('shape grid coords[0][0]', grid_coords[0][0].shape)
-    print('sampling time after loop', time.time() - start)
+    # print('sampling time after loop', time.time() - start)
 
     grid_coords = [list(coord) for coord in zip(*grid_coords)]
     grid_weights = [list(coord) for coord in zip(*grid_weights)]
@@ -175,7 +180,7 @@ def spherical_radial_sampling(grid_spec, n_samp, atom_numbers, positions,
     else:
         grid_coords = [np.concatenate(atoms, axis=0) for atoms in grid_coords]
         grid_weights = [np.concatenate(atoms, axis=0) for atoms in grid_weights]
-    print('sampling time before collect', time.time() - start)
+    # print('sampling time before collect', time.time() - start)
 
     return collect_and_sample_grid(grid_coords, grid_weights, n_samp)
 
@@ -194,7 +199,7 @@ def spherical_radial_sampling_fast(grid_spec, n_samp, atom_numbers, positions,
     coords = [grid_spec[atom_symbols_max[i]][0].unsqueeze(0) @
               torch.tensor(random_rotation_matrix().to(positions)) + pos[:, i]
               for i in range(len(atom_symbols_max))]
-    print('sampling time after loop', time.time() - start)
+    # print('sampling time after loop', time.time() - start)
 
     grid_coords = [list(coord) for coord in zip(*grid_coords)]
     grid_weights = [list(coord) for coord in zip(*grid_weights)]
@@ -207,7 +212,7 @@ def spherical_radial_sampling_fast(grid_spec, n_samp, atom_numbers, positions,
     else:
         grid_coords = [np.concatenate(atoms, axis=0) for atoms in grid_coords]
         grid_weights = [np.concatenate(atoms, axis=0) for atoms in grid_weights]
-    print('sampling time before collect', time.time() - start)
+    # print('sampling time before collect', time.time() - start)
 
     return collect_and_sample_grid(grid_coords, grid_weights, n_samp)
 
@@ -262,10 +267,10 @@ def cubical_sampling(grid_spec, n_samp, _, pos):
     if isinstance(pos, torch.Tensor):
         flat_coords = torch.tensor(flat_coords).to(pos)
     if n_samp > flat_coords.shape[1]:
-        return flat_coords, torch.ones((flat_coords.shape[1], )) * grid_spec[1]
+        return flat_coords, torch.ones((flat_coords.shape[0], flat_coords.shape[1], )) * grid_spec[1]
     else:
         rand_idx = np.random.choice(np.arange(flat_coords.shape[1]), size=n_samp, replace=False)
-        return flat_coords[:, rand_idx, :], torch.ones((n_samp, )) * grid_spec[1]
+        return flat_coords[:, rand_idx, :], torch.ones((flat_coords.shape[0], n_samp, )) * grid_spec[1]
 
 
 # def dftpy_grid(lattice, gap):

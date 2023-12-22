@@ -69,6 +69,7 @@ else:
     step = checkpoint['step']
     restore = True
     data_split_indices = checkpoint['data_split_indices']
+print('args core density basis', args.core_density_basis)
 
 args_dict = vars(args)
 if args.args_file_name is not None:
@@ -79,7 +80,7 @@ wandb_date = directory.split('/')[-1].split('_')[0]
 wandb_name = wandb_id + wandb_date
 wandb_id = wandb_name + '_' + model_code
 wandb_run = wandb.init(project='equiv_dens', config=args_dict,
-                       name=wandb_name, id=wandb_id, resume='allow')
+                       name=wandb_name, id=wandb_id, resume='allow', mode=args.wandb_mode)
 print('model code:', model_code)
 print('max steps:', args.max_steps)
 print('normalize dens', args.normalize)
@@ -95,7 +96,14 @@ print("loading atoms from" + args.np_dataset + "...")
 
 # density_file = '/home/mihail/data/water_rot/full_densities.hdf5'
 # np_file = 'h2o_overlap_static.npy'
-if args.cube_grid:
+rotate = False
+if args.pyscf_grid:
+    grid_fn = partial(spherical_grid, level=args.spherical_grid_level)
+    sampling_fn = None
+    grid_origin = 0
+    grid_extent = None
+    rotate = True
+elif args.cube_grid:
     grid_origin = args.cube_origin
     grid_extent = np.array([args.cube_extent] * 3)
     grid_fn = partial(cubical_grid, nx=args.cube_size, ny=args.cube_size, nz=args.cube_size,
@@ -120,6 +128,9 @@ if checkpoint is None or 'training_phases' not in checkpoint:
         training_phases.append('energy')
 else:
     training_phases = checkpoint['training_phases']
+
+if args.core_density_basis > 0 and 'core_density' not in training_phases:
+    training_phases.append('core_density')
 ongoing_phases = [phase for phase in training_phases]
 df_weight = args.df_weight
 density_weight = args.density_weight
@@ -131,6 +142,10 @@ stop_at_learning_rate = args.stop_at_learning_rate
 validation_interval = args.validation_interval
 decay_patience = args.decay_patience
 max_steps = args.max_steps
+core_density_basis = args.core_density_basis
+density_loss_comp = args.density_loss_comp
+density_loss_comp_weights = args.density_loss_comp_weights
+print('training_phases', training_phases)
 
 
 for phase in training_phases:
@@ -155,6 +170,16 @@ for phase in training_phases:
         args.density_weight = density_weight
         if df_weight > 0:
             args.learning_rate = args.learning_rate / 10
+        if core_density_basis > 0:
+            args.core_density_basis = 0
+        args.density_loss_comp = density_loss_comp
+        args.density_loss_comp_weights = density_loss_comp_weights
+    elif phase == 'core_density':
+        args.density_weight = density_weight
+        args.core_density_basis = core_density_basis
+        args.learning_rate - args.learning_rate / 10
+        args.density_loss_comp = ['mse']
+        args.density_loss_comp_weights = [1.0]
     elif phase == 'dipole_moment':
         args.dipole_moment_weight = dipole_moment_weight
         if density_weight > 0:
@@ -189,6 +214,8 @@ for phase in training_phases:
                                L0_coeffs_file=args.L0_coeffs_file,
                                dtype=args.dtype,
                                grid_fn=grid_fn,
+                               pyscf_grid=args.pyscf_grid,
+                               pyscf_rotate=rotate,
                                sampling_fn=sampling_fn,
                                grid_extent=grid_extent,
                                grid_origin=grid_origin,
@@ -217,6 +244,8 @@ for phase in training_phases:
                                          L0_coeffs_file=args.L0_coeffs_file,
                                          dtype=args.dtype,
                                          grid_fn=grid_fn,
+                                         pyscf_grid=args.pyscf_grid,
+                                         pyscf_rotate=False,
                                          sampling_fn=sampling_fn,
                                          grid_extent=grid_extent,
                                          grid_origin=grid_origin,
@@ -255,6 +284,8 @@ for phase in training_phases:
                                         radial_coeffs_file=args.radial_coeffs_file,
                                         dtype=args.dtype,
                                         grid_fn=grid_fn,
+                                        pyscf_grid=args.pyscf_grid,
+                                        pyscf_rotate=False,
                                         sampling_fn=sampling_fn,
                                         grid_extent=grid_extent,
                                         grid_origin=grid_origin,
@@ -294,7 +325,7 @@ for phase in training_phases:
 
         valid_cube_dataset = torch.utils.data.Subset(cube_dataset, valid_dataset.indices)
 
-    if args.center_energy:
+    if args.center_energy and 'energy' in required_properties:
         if args.atomic_energies is None:
             train_ind = train_dataset.indices
             energy_mean = dataset.atoms['energy'][train_ind].mean()
@@ -351,10 +382,27 @@ for phase in training_phases:
     loss_comp['energy'] = args.energy_loss_comp
     loss_comp['forces'] = args.forces_loss_comp
 
+    loss_comp_weights = {}
+    loss_comp_weights['density'] = {loss_comp: loss_weight
+                                    for loss_comp, loss_weight
+                                    in zip(args.density_loss_comp, args.density_loss_comp_weights)}
+    loss_comp_weights['df_coeffs'] = {loss_comp: loss_weight
+                                      for loss_comp, loss_weight
+                                      in zip(args.df_loss_comp, args.df_loss_comp_weights)}
+    loss_comp_weights['dipole_moment'] = {loss_comp: loss_weight
+                                          for loss_comp, loss_weight
+                                          in zip(args.dipole_moment_loss_comp, args.dipole_moment_loss_comp_weights)}
+    loss_comp_weights['energy'] = {loss_comp: loss_weight
+                                   for loss_comp, loss_weight
+                                   in zip(args.energy_loss_comp, args.energy_loss_comp_weights)}
+    loss_comp_weights['forces'] = {loss_comp: loss_weight
+                                   for loss_comp, loss_weight
+                                   in zip(args.forces_loss_comp, args.forces_loss_comp_weights)}
+
     error_dict = ErrorDict(loss_weights, weights_balance=args.weights_balance,
                            percentage_error=args.percentage_error,
                            weights_decay=weights_decay, weights_min=weights_min,
-                           loss_comp=loss_comp, df_loss_weights=args.df_loss_weights,
+                           loss_comp=loss_comp, loss_comp_weights=loss_comp_weights, df_loss_weights=args.df_loss_weights,
                            )
 
 # print('error dict relative en', error_dict.relative_en)
@@ -412,7 +460,7 @@ for phase in training_phases:
         else:
             parameters.append(param)
 
-    if phase == 'energy':
+    if phase == 'energy' or args.core_density_basis > 0:
         for param_group in model.density_repr_model.parameters():
             param_group.requires_grad = False
         # for name, param in model.named_parameters():
@@ -510,15 +558,21 @@ for phase in training_phases:
                       )
     # with torch.autograd.detect_anomaly():
     trainer.run(args.max_steps, use_gpu=use_gpu, dtype=args.dtype)
+    print('finished trainer run of phase', phase)
     ongoing_phases.remove(phase)
     restore = False
 print('Starting test evaluation!!!')
 
-args.df_weight = 0.0 
+args.df_weight = 0.0
 args.density_weight = 1.0
-args.dipole_moment_weight = 1.0 
-args.energy_weight = 1.0
-args.forces_weight = 1.0
+args.dipole_moment_weight = 1.0
+if 'energy' in training_phases:
+    args.energy_weight = 1.0
+    args.forces_weight = 1.0
+else:
+    args.energy_weight = 0.0
+    args.forces_weight = 0.0
+
 required_properties = []
 if args.density_weight + args.dipole_moment_weight > 0:
     required_properties.append('density')
@@ -531,6 +585,7 @@ if args.energy_weight > 0:
 if args.forces_weight > 0:
     required_properties.append('forces')
 
+rotate = False
 
 dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_dataset,
                            orbitals_path=args.orbitals_file,
@@ -540,6 +595,8 @@ dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_datas
                            radial_coeffs_file=args.radial_coeffs_file,
                            L0_coeffs_file=args.L0_coeffs_file,
                            dtype=args.dtype,
+                           pyscf_grid=args.pyscf_grid,
+                           pyscf_rotate=rotate,
                            grid_fn=grid_fn,
                            sampling_fn=sampling_fn,
                            grid_extent=grid_extent,
@@ -568,6 +625,8 @@ elif args.np_dataset_valid is not None:
                                      L0_coeffs_file=args.L0_coeffs_file,
                                      dtype=args.dtype,
                                      grid_fn=grid_fn,
+                                     pyscf_grid=args.pyscf_grid,
+                                     pyscf_rotate=rotate,
                                      sampling_fn=sampling_fn,
                                      grid_extent=grid_extent,
                                      grid_origin=grid_origin,
@@ -606,6 +665,8 @@ if args.np_dataset_test is not None:
                                     radial_coeffs_file=args.radial_coeffs_file,
                                     dtype=args.dtype,
                                     grid_fn=grid_fn,
+                                    pyscf_grid=args.pyscf_grid,
+                                    pyscf_rotate=rotate,
                                     sampling_fn=sampling_fn,
                                     grid_extent=grid_extent,
                                     grid_origin=grid_origin,
@@ -621,7 +682,7 @@ if args.np_dataset_test is not None:
     test_dataset = torch.utils.data.Subset(test_dataset, np.arange(test_size))
 
 
-if args.center_energy:
+if args.center_energy and 'energy' in required_properties:
     if args.atomic_energies is None:
         train_ind = train_dataset.indices
         energy_mean = dataset.atoms['energy'][train_ind].mean()
@@ -666,9 +727,34 @@ if training_phases[-1] == 'dipole_moment':
     loss_weights['forces'] = 0
 
 print('loss weights test', loss_weights)
+loss_comp = {}
+loss_comp['density'] = ['perc_mae', 'perc_rmse']
+loss_comp['dipole_moment'] = args.dipole_moment_loss_comp
+loss_comp['df_coeffs'] = args.df_loss_comp
+loss_comp['energy'] = args.energy_loss_comp
+loss_comp['forces'] = args.forces_loss_comp
+loss_comp['dipole_moment'] = args.dipole_moment_loss_comp
+
+loss_comp_weights = {}
+loss_comp_weights['density'] = {'perc_mae': 1, 'perc_rmse': 1}
+loss_comp_weights['df_coeffs'] = {loss_comp: loss_weight
+                                  for loss_comp, loss_weight
+                                  in zip(args.df_loss_comp, args.df_loss_comp_weights)}
+loss_comp_weights['energy'] = {loss_comp: loss_weight
+                               for loss_comp, loss_weight
+                               in zip(args.energy_loss_comp, args.energy_loss_comp_weights)}
+loss_comp_weights['forces'] = {loss_comp: loss_weight
+                               for loss_comp, loss_weight
+                               in zip(args.forces_loss_comp, args.forces_loss_comp_weights)}
+loss_comp_weights['dipole_moment'] = {loss_comp: loss_weight
+                                      for loss_comp, loss_weight
+                                      in zip(args.dipole_moment_loss_comp, args.dipole_moment_loss_comp_weights)}
+
 
 error_dict = ErrorDict(loss_weights, weights_balance=args.weights_balance,
                        percentage_error=args.percentage_error,
+                       loss_comp=loss_comp,
+                       loss_comp_weights=loss_comp_weights,
                        # relative_en=True,
                        )
 model = load_model(args, dataset, train=False)
@@ -702,8 +788,11 @@ for test_batch_num, data in enumerate(test_data_loader):
 
     # update test_errors (running average)
     for key in errors.keys():
-        test_errors[key] += (errors[key].item() -
-                             test_errors[key]) / (test_batch_num + 1)
+        if key not in test_errors.keys():
+            test_errors[key] = errors[key].item()
+        else:
+            test_errors[key] += (errors[key].item() -
+                                 test_errors[key]) / (test_batch_num + 1)
     predictions = None
     data = None
     errors = None
