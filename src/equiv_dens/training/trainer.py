@@ -108,7 +108,7 @@ class Trainer:
             self.step = 0
             self.best_errors = self.error_dict.empty(fill_value=math.inf)
             self.valid_errors = [self.error_dict.empty(fill_value=math.inf) for i in range(len(self.validation_loaders))]
-
+        # print('init of self.valid_errors', self.valid_errors)
         self.train_errors = self.error_dict.empty()  # reset train error metrics
         self.wandb = wandb
 
@@ -124,7 +124,7 @@ class Trainer:
                     self.checkpoint_path, 'checkpoint_' + str(self.step).zfill(10) + phase + '.pth'))
             chk_name = 'latest_checkpoint.pth'
         else:
-            chk_name = 'best_checkpoint.pth'
+            chk_name = 'best_checkpoint' + phase + '.pth'
 
         # overwrite latest checkpoint
         checkpoint = {
@@ -207,16 +207,21 @@ class Trainer:
         self.epoch = checkpoint['epoch']
         self.best_errors = checkpoint['best_errors']
         self.valid_errors = checkpoint['valid_errors']
-        self._module.load_state_dict(checkpoint['model_state_dict'])
-        self.error_dict = checkpoint['error_dict']
-        self.training_phases = checkpoint['training_phases']
+        missing, unexpected = self._module.load_state_dict(checkpoint['model_state_dict'], strict=False)
+
+        self.data_split_indices = checkpoint['data_split_indices']
         if not hasattr(self.error_dict, 'relative_en'):
             self.error_dict.relative_en = False
-        self.data_split_indices = checkpoint['data_split_indices']
-        for i in range(len(self.optimizers)):
-            self.optimizers[i].load_state_dict(checkpoint['optimizers_state_dict'][i])
         for i in range(len(self.schedulers)):
             self.schedulers[i].load_state_dict(checkpoint['schedulers_state_dict'][i])
+        for i in range(len(self.optimizers)):
+            # try:
+            self.optimizers[i].load_state_dict(checkpoint['optimizers_state_dict'][i])
+            # except Exception:
+            #     self.schedulers[i]['last_lr'] = self.schedulers[i]['last_lr'] / 1000
+            #     for param_group in self.optimizers[i].param_groups:
+            #         param_group['lr'] = param_group['lr'] / 1000
+            #     print('self.optimizers lr', self.optimizers[i].param_groups[0]['lr'])
         if self.ema_params is not None:
             checkpoint_ema = checkpoint['exponential_moving_average']
             if checkpoint_ema is not None:
@@ -230,6 +235,8 @@ class Trainer:
                 self.exponential_moving_average = None
                 self.ema_params = None
 
+        self.training_phases = checkpoint['training_phases']
+
     def run(self, n_steps, use_gpu=False, dtype=torch.float64):
         self._model.to(dtype)
         if use_gpu:
@@ -237,14 +244,16 @@ class Trainer:
 
         self._aux_to(use_gpu, dtype)
 
-        if use_gpu and torch.cuda.device_count() > 1:
+        if use_gpu and self.args.multiple_gpus and torch.cuda.device_count() > 1:
             self._model = torch.nn.DataParallel(self._model)
             self._module = self._model.module
         else:
             self._module = self._model
 
-        if use_gpu:
+        if use_gpu and self.args.multiple_gpus:
             print("Training on " + str(torch.cuda.device_count()) + " GPUs:")
+        elif use_gpu:
+            print("Training on one GPU:")
         else:
             print("Training on the CPU:")
 
@@ -275,9 +284,11 @@ class Trainer:
                         print('validation for', valid_data_loader)
                     if self._module.calculate_forces:
                         self.valid_errors[i], is_best = self._validate(valid_data_loader, use_gpu, check_best=self.valid_check_best[i])
+                        # print('self valid errors i', self.valid_errors[i])
                     else:
                         with torch.no_grad():
                             self.valid_errors[i], is_best = self._validate(valid_data_loader, use_gpu, check_best=self.valid_check_best[i])
+                        # print('self valid errors i', self.valid_errors[i])
                     if self.valid_check_best[i]:
                         new_best = is_best
                 torch.cuda.empty_cache()
@@ -454,7 +465,10 @@ class Trainer:
 
         # update train_errors (running average)
         for key in errors.keys():
-            self.train_errors[key] += (errors[key].item() -
+            if key not in self.train_errors.keys():
+                self.train_errors[key] = errors[key].item()
+            else:
+                self.train_errors[key] += (errors[key].item() -
                                        self.train_errors[key]) / (self.train_batch_num + 1)
         if self.timing:
             print('train step time', time.time() - start)
@@ -547,9 +561,21 @@ class Trainer:
                 torch.save(data, self.model_code + '_true_crash_dump_valid_' + str(self.step) + '.pth')
                 torch.save(self._module.state_dict(), self.model_code + '_model_crash_dump_valid_' + str(self.step) + '.pth')
                 continue
+            # print('valid errors', errors)
             for key in errors.keys():
-                valid_errors[key] += (errors[key].item() -
-                                      valid_errors[key]) / (valid_batch_num + 1)
+                if key not in valid_errors.keys():
+                    # print('first errors key', key, errors[key])
+                    # print('first errors key item', key, errors[key].item())
+                    valid_errors[key] = errors[key].item()
+                    # print('valid_errors', key, 'after', valid_errors[key])
+                else:
+                    # print('valid_errors', key, 'before', valid_errors[key])
+                    valid_errors[key] += (errors[key].item() -
+                                          valid_errors[key]) / (valid_batch_num + 1)
+                    # print('valid_errors', key, 'after', valid_errors[key])
+                    # print('added errors key', key, errors[key])
+                    # print('added errors key item', key, errors[key].item())
+                # print('valid_errors', key, valid_errors[key])
             if self.timing:
                 print('valid step time:', time.time() - start)
             if self.memory:
@@ -621,15 +647,14 @@ class Trainer:
         for key in self.error_dict.loss_weights.keys():
             if self.error_dict.loss_weights[key] > 0:
                 progress_string += "\n  " + key + ":\n"
-                progress_string += "    train mae: %10.6f" % self.train_errors[key + '_mae']
-                progress_string += "    train rmse: %10.6f" % self.train_errors[key + '_rmse']
-                progress_string += "    train loss: %10.6f" % self.train_errors['loss']
+                print('train errors keys', self.train_errors.keys())
+                for loss_key in self.train_errors.keys():
+                    err = '_'.join(loss_key.split('_')[0:]) if len(loss_key.split('_')) > 1 else loss_key
+                    progress_string += "    train " + err + ": %10.6f" % self.train_errors[loss_key]
                 for i in range(len(self.valid_errors)):
                     progress_string += "    valid " + str(i) + " mae: %10.6f" % self.valid_errors[i][key + '_mae']
                     if self.valid_check_best[i]:
                         progress_string += "    valid " + str(i) + " loss: %10.6f" % self.valid_errors[i][key + '_loss']
-                progress_string += "     best mae: %10.6f" % self.best_errors[key + '_mae']
-                progress_string += "     best rmse: %10.6f" % self.best_errors[key + '_rmse']
                 progress_string += "    best loss: %10.6f" % self.best_errors['loss']
 
         for optimizer in self.optimizers:

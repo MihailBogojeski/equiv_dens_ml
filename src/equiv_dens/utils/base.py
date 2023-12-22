@@ -3,11 +3,11 @@ import scipy
 import ase
 import ase.io
 import torch
-from torch import nn
 import ase.data
 import pyscf
 from pyscf.data import nist
 import math
+from equiv_dens.utils import cubetools
 
 to_bohr = 1 / pyscf.lib.param.BOHR
 to_angstrom = pyscf.lib.param.BOHR
@@ -39,14 +39,6 @@ def eV_to_kcal(en):
 
 def kelvin_to_kcal(en):
     return en * 0.001987191686485529
-
-
-# def hartree_to_eV(en):
-#     return en * 27.2116
-#
-#
-# def eV_to_hartree(en):
-#     return en / 27.2116
 
 
 def kcal_to_kcal(en):
@@ -259,15 +251,18 @@ def ase_to_npy(mols):
     return np.array(arr)
 
 
-def ase_to_npy2(mols):
+def ase_to_npy2(mols, batch=True):
     positions = []
     atom_numbers = []
     for m in mols:
         positions.append(m.get_positions())
         atom_numbers.append(m.get_atomic_numbers())
 
-    numbers, props = compress_batch_atoms(numbers, {'positions': positions}) 
-    props['atom_numbers'] = numbers
+    if batch:
+        numbers, props = compress_batch_atoms(atom_numbers, {'positions': positions})
+        props['atom_numbers'] = numbers.astype(int)
+    else:
+        props = {'positions': positions, 'atom_numbers': atom_numbers}
 
     return props
 
@@ -280,7 +275,7 @@ def npy_to_ase(arr, atom_list):
     mols = []
     for i in range(arr.shape[0]):
         nonzero = atom_list[i] != 0
-        mols.append(ase.Atoms(atom_list[i][nonzero], positions=arr[i][nonzero]))
+        mols.append(ase.Atoms(atom_list[i][nonzero], positions=arr[i, nonzero]))
 
     return mols
 
@@ -677,6 +672,8 @@ def batch_compressed_atoms(atoms, relevant_keys):
     batch_atom_count = batch_nums.shape[1]
     batch_props = {}
     for key in relevant_keys:
+        if key not in atoms.keys():
+            continue
         if isinstance(atoms[key], list):
             batch_props[key] = [torch.zeros((batch_size * batch_atom_count,
                                              *atoms[key][i].shape[2:])).to(atoms[key][i])
@@ -783,3 +780,37 @@ def _scatter_add(
     tmp = torch.zeros(shape, dtype=x.dtype, device=x.device)
     y = tmp.index_add(dim, idx_i, x)
     return y
+
+
+def write_cube_from_atoms(density, atoms, fname, cube_size):
+    """
+    Convenience function to write a cube file from a list of atoms and a density.
+
+    params:
+        atom:       dictionary containing atoms data comparible with PhiSNet
+        density:    3D numpy array containing the density expanded on a grid
+        fname:      filename of cubefile (existing files overwritten)
+
+    returns: None
+    """
+    meta = {'atoms': []}
+    for i in range(atoms['positions'].shape[1]):
+        pos = angstrom_to_bohr(atoms['positions'])
+        meta['atoms'].append((atoms['atom_numbers'].squeeze()[i], pos.squeeze()[i].tolist()))
+    print('atoms', meta['atoms'])
+    density_cube = density.reshape(cube_size, cube_size, cube_size)
+    print('density cube shape', density_cube.shape)
+    min_coords, _ = torch.min(angstrom_to_bohr(atoms['coords'].view(-1, 3)), dim=0)
+    max_coords, _ = torch.max(angstrom_to_bohr(atoms['coords'].view(-1, 3)), dim=0)
+    print('min coords', min_coords)
+    print('max coords', max_coords)
+    print('grid_weights', atoms['coord_weights'])
+    lattice = (max_coords - min_coords).detach().cpu().numpy()
+    print('lattice', lattice)
+    step_size = lattice/density_cube.squeeze().shape
+    print('step_size', step_size)
+    meta['org'] = min_coords.tolist()
+    meta['xvec'] = [step_size[0], 0, 0]
+    meta['yvec'] = [0, step_size[1], 0]
+    meta['zvec'] = [0, 0, step_size[2]]
+    cubetools.write_cube(data=density_cube, meta=meta, fname=fname)

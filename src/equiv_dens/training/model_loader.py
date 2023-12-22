@@ -77,13 +77,16 @@ def load_model(args, dataset, train=False):
         init_coeffs=dataset.L0_coeffs,
         coeff_weights=dataset.coeff_weights,
         pred_radial_coeffs=args.pred_radial_coeffs,
+        init_radial_coeffs=dataset.radial_coeffs,
+        ml_width_min=args.ml_width_min,
+        ml_width_max=args.ml_width_max,
         scale_sph_order=args.scale_sph_order,
         normalize=args.normalize,
         parity=args.parity_dens,
     )
 
     if args.density_weight + args.dipole_moment_weight > 0:
-        expansion_model = density_expansion(dataset.orbital_basis_num, radial_coeffs=dataset.radial_coeffs,
+        expansion_model = density_expansion(dataset.orbital_basis_num,
                                             expansion_constraint=args.expansion_constraint,
                                             integral_constraint=args.integral_constraint,
                                             integral_scale=args.integral_scale,
@@ -93,6 +96,27 @@ def load_model(args, dataset, train=False):
                                             memory=args.memory,
                                             grid_scaling_factor=args.grid_scaling_factor,
                                             )
+        if args.core_density_basis > 0:
+            core_coeffs_model = density_coeffs_network(
+                orbital_basis=dataset.orbital_basis_num,
+                order=args.order[-1],
+                num_features=args.num_features,
+                positive_coeffs=args.positive_coeffs,
+                clebsch_gordan=clebsch_gordan,
+                verbose=args.verbose,
+                timing=args.timing,
+                memory=args.memory,
+                init_coeffs=dataset.L0_coeffs,
+                init_radial_coeffs=dataset.radial_coeffs,
+                ml_width_min=args.ml_width_min,
+                ml_width_max=args.ml_width_max,
+                coeff_weights=dataset.coeff_weights,
+                pred_radial_coeffs=args.pred_radial_coeffs,
+                scale_sph_order=args.scale_sph_order,
+                normalize=args.normalize,
+                parity=args.parity_dens,
+                core_basis_ratio=args.core_density_basis,
+            )
     else:
         expansion_model = None
 
@@ -180,6 +204,9 @@ def load_model(args, dataset, train=False):
     print('density_weight', args.density_weight)
     print('dipole_moment_weight', args.dipole_moment_weight)
     if args.density_weight + args.dipole_moment_weight > 0:
+        if args.core_density_basis > 0:
+            property_models['core_density'] = core_coeffs_model
+            calculate_forces_dict['core_density'] = False
         property_models['density'] = expansion_model
         calculate_forces_dict['density'] = False
     if args.energy_min_weight > 0:
@@ -199,7 +226,7 @@ def load_model(args, dataset, train=False):
                        conversions_in=conversions_in,
                        conversions_out=conversions_out,
                        scaling=force_scaling,
-                      )
+                       )
     # print('dft network', model)
     if args.restart is not None:
         directory = args.restart  # load directory name
@@ -226,21 +253,27 @@ def load_model(args, dataset, train=False):
         missing, unexpected = model.load_state_dict(state_dict, strict=False)
         if len(unexpected) > 0:
             for key in unexpected:
-                if args.density_weight + args.df_weight > 0 and 'property_models.energy' not in key:
+                if args.density_weight + args.df_weight > 0 \
+                        and 'property_models.energy' not in key \
+                        and 'property_models.density.init_' not in key \
+                        and 'property_models.core_density' not in key:
                     print('Unexpected keywords', key)
                     raise Exception('Unexpected keywords in density model state dict')
-                elif args.energy_weight + args.forces_weight > 0 and 'property_models.density' not in key:
+                elif args.energy_weight + args.forces_weight > 0 and 'density' not in key:
                     print('Unexpected keywords', key)
                     raise Exception('Unexpected keywords in energy model state dict')
-        if len(missing) > 0:
+        print(missing)
+        if len(missing) > 0 and not args.ignore_missing_keywords:
             for key in missing:
                 if args.df_weight > 0 and 'property_models.density' not in key:
                     print('Missing keywords', key)
                     raise Exception('Missing keywords in df model state dict')
-                elif args.density_weight > 0 and 'property_models.density' not in key:
-                    print('Missing keywords', key)
-                    raise Exception('Missing keywords in density model state dict')
-                if args.energy_weight + args.forces_weight > 0 and ('property_models.energy' not in key and 'property_models.density' not in key):
+                elif args.density_weight > 0:
+                    if 'property_models.density' not in key and not (args.core_density_basis > 0) \
+                            and 'init_' not in key and 'energy' not in key:
+                        print('Missing keywords', key)
+                        raise Exception('Missing keywords in density coeffs model state dict')
+                if args.energy_weight + args.forces_weight > 0 and 'property_models.energy' in key:
                     print('Missing keywords', key)
                     raise Exception('Missing keywords in energy model state dict')
     if not train:
@@ -253,7 +286,7 @@ def load_model(args, dataset, train=False):
         # "module" is used whenever direct access is needed, e.g. for parameters,
         # whereas "model" may be DataParallel and is used for inference only
 
-        if args.use_gpu and torch.cuda.device_count() > 1:
+        if args.use_gpu and args.multiple_gpus and torch.cuda.device_count() > 1:
             model = torch.nn.DataParallel(model)
 
     return model
