@@ -343,6 +343,12 @@ class AtomsDensityData(Dataset):
             print('atom_props', atom_props)
             print('props', props)
         positions = torch.from_numpy(props['positions']).type(self.dtype)
+        if self.centered_positions:
+            # print('atom center', positions.mean(axis=0))
+            pos_shift = -(torch.mean(positions, axis=1, keepdim=True))
+        else:
+            pos_shift = 0
+        positions += pos_shift
         properties = {}
         if self.timing:
             print('props time', time.time() - props_start)
@@ -361,9 +367,9 @@ class AtomsDensityData(Dataset):
                 if pname == 'density':
                     density_start = time.time()
                     if self.projected_density:
-                        properties[pname] = self.sample_projected_density(idx, properties['coords'])
+                        properties[pname] = self.sample_projected_density(idx, properties['coords'] - pos_shift)
                     else:
-                        properties[pname] = self.sample_density(idx, properties['coords'])
+                        properties[pname] = self.sample_density(idx, properties['coords'] - pos_shift)
                     if self.timing:
                         print('density time:', time.time() - density_start)
             else:
@@ -377,9 +383,6 @@ class AtomsDensityData(Dataset):
         properties['atom_mask'] = properties['atom_numbers'] > 0
         properties['idx'] = torch.LongTensor(idx).unsqueeze(-1)
         # print('positions', positions)
-        if self.centered_positions:
-            # print('atom center', positions.mean(axis=0))
-            positions -= torch.sum(positions * atom_numbers, 0)/torch.sum(atom_numbers, 1)
         properties["_idx"] = torch.LongTensor(np.array(idx, dtype=int))
         neighbor_start = time.time()
         nl = utils.TorchNeighborList(self.cutoff)
