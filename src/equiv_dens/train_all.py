@@ -2,7 +2,7 @@
 import os
 from datetime import datetime
 import torch
-from tensorboardX import SummaryWriter
+import wandb
 from equiv_dens.training.parse_command_line_arguments import parse_command_line_arguments
 from equiv_dens.utils.misc import generate_id
 from equiv_dens.training.errors import ErrorDict
@@ -27,6 +27,7 @@ from functools import partial
 """
 # read arguments
 args, hyperparam_args = parse_command_line_arguments()
+wandb.login()
 
 # no restart directory specified
 if args.restart is None:
@@ -69,6 +70,16 @@ else:
     restore = True
     data_split_indices = checkpoint['data_split_indices']
 
+args_dict = vars(args)
+if args.args_file_name is not None:
+    wandb_id = args.args_file_name + '_'
+else:
+    wandb_id = ''
+wandb_date = directory.split('/')[-1].split('_')[0]
+wandb_name = wandb_id + wandb_date
+wandb_id = wandb_name + '_' + model_code
+wandb_run = wandb.init(project='equiv_dens', config=args_dict,
+                       name=wandb_name, id=wandb_id, resume='allow')
 print('model code:', model_code)
 print('max steps:', args.max_steps)
 print('normalize dens', args.normalize)
@@ -84,7 +95,14 @@ print("loading atoms from" + args.np_dataset + "...")
 
 # density_file = '/home/mihail/data/water_rot/full_densities.hdf5'
 # np_file = 'h2o_overlap_static.npy'
-if args.cube_grid:
+rotate = False
+if args.pyscf_grid:
+    grid_fn = partial(spherical_grid, level=args.spherical_grid_level)
+    sampling_fn = None
+    grid_origin = 0
+    grid_extent = None
+    rotate = True
+elif args.cube_grid:
     grid_origin = args.cube_origin
     grid_extent = np.array([args.cube_extent] * 3)
     grid_fn = partial(cubical_grid, nx=args.cube_size, ny=args.cube_size, nz=args.cube_size,
@@ -110,11 +128,11 @@ if checkpoint is None or 'training_phases' not in checkpoint:
 else:
     training_phases = checkpoint['training_phases']
 ongoing_phases = [phase for phase in training_phases]
-df_weight = args.df_weight 
-density_weight = args.density_weight 
-dipole_moment_weight = args.dipole_moment_weight 
+df_weight = args.df_weight
+density_weight = args.density_weight
+dipole_moment_weight = args.dipole_moment_weight
 energy_weight = args.energy_weight
-forces_weight = args.forces_weight 
+forces_weight = args.forces_weight
 learning_rate = args.learning_rate
 stop_at_learning_rate = args.stop_at_learning_rate
 validation_interval = args.validation_interval
@@ -123,7 +141,7 @@ max_steps = args.max_steps
 
 
 for phase in training_phases:
-    args.df_weight = 0.0 
+    args.df_weight = 0.0
     args.density_weight = 0.0
     args.dipole_moment_weight = 0.0
     args.energy_weight = 0.0
@@ -134,12 +152,12 @@ for phase in training_phases:
     args.decay_patience = decay_patience
     args.max_steps = max_steps
     if phase == 'df':
-        args.df_weight = df_weight 
+        args.df_weight = df_weight
         if density_weight > 0:
             if args.fast_df:
                 args.max_steps = args.max_steps / 10
                 args.validation_interval = args.validation_interval / 10
-                args.decay_patience = args.decay_patience * 2 
+                args.decay_patience = args.decay_patience * 2
     elif phase == 'density':
         args.density_weight = density_weight
         if df_weight > 0:
@@ -178,10 +196,13 @@ for phase in training_phases:
                                L0_coeffs_file=args.L0_coeffs_file,
                                dtype=args.dtype,
                                grid_fn=grid_fn,
+                               pyscf_grid=args.pyscf_grid,
+                               pyscf_rotate=rotate,
                                sampling_fn=sampling_fn,
                                grid_extent=grid_extent,
                                grid_origin=grid_origin,
                                verbose=args.verbose,
+                               timing=args.timing,
                                cutoff=args.cutoff,
                                df_loss_weights=args.df_loss_weights)
 
@@ -205,6 +226,8 @@ for phase in training_phases:
                                          L0_coeffs_file=args.L0_coeffs_file,
                                          dtype=args.dtype,
                                          grid_fn=grid_fn,
+                                         pyscf_grid=args.pyscf_grid,
+                                         pyscf_rotate=rotate,
                                          sampling_fn=sampling_fn,
                                          grid_extent=grid_extent,
                                          grid_origin=grid_origin,
@@ -243,6 +266,8 @@ for phase in training_phases:
                                         radial_coeffs_file=args.radial_coeffs_file,
                                         dtype=args.dtype,
                                         grid_fn=grid_fn,
+                                        pyscf_grid=args.pyscf_grid,
+                                        pyscf_rotate=rotate,
                                         sampling_fn=sampling_fn,
                                         grid_extent=grid_extent,
                                         grid_origin=grid_origin,
@@ -282,7 +307,7 @@ for phase in training_phases:
 
         valid_cube_dataset = torch.utils.data.Subset(cube_dataset, valid_dataset.indices)
 
-    if args.center_energy:
+    if args.center_energy and 'energy' in required_properties:
         if args.atomic_energies is None:
             train_ind = train_dataset.indices
             energy_mean = dataset.atoms['energy'][train_ind].mean()
@@ -446,10 +471,6 @@ for phase in training_phases:
         schedulers.append(torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizers[1], mode='min', factor=args.decay_factor, patience=args.decay_patience, verbose=args.verbose))
 
-# create summary writer for tensorboard
-    summary = SummaryWriter(logdir=os.path.join(
-        directory, 'logs'), purge_step=step)
-
     total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print('Total params is {}'.format(total_params))
     validation_loaders = [valid_data_loader]
@@ -483,6 +504,7 @@ for phase in training_phases:
                       checkpoint_interval=args.checkpoint_interval,
                       validation_interval=args.validation_interval,
                       summary_interval=args.summary_interval,
+                      wandb=wandb_run,
                       ema_params=ema_params,
                       args=args,
                       hyperparam_args=hyperparam_args,
@@ -531,6 +553,8 @@ dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_datas
                            radial_coeffs_file=args.radial_coeffs_file,
                            L0_coeffs_file=args.L0_coeffs_file,
                            dtype=args.dtype,
+                           pyscf_grid=args.pyscf_grid,
+                           pyscf_rotate=rotate,
                            grid_fn=grid_fn,
                            sampling_fn=sampling_fn,
                            grid_extent=grid_extent,
@@ -559,6 +583,8 @@ elif args.np_dataset_valid is not None:
                                      L0_coeffs_file=args.L0_coeffs_file,
                                      dtype=args.dtype,
                                      grid_fn=grid_fn,
+                                     pyscf_grid=args.pyscf_grid,
+                                     pyscf_rotate=rotate,
                                      sampling_fn=sampling_fn,
                                      grid_extent=grid_extent,
                                      grid_origin=grid_origin,
@@ -597,6 +623,8 @@ if args.np_dataset_test is not None:
                                     radial_coeffs_file=args.radial_coeffs_file,
                                     dtype=args.dtype,
                                     grid_fn=grid_fn,
+                                    pyscf_grid=args.pyscf_grid,
+                                    pyscf_rotate=rotate,
                                     sampling_fn=sampling_fn,
                                     grid_extent=grid_extent,
                                     grid_origin=grid_origin,
@@ -612,7 +640,7 @@ if args.np_dataset_test is not None:
     test_dataset = torch.utils.data.Subset(test_dataset, np.arange(test_size))
 
 
-if args.center_energy:
+if args.center_energy and 'energy' in required_properties:
     if args.atomic_energies is None:
         train_ind = train_dataset.indices
         energy_mean = dataset.atoms['energy'][train_ind].mean()
@@ -699,4 +727,6 @@ for test_batch_num, data in enumerate(test_data_loader):
     data = None
     errors = None
 
+for key in test_errors.keys():
+    wandb_run.summary[key + '_test'] = test_errors[key]
 print('test errors', test_errors)

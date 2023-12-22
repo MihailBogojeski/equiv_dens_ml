@@ -29,6 +29,8 @@ def parse_command_line_arguments(arg_file=None):
     args_restart.add_argument("--fix_arguments", metavar='True|False', type=str2bool, default=False,
                               choices=[True, False],
                               help="Do not change arguments after loading checkpoint (except hyperparams).")
+    args_restart.add_argument("--args_file_name", metavar='STR', type=str, default=None,
+                              help="Save filename of .txt file containing arguments for easier bookkeeping.")
 
     # arguments for neural network architecture hyperparameters
     args_hyperparams = parser.add_argument_group("neural network architecture hyperparameters")
@@ -242,6 +244,8 @@ def parse_command_line_arguments(arg_file=None):
                                choices=[True, False], help="Normalize the coefficients using softmax.")
     args_training.add_argument("--percentage_error", metavar='True|False', type=str2bool, default=True,
                                choices=[True, False], help="Measure error as a percentage of the density integral.")
+    args_training.add_argument("--pyscf_grid", metavar='True|False', type=str2bool, default=False,
+                               choices=[True, False], help="Use pyscf for density grid generation.")
     args_training.add_argument("--cube_grid", metavar='True|False', type=str2bool, default=False,
                                choices=[True, False], help="Use cubical densty grid for training.")
     args_training.add_argument("--cube_grid_valid", metavar='True|False', type=str2bool, default=False,
