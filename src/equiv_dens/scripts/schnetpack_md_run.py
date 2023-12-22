@@ -11,6 +11,7 @@ from equiv_dens.md.dft_network_calculator import DFTNetworkCalculator
 
 import numpy as np
 from functools import partial
+import wandb
 
 # from respa_md import RESPAVerlet, RESPALangevin
 from schnetpack.md import System
@@ -18,10 +19,31 @@ from schnetpack.md import MaxwellBoltzmannInit
 from schnetpack.md.integrators import VelocityVerlet
 from schnetpack.md import Simulator
 from schnetpack.md.simulation_hooks import thermostats
-from schnetpack.md.simulation_hooks import logging_hooks
+from schnetpack.md.simulation_hooks import callback_hooks
+
+
+def wandb_summary(wandb, md_system):
+    wandb.log({'energy': torch.mean(md_system.energy)})
+    wandb.log({'forces': torch.mean(torch.norm(md_system.forces, dim=-1))})
+    pos = md_system.positions
+    n_mols = md_system.n_molecules
+    pos = torch.reshape(pos, (n_mols, -1, 3))
+    distances, _ = utils.calculate_distances_and_directions(pos)
+    wandb.log({'distances': torch.mean(distances)})
 
 
 def run_molecular_dynamics(args, dataset, model):
+    wandb.login()
+    args_dict = vars(args)
+    if args.args_file_name is not None:
+        wandb_id = args.args_file_name + '_'
+    else:
+        wandb_id = ''
+    wandb_date = directory.split('/')[-1].split('_')[0]
+    wandb_name = wandb_id + wandb_date
+    wandb_id = wandb_name + '_' + model_code
+    wandb_run = wandb.init(project='equiv_dens', config=args_dict,
+                           name=wandb_name, id=wandb_id, resume='allow')
     np.random.seed(args.split_seed)
     # start_ind = 10
     if args.start_idx is None:
@@ -30,24 +52,21 @@ def run_molecular_dynamics(args, dataset, model):
         start_idx = args.start_idx
     print('dataset atoms positions type', dataset.atoms['positions'].dtype)
     atoms_data = dataset.get_properties(start_idx)
+    # print('data energy', atoms_data['energy'])
+    # print('avg_force', torch.mean(torch.norm(atoms_data['forces'], dim=-1)))
     print('data positions type', type(atoms_data['positions']))
     mols = utils.npy_to_ase(atoms_data['batch_positions'].detach().cpu().numpy(),
                             atoms_data['batch_atom_numbers'].detach().cpu().numpy())
     print('positions shape', atoms_data['positions'].shape)
     # Check if a GPU is available and use a CPU otherwise
-    if args.use_gpu:
-        md_device = "cuda"
-    else:
-        md_device = "cpu"
-
     # Number of molecular replicas
     n_replicas = 1
 
     # Initialize the system
-    md_system = System(n_replicas, device=md_device)
+    md_system = System()
 
     # Load the structure
-    md_system.load_molecules(mols)
+    md_system.load_molecules(mols, n_replicas)
     system_temperature = args.temperature  # Kelvin
 
     # Set up the initializer
@@ -76,15 +95,16 @@ def run_molecular_dynamics(args, dataset, model):
     md_calculator = DFTNetworkCalculator(
         model,
         required_properties=required_properties,
-        force_handle='forces',
-        position_conversion=args.position_conversion,
-        force_conversion=args.force_conversion,
-        property_conversion={'energy': args.energy_conversion},
+        force_key='forces',
+        energy_key='energy',
+        position_unit=args.position_conversion,
+        energy_unit=args.energy_conversion,
         density_expansion=args.density_weight > 0,
         grid_spec=dataset.grid_spec,
         grid_sampling_fn=dataset.sampling_fn,
         use_gpu=args.use_gpu,
-        detach=True,
+        cutoff=args.cutoff,
+        pyscf_grid=args.pyscf_grid,
     )
 
     simulation_hooks = []
@@ -99,12 +119,12 @@ def run_molecular_dynamics(args, dataset, model):
     # Set up data streams to store positions, momenta and all properties
     target_properties = [p for p in required_properties]
     data_streams = [
-        logging_hooks.MoleculeStream(),
-        logging_hooks.PropertyStream(target_properties=target_properties),
+        callback_hooks.MoleculeStream(store_velocities=True),
+        callback_hooks.PropertyStream(target_properties=target_properties),
     ]
 
     # Create the file logger
-    file_logger = logging_hooks.FileLogger(
+    file_logger = callback_hooks.FileLogger(
         log_file,
         buffer_size,
         data_streams=data_streams
@@ -117,7 +137,7 @@ def run_molecular_dynamics(args, dataset, model):
     chk_file = os.path.join(args.md_log_dir, 'simulation' + args.log_suffix + '.chk')
 
     # Create the checkpoint logger
-    checkpoint = logging_hooks.Checkpoint(chk_file, every_n_steps=1000)
+    checkpoint = callback_hooks.Checkpoint(chk_file, every_n_steps=1000)
 
     # Update the simulation hooks
     simulation_hooks.append(checkpoint)
@@ -133,11 +153,18 @@ def run_molecular_dynamics(args, dataset, model):
 
         if args.langevin:
             simulation_hooks.append(langevin)
-        else:
+        elif args.new_run:
             warmup_hooks = simulation_hooks + [langevin]
             warmup_simulator = Simulator(md_system, md_integrator, md_calculator,
-                                     simulator_hooks=warmup_hooks)
-            warmup_simulator.simulate(args.md_steps//20)
+                                         simulator_hooks=warmup_hooks)
+            if args.use_gpu:
+                warmup_simulator = warmup_simulator.to('cuda')
+            warmup_simulator = warmup_simulator.to(args.dtype)
+            steps = 0
+            while steps < args.md_steps//20:
+                steps += 100
+                warmup_simulator.simulate(100)
+                wandb_summary(wandb_run, md_system)
             print('finishing warm up')
 
     md_simulator = Simulator(md_system, md_integrator, md_calculator,
@@ -147,8 +174,15 @@ def run_molecular_dynamics(args, dataset, model):
         print('restarting past model')
         state_dict = torch.load(chk_file)
         md_simulator.restart_simulation(state_dict)
+    if args.use_gpu:
+        md_simulator = md_simulator.to('cuda')
+    md_simulator = md_simulator.to(args.dtype)
 
-    md_simulator.simulate(args.md_steps)
+    steps = 0
+    while steps < args.md_steps:
+        steps += 100
+        md_simulator.simulate(100)
+        wandb_summary(wandb_run, md_system)
 
 
 if __name__ == "__main__":
@@ -203,16 +237,41 @@ if __name__ == "__main__":
     dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_dataset,
                                orbitals_path=args.orbitals_file,
                                density_n_samp=10000000000,
-                               required_properties=['coords'],
+                               required_properties=['energy', 'forces'],
                                center_positions=False,
                                radial_coeffs_file=args.radial_coeffs_file,
                                dtype=args.dtype,
                                grid_fn=grid_fn,
+                               pyscf_grid=args.pyscf_grid,
                                sampling_fn=sampling_fn,
                                grid_extent=grid_extent,
                                grid_origin=grid_origin,
+                               cutoff=args.cutoff,
                                verbose=args.verbose,
                                df_loss_weights=args.df_loss_weights)
+
+    test_dataset = AtomsDensityData(np_path=args.np_dataset_test, density_path=args.dens_dataset_test,
+                                    orbitals_path=args.orbitals_file,
+                                    density_n_samp=10000000000,
+                                    required_properties=['energy', 'forces'],
+                                    center_positions=False,
+                                    radial_coeffs_file=args.radial_coeffs_file,
+                                    dtype=args.dtype,
+                                    grid_fn=grid_fn,
+                                    pyscf_grid=args.pyscf_grid,
+                                    sampling_fn=sampling_fn,
+                                    grid_extent=grid_extent,
+                                    grid_origin=grid_origin,
+                                    cutoff=args.cutoff,
+                                    verbose=args.verbose,
+                                    df_loss_weights=args.df_loss_weights)
+    # if args.center_energy:
+    #     if args.atomic_energies is None:
+    #         energy_mean = dataset.atoms['energy'].mean()
+    #         dataset.center_energy(energy_mean)
+    #     else:
+    #         atomic_energies = np.load(args.atomic_energies, allow_pickle=True).item()
+    #         dataset.normalize_energy(atomic_energies)
 
     print('dataset grid_spec type', dataset.grid_spec['H'][0].type())
     model = load_model(args, dataset)
@@ -223,7 +282,7 @@ if __name__ == "__main__":
         os.makedirs(args.md_log_dir)
 
     if args.simulation_type == 'md':
-        run_molecular_dynamics(args, dataset, model)
+        run_molecular_dynamics(args, test_dataset, model)
     # elif args.simulation_type == 'opt':
     #     run_optimization(args, dataset, model)
     else:

@@ -25,12 +25,14 @@ def parse_command_line_arguments(arg_file=None):
     args_restart.add_argument("--load_from", metavar='STR', type=str, default=None,
                               help="initialize model from given pth file (other architecture hyperparameters are ignored)")
     args_restart.add_argument("--no_restore", metavar='True|False', type=str2bool, default=False,
-                                  choices=[True, False], help="Do not restore checkpoint.")
+                              choices=[True, False], help="Do not restore checkpoint.")
     args_restart.add_argument("--fix_arguments", metavar='True|False', type=str2bool, default=False,
                               choices=[True, False],
                               help="Do not change arguments after loading checkpoint (except hyperparams).")
     args_restart.add_argument("--args_file_name", metavar='STR', type=str, default=None,
                               help="Save filename of .txt file containing arguments for easier bookkeeping.")
+    args_restart.add_argument("--ignore_missing_keywords", metavar='True|False', type=str2bool, default=False,
+                              choices=[True, False], help="Ignore missing keywords when loading the model.")
 
     # arguments for neural network architecture hyperparameters
     args_hyperparams = parser.add_argument_group("neural network architecture hyperparameters")
@@ -110,6 +112,10 @@ def parse_command_line_arguments(arg_file=None):
                                   choices=[True, False], help="Include parity equivariance for density prediction.")
     args_hyperparams.add_argument("--parity_en", metavar='True|False', type=str2bool, default=False,
                                   choices=[True, False], help="Include parity equivariance for energy prediction.")
+    args_hyperparams.add_argument("--ml_width_min", metavar='FLOAT', type=float, default=0,
+                                  help="Minimum value of the learned factor that is multiplied to the initial width")
+    args_hyperparams.add_argument("--ml_width_max", metavar='FLOAT', type=float, default=2,
+                                  help="Maximum value of the learned factor that is multiplied to the initial width")
     hyperparam_args = [act.dest for act in args_hyperparams._group_actions]
 
     # arguments for training
@@ -178,16 +184,28 @@ def parse_command_line_arguments(arg_file=None):
                                help="weight of the forces in the loss function")
     args_training.add_argument("--energy_min_weight", metavar='FLOAT', type=float, default=0.0,
                                help="weight of the energy minimization loss")
-    args_training.add_argument("--density_loss_comp", metavar='STR', type=str, default='mae',
-                               choices=['mae', 'rmse', 'mae+rmse'], help="composition of the density loss")
-    args_training.add_argument("--dipole_moment_loss_comp", metavar='STR', type=str, default='mae',
-                               choices=['mae', 'rmse', 'mae+rmse'], help="composition of the dipole moment loss")
-    args_training.add_argument("--df_loss_comp", metavar='STR', type=str, default='mae',
-                               choices=['mae', 'rmse', 'mae+rmse'], help="composition of the density fitting loss")
-    args_training.add_argument("--energy_loss_comp", metavar='STR', type=str, default='mae',
-                               choices=['mae', 'rmse', 'mae+rmse'], help="composition of the energy loss")
-    args_training.add_argument("--forces_loss_comp", metavar='STR', type=str, default='mae',
-                               choices=['mae', 'rmse', 'mae+rmse'], help="composition of the forces loss")
+    args_training.add_argument("--density_loss_comp", metavar='STR', type=str, default=['mae'], nargs='+',
+                               choices=['mae', 'mse', 'rmse', 'lda_mae', 'lda_rmse', 'hartree_mae', 'hartree_rmse',
+                                        'coulomb', 'perc_mae', 'perc_rmse', 'mixed_dist_err',
+                                        'perc_mixed_dist_err', 'kl_loss', 'dpm_loss'], help="composition of the density loss")
+    args_training.add_argument("--dipole_moment_loss_comp", metavar='STR', type=str, default=['mae'], nargs='+',
+                               choices=['mae', 'rmse'], help="composition of the dipole moment loss")
+    args_training.add_argument("--df_loss_comp", metavar='STR', type=str, default=['mae'], nargs='+',
+                               choices=['mae', 'rmse'], help="composition of the density fitting loss")
+    args_training.add_argument("--energy_loss_comp", metavar='STR', type=str, default=['mae'], nargs='+',
+                               choices=['mae', 'rmse'], help="composition of the energy loss")
+    args_training.add_argument("--forces_loss_comp", metavar='STR', type=str, default=['mae'], nargs='+',
+                               choices=['mae', 'rmse'], help="composition of the forces loss")
+    args_training.add_argument("--density_loss_comp_weights", metavar='FLOAT', type=float, default=[1.0], nargs='+',
+                               help="weights of the composition of the density loss")
+    args_training.add_argument("--dipole_moment_loss_comp_weights", metavar='FLOAT', type=float, default=[1.0], nargs='+',
+                               help="weights of the composition of the dipole moment loss")
+    args_training.add_argument("--df_loss_comp_weights", metavar='FLOAT', type=float, default=[1.0], nargs='+',
+                               help="weights of the composition of the density fitting loss")
+    args_training.add_argument("--energy_loss_comp_weights", metavar='FLOAT', type=float, default=[1.0], nargs='+',
+                               help="weights of the composition of the energy loss")
+    args_training.add_argument("--forces_loss_comp_weights", metavar='FLOAT', type=float, default=[1.0], nargs='+',
+                               help="weights of the composition of the forces loss")
     args_training.add_argument("--density_weight_min", metavar='FLOAT', type=float, default=0.0,
                                help="minimum weight of the density in the loss function")
     args_training.add_argument("--dipole_moment_weight_min", metavar='FLOAT', type=float, default=0.0,
@@ -236,6 +254,8 @@ def parse_command_line_arguments(arg_file=None):
     args_training.add_argument("--weight_decay", metavar='FLOAT', type=float, default=0.0, help="regularization term for weights")
     args_training.add_argument("--use_gpu", metavar='True|False', type=str2bool, default=True,
                                choices=[True, False], help="use GPU(s) for training (if available)")
+    args_training.add_argument("--multiple_gpus", metavar='True|False', type=str2bool, default=False,
+                               choices=[True, False], help="use multiple GPUs for training (if available)")
     args_training.add_argument("--coord_weights", metavar='True|False', type=str2bool, default=True,
                                choices=[True, False], help="weight grid coordinates based on grid density")
     args_training.add_argument("--weights_balance", metavar='FLOAT', type=float, default=1.0,
@@ -244,6 +264,8 @@ def parse_command_line_arguments(arg_file=None):
                                choices=[True, False], help="Normalize the coefficients using softmax.")
     args_training.add_argument("--percentage_error", metavar='True|False', type=str2bool, default=True,
                                choices=[True, False], help="Measure error as a percentage of the density integral.")
+    args_training.add_argument("--pyscf_grid", metavar='True|False', type=str2bool, default=False,
+                               choices=[True, False], help="Use pyscf for density grid generation.")
     args_training.add_argument("--cube_grid", metavar='True|False', type=str2bool, default=False,
                                choices=[True, False], help="Use cubical densty grid for training.")
     args_training.add_argument("--cube_grid_valid", metavar='True|False', type=str2bool, default=False,
@@ -283,12 +305,17 @@ def parse_command_line_arguments(arg_file=None):
                                choices=[True, False], help="Use density fitting basis for labels.")
     args_training.add_argument("--fast_df", metavar='True|False', type=str2bool, default=True,
                                choices=[True, False], help="Do a fast/shorter density fitting training procedure.")
+    args_training.add_argument("--core_density_basis", metavar='FLOAT', type=float, default=0.0,
+                               help="Choose a fraction of the s orbitals to use as an additional"
+                               + "basis for the core density, and perform the fitting if > 0.")
+    args_training.add_argument('--wandb_mode', metavar='STR', type=str, default='online',
+                               choices=['online', 'offline', 'disabled'], help="Wandb mode.")
 
     # arguments for simulations
     args_simulation = parser.add_argument_group("simulation hyperparameters")
     args_simulation.add_argument("--temperature", metavar='INT', type=int, default=300,
                                  help="Temperature in Kelvin for the simulation.")
-    args_simulation.add_argument("--new_run", metavar='True|False', type=str2bool, default=False,
+    args_simulation.add_argument("--new_run", metavar='True|False', type=str2bool, default=True,
                                  choices=[True, False],
                                  help="If true start new simulation, otherwise continue previous one.")
     args_simulation.add_argument("--log_dir", metavar='STR', default='.', type=str, help="Path to simulation and logs directory.")
@@ -303,8 +330,8 @@ def parse_command_line_arguments(arg_file=None):
                                  choices=['md', 'opt'], help="type of simulation to run.")
     args_simulation.add_argument("--port_num", metavar='INT', type=int, default=50007,
                                  help="Port number for communication.")
-    args_simulation.add_argument("--force_conversion", metavar='STR', default='kcal/mol/A', type=str, help="Force conversion unit.")
-    args_simulation.add_argument("--position_conversion", metavar='STR', default='A', type=str, help="Position conversion unit.")
+    args_simulation.add_argument("--force_conversion", metavar='STR', default='kcal/mol/Ang', type=str, help="Force conversion unit.")
+    args_simulation.add_argument("--position_conversion", metavar='STR', default='Ang', type=str, help="Position conversion unit.")
     args_simulation.add_argument("--energy_conversion", metavar='STR', default='kcal/mol', type=str, help="Energy conversion unit.")
     args_simulation.add_argument("--start_idx", metavar='INT', type=int, default=[-1], nargs='+', help="Start indices for the simulation.")
 
@@ -326,9 +353,15 @@ def parse_command_line_arguments(arg_file=None):
                            choices=['torch.float16', 'torch.float32', 'torch.float64'], help="floating point type used during training")
     args_misc.add_argument('--legacy', metavar='True|False', type=str2bool, default=False,
                            choices=[True, False], help="If true use old density network code, else use the most recent version.")
+    args_misc.add_argument('--test_save', metavar='True|False', type=str2bool, default=False,
+                           choices=[True, False], help="Save output from tests as a list.")
+    args_misc.add_argument('--test_save_name', metavar='STR', type=str, default="test_save_results.pt",
+                           help="Filename for saved test output.")
+    args_misc.add_argument('--no_compare', metavar='True|False', type=str2bool, default=False,
+                           choices=[True, False], help="Don't compare accuracy of test samples, just compute predictions.")
 
     # actually parse command line arguments
-    if len(sys.argv) == 1:  # no arguments were specified, print help message
+    if arg_file is None and len(sys.argv) == 1:  # no arguments were specified, print help message
         args = parser.parse_args(["--help"])
     else:
         if arg_file is not None:

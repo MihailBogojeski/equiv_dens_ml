@@ -24,7 +24,7 @@ class DFTNetwork(nn.Module):
         self.conversions_in = conversions_in
         self.conversions_out = conversions_out
         self.memory = memory
-        self.scaling=scaling
+        self.scaling = scaling
         if calculate_forces_dict is None:
             calculate_forces_dict = {key: False for key in property_model_dict.keys()}
             self.calculate_forces = False
@@ -32,8 +32,10 @@ class DFTNetwork(nn.Module):
             self.calculate_forces = np.any(list(calculate_forces_dict.values()))
 
         # separate properties that require forces to calculate them first
-        self.force_props = sorted([key for key in calculate_forces_dict if calculate_forces_dict[key]])
-        self.no_force_props = sorted([key for key in calculate_forces_dict if not calculate_forces_dict[key]])
+        self.force_props = [key for key in calculate_forces_dict if calculate_forces_dict[key]]
+        self.no_force_props = [key for key in calculate_forces_dict if not calculate_forces_dict[key]]
+        print('force props', self.force_props)
+        print('no force props', self.no_force_props)
         if self.verbose > 0:
             print('force props', self.force_props)
             print('no force props', self.no_force_props)
@@ -58,7 +60,7 @@ class DFTNetwork(nn.Module):
                 atoms[key] = data[key].clone()
             else:
                 atoms[key] = data[key]
-        
+
         if self.calculate_forces:
             atoms['positions'].requires_grad = True
 
@@ -76,7 +78,16 @@ class DFTNetwork(nn.Module):
         atoms['positions'].requires_grad = False
         if self.training:
             for key in self.no_force_props:
+                # if key == 'core_density':
+                #     print('dft network forward', key, ':')
+                #     print('spherical coeffs before', atoms['spherical_coeffs'][0][(1, 0)])
+                #     print('radial scale before', atoms['radial_scale'][0][(1, 0)])
+                #     print('radial width before', atoms['radial_width'][0][(1, 0)])
                 atoms = self.property_models[key](atoms)
+                # if key == 'core_density':
+                #     print('spherical coeffs after', atoms['spherical_coeffs'][0][(1, 0)])
+                #     print('radial scale after', atoms['radial_scale'][0][(1, 0)])
+                #     print('radial width after', atoms['radial_width'][0][(1, 0)])
                 if self.memory:
                     print('dft network forward', key, ':')
                     print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)

@@ -6,8 +6,9 @@ from equiv_dens.training.errors import ErrorDict
 from equiv_dens.data.density_dataset import AtomsDensityData
 from equiv_dens.data.hamiltonian_dataset import seeded_random_split
 from equiv_dens.training.model_loader import load_model
-from equiv_dens.utils.grids import cubical_grid, cubical_sampling,\
+from equiv_dens.utils.grids import cubical_grid, cubical_sampling, \
     spherical_grid, spherical_radial_sampling
+from equiv_dens.utils import base as utils
 
 import numpy as np
 from functools import partial
@@ -55,7 +56,13 @@ print("loading density from" + str(args.dens_dataset) + "...")
 print("loading atoms from" + args.np_dataset + "...")
 print('args num test', args.num_test)
 
-if args.cube_grid:
+rotate = False
+if args.pyscf_grid:
+    grid_fn = partial(spherical_grid, level=args.spherical_grid_level)
+    sampling_fn = None
+    grid_origin = 0
+    grid_extent = None
+elif args.cube_grid:
     grid_origin = args.cube_origin
     grid_extent = np.array([args.cube_extent] * 3)
     grid_fn = partial(cubical_grid, nx=args.cube_size, ny=args.cube_size, nz=args.cube_size,
@@ -64,7 +71,7 @@ if args.cube_grid:
     sampling_fn = cubical_sampling
 else:
     grid_fn = partial(spherical_grid, level=args.spherical_grid_level)
-    sampling_fn = spherical_radial_sampling
+    sampling_fn = partial(spherical_radial_sampling, rotate=rotate)
     grid_origin = 0
     grid_extent = None
 
@@ -80,6 +87,9 @@ if args.energy_weight > 0:
 if args.forces_weight > 0:
     required_properties.append('forces')
 
+if args.no_compare:
+    required_properties = []
+
 dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_dataset,
                            orbitals_path=args.orbitals_file,
                            density_n_samp=1000000000000000000,
@@ -88,6 +98,8 @@ dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_datas
                            radial_coeffs_file=args.radial_coeffs_file,
                            dtype=args.dtype,
                            grid_fn=grid_fn,
+                           pyscf_grid=args.pyscf_grid,
+                           pyscf_rotate=rotate,
                            sampling_fn=sampling_fn,
                            grid_extent=grid_extent,
                            grid_origin=grid_origin,
@@ -123,6 +135,8 @@ if args.np_dataset_test is not None:
                                     radial_coeffs_file=args.radial_coeffs_file,
                                     dtype=args.dtype,
                                     grid_fn=grid_fn,
+                                    pyscf_grid=args.pyscf_grid,
+                                    pyscf_rotate=rotate,
                                     sampling_fn=sampling_fn,
                                     grid_extent=grid_extent,
                                     grid_origin=grid_origin,
@@ -164,10 +178,36 @@ loss_weights['energy'] = args.energy_weight
 loss_weights['forces'] = args.forces_weight
 loss_weights['energy_min'] = args.energy_min_weight
 
+loss_comp = {}
+loss_comp['density'] = args.density_loss_comp
+loss_comp['dipole_moment'] = args.dipole_moment_loss_comp
+loss_comp['df_coeffs'] = args.df_loss_comp
+loss_comp['energy'] = args.energy_loss_comp
+loss_comp['forces'] = args.forces_loss_comp
+
+loss_comp_weights = {}
+loss_comp_weights['density'] = {loss_comp: loss_weight
+                                for loss_comp, loss_weight
+                                in zip(args.density_loss_comp, args.density_loss_comp_weights)}
+loss_comp_weights['df_coeffs'] = {loss_comp: loss_weight
+                                  for loss_comp, loss_weight
+                                  in zip(args.df_loss_comp, args.df_loss_comp_weights)}
+loss_comp_weights['dipole_moment'] = {loss_comp: loss_weight
+                                      for loss_comp, loss_weight
+                                      in zip(args.dipole_moment_loss_comp, args.dipole_moment_loss_comp_weights)}
+loss_comp_weights['energy'] = {loss_comp: loss_weight
+                               for loss_comp, loss_weight
+                               in zip(args.energy_loss_comp, args.energy_loss_comp_weights)}
+loss_comp_weights['forces'] = {loss_comp: loss_weight
+                               for loss_comp, loss_weight
+                               in zip(args.forces_loss_comp, args.forces_loss_comp_weights)}
+
 error_dict = ErrorDict(loss_weights, weights_balance=args.weights_balance,
                        percentage_error=args.percentage_error,
+                       loss_comp=loss_comp,
+                       loss_comp_weights=loss_comp_weights,
                        # relative_en=True,
-                      )
+                       )
 
 z_vals = dataset.atoms['atom_numbers']
 # determine weights of different quantities for scaling loss
@@ -214,6 +254,11 @@ else:
 
 test_errors = error_dict.empty()
 model.eval()
+prop_stats = {}
+print('required_properties', required_properties)
+saved_properties = required_properties + ['positions', 'atom_numbers']
+saved_results = None
+
 for test_batch_num, data in enumerate(test_data_loader):
     start = time.time()
     # send data to GPU
@@ -226,13 +271,14 @@ for test_batch_num, data in enumerate(test_data_loader):
     if args.timing:
         print('test load time', time.time() - start)
     # forward step
-    print('step', test_batch_num)
+    # print('step', test_batch_num)
     # print('positions shape', data['positions'].shape)
     data = model.conversions_in(data)
     data = model.scaling(data)
     predictions = model(data)
     data = model.scaling.transform_back(data)
     data = model.conversions_out(data)
+
     # print(lkajsdlkjasfd)
     # print('energy pred', predictions['energy'])
     if args.verbose > 0:
@@ -245,11 +291,40 @@ for test_batch_num, data in enumerate(test_data_loader):
     # print('spherical density integral', torch.sum(predictions['density'] * data['coord_weights'], dim=-1))
     # compute error metrics
     errors = error_dict.compute(predictions, data)
+    compress_props = ['positions', 'atom_numbers']
+    if args.forces_weight > 0: 
+        compress_props.append('forces')
+    data = utils.batch_compressed_atoms(data, compress_props)
+    if args.test_save:
+        predictions = utils.batch_compressed_atoms(predictions, compress_props)
+        if saved_results is None:
+            saved_results = {}
+            for key in saved_properties:
+                saved_results[key] = predictions[key] 
+                print('saved results', key, ' after', saved_results[key].shape)
+        else:
+            for key in saved_properties:
+                print('saved results', key, ' extend before', saved_results[key].shape)
+                print('predictions', key, ' extend before', predictions[key].shape)
+                if isinstance(predictions[key], torch.Tensor):
+                    saved_results[key] = torch.cat((saved_results[key], predictions[key]), dim=0) 
+                print('saved results', key, ' extend after', saved_results[key].shape)
+                if key == 'density':
+                    print('data density integral', torch.sum(data['density'] * data['coord_weights'], dim=1))
+                    print('res density integral', torch.sum(predictions['density'] * data['coord_weights'], dim=1))
 
     # update test_errors (running average)
     for key in errors.keys():
-        test_errors[key] += (errors[key].item() -
-                             test_errors[key]) / (test_batch_num + 1)
+        if key not in test_errors.keys():
+            test_errors[key] = errors[key].item()
+        else:
+            test_errors[key] += (errors[key].item() -
+                                 test_errors[key]) / (test_batch_num + 1)
+    for key in required_properties:
+        if key not in prop_stats.keys():
+            prop_stats[key] = [data[key].detach().cpu().numpy()]
+        else:
+            prop_stats[key].append(data[key].detach().cpu().numpy())
     predictions = None
     data = None
     errors = None
@@ -257,3 +332,11 @@ for test_batch_num, data in enumerate(test_data_loader):
         print('test step time', time.time() - start)
 
 print(test_errors)
+if args.test_save:
+    print('saving test output in ', os.path.join(directory, args.test_save_name))
+    torch.save(saved_results, os.path.join(directory, args.test_save_name))
+for key in prop_stats.keys():
+    # print(prop_stats[key])
+    prop_stats[key] = np.concatenate(prop_stats[key], axis=0)
+    print(key, 'mean magnitude:', np.mean(np.linalg.norm(prop_stats[key], axis=-1)))
+    print(key, 'std:', np.std(prop_stats[key]))
