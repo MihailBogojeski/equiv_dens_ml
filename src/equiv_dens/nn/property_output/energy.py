@@ -214,7 +214,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
         batch_size = R.shape[0]
         idx_i = atoms['idx_i']
         idx_j = atoms['idx_j']
-        neighbor_mask = 1 
+        neighbor_mask = 1
         # exclude self - interactions
         # initialize atomic features to embeddings
         sph_fs, scale_fs, width_fs = coeffs_dict_to_tensors(atoms, radial_coeffs=self.pred_radial_coeffs)
@@ -257,7 +257,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
             fs[i] = fs[i] + xs[i]
         # print('fs norm start :', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
         # fs = [torch.zeros_like(x) for x in xs]  # output features
-        
+
         for i, module in enumerate(self.module):
             xs = self.order_change[i](xs)
             # print('xs norm module ', i, ':', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
