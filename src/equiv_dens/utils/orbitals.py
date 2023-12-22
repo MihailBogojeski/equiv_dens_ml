@@ -2,6 +2,13 @@ import numpy as np
 import equiv_dens.utils.base as utils
 import torch
 import scipy as sp
+from pyscf.dft import numint
+from pyscf.lib import param
+from pyscf import gto, df, lib, dft
+from pyscf.scf import hf
+import scipy
+
+hf.MUTE_CHKFILE = True
 
 pyscf_gto_factor = 3.5449070930480957
 
@@ -234,7 +241,7 @@ def coeffs_dict_to_tensors(coeffs, radial_coeffs=True):
     return all_sph, all_scale, all_width
 
 
-def coeffs_dict_to_vector(coeffs, orbital_basis, a_num, radial_coeffs=True, coeff_weighting=False):
+def coeffs_dict_to_vector(coeffs, orbital_basis, a_num, radial_coeffs=True, coeff_weighting=False, convert_to_pyscf=True):
     relevant_keys = ['spherical_coeffs']
     # sph_coeffs = coeffs['spherical_coeffs']
     if radial_coeffs:
@@ -245,11 +252,27 @@ def coeffs_dict_to_vector(coeffs, orbital_basis, a_num, radial_coeffs=True, coef
         relevant_keys.append('coeff_weights')
         # coeff_weights = coeffs['coeff_weights']
 
+    if convert_to_pyscf:
+        new_coeffs = {key: coeffs[key] for key in coeffs.keys()}
+        new_coeffs['spherical_coeffs'] = []
+        for i in range(len(coeffs['spherical_coeffs'])):
+            new_coeffs['spherical_coeffs'].append({})
+            for key in coeffs['spherical_coeffs'][i].keys():
+                if key[1] == 1:
+                    new_coeffs['spherical_coeffs'][i][key] = coeffs['spherical_coeffs'][i][key]
+                    new_coeffs['spherical_coeffs'][i][key] = new_coeffs['spherical_coeffs'][i][key][:, :, [2, 0, 1], :]
+                else:
+                    new_coeffs['spherical_coeffs'][i][key] = coeffs['spherical_coeffs'][i][key]
+                if key[1] % 2 == 1:
+                    new_coeffs['spherical_coeffs'][i][key] = -1 * new_coeffs['spherical_coeffs'][i][key]
+        coeffs = new_coeffs
+
     all_coeffs = {key: None for key in relevant_keys}
     # all_sph = None
     # all_scale = None
     # all_width = None
     # all_weights = None
+
     for i, z in enumerate(torch.max(a_num, dim=0)[0]):
         orb_ind = {}
         z = int(z)
@@ -327,7 +350,7 @@ def coeffs_dict_to_vector(coeffs, orbital_basis, a_num, radial_coeffs=True, coef
 #     return vector_coeffs
 
 
-def vector_to_coeffs_dict(coeffs, orbital_basis, a_num, radial_coeffs=True):
+def vector_to_coeffs_dict(coeffs, orbital_basis, a_num, radial_coeffs=True, convert_to_equiv_dens=True):
     vec_sph = coeffs['spherical_coeffs']
     dict_sph = []
     if radial_coeffs:
@@ -357,19 +380,29 @@ def vector_to_coeffs_dict(coeffs, orbital_basis, a_num, radial_coeffs=True):
                     rad_count += 1
             else:
                 new_sph = vec_sph[:, sph_count:sph_count + step].unsqueeze(1).unsqueeze(-1)
-                dict_sph[i][key] = torch.cat([dict_sph[i][key], new_sph], dim=-1) 
+                dict_sph[i][key] = torch.cat([dict_sph[i][key], new_sph], dim=-1)
                 sph_count += step
                 if radial_coeffs:
                     new_scale = vec_scale[:, [rad_count]].unsqueeze(1).unsqueeze(-1)
                     new_width = vec_width[:, [rad_count]].unsqueeze(1).unsqueeze(-1)
-                    dict_width[i][key] = torch.cat([dict_width[i][key], new_width], dim=-1) 
-                    dict_scale[i][key] = torch.cat([dict_scale[i][key], new_scale], dim=-1) 
+                    dict_width[i][key] = torch.cat([dict_width[i][key], new_width], dim=-1)
+                    dict_scale[i][key] = torch.cat([dict_scale[i][key], new_scale], dim=-1)
                     rad_count += 1
     dict_coeffs = {}
     dict_coeffs['spherical_coeffs'] = dict_sph
     if radial_coeffs:
         dict_coeffs['radial_width'] = dict_width
         dict_coeffs['radial_scale'] = dict_scale
+
+    if convert_to_equiv_dens:
+        for i in range(len(dict_coeffs['spherical_coeffs'])):
+            for key in dict_coeffs['spherical_coeffs'][i].keys():
+                if key[1] == 1:
+                    dict_coeffs['spherical_coeffs'][i][key] = dict_coeffs['spherical_coeffs'][i][key][:, :, [1, 2, 0], :]
+                else:
+                    dict_coeffs['spherical_coeffs'][i][key] = dict_coeffs['spherical_coeffs'][i][key]
+                if key[1] % 2 == 1:
+                    dict_coeffs['spherical_coeffs'][i][key] = -1 * dict_coeffs['spherical_coeffs'][i][key]
 
     return dict_coeffs
 
@@ -410,13 +443,16 @@ def split_df_coeffs(atom, df_coeffs, basis_size):
 
     return df_coeffs_split
 
-def calc_dipole_moment(atoms, center_coordinates=True):
-    density = atoms['density']
-    positive_dens = (density >= 0).to(density)
-    density = density * positive_dens
-    n_electrons = get_n_electrons(atoms['batch_atom_numbers'])
-    scaling_factor = n_electrons / torch.sum(density * atoms['coord_weights'], dim=1, keepdim=True)
-    density = density * scaling_factor
+def calc_dipole_moment(atoms, center_coordinates=True, normalize_density=True, positive_density=True,
+                       density=None):
+    if density is None:
+        density = atoms['density']
+    if positive_density:
+        density = torch.clamp(density, min=0)
+    if normalize_density:
+        n_electrons = get_n_electrons(atoms['batch_atom_numbers'])
+        scaling_factor = n_electrons / torch.sum(density * atoms['coord_weights'], dim=1, keepdim=True)
+        density = density * scaling_factor
     if center_coordinates:
         center_of_mass = torch.sum(atoms['batch_positions'] * atoms['batch_atom_numbers'].unsqueeze(-1), dim=1, keepdim=True)\
                          / torch.sum(atoms['batch_atom_numbers'].unsqueeze(-1), dim=1, keepdim=True)
@@ -438,3 +474,219 @@ def calc_dipole_moment(atoms, center_coordinates=True):
 
     atoms['dipole_moment'] = positive_dipole_moment - negative_dipole_moment
     return atoms
+
+
+def sample_projected_density(atoms, df_coeffs, auxbasis, auxmol=None):
+    df_coeffs = df_coeffs.detach().cpu().numpy()
+    sample_coords = atoms['coords']
+    scaled_sample_coords = atoms['coords'].detach().cpu().numpy() / param.BOHR  # convert Angstrom grid to Bohr
+    dens = torch.zeros((sample_coords.shape[0], sample_coords.shape[1]))
+    # mol_start = time.time()
+    # print('c, i', c, i)
+
+    if auxmol is None:
+        atom = [(int(atoms['batch_atom_numbers'][0, i].detach().cpu().numpy()),
+                atoms['batch_positions'][0, i].detach().cpu().numpy()) for i in range(atoms['batch_positions'].shape[1])]
+        mol = gto.M(atom=atom, basis=auxbasis)
+    else:
+        mol = auxmol
+    # ao_start = time.time()
+    ao = numint.eval_ao(mol, scaled_sample_coords[0])
+    # print('ao time', time.time() - ao_start)
+    # rho_start = time.time()
+    # print('df coeff', df_coeff.shape)
+    # print('ao shape', ao.shape)
+    rho = 0
+    for j in range(df_coeffs.shape[0]):
+        rho += np.einsum('ij,j->i', ao, df_coeffs[j])
+    # print('rho time', time.time() - rho_start)
+    dens = torch.from_numpy(rho)
+    # print('mol_time', time.time() - mol_start)
+    return dens
+
+
+def expand_df_density_by_degree(samp_df, eval_degrees, orbital_basis, orbital_basis_size, auxbasis, auxmol=None):
+    df_coeffs = samp_df['df_coeffs']
+    atom = [(int(samp_df['batch_atom_numbers'][0, i].detach().cpu().numpy()),
+            samp_df['batch_positions'][0, i].detach().cpu().numpy())
+            for i in range(samp_df['batch_positions'].shape[1])]
+    df_coeffs_split = split_df_coeffs(atom, df_coeffs.squeeze(), orbital_basis_size)
+    orbital_dict = combine_orbital_basis(orbital_basis, 5)[0]
+
+    masks_pos = {key: 0 for key in orbital_basis_size}
+    max_z = max(list(orbital_dict.keys()))
+    max_orbitals = orbital_dict[max_z]
+    masks = {}
+    for z, atom_coeffs in df_coeffs_split:
+        if z not in masks:
+            masks[z] = torch.zeros_like(torch.tensor(atom_coeffs))
+    # print('max orbitals', max_orbitals)
+    for L in range(max(eval_degrees) + 1):
+        nc = 2 * L + 1
+        max_coeffs = max_orbitals[L][1]
+        for i in range(1, max_coeffs + 1):
+            for z in masks_pos.keys():
+                if L >= len(orbital_dict[z]) or i >= orbital_dict[z][L][1] + 1:
+                    continue
+                if L in eval_degrees:
+                    masks[z][masks_pos[z]:masks_pos[z] + nc] = 1
+                masks_pos[z] += nc
+                # print('L', L, 'max coeffs', max_coeffs, 'i', i, 'z', z, 'masks_pos', masks_pos[z])
+
+    mask_coeffs = []
+    for z, atom_coeffs in df_coeffs_split:
+        atom_coeffs = torch.Tensor(atom_coeffs)
+        mask_coeffs.append(atom_coeffs * masks[z])
+
+    coeffs = torch.cat(mask_coeffs).unsqueeze(0)
+    dens = sample_projected_density(samp_df, coeffs, auxbasis, auxmol)
+    new_samp = {key: samp_df[key] for key in samp_df.keys()}
+    new_samp['density'] = dens
+
+    return dens
+
+
+def atom_basis_descriptors(auxmol):
+    atom_bas = []
+    order = auxmol._bas[0, 0]
+    start_bas = 0
+    start_env = auxmol._bas[0, 5]
+    atom_count = {}
+    for i in range(auxmol._bas.shape[0]):
+        row = auxmol._bas[i]
+        if row[0] != order:
+            order = row[0]
+            atom_bas.append([(start_bas, end_bas), (start_env, end_env)])
+            if start_env not in atom_count:
+                atom_count[start_env] = 0
+            start_env = row[5]
+            start_bas = i
+        end_bas = i
+        end_env = row[6]
+
+    atom_bas.append([(start_bas, end_bas), (start_env, end_env)])
+    if start_env not in atom_count:
+        atom_count[start_env] = 0
+
+    print(len(atom_bas))
+
+    # print('atom_bas', atom_bas)
+    # print('atom_count', atom_count)
+    return atom_bas, atom_count
+
+
+def extend_aux_environment(auxmol, atom_bas, atom_count):
+    auxmol_ext = auxmol.copy()
+    auxmol_ext.build()
+    unseen_idx = {key: np.ones(auxmol_ext._bas.shape[0], dtype=bool) for key in atom_count}
+    offset = 0
+    for ab in atom_bas:
+        start_bas, end_bas = ab[0]
+        start_env, end_env = ab[1]
+        # print('start_bas', start_bas, ' end_bas', end_bas, ' start_env', start_env, ' end_env', end_env)
+        # print('offset start env', auxmol_ext._bas[start_bas, 5], 'offset end env', auxmol_ext._bas[end_bas, 6])
+        if atom_count[start_env] != 0:
+            # print('new atom')
+            offset_start = auxmol_ext._bas[start_bas, 5]
+            # print('offset start', offset_start)
+            offset = end_env - start_env + 1
+            # print('offset', offset)
+            offset_idx = auxmol_ext._bas[:, 5] >= offset_start
+            offset_idx = np.logical_and(offset_idx, unseen_idx[start_env])
+
+            auxmol_ext._env = np.concatenate([auxmol_ext._env[:auxmol_ext._bas[start_bas, 5] + offset],
+                                           auxmol._env[start_env:end_env + 1],
+                                           auxmol_ext._env[auxmol_ext._bas[end_bas, 6] + 1:]], axis=0)
+            auxmol_ext._bas[offset_idx, 5:7] += offset
+            # auxmol_ext._bas[start_bas:end_bas + 1, 5:7] += offset
+            # print('offset start env after', auxmol_ext._bas[start_bas, 5], 'offset end env after', auxmol_ext._bas[end_bas, 6])
+            # print('new env shape', auxmol_ext._env.shape)
+        atom_count[start_env] += 1
+        unseen_idx[start_env][start_bas:end_bas+1] = False
+
+    # print('old env shape', auxmol._env.shape)
+    # print('new env shape', auxmol_ext._env.shape)
+    # print(atom_bas)
+    # with np.printoptions(threshold=np.inf):
+    #     print('combined old new bas', np.concatenate([auxmol._bas, auxmol_ext._bas], axis=1))
+
+    return auxmol_ext
+
+
+def ml_basis_to_pyscf_env(pred, auxmol):
+    atom_bas, atom_count = atom_basis_descriptors(auxmol)
+# Extending _env variable for duplicate atoms
+    auxmol_ext = extend_aux_environment(auxmol, atom_bas, atom_count)
+
+    for ab in atom_bas:
+        start_bas, end_bas = ab[0]
+        start_env, end_env = ab[1]
+        # print('start_bas', start_bas, ' end_bas', end_bas)
+        # print('offset start env', auxmol_ext._bas[start_bas, 5], 'offset end env', auxmol_ext._bas[end_bas, 6])
+        # print('L', auxmol_ext._bas[start_bas, 1])
+
+    # old_env = auxmol_ext._env.copy()
+    # print('auxmol_ext env', auxmol_ext._env)
+    atom_bas, atom_count = atom_basis_descriptors(auxmol_ext)
+
+    for i in range(len(pred['radial_width'])):
+        radial_widths = None
+        radial_scales = None
+        for key in pred['radial_width'][i].keys():
+            if radial_widths is None:
+                radial_widths = pred['radial_width'][i][key].squeeze()
+                radial_scales = pred['radial_scale'][i][key].squeeze()
+            else:
+                radial_widths = torch.cat([radial_widths, pred['radial_width'][i][key].squeeze()])
+                radial_scales = torch.cat([radial_scales, pred['radial_scale'][i][key].squeeze()])
+        radial_coeffs = torch.stack([radial_widths, radial_scales], dim=1)
+        radial_coeffs = torch.abs(radial_coeffs.flatten())
+        # print('radial_coeffs', radial_coeffs)
+        # print('auxmol env old', auxmol_ext._env[atom_bas[i][1][0]:atom_bas[i][1][1] + 1])
+        auxmol_ext._env[atom_bas[i][1][0]:atom_bas[i][1][1] + 1] = radial_coeffs.detach().cpu().numpy()
+        # print('auxmol env new', auxmol_ext._env[atom_bas[i][1][0]:atom_bas[i][1][1] + 1])
+
+# print('res radial width', pred['radial_width'])
+    # with np.printoptions(threshold=np.inf):
+    #     print('auxmols env', np.stack([auxmol_ext._env, old_env], axis=1))
+
+    return auxmol_ext
+
+
+def ml_basis_to_df_coeffs(pred, basis, auxbasis):
+    atom = [(int(pred['batch_atom_numbers'][0, i].detach().cpu().numpy()),
+            pred['batch_positions'][0, i].detach().cpu().numpy()) for i in range(pred['batch_positions'].shape[1])]
+    auxmol = gto.M(atom=atom, basis=auxbasis)
+    auxmol.build()
+
+    mol = gto.M(atom=atom, basis=basis)
+    mol.build()
+    mf = dft.RKS(mol)
+    mf.chkfile = False
+    mf.xc = 'pbe'
+    mf.kernel()
+    dm1 = hf.make_rdm1(mf.mo_coeff, mf.mo_occ)
+
+    auxmol_ext = ml_basis_to_pyscf_env(pred, auxmol)
+    print('auxmol_ext env', auxmol_ext._env)
+
+    # Define the auxiliary fitting basis for 3-center integrals. Use the function
+    # make_auxmol to construct the auxiliary Mole object (auxmol) which will be
+    # used to generate integrals.
+
+    # ints_3c is the 3-center integral tensor (ij|P), where i and j are the
+    # indices of AO basis and P is the auxiliary basis
+    ints_3c2e = df.incore.aux_e2(mol, auxmol_ext, intor='int3c2e')
+    ints_2c2e = auxmol_ext.intor('int2c2e')
+
+    nao = mol.nao
+    naux = auxmol_ext.nao
+
+# Compute the DF coefficients (df_coef) and the DF 2-electron (df_eri)
+    df_coef = scipy.linalg.solve(ints_2c2e, ints_3c2e.reshape(nao*nao, naux).T)
+    df_coef = df_coef.reshape(naux, nao, nao)
+    # print('df_coeff shape', df_coef.shape)
+    # print('atoms', auxmol_ext._atm)
+    df_basis = lib.einsum('Pij,ij->P', df_coef, dm1)
+
+    return df_basis, auxmol_ext

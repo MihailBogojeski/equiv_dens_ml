@@ -37,7 +37,6 @@ class AtomsDataError(Exception):
 
 class AtomsDensityData(Dataset):
     ENCODING = "utf-8"
-    available_properties = None
 
     def __init__(
         self,
@@ -89,8 +88,6 @@ class AtomsDensityData(Dataset):
         self.timing=timing
         self.projected_density = projected_density
         self.cutoff = cutoff
-        if required_properties is None:
-            self.required_properties = self.available_properties
         if 'dipole_moment' in self.required_properties:
             if 'density' not in self.required_properties:
                 self.required_properties.append('density')
@@ -185,7 +182,10 @@ class AtomsDensityData(Dataset):
         else:
             self.L0_coeffs = None
 
-        self.grid_spec = grid_fn(self.atoms, bohr=self.pyscf_grid)
+        if self.pyscf_grid:
+            self.grid_spec = grid_fn(self.atoms, bohr=True)
+        else:
+            self.grid_spec = grid_fn(self.atoms)
         if isinstance(self.grid_spec, dict):
             for key in self.grid_spec.keys():
                 self.grid_spec[key] = (self.grid_spec[key][0].type(self.dtype),
@@ -229,7 +229,7 @@ class AtomsDensityData(Dataset):
             orbitals_path=self.orbitals_path,
             density_n_samp=self.density_n_samp,
             subset=subidx,
-            required_propertie=self.required_properties,
+            required_properties=self.required_properties,
             center_positions=self.centered_positions,
             radial_coeffs_file=self.radial_coeffs_file,
             grid_fn=self.grid_fn,
@@ -343,6 +343,12 @@ class AtomsDensityData(Dataset):
             print('atom_props', atom_props)
             print('props', props)
         positions = torch.from_numpy(props['positions']).type(self.dtype)
+        if self.centered_positions:
+            # print('atom center', positions.mean(axis=0))
+            pos_shift = -(torch.mean(positions, axis=1, keepdim=True))
+        else:
+            pos_shift = 0
+        positions += pos_shift
         properties = {}
         if self.timing:
             print('props time', time.time() - props_start)
@@ -361,9 +367,9 @@ class AtomsDensityData(Dataset):
                 if pname == 'density':
                     density_start = time.time()
                     if self.projected_density:
-                        properties[pname] = self.sample_projected_density(idx, properties['coords'])
+                        properties[pname] = self.sample_projected_density(idx, properties['coords'] - pos_shift)
                     else:
-                        properties[pname] = self.sample_density(idx, properties['coords'])
+                        properties[pname] = self.sample_density(idx, properties['coords'] - pos_shift)
                     if self.timing:
                         print('density time:', time.time() - density_start)
             else:
@@ -377,23 +383,20 @@ class AtomsDensityData(Dataset):
         properties['atom_mask'] = properties['atom_numbers'] > 0
         properties['idx'] = torch.LongTensor(idx).unsqueeze(-1)
         # print('positions', positions)
-        if self.centered_positions:
-            # print('atom center', positions.mean(axis=0))
-            positions -= torch.sum(positions * atom_numbers, 0)/torch.sum(atom_numbers, 1)
         properties["_idx"] = torch.LongTensor(np.array(idx, dtype=int))
         neighbor_start = time.time()
         nl = utils.TorchNeighborList(self.cutoff)
         idx_is, idx_js, _ = nl.get_neighbors(properties)
         neighbor_batch_idx = []
-        prev_max=0
+        prev_max = 0
         for i in range(len(idx_is)):
             idx_is[i] += prev_max
-            idx_js[i] += prev_max 
+            idx_js[i] += prev_max
             max_i = torch.max(idx_is[i])
             max_j = torch.max(idx_is[i])
             prev_max = max(max_i, max_j) + 1
             neighbor_batch_idx.append(torch.ones_like(idx_is[i]) * i)
-        
+
         atom_batch_idx = np.zeros_like(atom_numbers)
         for i in range(len(atom_numbers)):
             atom_batch_idx[i, :] = i
@@ -520,8 +523,8 @@ class AtomsDensityData(Dataset):
             else:
                 rand_idx = np.random.choice(np.arange(coords.shape[0]),
                                             size=self.density_n_samp, replace=False)
-                coords = torch.tensor(coords[:, rand_idx]).to(self.dtype)
-                weights = torch.tensor(weights[:, rand_idx]).to(self.dtype)
+                coords = torch.tensor(coords[rand_idx]).to(self.dtype)
+                weights = torch.tensor(weights[rand_idx]).to(self.dtype)
             all_coords.append(coords)
             all_weights.append(weights)
         pad_coords = nn.utils.rnn.pad_sequence(all_coords, batch_first=True, padding_value=0) * utils.to_angstrom
@@ -596,7 +599,7 @@ class AtomsDensityData(Dataset):
                 # mol_start = time.time()
                 # print('c, i', c, i)
                 mol = self.mols[i]
-                if not mol._built and mol.basis != self.density_fitting['auxbasis']:
+                if not mol._built or mol.basis != self.density_fitting['auxbasis']:
                     mol.basis = self.density_fitting['auxbasis']
                     # build_start = time.time()
                     if self.verbose > 3:
@@ -604,11 +607,14 @@ class AtomsDensityData(Dataset):
                     mol.build()
                     # print('build time', time.time() - build_start)
                 # df_coeff = np.concatenate(self.density_fitting['df_coeffs'][i])
+                # print('mol basis', mol.basis)
                 df_coeff = np.concatenate([coeff[1] for coeff in self.density_fitting['df_coeffs'][i]])
                 # ao_start = time.time()
                 ao = numint.eval_ao(mol, scaled_sample_coords[c])
                 # print('ao time', time.time() - ao_start)
                 # rho_start = time.time()
+                # print('df coeff', df_coeff.shape)
+                # print('ao shape', ao.shape)
                 if df_coeff.ndim > 1:
                     rho = 0
                     for j in range(df_coeff.shape[0]):

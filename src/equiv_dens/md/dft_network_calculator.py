@@ -1,9 +1,12 @@
 import time
 import torch
+import torch.nn as nn
 import equiv_dens.utils.base as utils
 import equiv_dens.utils.orbitals as orbitals
 from schnetpack.md.calculators import MDCalculator, MDCalculatorError
+from schnetpack import properties
 import numpy as np
+from pyscf import gto, dft
 
 
 # MD calculator class
@@ -11,37 +14,39 @@ class DFTNetworkCalculator(MDCalculator):
     def __init__(self,
                  model,
                  required_properties,
-                 force_handle,
+                 force_key,
+                 energy_key='energy',
                  verbose=0,
                  n_jobs=10,
                  density_expansion=False,
-                 position_conversion="A",
-                 force_conversion="kcal/mol/A",
+                 position_unit="Angstrom",
+                 energy_unit="kcal/mol",
                  grid_spec=None,
                  grid_sampling_fn=None,
-                 property_conversion={},
                  use_gpu=False,
                  detach=True,
                  cutoff=7.937658158457616,
+                 pyscf_grid=False,
                  ):
         # energy prediction model
         super().__init__(
             required_properties,
-            force_handle,
-            detach=detach,
-            position_conversion=position_conversion,
-            force_conversion=force_conversion,
-            property_conversion=property_conversion,
+            force_key,
+            energy_unit,
+            position_unit,
+            energy_key=energy_key,
         )
         self.model = model
         # density prediction model
         self.grid_sampling_fn = grid_sampling_fn
         self.verbose = verbose
         self.n_jobs = n_jobs
-        self.cutoff=cutoff
-        print('calculator grid spec', grid_spec)
+        self.cutoff = cutoff
+        self.use_gpu = use_gpu
+        self.pyscf_grid = pyscf_grid
+        # print('calculator grid spec', grid_spec)
         self.grid_spec = {}
-        if use_gpu:
+        if self.use_gpu and not self.pyscf_grid:
             for key in grid_spec.keys():
                 self.grid_spec[key] = (grid_spec[key][0].cuda(),
                                        grid_spec[key][1].cuda())
@@ -72,6 +77,12 @@ class DFTNetworkCalculator(MDCalculator):
 
         start_model = time.time()
         results = self.model(inputs)
+        # print('avg_distance', torch.mean(results['distances']))
+        # print('avg_force', torch.mean(torch.norm(results['forces'], dim=-1)))
+        # print('avg_energy', torch.mean(results['energy']))
+        # print('avg_distance', torch.mean(results['distances']))
+        # print('avg_force', torch.mean(torch.norm(results['forces'], dim=-1)))
+        # print('avg_energy', torch.mean(results['energy']))
         # print('Model time:', time.time() - start_model)
         # print('density integral', torch.sum(results['density'] * results['coord_weights'], -1))
         start_coeffs = time.time()
@@ -96,7 +107,7 @@ class DFTNetworkCalculator(MDCalculator):
                 )
             else:
                 # Detach properties if requested
-                self.results[p] = results[p]
+                self.results[p] = results[p].detach() if self.detach else results[p]
         # print('system before', system.properties)
         self._update_system(system)
         # print('system after', system.properties)
@@ -115,20 +126,33 @@ class DFTNetworkCalculator(MDCalculator):
         Returns:
             dict(torch.Tensor): Schnetpack inputs in dictionary format.
         """
-        positions, atom_types, atom_masks, cells, pbc = self._get_system_molecules(
+        sys_mols = self._get_system_molecules(
             system
         )
-        center = torch.sum(positions * system.masses, 2) / torch.sum(system.masses, 2)
+        positions = sys_mols[properties.R]
+        atom_types = sys_mols[properties.Z]
+        if self.use_gpu:
+            positions = positions.cuda()
+            atom_types = atom_types.cuda()
+        natoms = int(sys_mols[properties.n_atoms][0])
+        positions = positions.view(-1, natoms, 3)
+        atom_types = atom_types.view(-1, natoms)
+        center = torch.sum(positions * atom_types.unsqueeze(-1), 1) / torch.sum(atom_types, 1).unsqueeze(-1)
         # inputs = {'positions': positions + 10,
-        props = {'positions': (positions - center.permute(1, 0, 2)).cpu().numpy()}
+        props = {'positions': (positions - center.unsqueeze(1)).cpu().numpy()}
         atom_numbers, props = utils.compress_batch_atoms(atom_types.cpu().numpy(), props)
         positions = torch.from_numpy(props['positions']).to(positions)
         inputs = {}
         if self.density_expansion:
             # print('grid spec', self.grid_spec)
-            sample_coords, coord_weights = self.grid_sampling_fn(self.grid_spec, 10000000000,
-                                                                 atom_numbers,
-                                                                 positions)
+            if self.pyscf_grid:
+                sample_coords, coord_weights = get_pyscf_coords(self.grid_spec, 10000000000,
+                                                                atom_numbers,
+                                                                positions)
+            else:
+                sample_coords, coord_weights = self.grid_sampling_fn(self.grid_spec, 10000000000,
+                                                                     atom_numbers,
+                                                                     positions)
             inputs['coords'] = sample_coords
             inputs['coord_weights'] = coord_weights
 
@@ -141,14 +165,15 @@ class DFTNetworkCalculator(MDCalculator):
         idx_is, idx_js, _ = nl.get_neighbors(inputs)
         # print('inputs positions shape', inputs['positions'].shape)
         # print('idx_is', idx_is)
-        prev_max=0
+        prev_max = 0
         for i in range(len(idx_is)):
             idx_is[i] += prev_max
-            idx_js[i] += prev_max 
+            idx_js[i] += prev_max
+            # print('idx_is shape', idx_is[i].shape)
             max_i = torch.max(idx_is[i])
             max_j = torch.max(idx_is[i])
             prev_max = max(max_i, max_j) + 1
-        
+
         atom_batch_idx = np.zeros_like(atom_numbers)
         for i in range(len(atom_numbers)):
             atom_batch_idx[i, :] = i
@@ -174,3 +199,50 @@ class DFTNetworkCalculator(MDCalculator):
         inputs['positions'] = inputs['positions'][:, inputs['atom_mask']]
 
         return inputs
+
+
+def get_pyscf_coords(grid_spec, density_n_samp, atom_numbers, positions):
+    """
+    Get density grid coordinates using PySCF gen_grid.
+
+    Args:
+    idx (list of int): index of molecule(s) to get coordinates for
+    Returns:
+    coords (torch.Tensor): coordinates of grid points
+    weights (torch.Tensor): integration weights of grid points
+    """
+    # mol = utils.npy_to_ase(dataset.atoms['positions'][0:1], dataset.atoms['atom_numbers'][0:1])[0]
+    # utils.npy_to_ase(dataset.atoms['positions'][0:1], dataset.atoms['atom_numbers'][0:1])[0]
+    start = time.time()
+    max_len = 0
+    all_coords = []
+    all_weights = []
+    atom_numbers = atom_numbers.astype(int)
+    pos = positions.detach().cpu().numpy()
+    if atom_numbers.ndim < 2:
+        atom_numbers = atom_numbers.unsqueeze(0)
+        pos = pos.unsqueeze(0)
+    for i in range(atom_numbers.shape[0]):
+        loop_start = time.time()
+        atom = [(atom_numbers[i, j], pos[i, j]) for j in range(atom_numbers.shape[1])]
+        mol = gto.Mole(atom=atom)
+        if not mol._built:
+            build_start = time.time()
+            mol.build()
+        rot_spec = grid_spec
+        coords, weights = dft.gen_grid.get_partition(mol, rot_spec)
+        # print('coords shape', coords.shape)
+        # print('weights shape', weights)
+        if density_n_samp > coords.shape[0]:
+            coords = torch.tensor(coords).to(positions)
+            weights = torch.tensor(weights).to(positions)
+        else:
+            rand_idx = np.random.choice(np.arange(coords.shape[0]),
+                                        size=density_n_samp, replace=False)
+            coords = torch.tensor(coords[:, rand_idx]).to(positions)
+            weights = torch.tensor(weights[:, rand_idx]).to(positions)
+        all_coords.append(coords)
+        all_weights.append(weights)
+    pad_coords = nn.utils.rnn.pad_sequence(all_coords, batch_first=True, padding_value=0) * utils.to_angstrom
+    pad_weights = nn.utils.rnn.pad_sequence(all_weights, batch_first=True, padding_value=0)
+    return pad_coords, pad_weights
