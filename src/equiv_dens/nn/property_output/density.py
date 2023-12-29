@@ -129,17 +129,16 @@ class DensityCoeffsNetwork(nn.Module):
         self.init_radial_coeffs()
         self.reset_parameters()
 
-    """
-    Sets the initial L=0 coefficients for the model, which are used as baseline for the
-    predicted coefficients to speed up convergence
-
-    outputs:
-        init_sph: Initial L=0 spherical harmonic coefficients
-        init_scale: Initial L=0 radial scale coefficients
-        init_width: Initial L=0 radial width coefficients
-    """
-
     def reset_parameters(self):
+        """
+        Sets the initial L=0 coefficients for the model, which are used as baseline for the
+        predicted coefficients to speed up convergence
+
+        outputs:
+            init_sph: Initial L=0 spherical harmonic coefficients
+            init_scale: Initial L=0 radial scale coefficients
+            init_width: Initial L=0 radial width coefficients
+        """
         if self.pred_radial_coeffs:
             for L in range(len(self.radial_width)):
                 nn.init.zeros_(self.radial_width[L].weight)
@@ -385,7 +384,6 @@ class DensityCoeffsNetwork(nn.Module):
     outputs:
         matrix: Number of features required for each orbital order
     """
-
     def compute_orbital_features_num_compressed(self):
         L_counts = [0 for L in range(self.orbitals_max_order + 1)]
         r_max = [0 for L in range(self.orbitals_max_order + 1)]
