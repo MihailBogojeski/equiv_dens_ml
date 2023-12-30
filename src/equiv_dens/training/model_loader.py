@@ -17,7 +17,7 @@ from equiv_dens.density_functionals.LDA import LDAFunctional
 import numpy as np
 
 
-def load_model(args, dataset, train=False, new_density=False):
+def load_model(args, dataset, train=False):
     use_gpu = args.use_gpu and torch.cuda.is_available()
     z_vals = dataset.atoms['atom_numbers']
     clebsch_gordan = ClebschGordanMatrix()
@@ -273,9 +273,6 @@ def load_model(args, dataset, train=False, new_density=False):
                                 and 'energy' not in key:
                             print('Missing keywords', key)
                             raise Exception('Missing keywords in density coeffs model state dict')
-                if args.energy_weight + args.forces_weight > 0 and 'property_models.energy' in key:
-                    print('Missing keywords', key)
-                    raise Exception('Missing keywords in energy model state dict')
     if not train:
         # print('dtype type', type(args.dtype))
         model.to(args.dtype)

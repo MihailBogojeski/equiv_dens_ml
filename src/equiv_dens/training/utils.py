@@ -1,3 +1,8 @@
+"""
+This module contains various helper functions that are used prepare a model for training.
+
+Author: Mihail Bogojeski
+"""
 import torch
 from equiv_dens.utils.misc import generate_id
 from datetime import datetime
@@ -8,6 +13,7 @@ from equiv_dens.utils.grids import cubical_grid, cubical_sampling,\
 from equiv_dens.data.density_dataset import AtomsDensityData
 from equiv_dens.data.hamiltonian_dataset import seeded_random_split
 from equiv_dens.training.lookahead import Lookahead
+import numpy as np
 
 
 def init_training_vars(args, hyperparam_args):
@@ -78,13 +84,15 @@ def init_grid_vars(args, test=False):
     Returns:
         grid_vars: Dictionary containing data variables.
     """
-    rotate = False
+    if test:
+        rotate = False
+    else:
+        rotate = True
     if args.pyscf_grid:
         grid_fn = partial(spherical_grid, level=args.spherical_grid_level)
         sampling_fn = None
         grid_origin = 0
         grid_extent = None
-        rotate = True
     elif args.cube_grid:
         grid_origin = args.cube_origin
         grid_extent = np.array([args.cube_extent] * 3)
@@ -94,7 +102,7 @@ def init_grid_vars(args, test=False):
         sampling_fn = cubical_sampling
     else:
         grid_fn = partial(spherical_grid, level=args.spherical_grid_level)
-        sampling_fn = partial(spherical_radial_sampling, rotate=True)
+        sampling_fn = partial(spherical_radial_sampling, rotate=rotate)
         grid_origin = 0
         grid_extent = None
     grid_vars = {'rotate': rotate, 'grid_fn': grid_fn, 'sampling_fn': sampling_fn,
@@ -140,12 +148,13 @@ def modify_args_by_phase(args, orig_args, phase):
             args.core_density_basis = 0
         args.density_loss_comp = orig_args.density_loss_comp
         args.density_loss_comp_weights = orig_args.density_loss_comp_weights
-    elif phase == 'core_density':
+    elif phase == 'density_fine_tuning':
         args.density_weight = orig_args.density_weight
-        args.core_density_basis = orig_args.core_density_basis
-        args.learning_rate - args.learning_rate / 10
-        args.density_loss_comp = ['mse']
-        args.density_loss_comp_weights = [1.0]
+        args.learning_rate = orig_args.learning_rate * orig_args.fine_tuning_lr_factor
+        args.stop_at_learning_rate = orig_args.stop_at_learning_rate\
+            * orig_args.fine_tuning_stop_lr_factor
+        args.density_loss_comp = orig_args.density_loss_comp_ft
+        args.density_loss_comp_weights = orig_args.density_loss_comp_ft_weights
     elif phase == 'dipole_moment':
         args.dipole_moment_weight = orig_args.dipole_moment_weight
         if orig_args.density_weight > 0:
@@ -153,6 +162,12 @@ def modify_args_by_phase(args, orig_args, phase):
             args.stop_at_learning_rate = args.stop_at_learning_rate/100
         elif orig_args.df_weight > 0:
             args.learning_rate = args.learning_rate / 10
+    elif phase == 'core_density':
+        args.density_weight = orig_args.density_weight
+        args.core_density_basis = orig_args.core_density_basis
+        args.learning_rate - args.learning_rate / 10
+        args.density_loss_comp = ['mse']
+        args.density_loss_comp_weights = [1.0]
     elif phase == 'energy':
         args.energy_weight = orig_args.energy_weight
         args.forces_weight = orig_args.forces_weight
@@ -423,29 +438,7 @@ def prepare_optimizers(args, model, phase=None):
         {'params': weight_decay_parameters, 'weight_decay': float(args.weight_decay)}]
 
     # choose optimizer
-    optimizers = []
-    if args.optimizer == 'adam':  # Adam
-        print("using Adam optimizer")
-        optimizers.append(torch.optim.Adam(parameter_list, lr=args.learning_rate, eps=args.epsilon, betas=(
-            args.beta1, args.beta2), weight_decay=0.0))
-        if args.energy_offset:
-            optimizers.append(torch.optim.Adam(offset_param, lr=100 * args.learning_rate, eps=args.epsilon, betas=(
-                args.beta1, args.beta2), weight_decay=0.0))
-    elif args.optimizer == 'amsgrad':  # AMSGrad
-        print("using AMSGrad optimizer")
-        optimizers.append(torch.optim.Adam(parameter_list, lr=args.learning_rate, eps=args.epsilon, betas=(
-            args.beta1, args.beta2), weight_decay=0.0, amsgrad=True))
-        if args.energy_offset:
-            optimizers.append(torch.optim.Adam(offset_param, lr=100 * args.learning_rate, eps=args.epsilon, betas=(
-                args.beta1, args.beta2), weight_decay=0.0, amsgrad=True))
-    elif args.optimizer == 'sgd':  # Stochastic Gradient Descent
-        print("using Stochastic Gradient Descent optimizer")
-        optimizers.append(torch.optim.SGD(
-            parameter_list, lr=args.learning_rate, momentum=args.momentum, weight_decay=0.0))
-        if args.energy_offset:
-            optimizers.append(torch.optim.SGD(
-                offset_param, lr=100 * args.learning_rate, momentum=args.momentum, weight_decay=0.0))
-
+    optimizers = init_optimizers(args, parameter_list, offset_param)
     # initialize Lookahead
     if args.lookahead_k > 0:
         optimizers = [Lookahead(optimizer, k=args.lookahead_k) for optimizer in optimizers]
@@ -458,3 +451,38 @@ def prepare_optimizers(args, model, phase=None):
             optimizers[1], mode='min', factor=args.decay_factor, patience=args.decay_patience, verbose=args.verbose))
 
     return optimizers, schedulers, ema_params
+
+
+def init_optimizers(args, parameter_list, offset_param):
+    """
+    Initialize optimizers.
+
+    Args:
+        args: Namespace object containing command line arguments.
+        parameter_list: List of parameters to optimize.
+        offset_param: List of parameters to use when optimizing energy offset.
+    """
+    optimizers = []
+    if args.optimizer == 'adam':  # Adam
+        print("using Adam optimizer")
+        optimizers.append(torch.optim.Adam(parameter_list, lr=args.learning_rate, eps=args.epsilon,
+                                           betas=(args.beta1, args.beta2), weight_decay=0.0))
+        if args.energy_offset:
+            optimizers.append(torch.optim.Adam(offset_param, lr=100 * args.learning_rate, eps=args.epsilon,
+                                               betas=(args.beta1, args.beta2), weight_decay=0.0))
+    elif args.optimizer == 'amsgrad':  # AMSGrad
+        print("using AMSGrad optimizer")
+        optimizers.append(torch.optim.Adam(parameter_list, lr=args.learning_rate, eps=args.epsilon,
+                                           betas=(args.beta1, args.beta2), weight_decay=0.0, amsgrad=True))
+        if args.energy_offset:
+            optimizers.append(torch.optim.Adam(offset_param, lr=100 * args.learning_rate, eps=args.epsilon,
+                                               betas=(args.beta1, args.beta2), weight_decay=0.0, amsgrad=True))
+    elif args.optimizer == 'sgd':  # Stochastic Gradient Descent
+        print("using Stochastic Gradient Descent optimizer")
+        optimizers.append(torch.optim.SGD(
+            parameter_list, lr=args.learning_rate, momentum=args.momentum, weight_decay=0.0))
+        if args.energy_offset:
+            optimizers.append(torch.optim.SGD(
+                offset_param, lr=100 * args.learning_rate, momentum=args.momentum, weight_decay=0.0))
+
+    return optimizers

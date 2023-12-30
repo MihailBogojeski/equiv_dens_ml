@@ -187,7 +187,8 @@ def parse_command_line_arguments(arg_file=None):
     args_training.add_argument("--density_loss_comp", metavar='STR', type=str, default=['mae'], nargs='+',
                                choices=['mae', 'mse', 'rmse', 'lda_mae', 'lda_rmse', 'hartree_mae', 'hartree_rmse',
                                         'coulomb', 'perc_mae', 'perc_rmse', 'mixed_dist_err',
-                                        'perc_mixed_dist_err', 'kl_loss', 'dpm_loss'], help="composition of the density loss")
+                                        'perc_mixed_dist_err', 'kl_loss', 'dpm_loss', 'dpm_abs_loss'],
+                               help="Composition of the density loss.")
     args_training.add_argument("--dipole_moment_loss_comp", metavar='STR', type=str, default=['mae'], nargs='+',
                                choices=['mae', 'rmse'], help="composition of the dipole moment loss")
     args_training.add_argument("--df_loss_comp", metavar='STR', type=str, default=['mae'], nargs='+',
@@ -308,6 +309,19 @@ def parse_command_line_arguments(arg_file=None):
     args_training.add_argument("--core_density_basis", metavar='FLOAT', type=float, default=0.0,
                                help="Choose a fraction of the s orbitals to use as an additional"
                                + "basis for the core density, and perform the fitting if > 0.")
+    args_training.add_argument("--density_fine_tuning", metavar='True|False', type=str2bool, default=False,
+                               choices=[True, False], help="Fine tune the density with possibly a different loss.")
+    args_training.add_argument("--density_loss_comp_ft", metavar='STR', type=str, default=['mae'], nargs='+',
+                               choices=['mae', 'mse', 'rmse', 'lda_mae', 'lda_rmse', 'hartree_mae', 'hartree_rmse',
+                                        'coulomb', 'perc_mae', 'perc_rmse', 'mixed_dist_err',
+                                        'perc_mixed_dist_err', 'kl_loss', 'dpm_loss', 'dpm_abs_loss'],
+                               help="Composition of the density loss for fine tuning")
+    args_training.add_argument("--fine_tuning_lr_factor", metavar='FLOAT', type=float, default=0.1,
+                               help="Fine tuning learning rate reduction factor.")
+    args_training.add_argument("--fine_tuning_stop_lr_factor", metavar='FLOAT', type=float, default=0.1,
+                               help="Fine tuning stop at learning rate reduction factor.")
+    args_training.add_argument("--density_loss_comp_ft_weights", metavar='FLOAT', type=float, default=[1.0], nargs='+',
+                               help="weights of the composition of the density loss")
     args_training.add_argument('--wandb_mode', metavar='STR', type=str, default='online',
                                choices=['online', 'offline', 'disabled'], help="Wandb mode.")
 
