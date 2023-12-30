@@ -134,6 +134,10 @@ class ErrorDict:
                             losses['dpm_loss'] = torch.mean(density_errors.dipole_pointwise_int_loss(
                                 predictions['density'], data['density'],
                                 data['coords'], coord_weights))
+                        if 'dpm_abs_loss' in self.loss_comp[key]:
+                            losses['dpm_abs_loss'] = torch.mean(density_errors.dipole_pointwise_abs_loss(
+                                predictions['density'], data['density'],
+                                data['coords'], coord_weights))
                     if mae > self.max_errors[key]:
                         losses['mae'] = torch.clamp(losses['mae'], self.max_errors[key])
                         losses['rmse'] = torch.clamp(losses['rmse'], torch.sqrt(2) * self.max_errors[key])

@@ -20,7 +20,7 @@ import copy
 args, hyperparam_args = parse_command_line_arguments()
 wandb.login()
 
-args, hyperparam_args, train_vars = train_utils.init_training_params(args, hyperparam_args)
+args, hyperparam_args, train_vars = train_utils.init_training_vars(args, hyperparam_args)
 checkpoint = train_vars['checkpoint']
 args_dict = vars(args)
 if args.args_file_name is not None:
@@ -58,6 +58,8 @@ if checkpoint is None or 'training_phases' not in checkpoint:
         training_phases.append('density')
     if args.dipole_moment_weight > 0:
         training_phases.append('dipole_moment')
+    if args.density_fine_tuning:
+        training_phases.append('density_fine_tuning')
     if args.energy_weight > 0:
         training_phases.append('energy')
 else:
@@ -162,7 +164,7 @@ for phase in training_phases:
     if args.restart is None:
         args.restart = train_vars['directory']
 
-    optimizers, schedulers, ema_params = train_utils.prepare_optimizers(model, args, phase)
+    optimizers, schedulers, ema_params = train_utils.prepare_optimizers(args, model, phase)
 
     total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print('Total params is {}'.format(total_params))
@@ -237,8 +239,8 @@ if args.forces_weight > 0:
 
 grid_vars['rotate'] = False
 
-_, _, _, test_dataset, _ = train_utils.prepare_datasets(args, required_properties,
-                                                        grid_vars, data_split_indices)
+_, _, _, test_dataset, _, _ = train_utils.prepare_datasets(args, required_properties,
+                                                           grid_vars, data_split_indices)
 
 test_data_loader = set_up_data_loader(test_dataset, args.test_batch_size,
                                       args.electron_num_batching,
