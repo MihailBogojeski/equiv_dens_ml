@@ -475,6 +475,32 @@ def calc_dipole_moment(atoms, center_coordinates=True, normalize_density=True, p
     atoms['dipole_moment'] = positive_dipole_moment - negative_dipole_moment
     return atoms
 
+def sample_density(atoms, mo_coeff, mo_occ, basis='augccpvdz'):
+    sample_coords = atoms['coords']
+    scaled_sample_coords = atoms['coords'].detach().cpu().numpy() / param.BOHR  # convert Angstrom grid to Bohr
+    dens = torch.zeros((sample_coords.shape[0], sample_coords.shape[1]))
+    # mol_start = time.time()
+    # print('c, i', c, i)
+
+    atom = [(int(atoms['batch_atom_numbers'][0, i].detach().cpu().numpy()),
+            atoms['batch_positions'][0, i].detach().cpu().numpy()) for i in range(atoms['batch_positions'].shape[1])]
+    mol = gto.M(atom=atom, basis=basis)
+    # ao_start = time.time()
+    ao = numint.eval_ao(mol, scaled_sample_coords[0])
+    # print('ao time', time.time() - ao_start)
+    # rho_start = time.time()
+    # print('df coeff', df_coeff.shape)
+    if mo_occ.ndim > 1:
+        rho = 0
+        for j in range(mo_occ.shape[0]):
+            rho += numint.eval_rho2(mol, ao, mo_occ=mo_occ[j],
+                                    mo_coeff=mo_coeff[j])
+    else:
+        rho = numint.eval_rho2(mol, ao, mo_coeff=mo_coeff, mo_occ=mo_occ)
+    # print('rho time', time.time() - rho_start)
+    dens = torch.from_numpy(rho)
+    # print('mol_time', time.time() - mol_start)
+    return dens
 
 def sample_projected_density(atoms, df_coeffs, auxbasis, auxmol=None):
     df_coeffs = df_coeffs.detach().cpu().numpy()

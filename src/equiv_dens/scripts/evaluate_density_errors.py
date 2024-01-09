@@ -63,6 +63,8 @@ def calc_density_errors(density, atoms, error_dict):
     # unsigned dipole moment error at every grid point, RMSE
     dpm_int_error = torch.norm(torch.sum(((atoms['density'] - r_dens) * atoms['coord_weights']).unsqueeze(-1) *
                                (atoms['coords'] - center_of_mass), dim=1))
+    dpm_norm_error = torch.abs(torch.sum(((atoms['density'] - r_dens) * atoms['coord_weights']) *
+                               torch.norm(atoms['coords'] - center_of_mass, dim=-1), dim=1))
 
     kl_error = density_errors.density_KL_loss(r_dens, atoms['density'], atoms['atom_numbers'], atoms['coord_weights'])
 
@@ -82,6 +84,7 @@ def calc_density_errors(density, atoms, error_dict):
     error_dict['dpm_pos_coord_rmse'].append(float(dpm_pos_coord_error))
     error_dict['dpm_neg_coord_rmse'].append(float(dpm_neg_coord_error))
     error_dict['dpm_int_rmse'].append(float(dpm_int_error))
+    error_dict['dpm_norm_error'].append(float(dpm_norm_error))
     error_dict['kl_loss'].append(float(kl_error))
     # print('i', i, 'mae', df_error, 'rmse', df2_error, 'dpm', dpm_error, 'mag', dpm_mag_error, 'ang', dpm_ang_error, 'lda', lda_error)
 
@@ -562,7 +565,7 @@ if main_args.df_error:
                  'coulomb': [], 'coulomb_int': [], 'mae_23': [], 'mae_43': [],
                  'lda_23_mae': [], 'dpm_coord_rmse': [],
                  'dpm_pos_coord_rmse': [], 'dpm_neg_coord_rmse': [],
-                 'dpm_int_rmse': []}
+                 'dpm_int_rmse': [], 'dpm_norm_error': []}
 
     dataset_df = AtomsDensityData(np_path=args.np_dataset_test, density_path=args.dens_dataset_test,
                                   orbitals_path=args.orbitals_file,
@@ -604,7 +607,7 @@ res_losses = {'dens_mae': [], 'dens_rmse': [], 'dpm_mae': [],
               'coulomb': [], 'coulomb_int': [], 'mae_23': [], 'mae_43': [],
               'lda_23_mae': [], 'dpm_coord_rmse': [],
               'dpm_pos_coord_rmse': [], 'dpm_neg_coord_rmse': [],
-              'dpm_int_rmse': []}
+              'dpm_int_rmse': [], 'dpm_norm_error': []}
 for i in range(min(len(dataset), main_args.num_samples)):
     sample = dataset.get_properties([i])
     # print('sample pdist', torch.cdist(sample['positions'], sample['positions'])[0, :3,:3])
