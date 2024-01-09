@@ -1,4 +1,4 @@
-from schnetpack.md.utils import HDF5Loader
+from schnetpack.md.data import HDF5Loader
 import numpy as np
 import sys
 import ase.io
@@ -14,5 +14,5 @@ print('positions.shape', positions.shape)
 print('atom_numbers.shape', atom_numbers.shape)
 
 for i in range(positions.shape[1]):
-    atoms = {'positions': positions[:, i], 'atom_numbers':atom_numbers}
+    atoms = {'positions': positions[:, i], 'atom_numbers': atom_numbers}
     np.save(file[:-5] + '_' + str(i) + '.npy', atoms)
