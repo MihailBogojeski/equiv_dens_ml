@@ -181,7 +181,6 @@ class DFTNetworkCalculator(MDCalculator):
             atom_batch_idx[i, :] = i
         atom_batch_idx = torch.tensor(atom_batch_idx).to(positions).type(torch.long)
 
-
         idx_is = torch.cat(idx_is, dim=0)
         idx_js = torch.cat(idx_js, dim=0)
         inputs['idx_i'] = idx_is
