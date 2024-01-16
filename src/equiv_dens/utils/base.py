@@ -282,6 +282,26 @@ def npy_to_ase(arr, atom_list):
     return mols
 
 
+def npy_to_pyscf(arr, atom_list, basis):
+    if atom_list.ndim == 1:
+        atom_list = atom_list[None, :]
+    if arr.ndim == 2:
+        arr = arr[None, :]
+    if atom_list.shape[0] != arr.shape[0]:
+        atom_list = np.tile(atom_list, (arr.shape[0], 1))
+    mols = []
+    for i in range(arr.shape[0]):
+        atom = [(int(atom_list[i, j]),
+                arr[i, j]) for j in range(arr.shape[1]) if atom_list[i, j] != 0]
+        # mol = gto.M(atom=atom, basis=basis)
+        if (np.sum(atom_list[i, :]) % 2 == 1):
+            mol = gto.M(atom=atom, spin=1, basis=basis)
+        else:
+            mol = gto.M(atom=atom, basis=basis)
+        mols.append(mol)
+    return mols
+
+
 def energies_from_txt(filename, column, exclude_rows=0, energy_type='eV'):
     column -= 1
 
@@ -402,21 +422,21 @@ class TorchNeighborList:
         idx_js = []
         idx_Ss = []
         if pbc:
-            pbc = torch.ones((3, )).to(atoms['positions']).type(torch.ByteTensor) 
+            pbc = torch.ones((3, )).to(atoms['positions']).type(torch.ByteTensor)
         else:
-            pbc = torch.zeros((3, )).to(atoms['positions']).type(torch.ByteTensor) 
+            pbc = torch.zeros((3, )).to(atoms['positions']).type(torch.ByteTensor)
         for i in range(atoms['positions'].shape[0]):
             numbers = atoms['atom_numbers'][i]
             nz = numbers > 0
             numbers = numbers[nz]
             pos = atoms['positions'][i][nz]
-            
+
             if 'cell' in atoms.keys():
                 cell = atoms['cell']
             else:
                 cell = torch.max(pos, dim=(0))[0] - torch.min(pos, dim=(0))[0] + 2
                 cell = torch.diag(cell)
-            
+
             shifts = compute_shifts(cell=cell, pbc=pbc, cutoff=self.cutoff)
 
             # The returned indices are only one directional
@@ -435,32 +455,6 @@ class TorchNeighborList:
             idx_js.append(bi_idx_j)
             idx_Ss.append(bi_idx_S)
 
-
-        # n_atoms = atoms.get_global_number_of_atoms()
-        # if bi_idx_i.shape[0] > 0:
-        #     uidx, n_nbh = np.unique(bi_idx_i, return_counts=True)
-        #     n_max_nbh = np.max(n_nbh)
-        #
-        #     n_nbh = np.tile(n_nbh[:, np.newaxis], (1, n_max_nbh))
-        #     nbh_range = np.tile(
-        #         np.arange(n_max_nbh, dtype=np.int)[np.newaxis], (n_nbh.shape[0], 1)
-        #     )
-        #
-        #     mask = np.zeros((n_atoms, np.max(n_max_nbh)), dtype=np.bool)
-        #     mask[uidx, :] = nbh_range < n_nbh
-        #     neighborhood_idx = -np.ones((n_atoms, np.max(n_max_nbh)), dtype=np.float32)
-        #     offset = np.zeros((n_atoms, np.max(n_max_nbh), 3), dtype=np.float32)
-        #
-        #     # Assign neighbors and offsets according to the indices in bi_idx_i, since in contrast
-        #     # to the ASE provider the bidirectional arrays are no longer sorted.
-        #     # TODO: There might be a more efficient way of doing this than a loop
-        #     for idx in range(n_atoms):
-        #         neighborhood_idx[idx, mask[idx]] = bi_idx_j[bi_idx_i == idx]
-        #         offset[idx, mask[idx]] = bi_idx_S[bi_idx_i == idx]
-        #
-        # else:
-        #     neighborhood_idx = -np.ones((n_atoms, 1), dtype=np.float32)
-        #     offset = np.zeros((n_atoms, 1, 3), dtype=np.float32)
 
         return idx_is, idx_js, idx_Ss
 
@@ -832,6 +826,8 @@ def model_input_from_atoms(atoms, use_gpu=False, density_expansion=False,
         dict(torch.Tensor): Schnetpack inputs in dictionary format.
     """
     positions = torch.tensor(atoms['positions'])
+    if atoms['atom_numbers'].shape[0] != positions.shape[0]:
+        atom_types = np.tile(atoms['atom_numbers'], (positions.shape[0], 1))
     atom_types = torch.tensor(atoms['atom_numbers'])
     if use_gpu:
         positions = positions.cuda()

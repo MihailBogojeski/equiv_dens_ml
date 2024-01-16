@@ -16,7 +16,8 @@ class DFTNetwork(nn.Module):
                  memory=False,
                  conversions_in=UnitConversion(),
                  conversions_out=UnitConversion(),
-                 scaling=VarianceScaling()):
+                 scaling=VarianceScaling(),
+                 remove_atom_density=False,):
         super().__init__()
         self.density_repr_model = density_repr_model
         self.property_models = nn.ModuleDict(property_model_dict)
@@ -36,6 +37,7 @@ class DFTNetwork(nn.Module):
         self.no_force_props = [key for key in calculate_forces_dict if not calculate_forces_dict[key]]
         print('force props', self.force_props)
         print('no force props', self.no_force_props)
+        self.remove_atom_density = remove_atom_density
         if self.verbose > 0:
             print('force props', self.force_props)
             print('no force props', self.no_force_props)
@@ -78,6 +80,8 @@ class DFTNetwork(nn.Module):
         atoms['positions'].requires_grad = False
         if self.training:
             for key in self.no_force_props:
+                if 'density' in key and self.remove_atom_density:
+                    atoms['density'] -= atoms['atom_density']
                 # if key == 'core_density':
                 #     print('dft network forward', key, ':')
                 #     print('spherical coeffs before', atoms['spherical_coeffs'][0][(1, 0)])
@@ -103,5 +107,6 @@ class DFTNetwork(nn.Module):
         if not self.training:
             atoms = self.scaling.transform_back(atoms)
             atoms = self.conversions_out(atoms)
+            atoms['density'] += atoms['atom_density']
 
         return atoms
