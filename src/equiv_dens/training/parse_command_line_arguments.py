@@ -324,7 +324,13 @@ def parse_command_line_arguments(arg_file=None):
                                help="weights of the composition of the density loss")
     args_training.add_argument('--wandb_mode', metavar='STR', type=str, default='online',
                                choices=['online', 'offline', 'disabled'], help="Wandb mode.")
-
+    args_training.add_argument("--remove_atom_density", metavar='True|False', type=str2bool, default=False,
+                               choices=[True, False], help="Remove the free atom density from the total density.")
+    args_training.add_argument('--atom_dens_path', metavar='STR', type=str,
+                               help="Path to free atom densities file.")
+    args_training.add_argument('--atom_dens_type', metavar='STR', type=str,
+                               default='df_coeffs', choices=['spline', 'df_coeffs', 'mo_coeffs'],
+                               help="Type of functions to expand the free atom densities.")
     # arguments for simulations
     args_simulation = parser.add_argument_group("simulation hyperparameters")
     args_simulation.add_argument("--temperature", metavar='INT', type=int, default=300,

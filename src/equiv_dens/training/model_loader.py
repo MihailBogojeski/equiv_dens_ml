@@ -226,6 +226,7 @@ def load_model(args, dataset, train=False):
                        conversions_in=conversions_in,
                        conversions_out=conversions_out,
                        scaling=force_scaling,
+                       remove_atom_density=args.remove_atom_density,
                        )
     # print('dft network', model)
     if args.restart is not None:
