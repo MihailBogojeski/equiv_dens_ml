@@ -36,6 +36,7 @@ class DensityCoeffsNetwork(nn.Module):
                  normalize=0,
                  parity=False,
                  core_basis_ratio=0,
+                 linear_out=False,
                  ):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
         super().__init__()
 
@@ -61,6 +62,7 @@ class DensityCoeffsNetwork(nn.Module):
         self.radial_coeffs = init_radial_coeffs
         self.ml_width_offset = ml_width_min
         self.ml_width_scale = (ml_width_max - ml_width_min) / 2
+        self.linear_out = linear_out
 
         # if core basis ratio > 0, reduce orbital basis to only the highest width s orbitals
         if self.core_basis_ratio > 0:
@@ -115,6 +117,11 @@ class DensityCoeffsNetwork(nn.Module):
                                                 max(self.sph_counts), self.clebsch_gordan, bias=self.output_bias,
                                                 zero_init=self.output_zero_init, normalize=self.normalize,
                                                 parity=parity)
+        if self.linear_out:
+            self.linear_output = SphericalLinear(self.orbitals_max_order, max(self.sph_counts),
+                                                 self.orbitals_max_order, max(self.sph_counts),
+                                                 clebsch_gordan=None, mix_orders=False,
+                                                 bias=True, zero_init=True, normalize=self.normalize)
         print('self.pred_radial_coeffs', self.pred_radial_coeffs)
         if self.pred_radial_coeffs:
             self.radial_width = nn.ModuleList([nn.Linear(self.num_features, self.rad_counts[L])
@@ -425,6 +432,8 @@ class DensityCoeffsNetwork(nn.Module):
             print('fs[0]:', fs[0][:, 0, :, :10])
             print('fs[1]:', fs[1][:, 0, :, :10])
         out_sph = self.spherical_output(fs)
+        if self.linear_out:
+            out_sph = self.linear_output(out_sph)
         if self.scale_sph_order:
             for L in range(len(out_sph)):
                 out_sph[L] = out_sph[L] * 10**(-L)

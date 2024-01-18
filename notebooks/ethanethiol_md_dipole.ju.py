@@ -20,7 +20,6 @@ from equiv_dens.training import density_errors
 import matplotlib.pyplot as plt
 import numpy as np
 from equiv_dens.training import model_loader
-import equiv_dens.utils.cubetools as cubetools
 
 # %load_ext autoreload
 # %autoreload 2
@@ -29,18 +28,18 @@ import equiv_dens.utils.cubetools as cubetools
 # %%
 main_args = Namespace()
 
-main_args.args_file = "args/resorcinol_all_005.txt"
+# main_args.args_file = "args/resorcinol_all_005.txt"
 # main_args.args_file = "args/CO_dens_001.txt"
 # main_args.args_file = "args/h2o_dens_002.txt"
-# main_args.args_file = "args/ethanethiol_all_006_test.txt"
+main_args.args_file = "args/ethanethiol_all_006_test.txt"
 main_args.ref_np_load_file = None
 main_args.ref_dens_load_file = None
 # main_args.save_file = 'CO_dens_001.txt'
 # main_args.save_file = 'h2o_dens_002.txt'
-main_args.res_load_file = 'datasets/resorcinol_all_005_test.pt'
-main_args.save_file = 'resorcinol_all_005'
-# main_args.res_load_file = 'datasets/ethanethiol_all_006_test.pt'
-# main_args.save_file = 'ethanethiol_all_006_test'
+# main_args.res_load_file = 'datasets/resorcinol_all_005_test.pt'
+# main_args.save_file = 'resorcinol_all_005'
+main_args.res_load_file = 'datasets/ethanethiol_all_006_test.pt'
+main_args.save_file = 'ethanethiol_all_006_test'
 # main_args.save_file = 'resorcinol_all_005'
 main_args.df_error = True
 main_args.use_gpu = False
@@ -146,8 +145,8 @@ if main_args.ref_np_load_file is not None:
 if main_args.ref_dens_load_file is not None:
     args.dens_dataset_test = main_args.ref_dens_load_file
 
-args.np_dataset_test = "datasets/resorcinol_md_traj_dft_augccpvdz.npy"
-args.dens_dataset_test = "datasets/resorcinol_md_traj_dft_augccpvdz_df_augccpvqzjkfit.npy"
+args.np_dataset_test = "datasets/ethanethiol_md_traj_every1000_dft_augccpvdz.npy"
+args.dens_dataset_test = "datasets/ethanethiol_md_traj_every1000_dft_augccpvdz_df_augccpvqzjkfit.npy"
 
 dataset = AtomsDensityData(np_path=args.np_dataset_test, density_path=args.dens_dataset_test,
                            orbitals_path=args.orbitals_file,
@@ -373,13 +372,13 @@ for i in range(100):
 print('ml_dpm_errors', ml_dpm_errors)
 print('df_dpm_errors', df_dpm_errors)
 print('ml_df_dpm_errors', ml_df_dpm_errors)
-# np.save('results/resorcinol_ml_dpm_errors.npy', ml_dpm_errors, allow_pickle=True)
-# np.save('results/resorcinol_df_dpm_errors.npy', df_dpm_errors, allow_pickle=True)
-# np.save('results/resorcinol_ml_df_dpm_errors.npy', ml_df_dpm_errors, allow_pickle=True)
+np.save('results/ethanethiol_ml_dpm_errors_1000.npy', ml_dpm_errors, allow_pickle=True)
+np.save('results/ethanethiol_df_dpm_errors_1000.npy', df_dpm_errors, allow_pickle=True)
+np.save('results/ethanethiol_ml_df_dpm_errors_1000.npy', ml_df_dpm_errors, allow_pickle=True)
 # %%
-ml_dpm_errors = np.load('results/resorcinol_ml_dpm_errors.npy', allow_pickle=True).item()
-df_dpm_errors = np.load('results/resorcinol_df_dpm_errors.npy', allow_pickle=True).item()
-ml_df_dpm_errors = np.load('results/resorcinol_ml_df_dpm_errors.npy', allow_pickle=True).item()
+ml_dpm_errors = np.load('results/ethanethiol_ml_dpm_errors_1000.npy', allow_pickle=True).item()
+df_dpm_errors = np.load('results/ethanethiol_df_dpm_errors_1000.npy', allow_pickle=True).item()
+ml_df_dpm_errors = np.load('results/ethanethiol_ml_df_dpm_errors_1000.npy', allow_pickle=True).item()
 # %%
 for key in ml_dpm_errors.keys():
     for i in range(len(ml_dpm_errors[key])):
@@ -418,3 +417,6 @@ for key in keys:
     print('DF', key, np.nanmean(df_dpm_errors[key]))
     print('ML-DF', key, np.nanmean(ml_df_dpm_errors[key]))
     print('')
+# %%
+for i in range(len(ml_dpm_errors['dpm_norm'])):
+    print('i', i, 'ml err', ml_dpm_errors['dpm_norm'][i], 'df err', df_dpm_errors['dpm_norm'][i], 'ml-df err', ml_df_dpm_errors['dpm_norm'][i])

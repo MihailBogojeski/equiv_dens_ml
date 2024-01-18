@@ -463,7 +463,6 @@ class AtomsDensityData(Dataset):
             properties['atom_density'] = self.sample_atom_density(properties['batch_positions'],
                                                                   properties['batch_atom_numbers'],
                                                                   properties['coords'])
-
         return properties
 
 
