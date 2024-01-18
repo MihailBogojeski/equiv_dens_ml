@@ -83,6 +83,7 @@ def load_model(args, dataset, train=False):
         scale_sph_order=args.scale_sph_order,
         normalize=args.normalize,
         parity=args.parity_dens,
+        linear_out=args.remove_atom_density
     )
 
     if args.density_weight + args.dipole_moment_weight > 0:
