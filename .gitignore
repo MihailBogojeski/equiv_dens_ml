@@ -17,4 +17,3 @@ wandb/
 pseudo_potentials/
 .*
 *.DS_Store
-*.ju.py

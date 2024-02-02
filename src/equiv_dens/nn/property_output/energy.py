@@ -249,15 +249,15 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
 
         if self.normalize > 1:
             for L in range(len(xs)):
-                xs[L] = layer_norm(xs[L], dims=(-2, -1)) 
+                xs[L] = layer_norm(xs[L], dims=(-2, -1))
         # print('xs energy norm after input layer:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
         # perform iterations over modular building blocks to get environment - dependent features
         fs = [0 for _ in range(max(self.order_max, self.orbitals_max_order) + 1)]  # output features
         for i in range(len(xs)):
             fs[i] = fs[i] + xs[i]
+        # print('self normalize en', self.normalize)
         # print('fs norm start :', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
         # fs = [torch.zeros_like(x) for x in xs]  # output features
-
         for i, module in enumerate(self.module):
             xs = self.order_change[i](xs)
             # print('xs norm module ', i, ':', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])

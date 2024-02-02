@@ -16,7 +16,8 @@ class DFTNetwork(nn.Module):
                  memory=False,
                  conversions_in=UnitConversion(),
                  conversions_out=UnitConversion(),
-                 scaling=VarianceScaling()):
+                 scaling=VarianceScaling(),
+                 remove_atom_density=False,):
         super().__init__()
         self.density_repr_model = density_repr_model
         self.property_models = nn.ModuleDict(property_model_dict)
@@ -36,20 +37,50 @@ class DFTNetwork(nn.Module):
         self.no_force_props = [key for key in calculate_forces_dict if not calculate_forces_dict[key]]
         print('force props', self.force_props)
         print('no force props', self.no_force_props)
+        self.remove_atom_density = remove_atom_density
         if self.verbose > 0:
             print('force props', self.force_props)
             print('no force props', self.no_force_props)
 
+    def transform_input(self, data):
+        """
+        Convert and scale the input data to improve training.
+
+        Args:
+            data: Dictionary containing a collection of atoms and their various properties
+        Returns:
+            data: Updated dictionary containing the requested adjusted properties
+        """
+        data = self.conversions_in(data)
+        data = self.scaling(data)
+        if 'density' in data.keys() and self.remove_atom_density:
+            data['density'] -= data['atom_density']
+        return data
+
+    def transform_back_input(self, data):
+        """
+        Convert and scale the transformed input data back to its original form.
+
+        Args:
+            data: Dictionary containing a collection of atoms and their various properties
+        Returns:
+            data: Updated dictionary containing the original properties
+        """
+        data = self.scaling.transform_back(data)
+        data = self.conversions_out(data)
+        if 'density' in data.keys() and self.remove_atom_density:
+            data['density'] += data['atom_density']
+        return data
+
     def forward(self, data):
         """
-        Computes the electron density and needed density-derived properties
+        Compute the electron density and needed density-derived properties.
 
         inputs:
             atoms: Dictionary containing a collection of atoms and their various properties
         outputs:
             atoms: Updated dictionary containing the requested predicted properties
         """
-
         if self.memory:
             print('dft network forward start:')
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
@@ -103,5 +134,7 @@ class DFTNetwork(nn.Module):
         if not self.training:
             atoms = self.scaling.transform_back(atoms)
             atoms = self.conversions_out(atoms)
+            if 'density' in atoms.keys() and self.remove_atom_density:
+                atoms['density'] += atoms['atom_density']
 
         return atoms

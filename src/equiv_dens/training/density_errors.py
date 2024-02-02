@@ -144,5 +144,21 @@ def dipole_pointwise_int_loss(pred_dens, target_dens, grid_coords, grid_weights)
     """
     center_of_coords = torch.mean(grid_coords, dim=1, keepdim=True)
     dpm_int_error = torch.norm(torch.sum(((target_dens - pred_dens) * grid_weights).unsqueeze(-1) *
-                               (grid_coords - center_of_coords), dim=1))
+                               (grid_coords - center_of_coords), dim=1), dim=-1)
+    return dpm_int_error
+
+
+def dipole_pointwise_abs_loss(pred_dens, target_dens, grid_coords, grid_weights):
+    """
+    Compute an integral of the pointwise differences in the negative component of the dipole moment.
+
+    Args:
+        pred_dens (torch.Tensor): Predicted density.
+        target_dens (torch.Tensor): Refernce density.
+        grid_coords (torch.Tensor): Coordinates of the integration grid.
+        grid_weights (torch.Tensor): Weights of the integration grid.
+    """
+    center_of_coords = torch.mean(grid_coords, dim=1, keepdim=True)
+    dpm_int_error = torch.sum((torch.abs(target_dens - pred_dens) * grid_weights) *
+                              torch.norm(grid_coords - center_of_coords, dim=-1), dim=1)
     return dpm_int_error
