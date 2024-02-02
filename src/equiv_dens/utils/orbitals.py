@@ -350,15 +350,52 @@ def coeffs_dict_to_vector(coeffs, orbital_basis, a_num, radial_coeffs=True, coef
 #
 #     return vector_coeffs
 
+def radial_basis_to_vector(a_num, orbital_basis, radial_basis):
+    """
+    Uses a radial basis definition to construct two vectors of scale and width radial coefficients for a given set of atomistic systems.
 
-def vector_to_coeffs_dict(coeffs, orbital_basis, a_num, radial_coeffs=True, convert_to_equiv_dens=True):
+    Args:
+        a_num (torch.Tensor): Tensor of atomic numbers.
+        orbital_basis (dict): Dictionary describing the orbital basis for a set of atom types.
+        radial_basis (dict): Dictionary containing the radial coefficients of the basis for a set of atom types.
+    """
+    # print('orbital basis', orbital_basis)
+    # print('radial basis', radial_basis)
+
+    radial_widths = []
+    radial_scales = []
+
+    all_nums = torch.max(a_num, dim=0)[0]
+    for z in all_nums:
+        z = int(z)
+        basis_z = radial_basis[z]
+        for i in range(len(basis_z)):
+            radial_widths.append(radial_basis[z][i][0])
+            radial_scales.append(radial_basis[z][i][1])
+
+    radial_widths = np.concatenate(radial_widths)
+    radial_scales = np.concatenate(radial_scales)
+    radial_widths = torch.tile(torch.from_numpy(radial_widths), (a_num.shape[0], 1))
+    radial_scales = torch.tile(torch.from_numpy(radial_scales), (a_num.shape[0], 1))
+
+    return radial_widths, radial_scales
+
+def vector_to_coeffs_dict(coeffs, orbital_basis, a_num, radial_coeffs=True,
+                          convert_to_equiv_dens=True, radial_basis=None):
     vec_sph = coeffs['spherical_coeffs']
     dict_sph = []
     if radial_coeffs:
-        vec_width = coeffs['radial_width']
-        vec_scale = coeffs['radial_scale']
+        if 'radial_width' not in coeffs.keys():
+            if radial_basis is None:
+                raise ValueError('No radial coefficients or radial basis definition was provided!')
+            else:
+                vec_width, vec_scale = radial_basis_to_vector(a_num, orbital_basis, radial_basis)
+        else:
+            vec_width = coeffs['radial_width']
+            vec_scale = coeffs['radial_scale']
         dict_width = []
         dict_scale = []
+    print("starting vector to coeffs dict")
     sph_count = 0
     rad_count = 0
     for i, z in enumerate(torch.max(a_num, dim=0)[0]):
@@ -680,7 +717,7 @@ def ml_basis_to_pyscf_env(pred, auxmol):
                 radial_widths = torch.cat([radial_widths, pred['radial_width'][i][key].squeeze()])
                 radial_scales = torch.cat([radial_scales, pred['radial_scale'][i][key].squeeze()])
         radial_coeffs = torch.stack([radial_widths, radial_scales], dim=1)
-        radial_coeffs = torch.abs(radial_coeffs.flatten())
+        radial_coeffs = radial_coeffs.flatten()
         # print('radial_coeffs', radial_coeffs)
         # print('auxmol env old', auxmol_ext._env[atom_bas[i][1][0]:atom_bas[i][1][1] + 1])
         auxmol_ext._env[atom_bas[i][1][0]:atom_bas[i][1][1] + 1] = radial_coeffs.detach().cpu().numpy()
@@ -733,3 +770,44 @@ def ml_basis_to_df_coeffs(pred, basis, auxbasis, mo_coeff=None, mo_occ=None):
     df_basis = lib.einsum('Pij,ij->P', df_coef, dm1)
 
     return df_basis, auxmol_ext
+
+def get_density_charges(atoms):
+    """
+    Calculate the atomwise electron density charges. 
+    Args:
+        atoms (dict): dictionary containing the properties of the atomic system, including positions and density coefficients
+    Returns:
+        charges (torch.Tensor): Atomwise electron density charges [batch_size, num_atoms]
+    """
+
+    charges = torch.zeros_like(atoms['batch_atom_numbers']).to(atoms['positions'])
+    for i in range(len(atoms['spherical_coeffs'])):
+        for key in atoms['spherical_coeffs'][i].keys():
+            z, L = key
+            if L > 0:
+                continue
+            sph = atoms['spherical_coeffs'][i][key]
+            width = atoms['radial_width'][i][key]
+            scale = atoms['radial_scale'][i][key]
+
+            charges[:, i] += torch.sum((sph * scale) / (gto_norm(0, width) * pyscf_gto_factor), dim=(-3, -2, -1))
+
+    return charges
+
+
+def get_atomic_dipoles(atoms, expansion_model):
+    """
+    Calculate the atomic dipoles of an atomic system.
+    Args:
+        atoms (dict): dictionary containing the properties of the atomic system, including positions and density coefficients
+    Returns:
+        dipoles (torch.Tensor): Atomic dipoles for each atom in the system [batch_size, num_atoms, 3]
+    """
+    atoms_c = {**atoms}
+    dipoles = torch.zeros_like(atoms['batch_positions'])
+    for i in range(len(atoms['spherical_coeffs'])):
+        dpm1 = expansion_model(atoms_c, eval_atoms=[i], eval_L=[0, 1])['density']
+        dpm1 = torch.sum((dpm1 * atoms['coord_weights']).unsqueeze(-1) * atoms['coords'], dim=-2)
+        dipoles[:, i] = dpm1
+
+    return dipoles
