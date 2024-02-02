@@ -322,7 +322,7 @@ def parse_command_line_arguments(arg_file=None):
                                help="Fine tuning stop at learning rate reduction factor.")
     args_training.add_argument("--density_loss_comp_ft_weights", metavar='FLOAT', type=float, default=[1.0], nargs='+',
                                help="weights of the composition of the density loss")
-    args_training.add_argument('--wandb_mode', metavar='STR', type=str, default='online',
+    args_training.add_argument('--wandb_mode', metavar='STR', type=str, default='offline',
                                choices=['online', 'offline', 'disabled'], help="Wandb mode.")
     args_training.add_argument("--remove_atom_density", metavar='True|False', type=str2bool, default=False,
                                choices=[True, False], help="Remove the free atom density from the total density.")
