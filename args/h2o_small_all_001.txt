@@ -75,7 +75,7 @@ mae
 --ema_decay=0.999
 --ema_start_epoch=2000
 --weight_decay=0.0
---use_gpu=True
+--use_gpu=False
 --write_parameter_summaries=False
 --validation_interval=50
 --summary_interval=10
