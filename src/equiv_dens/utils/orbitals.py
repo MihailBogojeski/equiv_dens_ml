@@ -7,6 +7,7 @@ from pyscf.lib import param
 from pyscf import gto, df, lib, dft
 from pyscf.scf import hf
 import scipy
+import time
 
 hf.MUTE_CHKFILE = True
 
@@ -476,32 +477,73 @@ def calc_dipole_moment(atoms, center_coordinates=True, normalize_density=True, p
     return atoms
 
 
+def sample_density_base(mols, coords, coeffs, scale_coords=False, projected=False):
+    if scale_coords:
+        coords = coords / param.BOHR
+    if coords.shape[0] != len(mols):
+        raise ValueError('Batch dimension of coordinates must match number of molecules')
+    dens = torch.zeros((coords.shape[0], coords.shape[1]))
+    for i in range(len(mols)):
+        mol = mols[i]
+        if not mol._built:
+            mol.build()
+        ao = numint.eval_ao(mol, coords[i])
+        if projected:
+            rho = _expand_pyscf_projected_density(mol, ao, coeffs[i])
+        else:
+            rho = _expand_pyscf_density(mol, ao, coeffs[i])
+        dens[i, :] = torch.from_numpy(rho)
+    return dens
+
+
+def _expand_pyscf_density(mol, ao, coeffs):
+    if coeffs['mo_occ'].ndim > 1:
+        rho = 0
+        for j in range(coeffs['mo_occ'].shape[0]):
+            rho += numint.eval_rho2(mol, ao, mo_occ=coeffs['mo_occ'][j],
+                                    mo_coeff=coeffs['mo_coeff'][j])
+    else:
+        rho = numint.eval_rho2(mol, ao, **coeffs)
+
+    return rho
+
+
+def _expand_pyscf_projected_density(mol, ao, coeffs):
+    if coeffs.ndim > 1:
+        rho = 0
+        for j in range(coeffs.shape[0]):
+            rho += np.einsum('ij,j->i', ao, coeffs[j])
+    else:
+        rho = np.einsum('ij,j->i', ao, coeffs)
+
+    return rho
+
+
+def sample_density(atoms, mo_coeff, mo_occ, basis='augccpvdz'):
+    scaled_sample_coords = atoms['coords'].detach().cpu().numpy() / param.BOHR  # convert Angstrom grid to Bohr
+
+    mol = utils.npy_to_pyscf(atoms["batch_positions"].detach().cpu().numpy(),
+                             atoms["batch_atom_numbers"].detach().cpu().numpy(),
+                             basis)
+    dens = sample_density_base(mol, scaled_sample_coords,
+                               [{'mo_coeff': mo_coeff, 'mo_occ': mo_occ}],
+                               projected=False)
+    # print('mol_time', time.time() - mol_start)
+    return dens
+
+
 def sample_projected_density(atoms, df_coeffs, auxbasis, auxmol=None):
     df_coeffs = df_coeffs.detach().cpu().numpy()
-    sample_coords = atoms['coords']
     scaled_sample_coords = atoms['coords'].detach().cpu().numpy() / param.BOHR  # convert Angstrom grid to Bohr
-    dens = torch.zeros((sample_coords.shape[0], sample_coords.shape[1]))
-    # mol_start = time.time()
-    # print('c, i', c, i)
-
     if auxmol is None:
-        atom = [(int(atoms['batch_atom_numbers'][0, i].detach().cpu().numpy()),
-                atoms['batch_positions'][0, i].detach().cpu().numpy()) for i in range(atoms['batch_positions'].shape[1])]
-        mol = gto.M(atom=atom, basis=auxbasis)
+        mol = utils.npy_to_pyscf(atoms["batch_positions"].detach().cpu().numpy(),
+                                 atoms["batch_atom_numbers"].detach().cpu().numpy(),
+                                 auxbasis)
     else:
-        mol = auxmol
-    # ao_start = time.time()
-    ao = numint.eval_ao(mol, scaled_sample_coords[0])
-    # print('ao time', time.time() - ao_start)
-    # rho_start = time.time()
-    # print('df coeff', df_coeff.shape)
-    # print('ao shape', ao.shape)
-    rho = 0
-    for j in range(df_coeffs.shape[0]):
-        rho += np.einsum('ij,j->i', ao, df_coeffs[j])
-    # print('rho time', time.time() - rho_start)
-    dens = torch.from_numpy(rho)
-    # print('mol_time', time.time() - mol_start)
+        mol = [auxmol]
+    dens = sample_density_base(mol, scaled_sample_coords,
+                               df_coeffs,
+                               projected=True)
     return dens
 
 
@@ -567,8 +609,6 @@ def atom_basis_descriptors(auxmol):
     atom_bas.append([(start_bas, end_bas), (start_env, end_env)])
     if start_env not in atom_count:
         atom_count[start_env] = 0
-
-    print(len(atom_bas))
 
     # print('atom_bas', atom_bas)
     # print('atom_count', atom_count)
@@ -653,7 +693,7 @@ def ml_basis_to_pyscf_env(pred, auxmol):
     return auxmol_ext
 
 
-def ml_basis_to_df_coeffs(pred, basis, auxbasis):
+def ml_basis_to_df_coeffs(pred, basis, auxbasis, mo_coeff=None, mo_occ=None):
     atom = [(int(pred['batch_atom_numbers'][0, i].detach().cpu().numpy()),
             pred['batch_positions'][0, i].detach().cpu().numpy()) for i in range(pred['batch_positions'].shape[1])]
     auxmol = gto.M(atom=atom, basis=auxbasis)
@@ -661,14 +701,17 @@ def ml_basis_to_df_coeffs(pred, basis, auxbasis):
 
     mol = gto.M(atom=atom, basis=basis)
     mol.build()
-    mf = dft.RKS(mol)
-    mf.chkfile = False
-    mf.xc = 'pbe'
-    mf.kernel()
-    dm1 = hf.make_rdm1(mf.mo_coeff, mf.mo_occ)
+    if mo_coeff is None:
+        mf = dft.RKS(mol)
+        mf.chkfile = False
+        mf.xc = 'pbe'
+        mf.kernel()
+        dm1 = hf.make_rdm1(mf.mo_coeff, mf.mo_occ)
+    else:
+        dm1 = hf.make_rdm1(mo_coeff, mo_occ)
 
     auxmol_ext = ml_basis_to_pyscf_env(pred, auxmol)
-    print('auxmol_ext env', auxmol_ext._env)
+    # print('auxmol_ext env', auxmol_ext._env)
 
     # Define the auxiliary fitting basis for 3-center integrals. Use the function
     # make_auxmol to construct the auxiliary Mole object (auxmol) which will be

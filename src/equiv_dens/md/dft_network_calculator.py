@@ -84,7 +84,7 @@ class DFTNetworkCalculator(MDCalculator):
         # print('avg_force', torch.mean(torch.norm(results['forces'], dim=-1)))
         # print('avg_energy', torch.mean(results['energy']))
         # print('Model time:', time.time() - start_model)
-        # print('density integral', torch.sum(results['density'] * results['coord_weights'], -1))
+        print('density integral', torch.sum(results['density'] * results['coord_weights'], -1))
         start_coeffs = time.time()
         vector_coeffs = orbitals.coeffs_dict_to_vector(results, self.model.density_repr_model[0].orbital_basis,
                                                        results['batch_atom_numbers'])
@@ -94,6 +94,7 @@ class DFTNetworkCalculator(MDCalculator):
         results['radial_width'] = vector_coeffs['radial_width']
         results['radial_scale'] = vector_coeffs['radial_scale']
         results = utils.batch_compressed_atoms(results, ['positions', 'forces'])
+        print('forces', results['forces'])
         self.results = {}
         for p in self.required_properties:
             # if p in ['spherical_coeffs', 'radial_width', 'radial_scale']:
@@ -162,6 +163,7 @@ class DFTNetworkCalculator(MDCalculator):
         inputs['atom_mask'] = inputs['atom_numbers'] > 0
 
         nl = utils.TorchNeighborList(self.cutoff)
+        print(inputs['positions'])
         idx_is, idx_js, _ = nl.get_neighbors(inputs)
         # print('inputs positions shape', inputs['positions'].shape)
         # print('idx_is', idx_is)
@@ -169,7 +171,7 @@ class DFTNetworkCalculator(MDCalculator):
         for i in range(len(idx_is)):
             idx_is[i] += prev_max
             idx_js[i] += prev_max
-            # print('idx_is shape', idx_is[i].shape)
+            print('idx_is shape', idx_is[i].shape)
             max_i = torch.max(idx_is[i])
             max_j = torch.max(idx_is[i])
             prev_max = max(max_i, max_j) + 1
@@ -178,7 +180,6 @@ class DFTNetworkCalculator(MDCalculator):
         for i in range(len(atom_numbers)):
             atom_batch_idx[i, :] = i
         atom_batch_idx = torch.tensor(atom_batch_idx).to(positions).type(torch.long)
-
 
         idx_is = torch.cat(idx_is, dim=0)
         idx_js = torch.cat(idx_js, dim=0)

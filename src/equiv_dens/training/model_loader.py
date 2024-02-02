@@ -83,6 +83,7 @@ def load_model(args, dataset, train=False):
         scale_sph_order=args.scale_sph_order,
         normalize=args.normalize,
         parity=args.parity_dens,
+        linear_out=args.remove_atom_density
     )
 
     if args.density_weight + args.dipole_moment_weight > 0:
@@ -226,6 +227,7 @@ def load_model(args, dataset, train=False):
                        conversions_in=conversions_in,
                        conversions_out=conversions_out,
                        scaling=force_scaling,
+                       remove_atom_density=args.remove_atom_density,
                        )
     # print('dft network', model)
     if args.restart is not None:
@@ -265,17 +267,15 @@ def load_model(args, dataset, train=False):
         if len(missing) > 0 and not args.ignore_missing_keywords:
             print(missing)
             for key in missing:
-                if args.df_weight > 0 and 'property_models.density' not in key:
-                    print('Missing keywords', key)
-                    raise Exception('Missing keywords in df model state dict')
-                elif args.density_weight > 0:
-                    if 'property_models.density' not in key and not (args.core_density_basis > 0) \
-                            and 'init_' not in key and 'energy' not in key:
+                if 'init_' not in key:
+                    if args.df_weight > 0 and 'property_models.density' not in key:
                         print('Missing keywords', key)
-                        raise Exception('Missing keywords in density coeffs model state dict')
-                # if args.energy_weight + args.forces_weight > 0 and 'property_models.energy' in key:
-                #     print('Missing keywords', key)
-                #     raise Exception('Missing keywords in energy model state dict')
+                        raise Exception('Missing keywords in df model state dict')
+                    elif args.density_weight > 0:
+                        if 'property_models.density' not in key and not (args.core_density_basis > 0) \
+                                and 'energy' not in key:
+                            print('Missing keywords', key)
+                            raise Exception('Missing keywords in density coeffs model state dict')
     if not train:
         # print('dtype type', type(args.dtype))
         model.to(args.dtype)
