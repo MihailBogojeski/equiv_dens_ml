@@ -604,15 +604,16 @@ class Trainer:
         return valid_errors, is_best
 
     def write_summary(self, new_valid, new_best):
+        phase_metric = f'step_{self.training_phases[0]}'
         for key in self.train_errors.keys():
             # self.summary.add_scalar(key + '/train', self.train_errors[key], self.step)
-            self.wandb.log({key + '_train': self.train_errors[key]})
+            self.wandb.log({key + '_train': self.train_errors[key], phase_metric: self.step}, commit=False)
 
         if new_valid:
             for valid_err in self.valid_errors:
                 for key in valid_err.keys():
                     # self.summary.add_scalar(key + '/valid', valid_err[key], self.step)
-                    self.wandb.log({key + '_valid': valid_err[key]})
+                    self.wandb.log({key + '_valid': valid_err[key], phase_metric: self.step}, commit=False)
             new_valid = False
 
         if new_best:
@@ -623,7 +624,7 @@ class Trainer:
 
         if self.clip_norm > 0:
             # self.summary.add_scalar('gradient/norm', self.gradient_norm, self.step)
-            self.wandb.log({'gradient_norm': self.gradient_norm})
+            self.wandb.log({'gradient_norm': self.gradient_norm, phase_metric: self.step}, commit=False)
 
         # write optional summaries for model parameters
         if self.args.write_parameter_summaries:
@@ -636,9 +637,12 @@ class Trainer:
                     last = splitted_name[0]
                 if param.numel() > 1 and param.requires_grad:  # only tensors get written as histogram
                     hist = wandb.Histogram(param.clone().cpu().data.numpy())
-                    self.wandb.log({first + '_' + last: hist})
+                    self.wandb.log({first + '_' + last: hist, phase_metric: self.step}, commit=False)
                     # self.summary.add_histogram(
                     #     first + '/' + last, param.clone().cpu().data.numpy(), self.step)
+
+        # send everything at once (empty dict with commit=True)
+        self.wandb.log({})
 
         # print progress to consoles
         progress_string = str(self.step).zfill(
