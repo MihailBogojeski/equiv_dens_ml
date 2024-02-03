@@ -115,6 +115,11 @@ for phase in training_phases:
         model.cuda()
     model.to(args.dtype)
 
+    # set wandb metric (x-axis) for training phase
+    phase_metric = f'step_{phase}'
+    wandb.define_metric(phase_metric)
+    wandb.define_metric('*', step_metric=phase_metric)
+
     print('restore before training', phase, train_vars['restore'])
     print('num neighbors', args.num_neighbours)
     print('normalize_en', args.normalize_en)
