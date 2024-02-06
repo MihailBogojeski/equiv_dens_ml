@@ -198,8 +198,7 @@ loss_comp_weights['dipole_moment'] = {loss_comp: loss_weight
 loss_comp_weights['energy'] = {loss_comp: loss_weight
                                for loss_comp, loss_weight
                                in zip(args.energy_loss_comp, args.energy_loss_comp_weights)}
-loss_comp_weights['forces'] = {loss_comp: loss_weight
-                               for loss_comp, loss_weight
+loss_comp_weights['forces'] = {loss_comp: loss_weight for loss_comp, loss_weight
                                in zip(args.forces_loss_comp, args.forces_loss_comp_weights)}
 
 error_dict = ErrorDict(loss_weights, weights_balance=args.weights_balance,
@@ -300,14 +299,14 @@ for test_batch_num, data in enumerate(test_data_loader):
         if saved_results is None:
             saved_results = {}
             for key in saved_properties:
-                saved_results[key] = predictions[key] 
+                saved_results[key] = predictions[key].detach().cpu() 
                 print('saved results', key, ' after', saved_results[key].shape)
         else:
             for key in saved_properties:
                 print('saved results', key, ' extend before', saved_results[key].shape)
                 print('predictions', key, ' extend before', predictions[key].shape)
                 if isinstance(predictions[key], torch.Tensor):
-                    saved_results[key] = torch.cat((saved_results[key], predictions[key]), dim=0) 
+                    saved_results[key] = torch.cat((saved_results[key], predictions[key].detach().cpu()), dim=0) 
                 print('saved results', key, ' extend after', saved_results[key].shape)
                 if key == 'density':
                     print('data density integral', torch.sum(data['density'] * data['coord_weights'], dim=1))
