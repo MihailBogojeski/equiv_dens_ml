@@ -212,7 +212,7 @@ for phase in training_phases:
     trainer.run(args.max_steps, use_gpu=use_gpu, dtype=args.dtype)
     print('finished trainer run of phase', phase)
     ongoing_phases.remove(phase)
-    restore = False
+    train_vars['restore'] = False
 print('Starting test evaluation!!!')
 
 args.df_weight = 0.0
