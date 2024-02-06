@@ -2,7 +2,6 @@
 import torch
 import wandb
 from equiv_dens.training.parse_command_line_arguments import parse_command_line_arguments
-from equiv_dens.training.errors import ErrorDict
 from equiv_dens.training.trainer import Trainer
 from equiv_dens.training.model_loader import load_model
 from equiv_dens.data.custom_samplers import set_up_data_loader
@@ -81,69 +80,7 @@ for phase in training_phases:
         train_utils.prepare_datasets(args, required_properties,
                                      grid_vars, train_vars['data_split_indices'])
 
-    loss_weights = {}
-    loss_weights['density'] = args.density_weight
-    loss_weights['dipole_moment'] = args.dipole_moment_weight
-    loss_weights['df_coeffs'] = args.df_weight
-    loss_weights['energy'] = args.energy_weight
-    loss_weights['forces'] = args.forces_weight
-    loss_weights['energy_min'] = args.energy_min_weight
-    weights_decay = {}
-    weights_decay['density'] = args.density_weight_decay
-    weights_decay['dipole_moment'] = args.dipole_moment_weight_decay
-    weights_decay['df_coeffs'] = args.df_weight_decay
-    weights_decay['energy'] = args.energy_weight_decay
-    weights_decay['forces'] = args.forces_weight_decay
-    weights_decay['energy_min'] = args.energy_min_weight_decay
-    weights_min = {}
-    weights_min['density'] = args.density_weight_min
-    weights_min['dipole_moment'] = args.dipole_moment_weight_min
-    weights_min['df_coeffs'] = args.df_weight_min
-    weights_min['energy'] = args.energy_weight_min
-    weights_min['forces'] = args.forces_weight_min
-    weights_min['energy_min'] = args.energy_min_weight_min
-    loss_comp = {}
-    loss_comp['density'] = args.density_loss_comp
-    loss_comp['dipole_moment'] = args.dipole_moment_loss_comp
-    loss_comp['df_coeffs'] = args.df_loss_comp
-    loss_comp['energy'] = args.energy_loss_comp
-    loss_comp['forces'] = args.forces_loss_comp
-
-    loss_comp_weights = {}
-    loss_comp_weights['density'] = {loss_comp: loss_weight
-                                    for loss_comp, loss_weight
-                                    in zip(args.density_loss_comp, args.density_loss_comp_weights)}
-    loss_comp_weights['df_coeffs'] = {loss_comp: loss_weight
-                                      for loss_comp, loss_weight
-                                      in zip(args.df_loss_comp, args.df_loss_comp_weights)}
-    loss_comp_weights['dipole_moment'] = {loss_comp: loss_weight
-                                          for loss_comp, loss_weight
-                                          in zip(args.dipole_moment_loss_comp, args.dipole_moment_loss_comp_weights)}
-    loss_comp_weights['energy'] = {loss_comp: loss_weight
-                                   for loss_comp, loss_weight
-                                   in zip(args.energy_loss_comp, args.energy_loss_comp_weights)}
-    loss_comp_weights['forces'] = {loss_comp: loss_weight
-                                   for loss_comp, loss_weight
-                                   in zip(args.forces_loss_comp, args.forces_loss_comp_weights)}
-
-    error_dict = ErrorDict(loss_weights, weights_balance=args.weights_balance,
-                           percentage_error=args.percentage_error,
-                           weights_decay=weights_decay, weights_min=weights_min,
-                           loss_comp=loss_comp, loss_comp_weights=loss_comp_weights, df_loss_weights=args.df_loss_weights,
-                           )
-
-    # determine weights of different quantities for scaling loss
-    # loss_weights['full_hamiltonian'] = args.full_hamiltonian_weight
-    # loss_weights['core_hamiltonian'] = args.core_hamiltonian_weight
-    # loss_weights['overlap_matrix'] = args.overlap_matrix_weight
-    # loss_weights['energy'] = args.energy_weight
-    # loss_weights['forces'] = args.forces_weight
-
-    # if energies / forces are used for training, the extreme errors
-    # at the beginning of training usually lead to NaNs. For this
-    # reason gradients are only allowed to flow through loss terms
-    # if the MAE is smaller than a certain threshold.
-
+    error_dict = train_utils.init_error_dict(args)
     # prepare data loaders
     train_data_loader = set_up_data_loader(train_dataset, args.train_batch_size,
                                            args.electron_num_batching,
@@ -177,7 +114,6 @@ for phase in training_phases:
     if args.use_gpu:
         model.cuda()
     model.to(args.dtype)
-    sample = dataset.get_properties([0])
 
     print('restore before training', phase, train_vars['restore'])
     print('num neighbors', args.num_neighbours)
@@ -225,18 +161,7 @@ else:
     args.energy_weight = 0.0
     args.forces_weight = 0.0
 
-required_properties = []
-if args.density_weight + args.dipole_moment_weight > 0:
-    required_properties.append('density')
-if args.dipole_moment_weight > 0:
-    required_properties.append('dipole_moment')
-if args.df_weight > 0:
-    required_properties.append('df_coeffs')
-if args.energy_weight > 0:
-    required_properties.append('energy')
-if args.forces_weight > 0:
-    required_properties.append('forces')
-
+required_properties = train_utils.get_required_properties_from_args(args)
 grid_vars['rotate'] = False
 
 _, _, _, test_dataset, _, _ = train_utils.prepare_datasets(args, required_properties,
@@ -246,46 +171,12 @@ test_data_loader = set_up_data_loader(test_dataset, args.test_batch_size,
                                       args.electron_num_batching,
                                       args.batch_efficiency, use_gpu, False)
 
-loss_weights = {}
-loss_weights['density'] = args.density_weight
-loss_weights['dipole_moment'] = args.density_weight
-loss_weights['energy'] = args.energy_weight
-loss_weights['forces'] = args.forces_weight
+error_dict = train_utils.init_error_dict(args, test=True)
+
 if training_phases[-1] == 'dipole_moment':
-    loss_weights['energy'] = 0
-    loss_weights['forces'] = 0
+    error_dict.loss_weights['energy'] = 0
+    error_dict.loss_weights['forces'] = 0
 
-print('loss weights test', loss_weights)
-loss_comp = {}
-loss_comp['density'] = ['perc_mae', 'perc_rmse']
-loss_comp['dipole_moment'] = args.dipole_moment_loss_comp
-loss_comp['df_coeffs'] = args.df_loss_comp
-loss_comp['energy'] = args.energy_loss_comp
-loss_comp['forces'] = args.forces_loss_comp
-loss_comp['dipole_moment'] = args.dipole_moment_loss_comp
-
-loss_comp_weights = {}
-loss_comp_weights['density'] = {'perc_mae': 1, 'perc_rmse': 1}
-loss_comp_weights['df_coeffs'] = {loss_comp: loss_weight
-                                  for loss_comp, loss_weight
-                                  in zip(args.df_loss_comp, args.df_loss_comp_weights)}
-loss_comp_weights['energy'] = {loss_comp: loss_weight
-                               for loss_comp, loss_weight
-                               in zip(args.energy_loss_comp, args.energy_loss_comp_weights)}
-loss_comp_weights['forces'] = {loss_comp: loss_weight
-                               for loss_comp, loss_weight
-                               in zip(args.forces_loss_comp, args.forces_loss_comp_weights)}
-loss_comp_weights['dipole_moment'] = {loss_comp: loss_weight
-                                      for loss_comp, loss_weight
-                                      in zip(args.dipole_moment_loss_comp, args.dipole_moment_loss_comp_weights)}
-
-
-error_dict = ErrorDict(loss_weights, weights_balance=args.weights_balance,
-                       percentage_error=args.percentage_error,
-                       loss_comp=loss_comp,
-                       loss_comp_weights=loss_comp_weights,
-                       # relative_en=True,
-                       )
 model = load_model(args, dataset, train=False)
 test_errors = error_dict.empty()
 for test_batch_num, data in enumerate(test_data_loader):
@@ -297,11 +188,9 @@ for test_batch_num, data in enumerate(test_data_loader):
                 data[key] = data[key].cuda()
 
     # forward step
-    data = model.conversions_in(data)
-    data = model.scaling(data)
+    data = model.transform_input(data)
     predictions = model(data)
-    data = model.scaling.transform_back(data)
-    data = model.conversions_out(data)
+    data = model.transform_back_input(data)
     # print('energy pred', predictions['energy'])
     if args.verbose > 1:
         if 'density' in predictions.keys():

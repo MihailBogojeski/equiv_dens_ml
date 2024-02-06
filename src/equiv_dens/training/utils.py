@@ -13,6 +13,7 @@ from equiv_dens.utils.grids import cubical_grid, cubical_sampling,\
 from equiv_dens.data.density_dataset import AtomsDensityData
 from equiv_dens.data.hamiltonian_dataset import seeded_random_split
 from equiv_dens.training.lookahead import Lookahead
+from equiv_dens.training.errors import ErrorDict
 import numpy as np
 
 
@@ -186,13 +187,11 @@ def get_required_properties_from_args(args):
         required_properties: List of required properties.
     """
     required_properties = []
-    if args.density_weight > 0:
+    if args.density_weight + args.dipole_moment_weight > 0:
         required_properties.append('density')
     if args.df_weight > 0:
         required_properties.append('df_coeffs')
     if args.dipole_moment_weight > 0:
-        if 'density' not in required_properties:
-            required_properties.append('density')
         required_properties.append('dipole_moment')
     if args.energy_weight > 0:
         required_properties.append('energy')
@@ -286,7 +285,9 @@ def prepare_datasets(args, required_properties, grid_vars, data_split_indices):
                                verbose=args.verbose,
                                timing=args.timing,
                                cutoff=args.cutoff,
-                               df_loss_weights=args.df_loss_weights)
+                               df_loss_weights=args.df_loss_weights,
+                               atom_dens_path=args.atom_dens_path,
+                               atom_dens_type=args.atom_dens_type,)
 
 # split into train / valid / test
     if data_split_indices is None and args.np_dataset_valid is None:
@@ -315,7 +316,10 @@ def prepare_datasets(args, required_properties, grid_vars, data_split_indices):
                                          grid_origin=grid_vars['grid_origin'],
                                          verbose=args.verbose,
                                          cutoff=args.cutoff,
-                                         df_loss_weights=args.df_loss_weights)
+                                         df_loss_weights=args.df_loss_weights,
+                                         atom_dens_path=args.atom_dens_path,
+                                         atom_dens_type=args.atom_dens_type,)
+
         if data_split_indices is None or args.ignore_split_indices:
             valid_inds = np.random.choice(np.arange(len(valid_dataset)), args.num_valid, replace=False)
             valid_dataset = torch.utils.data.Subset(valid_dataset, valid_inds)
@@ -353,7 +357,9 @@ def prepare_datasets(args, required_properties, grid_vars, data_split_indices):
                                         grid_extent=grid_vars['grid_extent'],
                                         grid_origin=grid_vars['grid_origin'],
                                         cutoff=args.cutoff,
-                                        df_loss_weights=args.df_loss_weights)
+                                        df_loss_weights=args.df_loss_weights,
+                                        atom_dens_path=args.atom_dens_path,
+                                        atom_dens_type=args.atom_dens_type,)
 
         if args.num_test is not None:
             test_size = args.num_test
@@ -394,6 +400,80 @@ def prepare_datasets(args, required_properties, grid_vars, data_split_indices):
                 valid_dataset.normalize_energy(atomic_energies)
 
     return dataset, train_dataset, valid_dataset, test_dataset, valid_cube_dataset, data_split_indices
+
+
+def init_error_dict(args, test=False):
+    """
+    Initialize error dictionary for training.
+
+    Args:
+        args: Command line arguments.
+        test: Whenther error dict will be used for testing.
+    Returns:
+        error_dict: Object for specifying the error functions used for the different properties.
+    """
+    loss_weights = {}
+    loss_weights['density'] = args.density_weight
+    loss_weights['dipole_moment'] = args.dipole_moment_weight
+    loss_weights['df_coeffs'] = args.df_weight
+    loss_weights['energy'] = args.energy_weight
+    loss_weights['forces'] = args.forces_weight
+    loss_weights['energy_min'] = args.energy_min_weight
+    if not test:
+        weights_decay = {}
+        weights_decay['density'] = args.density_weight_decay
+        weights_decay['dipole_moment'] = args.dipole_moment_weight_decay
+        weights_decay['df_coeffs'] = args.df_weight_decay
+        weights_decay['energy'] = args.energy_weight_decay
+        weights_decay['forces'] = args.forces_weight_decay
+        weights_decay['energy_min'] = args.energy_min_weight_decay
+        weights_min = {}
+        weights_min['density'] = args.density_weight_min
+        weights_min['dipole_moment'] = args.dipole_moment_weight_min
+        weights_min['df_coeffs'] = args.df_weight_min
+        weights_min['energy'] = args.energy_weight_min
+        weights_min['forces'] = args.forces_weight_min
+        weights_min['energy_min'] = args.energy_min_weight_min
+
+    loss_comp = {}
+    loss_comp['dipole_moment'] = args.dipole_moment_loss_comp
+    loss_comp['df_coeffs'] = args.df_loss_comp
+    loss_comp['energy'] = args.energy_loss_comp
+    loss_comp['forces'] = args.forces_loss_comp
+
+    loss_comp_weights = {}
+    loss_comp_weights['df_coeffs'] = {loss_comp: loss_weight
+                                      for loss_comp, loss_weight
+                                      in zip(args.df_loss_comp, args.df_loss_comp_weights)}
+    loss_comp_weights['dipole_moment'] = {loss_comp: loss_weight
+                                          for loss_comp, loss_weight
+                                          in zip(args.dipole_moment_loss_comp, args.dipole_moment_loss_comp_weights)}
+    loss_comp_weights['energy'] = {loss_comp: loss_weight
+                                   for loss_comp, loss_weight
+                                   in zip(args.energy_loss_comp, args.energy_loss_comp_weights)}
+    loss_comp_weights['forces'] = {loss_comp: loss_weight
+                                   for loss_comp, loss_weight
+                                   in zip(args.forces_loss_comp, args.forces_loss_comp_weights)}
+    if not test:
+        loss_comp['density'] = args.density_loss_comp
+        loss_comp_weights['density'] = {loss_comp: loss_weight
+                                        for loss_comp, loss_weight
+                                        in zip(args.density_loss_comp, args.density_loss_comp_weights)}
+        error_dict = ErrorDict(loss_weights, weights_balance=args.weights_balance,
+                               percentage_error=args.percentage_error,
+                               weights_decay=weights_decay, weights_min=weights_min,
+                               loss_comp=loss_comp, loss_comp_weights=loss_comp_weights,
+                               df_loss_weights=args.df_loss_weights,
+                               )
+    else:
+        loss_comp['density'] = ['perc_mae', 'perc_rmse']
+        loss_comp_weights['density'] = {'perc_mae': 1, 'perc_rmse': 1}
+        error_dict = ErrorDict(loss_weights, weights_balance=args.weights_balance,
+                               percentage_error=args.percentage_error,
+                               loss_comp=loss_comp, loss_comp_weights=loss_comp_weights,
+                               df_loss_weights=args.df_loss_weights,
+                               )
+    return error_dict
 
 
 def prepare_optimizers(args, model, phase=None):

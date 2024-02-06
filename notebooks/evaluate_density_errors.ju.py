@@ -1,6 +1,6 @@
+# %% import numpy as np
 import os
 from datetime import datetime
-import argparse
 
 import torch
 from equiv_dens.training.parse_command_line_arguments import parse_command_line_arguments
@@ -17,6 +17,9 @@ from equiv_dens.training import density_errors
 import matplotlib.pyplot as plt
 import numpy as np
 
+# %load_ext autoreload
+# %autoreload 2
+# %cd /home/mihail/Documents/workspace/equiv_dens/
 
 # %%
 def calc_density_errors(density, atoms, error_dict):
@@ -52,8 +55,8 @@ def calc_density_errors(density, atoms, error_dict):
     center_of_mass = torch.sum(atoms['batch_positions'] * atoms['batch_atom_numbers'].unsqueeze(-1), dim=1, keepdim=True)\
         / torch.sum(atoms['batch_atom_numbers'].unsqueeze(-1), dim=1, keepdim=True)
     # absolute dipole moment error at every grid point, RMSE
-    dpm_coord_error = torch.sum(torch.norm((atoms['density'] - r_dens).unsqueeze(-1) *
-                                (atoms['coords'] - center_of_mass), dim=2) * atoms['coord_weights'])
+    dpm_coord_error = torch.sqrt(torch.sum(torch.sum((torch.abs(atoms['density'] - r_dens) * atoms['coord_weights']).unsqueeze(-1) *
+                                 (atoms['coords'] - center_of_mass), dim=1)**2))
     # positive dipole moment error at every grid point, RMSE
     dpm_pos_coord_error = torch.sqrt(torch.sum(torch.sum((((atoms['density'] - r_dens) * ((atoms['density'] - r_dens) > 0)) * atoms['coord_weights']).unsqueeze(-1) *
                                      (atoms['coords'] - center_of_mass), dim=1)**2))
@@ -61,10 +64,12 @@ def calc_density_errors(density, atoms, error_dict):
     dpm_neg_coord_error = torch.sqrt(torch.sum(torch.sum((((atoms['density'] - r_dens) * ((atoms['density'] - r_dens) < 0)) * atoms['coord_weights']).unsqueeze(-1) *
                                      (atoms['coords'] - center_of_mass), dim=1)**2))
     # unsigned dipole moment error at every grid point, RMSE
+    # dpm_int_error = torch.sqrt(torch.sum(torch.sum(((atoms['density'] - r_dens) * atoms['coord_weights']).unsqueeze(-1) *
+    #                            (atoms['coords'] - center_of_mass), dim=1)**2))
+    # dpm_int_error = torch.sum(((atoms['density'] - r_dens) * atoms['coord_weights']) *
+    #                           torch.norm(atoms['coords'] - center_of_mass), dim=2)
     dpm_int_error = torch.norm(torch.sum(((atoms['density'] - r_dens) * atoms['coord_weights']).unsqueeze(-1) *
                                (atoms['coords'] - center_of_mass), dim=1))
-    dpm_norm_error = torch.abs(torch.sum(((atoms['density'] - r_dens) * atoms['coord_weights']) *
-                               torch.norm(atoms['coords'] - center_of_mass, dim=-1), dim=1))
 
     kl_error = density_errors.density_KL_loss(r_dens, atoms['density'], atoms['atom_numbers'], atoms['coord_weights'])
 
@@ -84,7 +89,6 @@ def calc_density_errors(density, atoms, error_dict):
     error_dict['dpm_pos_coord_rmse'].append(float(dpm_pos_coord_error))
     error_dict['dpm_neg_coord_rmse'].append(float(dpm_neg_coord_error))
     error_dict['dpm_int_rmse'].append(float(dpm_int_error))
-    error_dict['dpm_norm_error'].append(float(dpm_norm_error))
     error_dict['kl_loss'].append(float(kl_error))
     # print('i', i, 'mae', df_error, 'rmse', df2_error, 'dpm', dpm_error, 'mag', dpm_mag_error, 'ang', dpm_ang_error, 'lda', lda_error)
 
@@ -111,7 +115,7 @@ def make_plots(dens_ml, dens_df, sample_ref, save_name):
 
     min_distance_from_atoms = torch.min(distance_from_atoms, dim=1)[0]
 
-    fig, axs = plt.subplots(5, 4, figsize=(10, 12))
+    fig, axs = plt.subplots(5, 4, figsize=(12, 14))
 
     axs[1, 0].scatter(dens_df_mae.squeeze(), distance_from_com, label='DF', c='blue')
     axs[1, 0].scatter(dens_ml_mae.squeeze(), distance_from_com, label='ML', c='orange')
@@ -195,8 +199,8 @@ def make_plots(dens_ml, dens_df, sample_ref, save_name):
     axs[0, 3].set_xlabel('DF_MAE - ML_MAE at gridpoint,')
     axs[0, 2].set_ylabel('distance from center of mass')
     axs[0, 3].set_ylabel('distance from closest atom')
-    dpm_df_mae = torch.norm((dens_df - sample_ref['density']).unsqueeze(-1) * sample_ref['coords'], dim=2) * sample_ref['coord_weights']
-    dpm_ml_mae = torch.norm((dens_ml - sample_ref['density']).unsqueeze(-1) * sample_ref['coords'], dim=2) * sample_ref['coord_weights']
+    dpm_df_mae = torch.sum((dens_df - sample_ref['density']).unsqueeze(-1) * sample_ref['coords'], dim=2) * sample_ref['coord_weights']
+    dpm_ml_mae = torch.sum((dens_ml - sample_ref['density']).unsqueeze(-1) * sample_ref['coords'], dim=2) * sample_ref['coord_weights']
     # calculate difference between DF and ML errors
     dpm_mae_diff = dpm_df_mae - dpm_ml_mae
 
@@ -258,90 +262,9 @@ def make_plots(dens_ml, dens_df, sample_ref, save_name):
     plt.legend()
     plt.tight_layout()
 
-    # plt.show()
-    plt.savefig('figures/' + save_name + '_density_errors_all.png', dpi=300)
-
-def make_compact_plots(dens_ml, dens_df, sample_ref, save_name):
-    dens_ml = torch.clamp(dens_ml, min=0)
-    dens_ml = dens_ml / torch.sum(dens_ml * sample_ref['coord_weights']) * torch.sum(sample_ref['atom_numbers'])
-
-    dens_df = torch.clamp(dens_df, min=0)
-    dens_df = dens_df / torch.sum(dens_df * sample_ref['coord_weights']) * torch.sum(sample_ref['atom_numbers'])
-
-    center_of_mass = torch.sum(sample_ref['batch_positions'] * sample_ref['batch_atom_numbers'].unsqueeze(-1), dim=1, keepdim=True)\
-                    / torch.sum(sample_ref['batch_atom_numbers'].unsqueeze(-1), dim=1, keepdim=True)
-
-    distance_from_com = torch.norm(sample_ref['coords'] - center_of_mass, dim=2)
-
-    distance_from_atoms = torch.norm(sample_ref['coords'].unsqueeze(1) - sample_ref['positions'].unsqueeze(2), dim=-1)
-    min_distance_from_atoms = torch.min(distance_from_atoms, dim=1)[0]
-
-    plt.rcParams['text.usetex'] = True
-
-    fig, axs = plt.subplots(1, 4, figsize=(10, 2))
-
-    # absolute density errors unscaled
-    dens_df_err = (dens_df - sample_ref['density'])
-    dens_ml_err = (dens_ml - sample_ref['density'])
-
-    # absolute density errors scaled
-    dens_df_sc_err = (dens_df - sample_ref['density']) * sample_ref['coord_weights']
-    dens_ml_sc_err = (dens_ml - sample_ref['density']) * sample_ref['coord_weights']
-
-    # calculate difference between DF and ML errors
-    dpm_df_err = (dens_df - sample_ref['density']) * torch.norm(sample_ref['coords'], dim=2) * sample_ref['coord_weights']
-    dpm_ml_err = (dens_ml - sample_ref['density']) * torch.norm(sample_ref['coords'], dim=2) * sample_ref['coord_weights']
-
-    sort_by_dist = torch.argsort(distance_from_com)
-
-    dist_splits = torch.split(sort_by_dist, (sort_by_dist.shape[1] // 2) + 1, dim=1)
-
-    avg_dists = []
-    dist_ml_errors = []
-    dist_df_errors = []
-    for split in dist_splits:
-        split = split.flatten()
-        avg_dists.append(torch.mean(distance_from_com[:, split]))
-        # dist_df_errors.append(torch.sum(dpm_df_err[:, split]))
-        # dist_ml_errors.append(torch.sum(dpm_ml_err[:, split]))
-        dist_df_errors.append(torch.norm(torch.sum(((sample_ref['density'][:, split] - dens_df[:, split]) *
-                                                    sample_ref['coord_weights'][:, split]).unsqueeze(-1) *
-                                                   (sample_ref['coords'][:, split, :] - center_of_mass), dim=1)))
-        dist_ml_errors.append(torch.norm(torch.sum(((sample_ref['density'][:, split] - dens_ml[:, split]) *
-                                                    sample_ref['coord_weights'][:, split]).unsqueeze(-1) *
-                                                   (sample_ref['coords'][:, split, :] - center_of_mass), dim=1)))
-    avg_dists = np.array(avg_dists)
-    dist_df_errors = np.array(dist_df_errors)
-    dist_ml_errors = np.array(dist_ml_errors)
-
-    print('avg_dists', avg_dists)
-    print('dist_df_errors', dist_df_errors)
-    print('dist_ml_errors', dist_ml_errors)
-    axs[0].scatter(dens_df_sc_err.squeeze(), distance_from_com, label='DF', c='blue', s=1)
-    axs[0].scatter(dens_ml_sc_err.squeeze(), distance_from_com, label='ML', c='orange', s=1)
-
-    axs[1].scatter(dens_df_err.squeeze(), distance_from_com, label='DF', c='blue', s=1)
-    axs[1].scatter(dens_ml_err.squeeze(), distance_from_com, label='ML', c='orange', s=1)
-
-    axs[2].scatter(dpm_df_err.squeeze(), distance_from_com, label='DF', c='blue', s=1)
-    axs[2].scatter(dpm_ml_err.squeeze(), distance_from_com, label='ML', c='orange', s=1)
-
-    axs[3].barh(avg_dists - 0.15, dist_df_errors, height=0.3, label='DF')
-    axs[3].barh(avg_dists + 0.15, dist_ml_errors, height=0.3, label='ML')
-
-    axs[0].set_xlabel('$\\rho$ MAE at gridpoint')
-    axs[1].set_xlabel('$\\rho$ MAE at gridpoint,\n scaled by volume of gridpoint')
-    axs[2].set_xlabel('$\\mu$ error at gridpoint,\n scaled by volume of gridpoint')
-    axs[3].set_xlabel('$\\mu$ norm error,\n segmented by distance from center')
-    axs[0].set_ylabel('distance from CoM')
-
-    plt.legend()
-    plt.tight_layout()
-
-    # plt.show()
-    plt.savefig('figures/' + save_name + '_density_errors_compact.png', dpi=300)
-
-
+    plt.show()
+    # plt.savefig('figures/' + save_name + '_density_errors_ext.png', dpi=300)
+# %%
 def make_scatter_plots(res_density, dataset_df, dataset, save_name):
     dens_df_mae = []
     dens_ml_mae = []
@@ -351,11 +274,13 @@ def make_scatter_plots(res_density, dataset_df, dataset, save_name):
     lda_ml_mae = []
     dpm_coord_df_rmse = []
     dpm_coord_ml_rmse = []
-    for i in range(len(res_density)):
+    for i in range(len(dataset)):
         print('i', i)
         sample_ref = dataset.get_properties([i])
         dens_df = dataset_df.get_properties([i])['density']
         dens_ml = res_density[[i]]
+        print('dens df shape', dens_df.shape)
+        print('dens ml shape', dens_ml.shape)
         dens_ml = torch.clamp(dens_ml, min=0)
         dens_ml = dens_ml / torch.sum(dens_ml * sample_ref['coord_weights']) * torch.sum(sample_ref['atom_numbers'])
 
@@ -408,9 +333,9 @@ def make_scatter_plots(res_density, dataset_df, dataset, save_name):
     axs[3].scatter(lda_df_mae, lda_ml_mae, s=1)
 
     axs[0].set_title('absolute density error')
-    axs[1].set_title('dipole moment error')
-    axs[2].set_title('dipole moment absolute coordinate error')
-    axs[3].set_title('LDA integral error')
+    axs[1].set_xlabel('dipole moment error')
+    axs[2].set_xlabel('dipole moment absolute coordinate error')
+    axs[3].set_xlabel('dipole moment integral coordinate errorc')
 
     axs[0].set_xlabel('density fitting error')
     axs[1].set_xlabel('density fitting error')
@@ -423,20 +348,22 @@ def make_scatter_plots(res_density, dataset_df, dataset, save_name):
 
     # plt.show()
     plt.savefig('figures/' + save_name + '_density_errors_scatter.png', dpi=300)
+    # plt.savefig('figures/' + save_name + '_density_errors_ext.png', dpi=300)
+# %%
+main_args = Namespace()
 
-
-parser = argparse.ArgumentParser()
-parser.add_argument('args_file', type=str)
-parser.add_argument('ref_np_load_file', type=str)
-parser.add_argument('ref_dens_load_file', type=str)
-parser.add_argument('res_load_file', type=str)
-parser.add_argument('save_file', type=str)
-parser.add_argument('--df_error', action='store_true', default=False)
-parser.add_argument('--use_gpu', action='store_true', default=False)
-parser.add_argument('--num_samples', type=int, default=-1)
-parser.add_argument('--make_plots', action='store_true', default=False)
-
-main_args = parser.parse_args()
+main_args.args_file = "args/resorcinol_all_001.txt"
+# main_args.args_file = "args/ethanethiol_all_006_test.txt"
+main_args.ref_np_load_file = None
+main_args.ref_dens_load_file = None
+# main_args.res_load_file = 'datasets/ethanethiol_all_006_test.pt'
+# main_args.save_file = 'ethanethiol_all_006'
+main_args.res_load_file = 'datasets/resorcinol_all_005_test.pt'
+main_args.save_file = 'resorcinol_all_005'
+main_args.df_error = True
+main_args.use_gpu = True
+main_args.num_samples = 10
+main_args.make_plots = True
 
 df_losses = None
 
@@ -565,7 +492,7 @@ if main_args.df_error:
                  'coulomb': [], 'coulomb_int': [], 'mae_23': [], 'mae_43': [],
                  'lda_23_mae': [], 'dpm_coord_rmse': [],
                  'dpm_pos_coord_rmse': [], 'dpm_neg_coord_rmse': [],
-                 'dpm_int_rmse': [], 'dpm_norm_error': []}
+                 'dpm_int_rmse': []}
 
     dataset_df = AtomsDensityData(np_path=args.np_dataset_test, density_path=args.dens_dataset_test,
                                   orbitals_path=args.orbitals_file,
@@ -607,7 +534,69 @@ res_losses = {'dens_mae': [], 'dens_rmse': [], 'dpm_mae': [],
               'coulomb': [], 'coulomb_int': [], 'mae_23': [], 'mae_43': [],
               'lda_23_mae': [], 'dpm_coord_rmse': [],
               'dpm_pos_coord_rmse': [], 'dpm_neg_coord_rmse': [],
-              'dpm_int_rmse': [], 'dpm_norm_error': []}
+              'dpm_int_rmse': []}
+for i in range(min(len(dataset), main_args.num_samples)):
+    sample = dataset.get_properties([i])
+    # print('sample pdist', torch.cdist(sample['positions'], sample['positions'])[0, :3,:3])
+    # print('res_pdist', torch.cdist(res_dataset['positions'][[i]], res_dataset['positions'][[i]])[0, :3,:3])
+    sample = dataset.get_properties([i])
+    calc_density_errors(res_dataset['density'][[i]], sample, res_losses)
+
+np.save('datasets/' + main_args.save_file + '.npy', res_losses, allow_pickle=True)
+print('Results losses')
+for key in res_losses.keys():
+    print(key)
+    print(np.nanmean(res_losses[key]), np.nanmean(df_losses[key]) if df_losses is not None else "")
+print('true dens max', torch.max(sample['density']))
+if main_args.df_error:
+    print('DF dens max', torch.max(sample_df['density']))
+print('ML dens max', torch.max(res_dataset['density'][[i]]))
+print('dpm pos neg diff', np.nanmean(res_losses['dpm_pos_coord_rmse']) - np.nanmean(res_losses['dpm_neg_coord_rmse']),
+      np.nanmean(df_losses['dpm_pos_coord_rmse']) - np.nanmean(df_losses['dpm_neg_coord_rmse']))
+
+# %%
+res_dataset = torch.load(main_args.res_load_file, map_location='cpu')
+print('res dataset length', len(res_dataset))
+print('res sample pos shape', res_dataset['positions'].shape)
+print('res sample dens shape', res_dataset['density'].shape)
+res_losses = {'dens_mae': [], 'dens_rmse': [], 'dpm_mae': [],
+              'dpm_rmse': [], 'kl_loss': [],
+              'dpm_mag': [], 'dpm_ang': [], 'lda_mae': [],
+              'coulomb': [], 'coulomb_int': [], 'mae_23': [], 'mae_43': [],
+              'lda_23_mae': [], 'dpm_coord_rmse': [],
+              'dpm_pos_coord_rmse': [], 'dpm_neg_coord_rmse': [],
+              'dpm_int_rmse': []}
+for i in range(min(len(dataset), main_args.num_samples)):
+    sample = dataset.get_properties([i])
+    # print('sample pdist', torch.cdist(sample['positions'], sample['positions'])[0, :3,:3])
+    # print('res_pdist', torch.cdist(res_dataset['positions'][[i]], res_dataset['positions'][[i]])[0, :3,:3])
+    sample = dataset.get_properties([i])
+    calc_density_errors(res_dataset['density'][[i]], sample, res_losses)
+
+np.save('datasets/' + main_args.save_file + '.npy', res_losses, allow_pickle=True)
+print('Results losses')
+for key in res_losses.keys():
+    print(key)
+    print(np.nanmean(res_losses[key]), np.nanmean(df_losses[key]) if df_losses is not None else "")
+print('true dens max', torch.max(sample['density']))
+if main_args.df_error:
+    print('DF dens max', torch.max(sample_df['density']))
+print('ML dens max', torch.max(res_dataset['density'][[i]]))
+print('dpm pos neg diff', np.nanmean(res_losses['dpm_pos_coord_rmse']) - np.nanmean(res_losses['dpm_neg_coord_rmse']),
+      np.nanmean(df_losses['dpm_pos_coord_rmse']) - np.nanmean(df_losses['dpm_neg_coord_rmse']))
+
+# %%
+res_dataset = torch.load(main_args.res_load_file, map_location='cpu')
+print('res dataset length', len(res_dataset))
+print('res sample pos shape', res_dataset['positions'].shape)
+print('res sample dens shape', res_dataset['density'].shape)
+res_losses = {'dens_mae': [], 'dens_rmse': [], 'dpm_mae': [],
+              'dpm_rmse': [], 'kl_loss': [],
+              'dpm_mag': [], 'dpm_ang': [], 'lda_mae': [],
+              'coulomb': [], 'coulomb_int': [], 'mae_23': [], 'mae_43': [],
+              'lda_23_mae': [], 'dpm_coord_rmse': [],
+              'dpm_pos_coord_rmse': [], 'dpm_neg_coord_rmse': [],
+              'dpm_int_rmse': []}
 for i in range(min(len(dataset), main_args.num_samples)):
     sample = dataset.get_properties([i])
     # print('sample pdist', torch.cdist(sample['positions'], sample['positions'])[0, :3,:3])
@@ -630,5 +619,88 @@ print('dpm pos neg diff', np.nanmean(res_losses['dpm_pos_coord_rmse']) - np.nanm
 # %%
 if main_args.make_plots and main_args.df_error:
     # make_plots(res_dataset['density'][[i]], sample_df['density'], sample, main_args.save_file)
-    make_compact_plots(res_dataset['density'][[i]], sample_df['density'], sample, main_args.save_file)
-    # make_scatter_plots(res_dataset['density'], dataset_df, dataset, main_args.save_file)
+    make_scatter_plots(res_dataset['density'], dataset_df, dataset, main_args.save_file)
+# %%
+
+# %%
+
+args.spherical_grid_level = 4
+grid_fn = partial(spherical_grid, level=args.spherical_grid_level)
+sampling_fn = partial(spherical_radial_sampling, rotate=False)
+grid_origin = 0
+grid_extent = None
+rotate = False
+
+dataset_new= AtomsDensityData(np_path=args.np_dataset_test, density_path=args.dens_dataset_test,
+                           orbitals_path=args.orbitals_file,
+                           density_n_samp=10000000000000000000000,
+                           required_properties=required_properties,
+                           center_positions=False,
+                           radial_coeffs_file=args.radial_coeffs_file,
+                           dtype=args.dtype,
+                           grid_fn=grid_fn,
+                           pyscf_grid=args.pyscf_grid,
+                           pyscf_rotate=rotate,
+                           sampling_fn=sampling_fn,
+                           grid_extent=grid_extent,
+                           grid_origin=grid_origin,
+                           cutoff=args.cutoff,
+                           df_loss_weights=args.df_loss_weights,
+                           projected_density=args.projected_density,
+                           )
+# %%
+sample = dataset.get_properties([0])
+sample_new = dataset_new.get_properties([0])
+
+dpm_error = 4.8 * torch.norm(sample_new['dipole_moment'] - sample['dipole_moment'])
+# center_of_mass = torch.sum(sample['batch_positions'] * sample['batch_atom_numbers'].unsqueeze(-1), dim=1, keepdim=True)\
+#     / torch.sum(sample['batch_atom_numbers'].unsqueeze(-1), dim=1, keepdim=True)
+# dpm_coord_error = torch.sqrt(torch.sum(torch.sum((torch.abs(sample['density'] - sample_new['density']) * sample['coord_weights']).unsqueeze(-1) *
+#                              (sample['coords'] - center_of_mass), dim=1)**2))
+# dpm_int_error = torch.norm(torch.sum(((sample['density'] - sample_new['density']) * sample['coord_weights']).unsqueeze(-1) *
+#                            (sample['coords'] - center_of_mass), dim=1))
+
+center_of_mass = torch.sum(sample['batch_positions'] * sample['batch_atom_numbers'].unsqueeze(-1), dim=1, keepdim=True)\
+    / torch.sum(sample['batch_atom_numbers'].unsqueeze(-1), dim=1, keepdim=True)
+
+sample_copy = {key: sample[key] for key in sample.keys()}
+dpm_new = orbitals.calc_dipole_moment(sample_new, positive_density=False, normalize_density=False)['dipole_moment']
+dpm_old = orbitals.calc_dipole_moment(sample_copy, positive_density=False, normalize_density=False)['dipole_moment']
+dpm_old2 = orbitals.calc_dipole_moment(sample_copy)['dipole_moment']
+
+dpm2_error = 4.8 * torch.norm(dpm_old - sample['dipole_moment'])
+dpm3_error = 4.8 * torch.norm(dpm_old2 - sample['dipole_moment'])
+
+dpm_nonorm_error = 4.8 * torch.norm(dpm_old - dpm_new)
+dpm_norm_error = 4.8 * torch.norm(dpm_old2 - dpm_new)
+
+print('dpm error', float(dpm_error))
+print('dpm old-new error', float(dpm2_error))
+print('dpm old2-new error', float(dpm3_error))
+print('dpm all error', float(dpm_nonorm_error))
+print('dpm all error', float(dpm_norm_error))
+print('dpm error diff', float(torch.abs(dpm2_error - dpm_nonorm_error)))
+
+density = res_dataset['density'][[0]]
+pred_dpm = res_dataset['dipole_moment'][[0]]
+
+r_dens = torch.clamp(density, min=0)
+r_dens = r_dens / torch.sum(r_dens * sample['coord_weights']) * torch.sum(sample['atom_numbers'])
+
+r_dens_atoms = {key: sample[key] for key in sample.keys()}
+r_dens_atoms['density'] = r_dens
+r_dens_dpm = orbitals.calc_dipole_moment(r_dens_atoms)['dipole_moment']
+r_dens_atoms['density'] = density
+pred_nonorm_dpm = orbitals.calc_dipole_moment(r_dens_atoms, normalize_density=False, positive_density=False)['dipole_moment']
+pred_calc_dpm = orbitals.calc_dipole_moment(r_dens_atoms)['dipole_moment']
+
+dpm_rdens_error = 4.8 * torch.norm(r_dens_dpm - sample['dipole_moment'])
+dpm_nonorm_error = 4.8 * torch.norm(pred_nonorm_dpm - sample['dipole_moment'])
+dpm_calc_error = 4.8 * torch.norm(pred_calc_dpm - sample['dipole_moment'])
+dpm_base_error = 4.8 * torch.norm(res_dataset['dipole_moment'][[0]] - sample['dipole_moment'])
+
+print('rdens dpm error', float(dpm_rdens_error))
+print('nonorm pred dens error', float(dpm_nonorm_error))
+print('dpm base error', float(dpm_base_error))
+print('calc pred dens error', float(dpm_calc_error))
+print('base vs pred_calc error', float(torch.abs(dpm_base_error - dpm_calc_error)))

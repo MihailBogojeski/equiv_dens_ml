@@ -28,6 +28,7 @@ import equiv_dens.utils.base as utils
 from equiv_dens.utils import orbitals
 from pyscf.dft import gen_grid, radi
 import time
+from equiv_dens.utils.hirshfeld_analysis import eval_spline_density
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +65,9 @@ class AtomsDensityData(Dataset):
         projected_density=False,
         cutoff=7.937658158457616,
         df_loss_weights=False,
+        calc_data=False,
+        atom_dens_path=None,
+        atom_dens_type=None,
     ):
         self.density_path = density_path
         self.np_path = np_path
@@ -85,9 +89,11 @@ class AtomsDensityData(Dataset):
         self.use_gpu = use_gpu
         self.radii_adjust = radii_adjust
         self.energy_centered = False
-        self.timing=timing
+        self.timing = timing
         self.projected_density = projected_density
         self.cutoff = cutoff
+        self.calc_data = calc_data
+        self.atom_dens_type = atom_dens_type
         if 'dipole_moment' in self.required_properties:
             if 'density' not in self.required_properties:
                 self.required_properties.append('density')
@@ -101,6 +107,11 @@ class AtomsDensityData(Dataset):
             self.atoms['atom_numbers'] = self.atoms['atom_numbers'][None, :]
         if self.atoms['atom_numbers'].shape[0] != self.atoms['positions'].shape[0]:
             self.atoms['atom_numbers'] = np.tile(self.atoms['atom_numbers'], (self.atoms['positions'].shape[0], 1))
+
+        if atom_dens_path is not None:
+            self.atom_dens = np.load(atom_dens_path, allow_pickle=True).item()
+        else:
+            self.atom_dens = None
 
         all_atom_numbers = np.unique(self.atoms['atom_numbers'].flatten())
         all_atom_numbers = all_atom_numbers[all_atom_numbers > 0]
@@ -200,7 +211,8 @@ class AtomsDensityData(Dataset):
             print('dataset radial coeffs', self.radial_coeffs)
             print('dataset L0 coeffs', self.L0_coeffs)
 
-        print('finished init')
+        if self.verbose > 0:
+            print('finished init')
 
     def create_splits(self, num_train=None, num_val=None, split_file=None):
         warnings.warn(
@@ -430,16 +442,28 @@ class AtomsDensityData(Dataset):
             properties['forces'] = properties['forces'][:, properties['atom_mask']]
 
         if self.calc_dpm:
-            properties = orbitals.calc_dipole_moment(properties) 
+            properties = orbitals.calc_dipole_moment(properties)
 
         for prop in self.fixed_properties.keys():
             properties[prop] = self.fixed_properties[prop]
+        if self.calc_data:
+            for i in idx:
+                mo_coeff = torch.tensor(self.coeffs[i]['mo_coeff']).unsqueeze(0).to(properties['positions'])
+                mo_occ = torch.tensor(self.coeffs[i]['mo_occ']).unsqueeze(0).to(properties['positions'])
+                if 'mo_coeff' not in properties.keys():
+                    properties['mo_coeff'] = mo_coeff
+                    properties['mo_occ'] = mo_occ
+                else:
+                    properties['mo_coeff'] = torch.cat([properties['mo_coeff'], mo_coeff], dim=0)
+                    properties['mo_occ'] = torch.cat([properties['mo_occ'], mo_occ], dim=0)
         if self.timing:
             print('final props time', time.time() - final_start)
             print('total time', time.time() - props_start)
-
+        if self.atom_dens is not None:
+            properties['atom_density'] = self.sample_atom_density(properties['batch_positions'],
+                                                                  properties['batch_atom_numbers'],
+                                                                  properties['coords'])
         return properties
-
 
     def get_basic_properties(self, idx):
         idx = self._subset_index(idx)
@@ -554,78 +578,81 @@ class AtomsDensityData(Dataset):
 
     def sample_density(self, idx, sample_coords):
         scaled_sample_coords = sample_coords.detach().cpu().numpy() / param.BOHR  # convert Angstrom grid to Bohr
-        dens = torch.zeros((sample_coords.shape[0], sample_coords.shape[1]), dtype=self.dtype)
-        dens_start = time.time()
-        if len(self.mols) > 0:
-            for c, i in enumerate(idx):
-                mol_start = time.time()
-                # print('c, i', c, i)
-                mol = self.mols[i]
-                if not mol._built:
-                    build_start = time.time()
-                    if self.verbose > 2:
-                        print('building mol', i)
-                    mol.build()
-                    if self.timing:
-                        print('molecule build time', time.time() - build_start)
-                coeff_dict = self.coeffs[i]
-                ao_start = time.time()
-                ao = numint.eval_ao(mol, scaled_sample_coords[c])
-                if self.timing and self.verbose > 2:
-                    print('molecule ao time', time.time() - ao_start)
-                rho_start = time.time()
-                if coeff_dict['mo_occ'].ndim > 1:
-                    rho = 0
-                    for j in range(coeff_dict['mo_occ'].shape[0]):
-                        rho += numint.eval_rho2(mol, ao, mo_occ=coeff_dict['mo_occ'][j], 
-                                                mo_coeff=coeff_dict['mo_coeff'][j])
-                else:
-                    rho = numint.eval_rho2(mol, ao, **coeff_dict)
-                if self.timing and self.verbose > 2:
-                    print('rho time', time.time() - rho_start)
-                dens[c, :] = torch.from_numpy(rho).type(self.dtype)
-                if self.timing and self.verbose > 2:
-                    print('mol_time', time.time() - mol_start)
+        mols = [self.mols[i] for i in idx]
+        for i, mol in enumerate(mols):
+            if not mol._built:
+                build_start = time.time()
+                if self.verbose > 2:
+                    print('building mol', i)
+                mol.build()
+                if self.timing:
+                    print('molecule build time', time.time() - build_start)
+        coeffs = [self.coeffs[i] for i in idx]
+        dens = orbitals.sample_density_base(mols, scaled_sample_coords,
+                                            coeffs, projected=False)
+
+        return dens
+
+    def sample_atom_density(self, positions, atom_numbers, coords):
+        basis = self.mols[0].basis
+        if self.atom_dens_type == 'mo_coeffs':
+            mols = utils.npy_to_pyscf(positions.detach().cpu().numpy(),
+                                      atom_numbers.detach().cpu().numpy(), basis)
+            coeffs = []
+            dens = torch.zeros((coords.shape[0], coords.shape[1]))
+            for i in range(len(mols)):
+                for j in range(positions.shape[1]):
+                    anum = int(atom_numbers[i, j])
+                    coeffs = [{'mo_coeff': self.atom_dens[anum]['mo_coeff'],
+                               'mo_occ': self.atom_dens[anum]['mo_occ']}]
+                    atom = utils.npy_to_pyscf(positions[[i], [j]].detach().cpu().numpy(),
+                                              atom_numbers[[i], [j]].detach().cpu().numpy(),
+                                              basis)
+                    dens[[i]] += orbitals.sample_density_base(atom, coords[[i]], coeffs,
+                                                              scale_coords=True, projected=False)
+        elif self.atom_dens_type == 'df_coeffs':
+            mols = utils.npy_to_pyscf(positions.detach().cpu().numpy(),
+                                      atom_numbers.detach().cpu().numpy(),
+                                      self.atom_dens[list(self.atom_dens.keys())[0]]['df_basis'])
+            df_coeffs = []
+            for i in range(len(mols)):
+                df_coeff = [self.atom_dens[int(anum)]['df_coeffs'] for anum in atom_numbers[i] if int(anum) != 0]
+                df_coeff = np.concatenate(df_coeff, axis=1)
+                df_coeffs.append(df_coeff)
+            dens = orbitals.sample_density_base(mols, coords, df_coeffs,
+                                                scale_coords=True, projected=True)
+        elif self.atom_dens_type == 'spline':
+            dens = torch.zeros((coords.shape[0], coords.shape[1]))
+            for i in range(positions.shape[1]):
+                atom_coords = coords - positions[:, [i], :]
+                anum_nz = atom_numbers[:, i] != 0
+                anum = int(torch.max(atom_numbers[:, i]))
+                dens_spline = eval_spline_density(self.atom_dens[anum]['spline_interp'], atom_coords)
+                dens += torch.tensor(dens_spline) * anum_nz.view(-1, 1)
+        else:
+            raise ValueError('Unknown free atom density type')
 
         return dens
 
     def sample_projected_density(self, idx, sample_coords):
         scaled_sample_coords = sample_coords.detach().cpu().numpy() / param.BOHR  # convert Angstrom grid to Bohr
-        dens = torch.zeros((sample_coords.shape[0], sample_coords.shape[1]), dtype=self.dtype)
-        if len(self.density_fitting) == 0:
-            raise RuntimeError("Density fitting coefficients MUST be present in order to create projected density")
-        if len(self.mols) > 0:
-            for c, i in enumerate(idx):
-                # mol_start = time.time()
-                # print('c, i', c, i)
-                mol = self.mols[i]
-                if not mol._built or mol.basis != self.density_fitting['auxbasis']:
-                    mol.basis = self.density_fitting['auxbasis']
-                    # build_start = time.time()
-                    if self.verbose > 3:
-                        print('building mol', i)
-                    mol.build()
-                    # print('build time', time.time() - build_start)
-                # df_coeff = np.concatenate(self.density_fitting['df_coeffs'][i])
-                # print('mol basis', mol.basis)
-                df_coeff = np.concatenate([coeff[1] for coeff in self.density_fitting['df_coeffs'][i]])
-                # ao_start = time.time()
-                ao = numint.eval_ao(mol, scaled_sample_coords[c])
-                # print('ao time', time.time() - ao_start)
-                # rho_start = time.time()
-                # print('df coeff', df_coeff.shape)
-                # print('ao shape', ao.shape)
-                if df_coeff.ndim > 1:
-                    rho = 0
-                    for j in range(df_coeff.shape[0]):
-                        rho += np.einsum('ij,j->i', ao, df_coeff[j])
-                else:
-                    rho = np.einsum('ij,j->i', ao, df_coeff)
-                # print('rho time', time.time() - rho_start)
-                dens[c, :] = torch.from_numpy(rho).type(self.dtype)
-                # print('mol_time', time.time() - mol_start)
+        mols = [self.mols[i] for i in idx]
+        for i, mol in enumerate(mols):
+            if not mol._built or mol.basis != self.density_fitting['auxbasis']:
+                mol.basis = self.density_fitting['auxbasis']
+                # build_start = time.time()
+                if self.verbose > 3:
+                    print('building mol', i)
+                mol.build()
 
+        df_coeffs = [np.concatenate([coeff[1] for coeff in self.density_fitting['df_coeffs'][i]]) for i in idx]
+
+        dens = orbitals.sample_density_base(mols, scaled_sample_coords,
+                                            df_coeffs, projected=True)
         return dens
+
+    def sample_projected_atom_density(self, positions, atom_numbers, coords):
+        pass
 
     def add_fixed_properties(self, property_dict):
         """Add fixed properties to the dataset.

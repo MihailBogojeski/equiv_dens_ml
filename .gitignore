@@ -13,8 +13,9 @@
 *.out
 *.xyz
 *.ipynb
+*.pt
+*.cube
 wandb/
 pseudo_potentials/
 .*
 *.DS_Store
-*.ju.py
