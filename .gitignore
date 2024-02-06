@@ -13,6 +13,8 @@
 *.out
 *.xyz
 *.ipynb
+*.pt
+*.cube
 wandb/
 pseudo_potentials/
 .*
