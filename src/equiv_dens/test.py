@@ -272,11 +272,9 @@ for test_batch_num, data in enumerate(test_data_loader):
     # forward step
     # print('step', test_batch_num)
     # print('positions shape', data['positions'].shape)
-    data = model.conversions_in(data)
-    data = model.scaling(data)
+    data = model.transform_input(data)
     predictions = model(data)
-    data = model.scaling.transform_back(data)
-    data = model.conversions_out(data)
+    data = model.transform_back_input(data)
 
     # print(lkajsdlkjasfd)
     # print('energy pred', predictions['energy'])

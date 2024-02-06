@@ -36,6 +36,7 @@ class DensityCoeffsNetwork(nn.Module):
                  normalize=0,
                  parity=False,
                  core_basis_ratio=0,
+                 linear_out=False,
                  ):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
         super().__init__()
 
@@ -61,6 +62,7 @@ class DensityCoeffsNetwork(nn.Module):
         self.radial_coeffs = init_radial_coeffs
         self.ml_width_offset = ml_width_min
         self.ml_width_scale = (ml_width_max - ml_width_min) / 2
+        self.linear_out = linear_out
 
         # if core basis ratio > 0, reduce orbital basis to only the highest width s orbitals
         if self.core_basis_ratio > 0:
@@ -115,6 +117,11 @@ class DensityCoeffsNetwork(nn.Module):
                                                 max(self.sph_counts), self.clebsch_gordan, bias=self.output_bias,
                                                 zero_init=self.output_zero_init, normalize=self.normalize,
                                                 parity=parity)
+        if self.linear_out:
+            self.linear_output = SphericalLinear(self.orbitals_max_order, max(self.sph_counts),
+                                                 self.orbitals_max_order, max(self.sph_counts),
+                                                 clebsch_gordan=None, mix_orders=False,
+                                                 bias=True, zero_init=True, normalize=self.normalize)
         print('self.pred_radial_coeffs', self.pred_radial_coeffs)
         if self.pred_radial_coeffs:
             self.radial_width = nn.ModuleList([nn.Linear(self.num_features, self.rad_counts[L])
@@ -425,6 +432,8 @@ class DensityCoeffsNetwork(nn.Module):
             print('fs[0]:', fs[0][:, 0, :, :10])
             print('fs[1]:', fs[1][:, 0, :, :10])
         out_sph = self.spherical_output(fs)
+        if self.linear_out:
+            out_sph = self.linear_output(out_sph)
         if self.scale_sph_order:
             for L in range(len(out_sph)):
                 out_sph[L] = out_sph[L] * 10**(-L)
@@ -550,7 +559,6 @@ class DensityExpansion(nn.Module):
                     else:
                         self.r_max[key] = max_rad_c
 
-
     def forward(self, atoms, eval_atoms=None, eval_L=None):
         n_eval = len(atoms['spherical_coeffs'])
         start = time.time()
@@ -651,17 +659,11 @@ class DensityExpansion(nn.Module):
                     normalize = True
                 rbf = gaussian_rbf(L0_d[i].unsqueeze(-1), L0_width[i], curr_coeffs, 0, normalize=normalize)
                 sph = L0_sph[i].unsqueeze(-1)
-                # print('normalize', normalize)
-                # print('z', int(max(atoms['batch_atom_numbers'][:, i])))
-                # print('width', L0_width[i])
-                # print('scale', curr_coeffs)
-                # print('norms', 1/gto_norm(0, L0_width[i]))
-                # print('rbf integral', torch.sum(rbf * atoms['coord_weights'].unsqueeze(-1).unsqueeze(-1), dim=(-2, -3)))
                 if self.verbose > 2:
                     print('L', 0)
                     print('rbf integral', torch.sum(rbf * atoms['coord_weights'].unsqueeze(-1).unsqueeze(-1), dim=(-2, -3)))
                     print('abs sph', torch.sum(torch.abs(sph) * atoms['coord_weights'].unsqueeze(-1).unsqueeze(-1), dim=(-2, -3)))
-                if L0_i[0] in eval_atoms:
+                if L0_i[i] in eval_atoms:
                     L0_dens = torch.sum(rbf * sph, dim=(-1, -2))
                     L0_int = torch.sum(L0_dens * atoms['coord_weights'], dim=-1)
                     L0_integrals.append(L0_int)

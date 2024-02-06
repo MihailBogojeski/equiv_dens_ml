@@ -322,9 +322,15 @@ def parse_command_line_arguments(arg_file=None):
                                help="Fine tuning stop at learning rate reduction factor.")
     args_training.add_argument("--density_loss_comp_ft_weights", metavar='FLOAT', type=float, default=[1.0], nargs='+',
                                help="weights of the composition of the density loss")
-    args_training.add_argument('--wandb_mode', metavar='STR', type=str, default='online',
+    args_training.add_argument('--wandb_mode', metavar='STR', type=str, default='offline',
                                choices=['online', 'offline', 'disabled'], help="Wandb mode.")
-
+    args_training.add_argument("--remove_atom_density", metavar='True|False', type=str2bool, default=False,
+                               choices=[True, False], help="Remove the free atom density from the total density.")
+    args_training.add_argument('--atom_dens_path', metavar='STR', type=str,
+                               help="Path to free atom densities file.")
+    args_training.add_argument('--atom_dens_type', metavar='STR', type=str,
+                               default='df_coeffs', choices=['spline', 'df_coeffs', 'mo_coeffs'],
+                               help="Type of functions to expand the free atom densities.")
     # arguments for simulations
     args_simulation = parser.add_argument_group("simulation hyperparameters")
     args_simulation.add_argument("--temperature", metavar='INT', type=int, default=300,
@@ -339,7 +345,7 @@ def parse_command_line_arguments(arg_file=None):
     args_simulation.add_argument("--langevin", metavar='True|False', type=str2bool, default=True,
                                  choices=[True, False], help="If true use Langevin dynamics, else use velocity Verlet.")
     args_simulation.add_argument("--warm_up", metavar="True|False", type=str2bool, default=True,
-                                 choices=[True, False], help="If true use Langevin as warm up for 5% of all simulation steps, and then switch to Verlet.")
+                                 choices=[True, False], help="If true use Langevin as warm up for 5%% of all simulation steps, and then switch to Verlet.")
     args_simulation.add_argument("--simulation_type", metavar='STR', type=str, default='md',
                                  choices=['md', 'opt'], help="type of simulation to run.")
     args_simulation.add_argument("--port_num", metavar='INT', type=int, default=50007,

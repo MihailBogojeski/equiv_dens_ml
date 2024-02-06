@@ -83,6 +83,7 @@ def load_model(args, dataset, train=False):
         scale_sph_order=args.scale_sph_order,
         normalize=args.normalize,
         parity=args.parity_dens,
+        linear_out=args.remove_atom_density
     )
 
     if args.density_weight + args.dipole_moment_weight > 0:
@@ -226,6 +227,7 @@ def load_model(args, dataset, train=False):
                        conversions_in=conversions_in,
                        conversions_out=conversions_out,
                        scaling=force_scaling,
+                       remove_atom_density=args.remove_atom_density,
                        )
     # print('dft network', model)
     if args.restart is not None:
@@ -263,6 +265,7 @@ def load_model(args, dataset, train=False):
                     print('Unexpected keywords', key)
                     raise Exception('Unexpected keywords in energy model state dict')
         if len(missing) > 0 and not args.ignore_missing_keywords:
+            print(missing)
             for key in missing:
                 if 'init_' not in key:
                     if args.df_weight > 0 and 'property_models.density' not in key:

@@ -366,8 +366,7 @@ class Trainer:
         # for name, param in self._model.named_parameters():
         #     print('param grad', name, param)
 
-        data = self._module.conversions_in(data)
-        data = self._module.scaling(data)
+        data = self._module.transform_input(data)
         # print('model embedding layer before', self._model.density_repr_model[0].embedding.embedding.element_embedding)
         predictions = self._model(data)
         # print('model embedding layer after pred', self._model.density_repr_model[0].embedding.embedding.element_embedding)
@@ -497,12 +496,13 @@ class Trainer:
                 print('valid load memory allocated', torch.cuda.memory_allocated() / 1024**2)
                 print('valid load memory cached', torch.cuda.memory_cached() / 1024**2)
 
-            data = self._module.conversions_in(data)
-            data = self._module.scaling(data)
+            data = self._module.transform_input(data)
             # print('post-conversion forces:', data['forces'])
             predictions = self._model(data)
-            data = self._module.scaling.transform_back(data)
-            data = self._module.conversions_out(data)
+            # print('predictions, sph repr', predictions['sph_repr_batch'][0][0])
+            # print('predictions, sph coeffs', predictions['spherical_coeffs'][0])
+
+            data = self._module.transform_back_input(data)
             # print('post-post-conversion forces:', data['forces'])
             # if self.verbose > 2:
             if self.verbose > 0:
@@ -515,8 +515,8 @@ class Trainer:
                 if 'forces' in predictions.keys():
                     # print('pred forces', predictions['forces'].sum((-1, -2)).view((-1, )))
                     # print('true forces', data['forces'].sum((-1, -2)).view((-1, )))
-                    print('pred forces', predictions['forces'][:,0,:].view((-1, )))
-                    print('true forces', data['forces'][:,0,:].view((-1, )))
+                    print('pred forces', predictions['forces'][:, 0, :].view((-1, )))
+                    print('true forces', data['forces'][:, 0, :].view((-1, )))
             if 'density' in data.keys() and torch.any(torch.isnan(data['density'])):
                 print('Nans found in label density, skipping batch')
                 continue
