@@ -465,7 +465,6 @@ class AtomsDensityData(Dataset):
                                                                   properties['coords'])
         return properties
 
-
     def get_basic_properties(self, idx):
         idx = self._subset_index(idx)
         if not hasattr(idx, '__len__'):

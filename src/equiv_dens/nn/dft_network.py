@@ -53,6 +53,17 @@ class DFTNetwork(nn.Module):
         """
         data = self.conversions_in(data)
         data = self.scaling(data)
+        return data
+
+    def transform_density(self, data):
+        """
+        Transform density by removing the free atom densities if required.
+
+        Args:
+            data: Dictionary containing a collection of atoms and their various properties
+        Returns:
+            data: Updated dictionary containing the original properties
+        """
         if 'density' in data.keys() and self.remove_atom_density:
             data['density'] -= data['atom_density']
         return data
@@ -68,9 +79,21 @@ class DFTNetwork(nn.Module):
         """
         data = self.scaling.transform_back(data)
         data = self.conversions_out(data)
+        return data
+
+    def transform_back_density(self, data):
+        """
+        Transform the density back to it's original form with the atom densities added back.
+
+        Args:
+            data: Dictionary containing a collection of atoms and their various properties
+        Returns:
+            data: Updated dictionary containing the original properties
+        """
         if 'density' in data.keys() and self.remove_atom_density:
             data['density'] += data['atom_density']
         return data
+
 
     def forward(self, data):
         """
@@ -131,10 +154,10 @@ class DFTNetwork(nn.Module):
                         print('dft network forward', key, ':')
                         print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
                         print('Memory cached', torch.cuda.memory_cached() / 1024**2)
+        if 'density' in atoms.keys() and self.remove_atom_density:
+            atoms['density'] += atoms['atom_density']
         if not self.training:
             atoms = self.scaling.transform_back(atoms)
             atoms = self.conversions_out(atoms)
-            if 'density' in atoms.keys() and self.remove_atom_density:
-                atoms['density'] += atoms['atom_density']
 
         return atoms
