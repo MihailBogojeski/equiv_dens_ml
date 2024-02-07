@@ -23,8 +23,8 @@ from schnetpack.md.simulation_hooks import callback_hooks
 
 
 def wandb_summary(wandb, md_system):
-    wandb.log({'energy': torch.mean(md_system.energy)})
-    wandb.log({'forces': torch.mean(torch.norm(md_system.forces, dim=-1))})
+    wandb.log({'energy': torch.mean(md_system.energy)}, commit=False)
+    wandb.log({'forces': torch.mean(torch.norm(md_system.forces, dim=-1))}, commit=False)
     pos = md_system.positions
     n_mols = md_system.n_molecules
     pos = torch.reshape(pos, (n_mols, -1, 3))
