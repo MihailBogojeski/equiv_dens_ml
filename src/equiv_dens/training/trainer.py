@@ -604,16 +604,24 @@ class Trainer:
         return valid_errors, is_best
 
     def write_summary(self, new_valid, new_best):
-        phase_metric = f'step_{self.training_phases[0]}'
+        # if training phases are given, log to wandb with separate x-axis
+        if self.training_phases is not None:
+            phase_metric = f'step_{self.training_phases[0]}'
+            def wandb_uncommited_log(data):
+                self.wandb.log({**data, phase_metric: self.step}, commit=False)
+        else:
+            def wandb_uncommited_log(data):
+                self.wandb.log(data, commit=False)
+
         for key in self.train_errors.keys():
             # self.summary.add_scalar(key + '/train', self.train_errors[key], self.step)
-            self.wandb.log({key + '_train': self.train_errors[key], phase_metric: self.step}, commit=False)
+            wandb_uncommited_log({key + '_train': self.train_errors[key]})
 
         if new_valid:
             for valid_err in self.valid_errors:
                 for key in valid_err.keys():
                     # self.summary.add_scalar(key + '/valid', valid_err[key], self.step)
-                    self.wandb.log({key + '_valid': valid_err[key], phase_metric: self.step}, commit=False)
+                    wandb_uncommited_log({key + '_valid': valid_err[key]})
             new_valid = False
 
         if new_best:
@@ -624,7 +632,7 @@ class Trainer:
 
         if self.clip_norm > 0:
             # self.summary.add_scalar('gradient/norm', self.gradient_norm, self.step)
-            self.wandb.log({'gradient_norm': self.gradient_norm, phase_metric: self.step}, commit=False)
+            wandb_uncommited_log({'gradient_norm': self.gradient_norm})
 
         # write optional summaries for model parameters
         if self.args.write_parameter_summaries:
@@ -637,11 +645,11 @@ class Trainer:
                     last = splitted_name[0]
                 if param.numel() > 1 and param.requires_grad:  # only tensors get written as histogram
                     hist = wandb.Histogram(param.clone().cpu().data.numpy())
-                    self.wandb.log({first + '_' + last: hist, phase_metric: self.step}, commit=False)
+                    wandb_uncommited_log({first + '_' + last: hist})
                     # self.summary.add_histogram(
                     #     first + '/' + last, param.clone().cpu().data.numpy(), self.step)
 
-        # send everything at once (empty dict with commit=True)
+        # commit logging step (empty dict with commit=True)
         self.wandb.log({})
 
         # print progress to consoles
