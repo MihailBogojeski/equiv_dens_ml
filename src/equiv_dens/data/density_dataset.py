@@ -593,46 +593,17 @@ class AtomsDensityData(Dataset):
 
         return dens
 
-    def sample_atom_density(self, positions, atom_numbers, coords):
+    def sample_atom_density(self, positions, atom_numbers, coords, individual_dens=False):
         basis = self.mols[0].basis
-        if self.atom_dens_type == 'mo_coeffs':
-            mols = utils.npy_to_pyscf(positions.detach().cpu().numpy(),
-                                      atom_numbers.detach().cpu().numpy(), basis)
-            coeffs = []
-            dens = torch.zeros((coords.shape[0], coords.shape[1]))
-            for i in range(len(mols)):
-                for j in range(positions.shape[1]):
-                    anum = int(atom_numbers[i, j])
-                    coeffs = [{'mo_coeff': self.atom_dens[anum]['mo_coeff'],
-                               'mo_occ': self.atom_dens[anum]['mo_occ']}]
-                    atom = utils.npy_to_pyscf(positions[[i], [j]].detach().cpu().numpy(),
-                                              atom_numbers[[i], [j]].detach().cpu().numpy(),
-                                              basis)
-                    dens[[i]] += orbitals.sample_density_base(atom, coords[[i]], coeffs,
-                                                              scale_coords=True, projected=False)
-        elif self.atom_dens_type == 'df_coeffs':
-            mols = utils.npy_to_pyscf(positions.detach().cpu().numpy(),
-                                      atom_numbers.detach().cpu().numpy(),
-                                      self.atom_dens[list(self.atom_dens.keys())[0]]['df_basis'])
-            df_coeffs = []
-            for i in range(len(mols)):
-                df_coeff = [self.atom_dens[int(anum)]['df_coeffs'] for anum in atom_numbers[i] if int(anum) != 0]
-                df_coeff = np.concatenate(df_coeff, axis=1)
-                df_coeffs.append(df_coeff)
-            dens = orbitals.sample_density_base(mols, coords, df_coeffs,
-                                                scale_coords=True, projected=True)
-        elif self.atom_dens_type == 'spline':
-            dens = torch.zeros((coords.shape[0], coords.shape[1]))
-            for i in range(positions.shape[1]):
-                atom_coords = coords - positions[:, [i], :]
-                anum_nz = atom_numbers[:, i] != 0
-                anum = int(torch.max(atom_numbers[:, i]))
-                dens_spline = eval_spline_density(self.atom_dens[anum]['spline_interp'], atom_coords)
-                dens += torch.tensor(dens_spline) * anum_nz.view(-1, 1)
+        dens, atom_dens = orbitals.sample_atom_density(positions, atom_numbers,
+                                                       coords, basis,
+                                                       self.atom_dens_type,
+                                                       self.atom_dens,
+                                                       individual_dens)
+        if individual_dens:
+            return atom_dens
         else:
-            raise ValueError('Unknown free atom density type')
-
-        return dens
+            return dens
 
     def sample_projected_density(self, idx, sample_coords):
         scaled_sample_coords = sample_coords.detach().cpu().numpy() / param.BOHR  # convert Angstrom grid to Bohr
@@ -650,9 +621,6 @@ class AtomsDensityData(Dataset):
         dens = orbitals.sample_density_base(mols, scaled_sample_coords,
                                             df_coeffs, projected=True)
         return dens
-
-    def sample_projected_atom_density(self, positions, atom_numbers, coords):
-        pass
 
     def add_fixed_properties(self, property_dict):
         """Add fixed properties to the dataset.

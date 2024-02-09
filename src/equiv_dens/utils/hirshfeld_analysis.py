@@ -106,10 +106,9 @@ def eval_spline_density(spl, coords):
     return y_out
 
 
-
 class HirshfeldAnalysis:
     """
-    Class for computing the weightning function, Hirshfeld-partitioned integrals 
+    Class for computing the weightning function, Hirshfeld-partitioned integrals
     and performing hirshfeld analysis using the molecular electron density
     
     elem -> Element
@@ -208,3 +207,28 @@ class HirshfeldAnalysis:
     def run(self,dm,fn=None):
         self.run_free_atom_rho_calculation().perform_hirshfeld_analysis(dm)
         return self
+
+
+def hirhfeld_partitioning(density, free_atom_density, atom_numbers, coords, coord_weights):
+    sum_charge = torch.sum(atom_numbers, dim=1)
+    dens_int = torch.sum(density * coord_weights, dim=1)
+    density *= sum_charge / dens_int
+    # gridpoint - r_atom_center, for centering because the atom densities are evaluated at 0 0 0
+    #coords_atoms = grid.coords[None, :, :] - (mol.atom_coords()[:, None, :] )
+    # molecular electron density rho(r) partitioned onto every atom
+    rho_eff = np.einsum("g,ig -> ig",rho , wA)
+
+
+    # num electrons per atom
+    elec_atm = np.einsum("ig,g->gi",rho_eff,grid.weights).sum(axis=0)
+    # net charge (Q_A) on each atom 
+    atomic_charges = - elec_atm + mol.atom_charges()
+
+    masses = mol.atom_mass_list()
+    center_of_mass = masses @ mol.atom_coords() / masses.sum()
+    dipoles = - ( (coords_atoms-center_of_mass) * rho_eff[:, :, None] * grid.weights[:, None]).sum(axis=-2)
+
+    result["rho_free"] = rho_free
+    result["wA"] = wA
+    result["hirshfeld charges"] = atomic_charges
+    result["hirshfeld dipole moment"] = dipoles
