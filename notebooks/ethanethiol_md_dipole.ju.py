@@ -556,9 +556,7 @@ from matplotlib.lines import Line2D
 
 fig, axs = plt.subplots(4, 1, figsize=(10, 10))
 axes = {1: 0, 6: 1, 16: 2}
-print(ml_dpm_errors['atom_charges'][0].shape)
-atom_types = samp['batch_atom_numbers'][0].numpy()
-print('atom_types shape', atom_types.shape)
+print(ml_dpm_errors['atom_charges'][0].shape) atom_types = samp['batch_atom_numbers'][0].numpy() print('atom_types shape', atom_types.shape)
 cmap = plt.get_cmap("tab10")
 for i in range(ml_dpm_errors['atom_charges'][0].shape[1]):
     axs_idx = axes[atom_types[i]]
@@ -700,3 +698,85 @@ for key in keys:
 for i in range(len(ml_dpm_errors['dpm_norm'])):
     print('i', i, 'ml err', ml_dpm_errors['dpm_norm'][i], 'df err', df_dpm_errors['dpm_norm'][i], 'ml-df err', ml_df_dpm_errors['dpm_norm'][i])
 # %%
+def calculate_dihedral_angle(positions):
+    """
+    Calculate the dihedral angle defined by four atoms.
+
+    Parameters:
+    positions (torch.Tensor): A tensor of shape (#atoms=4, 3) containing the positions of the atoms.
+
+    Returns:
+    float: The dihedral angle in degrees.
+    """
+    # Vectors between atoms
+    v12 = positions[1] - positions[0]
+    v23 = positions[2] - positions[1]
+    v34 = positions[3] - positions[2]
+
+    # Normal vectors to planes
+    n123 = torch.cross(v12, v23)
+    n234 = torch.cross(v23, v34)
+
+    # Normalize the normal vectors
+    n123_normalized = n123 / torch.norm(n123)
+    n234_normalized = n234 / torch.norm(n234)
+
+    # Calculate the angle between the normals
+    cosine_angle = torch.dot(n123_normalized, n234_normalized)
+    angle = torch.acos(cosine_angle)
+
+    # Convert to degrees
+    angle_degrees = angle * (180.0 / torch.pi)
+
+    # Ensure the angle is between 0 and 180
+    angle_degrees = torch.clamp(angle_degrees, min=0, max=180)
+
+    return angle_degrees.item()
+# %%
+# Example usage
+positions = torch.tensor([
+    [1.0, 0.0, 0.0],  # Atom 1
+    [0.0, 1.0, 0.0],  # Atom 2
+    [0.0, 0.0, 1.0],  # Atom 3
+    [1.0, 1.0, 1.0]   # Atom 4
+])
+
+dihedral_angle = calculate_dihedral_angle(positions)
+print(f"Dihedral Angle: {dihedral_angle} degrees")
+# %%
+dihedrals = [] 
+for i in range(100):
+    print('i', i)
+    samp = dataset.get_properties([i])
+    pos = samp['positions'][0, -4:]
+    pos = pos[[2, 1 ,3, 0], :]
+    print('dists 0-1', torch.norm(pos[0] - pos[1]))
+    print('dists 1-2', torch.norm(pos[1] - pos[2]))
+    print('dists 2-3', torch.norm(pos[2] - pos[3]))
+    dihedral_angle = calculate_dihedral_angle(pos)
+    print('dihedral_angle', dihedral_angle)
+    dihedrals.append(dihedral_angle)
+# %%
+fig, axs = plt.subplots(7, 1, figsize=(10, 15))
+keys = ['dens_mae', 'dpm_norm', 'dpm_r_norm', 'dpm_ang', 'dpm_mag', 'dist_SH']
+labels = ['density APE (%)', 'dipole error (Debye)', 'dipole ||r|| error (Debye)', 'dipole ang error (Deg)', 'dipole magnitude error (Debye)', f'S-H distance (Ang)']
+for i, key in enumerate(keys):
+    # print(key)
+    # print(np.array(ml_dpm_errors[key]))
+    # print(len(ml_dpm_errors[key]))
+    axs[i].plot(np.arange(len(ml_dpm_errors[key]))/2, ml_dpm_errors[key], label='ML')
+    axs[i].plot(np.arange(len(ml_dpm_errors[key]))/2, df_dpm_errors[key], label='DF')
+    axs[i].plot(np.arange(len(ml_dpm_errors[key]))/2, ml_df_dpm_errors[key], label='ML-DF')
+    axs[i].set_ylabel(labels[i])
+    if i == 0:
+        axs[i].set_ylim(0.0005, 0.0015)
+
+axs[-1].plot(np.arange(len(ml_dpm_errors[key]))/2, dihedrals, label='ML')
+axs[-1].set_xlabel('time (fs)')
+fig.text(0.5, 0.05,
+         'These figures show how the errors of the machine learned density and dipole\n' +
+         'moment measured in different ways change in a cutout of an MD trajectory of ethanethiol.',
+         ha='center', va='center', fontsize=12)
+plt.legend()
+plt.savefig('figures/ethanethiol_md_dpm_errors_loc65k.png', dpi=300)
+plt.show()

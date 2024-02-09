@@ -7,7 +7,8 @@ from pyscf.lib import param
 from pyscf import gto, df, lib, dft
 from pyscf.scf import hf
 import scipy
-import time
+# import time
+from equiv_dens.utils.hirshfeld_analysis import eval_spline_density
 
 hf.MUTE_CHKFILE = True
 
@@ -794,7 +795,6 @@ def get_density_charges(atoms):
 
     return charges
 
-
 def get_atomic_dipoles(atoms, expansion_model):
     """
     Calculate the atomic dipoles of an atomic system.
@@ -811,3 +811,105 @@ def get_atomic_dipoles(atoms, expansion_model):
         dipoles[:, i] = dpm1
 
     return dipoles
+
+def sample_single_atom_density_spline(position, atom_number, coords, spline_basis):
+    """
+    Sample the free atom density of a single atom on a given coordinate grid using a spline basis.
+    Args:
+        position (torch.Tensor): Position of the atom [batch, 1, 3]
+        atom_number (torch.Tensor): Atomic number of the atom [batch]
+        coords (torch.Tensor): Coordinates of the grid to sample the density on [num_coords, 3]
+        atom_dens_dict (dict): Dictionary containing the atom densities
+    Returns:
+        density (torch.Tensor): Free atom density of the atom
+    """
+    atom_coords = coords - position
+    anum_nz = atom_number != 0
+    dens_spline = eval_spline_density(spline_basis, atom_coords)
+
+    return torch.tensor(dens_spline) * anum_nz.view(-1, 1)
+
+def sample_single_atom_density_mo(position, atom_number, coords, basis, mo_coeffs):
+    """
+    Sample the free atom density of a single atom on a given coordinate grid using a molecular orbital basis.
+
+    Args:
+        position (torch.Tensor): Position of the atom [batch, 1, 3]
+        atom_number (torch.Tensor): Atomic number of the atom [batch]
+        coords (torch.Tensor): Coordinates of the grid to sample the density on [num_coords, 3]
+        atom_dens_dict (dict): Dictionary containing the atom densities
+    Returns:
+        density (torch.Tensor): Free atom density of the atom
+    """
+    dens = torch.zeros((coords.shape[0], coords.shape[1]))
+    coeffs = [{'mo_coeff': mo_coeffs['mo_coeff'],
+               'mo_occ': mo_coeffs['mo_occ']}] * coords.shape[0]
+    atom = utils.npy_to_pyscf(position.detach().cpu().numpy(),
+                              atom_number.detach().cpu().numpy(),
+                              basis)
+    dens = sample_density_base(atom, coords, coeffs,
+                               scale_coords=True, projected=False)
+
+    return dens
+
+def sample_single_atom_density_df(position, atom_number, coords, basis, df_coeffs):
+    """
+    Sample the free atom density of a single atom on a given coordinate grid using a density fitting basis.
+
+    Args:
+        position (torch.Tensor): Position of the atom [batch, 1, 3]
+        atom_number (torch.Tensor): Atomic number of the atom [batch]
+        coords (torch.Tensor): Coordinates of the grid to sample the density on [num_coords, 3]
+        atom_dens_dict (dict): Dictionary containing the atom densities
+    Returns:
+        density (torch.Tensor): Free atom density of the atom
+    """
+    df_coeffs = [df_coeffs] * coords.shape[0]
+    atom = utils.npy_to_pyscf(position.detach().cpu().numpy(),
+                              atom_number.detach().cpu().numpy(),
+                              basis)
+    dens = sample_density_base(atom, coords, df_coeffs,
+                               scale_coords=True, projected=True)
+    return dens
+
+def sample_atom_density(positions, atom_numbers, coords, basis,
+                        atom_dens_type, atom_dens_dict, individual_dens=False):
+    """
+    Sample the free atom density of a molecule on a given coordinate grid.
+
+    Args:
+        position (torch.Tensor): Position of the atom [batch, 1, 3]
+        atom_number (torch.Tensor): Atomic number of the atom [batch]
+        coords (torch.Tensor): Coordinates of the grid to sample the density on [num_coords, 3]
+        atom_dens_type (str): Type of the basis used to expand the atom densities
+        atom_dens_dict (dict): Dictionary containing the atom densities
+    Returns:
+        (density, atom_wise_density) (torch.Tensor, torch.Tensor): Tuple containing free atom
+        density of the molecule, plus the individual density of each atom in the molecule
+    """
+    dens = torch.zeros((coords.shape[0], coords.shape[1]))
+    atom_densities = []
+    for i in range(positions.shape[1]):
+        anum = int(torch.max(atom_numbers[:, i]))
+        if atom_dens_type == 'mo_coeffs':
+            atom_dens = sample_single_atom_density_mo(positions[:, [i]], atom_numbers[:, [i]],
+                                                      coords, basis, atom_dens_dict[anum])
+            dens += atom_dens
+        elif atom_dens_type == 'df_coeffs':
+            atom_dens = sample_single_atom_density_df(positions[:, [i]], atom_numbers[:, [i]],
+                                                      coords,
+                                                      atom_dens_dict[anum]['df_basis'],
+                                                      atom_dens_dict[anum]['df_coeffs'])
+            dens += atom_dens
+        elif atom_dens_type == 'spline':
+            atom_dens = sample_single_atom_density_spline(positions[:, [i]],
+                                                          atom_numbers[:, [i]], coords,
+                                                          atom_dens_dict[anum]['spline_interp'])
+            dens += atom_dens
+        else:
+            raise ValueError('Unknown free atom density type')
+        if individual_dens:
+            atom_densities.append(atom_dens)
+    if individual_dens:
+        atom_densities = torch.stack(atom_densities, dim=1)
+    return dens, atom_densities
