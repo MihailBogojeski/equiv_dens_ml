@@ -182,7 +182,7 @@ class HirshfeldAnalysis:
         # rho_eff = \integral(W_A(r) * rho(r) dr)
 
         rho_protomol = rho_free.sum(axis=0)
-        wA = rho_free / (rho_protomol + (rho_protomol < 1e-15))
+        wA = rho_free / (rho_protomol + ((rho_protomol < 1e-15) * 1e-15))
         # molecular electron density rho(r) partitioned onto every atom
         rho_eff = np.einsum("g,ig -> ig",rho , wA)
 
@@ -209,26 +209,25 @@ class HirshfeldAnalysis:
         return self
 
 
-def hirhfeld_partitioning(density, free_atom_density, atom_numbers, coords, coord_weights):
+def hirshfeld_partitioning(density, free_atom_densities, atom_numbers, coords, coord_weights):
     sum_charge = torch.sum(atom_numbers, dim=1)
     dens_int = torch.sum(density * coord_weights, dim=1)
-    density *= sum_charge / dens_int
+    density *= (sum_charge / dens_int).unsqueeze(1)
+    free_atom_density = torch.sum(free_atom_densities, dim=1, keepdim=True)
     # gridpoint - r_atom_center, for centering because the atom densities are evaluated at 0 0 0
-    #coords_atoms = grid.coords[None, :, :] - (mol.atom_coords()[:, None, :] )
-    # molecular electron density rho(r) partitioned onto every atom
-    rho_eff = np.einsum("g,ig -> ig",rho , wA)
-
+    # coords_atoms = grid.coords[None, :, :] - (mol.atom_coords()[:, None, :] )
+    wA = free_atom_densities / (free_atom_density + ((free_atom_density < 1e-15) * 1e-15))
+    print('wa shape', wA.shape)
+    dens_eff = density.unsqueeze(1) * wA
+    print('dens eff shape', dens_eff.shape)
 
     # num electrons per atom
-    elec_atm = np.einsum("ig,g->gi",rho_eff,grid.weights).sum(axis=0)
-    # net charge (Q_A) on each atom 
-    atomic_charges = - elec_atm + mol.atom_charges()
+    elec_atm = torch.sum(dens_eff * coord_weights.unsqueeze(1), dim=-1)
+    # net charge (Q_A) on each atom
+    # atomic_charges = - elec_atm + atom_numbers
 
-    masses = mol.atom_mass_list()
-    center_of_mass = masses @ mol.atom_coords() / masses.sum()
-    dipoles = - ( (coords_atoms-center_of_mass) * rho_eff[:, :, None] * grid.weights[:, None]).sum(axis=-2)
-
-    result["rho_free"] = rho_free
-    result["wA"] = wA
-    result["hirshfeld charges"] = atomic_charges
-    result["hirshfeld dipole moment"] = dipoles
+    # masses = mol.atom_mass_list()
+    # center_of_mass = masses @ mol.atom_coords() / masses.sum()
+    # dipoles = - ( (coords_atoms-center_of_mass) * rho_eff[:, :, None] * grid.weights[:, None]).sum(axis=-2)
+#
+    return wA, elec_atm
