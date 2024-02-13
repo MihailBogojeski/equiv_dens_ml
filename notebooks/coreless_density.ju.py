@@ -19,7 +19,8 @@ from equiv_dens.training import density_errors
 import matplotlib.pyplot as plt
 import numpy as np
 from equiv_dens.training import model_loader
-from equiv_dens.utils.hirshfeld_analysis import get_atm_nrks, free_atom_spline, eval_spline_density
+from equiv_dens.utils.hirshfeld_analysis import get_atm_nrks, free_atom_spline,\
+    eval_spline_density, hirshfeld_partitioning
 from equiv_dens.utils.grids import spherical_grid
 from pyscf.dft import gen_grid, radi
 import os
@@ -111,18 +112,18 @@ np.save('datasets/free_atom_densities_augccpvdz_augccpvqzjkfit.npy', result, all
 # %%
 main_args = Namespace()
 
-main_args.args_file = "args/resorcinol_all_005.txt"
+# main_args.args_file = "args/resorcinol_all_005.txt"
 # main_args.args_file = "args/CO_dens_001.txt"
 # main_args.args_file = "args/h2o_dens_002.txt"
-# main_args.args_file = "args/ethanethiol_all_006_test.txt"
+main_args.args_file = "args/ethanethiol_all_006_test.txt"
 main_args.ref_np_load_file = None
 main_args.ref_dens_load_file = None
 # main_args.save_file = 'CO_dens_001.txt'
 # main_args.save_file = 'h2o_dens_002.txt'
-main_args.res_load_file = 'datasets/resorcinol_all_005_test.pt'
-main_args.save_file = 'resorcinol_all_005'
-# main_args.res_load_file = 'datasets/ethanethiol_all_006_test.pt'
-# main_args.save_file = 'ethanethiol_all_006_test'
+# main_args.res_load_file = 'datasets/resorcinol_all_005_test.pt'
+# main_args.save_file = 'resorcinol_all_005'
+main_args.res_load_file = 'datasets/ethanethiol_all_006_test.pt'
+main_args.save_file = 'ethanethiol_all_006_test'
 main_args.df_error = True
 main_args.use_gpu = False
 main_args.num_samples = 100
@@ -384,3 +385,48 @@ print('spline mo diff', torch.sum(torch.abs(denss['spline'] - denss['mo_coeffs']
       torch.sum(samp['batch_atom_numbers'], dim=1))
 print('mo df diff', torch.sum(torch.abs(denss['mo_coeffs'] - denss['df_coeffs']) * samp['coord_weights'], dim=-1) /
       torch.sum(samp['batch_atom_numbers'], dim=1))
+# %%
+# idx = 4
+
+idx = [1, 2, 3, 4, 5]
+denss = {}
+datasets_ad = {}
+for t in ['spline', 'df_coeffs', 'mo_coeffs']:
+    datasets_ad[t] = AtomsDensityData(np_path=args.np_dataset_test,
+                                      density_path=args.dens_dataset_test,
+                                      orbitals_path=args.orbitals_file,
+                                      density_n_samp=10000000000000000000000,
+                                      required_properties=required_properties,
+                                      center_positions=True,
+                                      radial_coeffs_file=args.radial_coeffs_file,
+                                      dtype=args.dtype,
+                                      grid_fn=grid_fn,
+                                      pyscf_grid=args.pyscf_grid,
+                                      sampling_fn=sampling_fn,
+                                      grid_extent=grid_extent,
+                                      grid_origin=grid_origin,
+                                      cutoff=args.cutoff,
+                                      df_loss_weights=args.df_loss_weights,
+                                      projected_density=args.projected_density,
+                                      radii_adjust=args.radii_adjust,
+                                      calc_data=True,
+                                      atom_dens_path='datasets/free_atom_densities_augccpvdz_augccpvqzjkfit.npy',
+                                      atom_dens_type=t,
+                                      )
+    samp = datasets_ad[t].get_properties(idx)
+    print(t + ' error', torch.sum(torch.abs(samp['density'] - samp['atom_density']) * samp['coord_weights'], dim=-1) /
+          torch.sum(samp['batch_atom_numbers'], dim=1))
+    print(t + ' intergral', torch.sum(torch.abs(samp['atom_density']) * samp['coord_weights'], dim=-1))
+
+    denss[t] = samp['atom_density']
+    sep_atom_dens = datasets_ad[t].sample_atom_density(samp['batch_positions'],
+                                                       samp['batch_atom_numbers'],
+                                                       samp['coords'],
+                                                       individual_dens=True)
+    print('sep atom dens shape', sep_atom_dens.shape)
+    wA, elec_charges = hirshfeld_partitioning(samp['density'], sep_atom_dens, samp['batch_atom_numbers'],
+                                              samp['coords'], samp['coord_weights'])
+    print('elec_charges', elec_charges)
+    print('atom_numbers', samp['batch_atom_numbers'])
+
+

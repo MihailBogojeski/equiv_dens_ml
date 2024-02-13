@@ -13,6 +13,7 @@ from equiv_dens.utils.grids import cubical_grid, cubical_sampling, \
 import equiv_dens.utils.base as utils
 import equiv_dens.utils.orbitals as orbitals
 from equiv_dens.utils.misc import generate_id
+from equiv_dens.utils.hirshfeld_analysis import hirshfeld_partitioning
 
 from functools import partial
 from argparse import Namespace
@@ -165,6 +166,8 @@ dataset = AtomsDensityData(np_path=args.np_dataset_test, density_path=args.dens_
                            projected_density=args.projected_density,
                            radii_adjust=args.radii_adjust,
                            calc_data=True,
+                           atom_dens_path='datasets/free_atom_densities_augccpvdz_augccpvqzjkfit.npy',
+                           atom_dens_type='spline',
                            )
 
 print('dataset length', len(dataset))
@@ -344,20 +347,21 @@ ml_dpm_errors = {'dens_mae': [], 'dpm_norm': [],
                  'dpm_point_abs': [], 'dpm_point_norm': [],
                  'dpm_r_norm': [], 'dpm_ang': [], 'dpm_mag': [],
                  'atom_charges': [], 'atom_dpm': [],
-                 'dist_SH': [],
+                 'dist_SH': [], 'hirshfeld_charges': [],
                  }
 df_dpm_errors = {'dens_mae': [], 'dpm_norm': [],
                  'dpm_point_abs': [], 'dpm_point_norm': [],
                  'dpm_r_norm': [], 'dpm_ang': [], 'dpm_mag': [],
                  'atom_charges': [], 'atom_dpm': [],
-                 'dist_SH': [],
+                 'dist_SH': [], 'hirshfeld_charges': [],
                  }
 ml_df_dpm_errors = {'dens_mae': [], 'dpm_norm': [],
                     'dpm_point_abs': [], 'dpm_point_norm': [],
                     'dpm_r_norm': [], 'dpm_ang': [], 'dpm_mag': [],
                     'atom_charges': [], 'atom_dpm': [],
-                    'dist_SH': [],
+                    'dist_SH': [], 'hirshfeld_charges': [],
                     }
+true_hirshfeld_charges = []
 
 for i in range(100):
     print('i', i)
@@ -367,12 +371,20 @@ for i in range(100):
     center_of_mass = torch.sum(samp['batch_positions'] * samp['batch_atom_numbers'].unsqueeze(-1), dim=1, keepdim=True)\
         / torch.sum(samp['batch_atom_numbers'].unsqueeze(-1), dim=1, keepdim=True)
 
+    atom_dens = dataset.sample_atom_density(samp['batch_positions'], samp['batch_atom_numbers'], samp['coords'],
+                                            individual_dens=True)
+    _, elec_charges = hirshfeld_partitioning(samp['density'], atom_dens, samp['batch_atom_numbers'],
+                                              samp['coords'], samp['coord_weights'])
+    true_hirshfeld_charges.append(elec_charges)
     res = model(samp)
     distance_from_com = torch.norm(samp['coords'] - center_of_mass, dim=2)
 
     density_mae = torch.sum(torch.abs(samp['density'] - res['density']) * samp['coord_weights']) / torch.sum(samp['atom_numbers'])
     # density_err = torch.abs(samp['density'] - res['density']) * samp['coord_weights']
     res = orbitals.calc_dipole_moment(res)
+
+    _, elec_charges_ml = hirshfeld_partitioning(res['density'], atom_dens, samp['batch_atom_numbers'],
+                                              samp['coords'], samp['coord_weights'])
     dpm_err = torch.norm(samp['dipole_moment'] - res['dipole_moment'])
     # dpm_point_err = ((res['density'] - samp['density']) * samp['coord_weights']).unsqueeze(-1) * (samp['coords'] - center_of_mass)
     dpm_point_abs_err = density_errors.dipole_pointwise_abs_loss(res['density'], samp['density'], samp['coords'], samp['coord_weights'])
@@ -395,6 +407,7 @@ for i in range(100):
     ml_dpm_errors['atom_charges'].append(atom_charges.detach().cpu())
     ml_dpm_errors['atom_dpm'].append(atom_dpm.detach().cpu())
     ml_dpm_errors['dist_SH'].append(sh_dist.detach().cpu())
+    ml_dpm_errors['hirshfeld_charges'].append(elec_charges_ml.detach().cpu())
     # print('density_mae', density_mae)
     # print('dpm norm error', dpm_err)
     # print('dpm pointwise error', dpm_point_err.sum())
@@ -403,6 +416,8 @@ for i in range(100):
     # print('dpm point r norm error', dpm_point_err_r_norm)
     # print('')
 
+    _, elec_charges_df = hirshfeld_partitioning(samp_df['density'], atom_dens, samp['batch_atom_numbers'],
+                                              samp['coords'], samp['coord_weights'])
     density_df_mae = torch.sum(torch.abs(samp['density'] - samp_df['density']) * samp['coord_weights']) / torch.sum(samp['atom_numbers'])
     # density_df_err = torch.abs(samp['density'] - samp_df['density']) * samp['coord_weights']
     dpm_df_err = torch.norm(samp['dipole_moment'] - samp_df['dipole_moment'])
@@ -431,6 +446,7 @@ for i in range(100):
     df_dpm_errors['atom_charges'].append(atom_charges.detach().cpu())
     df_dpm_errors['atom_dpm'].append(atom_dpm.detach().cpu())
     df_dpm_errors['dist_SH'].append(sh_dist.detach().cpu())
+    df_dpm_errors['hirshfeld_charges'].append(elec_charges_df.detach().cpu())
 
     # print('density_df_mae', density_df_mae)
     # print('dpm df norm error', dpm_df_err)
@@ -451,6 +467,8 @@ for i in range(100):
     # print('auxmol ext basis', auxmol_ext._bas)
     # print('auxmol ext env shape', auxmol_ext._env.shape)
     # #
+    _, elec_charges_ml_df = hirshfeld_partitioning(dens, atom_dens, samp['batch_atom_numbers'],
+                                              samp['coords'], samp['coord_weights'])
     samp2 = dataset.get_properties([i])
     dpm = orbitals.calc_dipole_moment(samp2, density=dens, normalize_density=False, positive_density=False)['dipole_moment']
     # print('dpm', dpm)
@@ -489,6 +507,7 @@ for i in range(100):
     ml_df_dpm_errors['atom_charges'].append(atom_charges.detach().cpu())
     ml_df_dpm_errors['atom_dpm'].append(atom_dpm.detach().cpu())
     ml_df_dpm_errors['dist_SH'].append(sh_dist.detach().cpu())
+    ml_df_dpm_errors['hirshfeld_charges'].append(elec_charges_ml_df.detach().cpu())
     # print('density_ml_df_mae', density_ml_df_mae)
     # print('dpm ml df norm error', dpm_ml_df_err)
     # print('dpm ml df pointwise error', dpm_ml_df_point_err.sum())
@@ -503,6 +522,9 @@ print('ml_df_dpm_errors', ml_df_dpm_errors)
 np.save('results/ethanethiol_ml_dpm_errors_loc65.npy', ml_dpm_errors, allow_pickle=True)
 np.save('results/ethanethiol_df_dpm_errors_loc65.npy', df_dpm_errors, allow_pickle=True)
 np.save('results/ethanethiol_ml_df_dpm_errors_loc65.npy', ml_df_dpm_errors, allow_pickle=True)
+# %%
+hirshfeld_charges = [charges.detach().cpu().numpy() for charges in true_hirshfeld_charges]
+np.save('results/ethanethiol_hirshfeld_charges_loc65.npy', hirshfeld_charges, allow_pickle=True)
 # %%
 ml_dpm_errors = np.load('results/ethanethiol_ml_dpm_errors_loc65.npy', allow_pickle=True).item()
 df_dpm_errors = np.load('results/ethanethiol_df_dpm_errors_loc65.npy', allow_pickle=True).item()
