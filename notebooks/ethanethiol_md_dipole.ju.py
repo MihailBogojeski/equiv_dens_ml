@@ -347,19 +347,19 @@ ml_dpm_errors = {'dens_mae': [], 'dpm_norm': [],
                  'dpm_point_abs': [], 'dpm_point_norm': [],
                  'dpm_r_norm': [], 'dpm_ang': [], 'dpm_mag': [],
                  'atom_charges': [], 'atom_dpm': [],
-                 'dist_SH': [], 'hirshfeld_charges': [],
+                 'dist_SH': [], 'dist_HC': [], 'hirshfeld_charges': [],
                  }
 df_dpm_errors = {'dens_mae': [], 'dpm_norm': [],
                  'dpm_point_abs': [], 'dpm_point_norm': [],
                  'dpm_r_norm': [], 'dpm_ang': [], 'dpm_mag': [],
                  'atom_charges': [], 'atom_dpm': [],
-                 'dist_SH': [], 'hirshfeld_charges': [],
+                 'dist_SH': [], 'dist_HC': [], 'hirshfeld_charges': [],
                  }
 ml_df_dpm_errors = {'dens_mae': [], 'dpm_norm': [],
                     'dpm_point_abs': [], 'dpm_point_norm': [],
                     'dpm_r_norm': [], 'dpm_ang': [], 'dpm_mag': [],
                     'atom_charges': [], 'atom_dpm': [],
-                    'dist_SH': [], 'hirshfeld_charges': [],
+                    'dist_SH': [], 'dist_HC': [], 'hirshfeld_charges': [],
                     }
 true_hirshfeld_charges = []
 
@@ -394,6 +394,7 @@ for i in range(100):
     dpm_ang_error = (180 / torch.pi) * torch.acos(torch.mean(torch.sum(res['dipole_moment']*samp['dipole_moment']) /
                                                   (torch.norm(res['dipole_moment']) * torch.norm(samp['dipole_moment']))))
     sh_dist = torch.norm(samp['batch_positions'][:, -1] - samp['batch_positions'][:, 5], dim=-1)
+    hc_dist = torch.norm(samp['batch_positions'][:, 5] - samp['batch_positions'][:, 6], dim=-1)
     atom_charges, atom_dpm = \
         get_atomwise_metrics(res, model.property_models['density'])
 
@@ -407,6 +408,7 @@ for i in range(100):
     ml_dpm_errors['atom_charges'].append(atom_charges.detach().cpu())
     ml_dpm_errors['atom_dpm'].append(atom_dpm.detach().cpu())
     ml_dpm_errors['dist_SH'].append(sh_dist.detach().cpu())
+    ml_dpm_errors['dist_HC'].append(hc_dist.detach().cpu())
     ml_dpm_errors['hirshfeld_charges'].append(elec_charges_ml.detach().cpu())
     # print('density_mae', density_mae)
     # print('dpm norm error', dpm_err)
@@ -446,6 +448,7 @@ for i in range(100):
     df_dpm_errors['atom_charges'].append(atom_charges.detach().cpu())
     df_dpm_errors['atom_dpm'].append(atom_dpm.detach().cpu())
     df_dpm_errors['dist_SH'].append(sh_dist.detach().cpu())
+    df_dpm_errors['dist_HC'].append(hc_dist.detach().cpu())
     df_dpm_errors['hirshfeld_charges'].append(elec_charges_df.detach().cpu())
 
     # print('density_df_mae', density_df_mae)
@@ -507,6 +510,7 @@ for i in range(100):
     ml_df_dpm_errors['atom_charges'].append(atom_charges.detach().cpu())
     ml_df_dpm_errors['atom_dpm'].append(atom_dpm.detach().cpu())
     ml_df_dpm_errors['dist_SH'].append(sh_dist.detach().cpu())
+    ml_df_dpm_errors['dist_HC'].append(hc_dist.detach().cpu())
     ml_df_dpm_errors['hirshfeld_charges'].append(elec_charges_ml_df.detach().cpu())
     # print('density_ml_df_mae', density_ml_df_mae)
     # print('dpm ml df norm error', dpm_ml_df_err)
@@ -553,7 +557,7 @@ for key in ml_dpm_errors.keys():
             ml_df_dpm_errors[key][i] = float(ml_df_dpm_errors[key][i])
 # %%
 fig, axs = plt.subplots(6, 1, figsize=(10, 15))
-keys = ['dens_mae', 'dpm_norm', 'dpm_r_norm', 'dpm_ang', 'dpm_mag', 'dist_SH']
+keys = ['dens_mae', 'dpm_norm', 'dpm_r_norm', 'dpm_ang', 'dpm_mag', 'dist_HC']
 labels = ['density APE (%)', 'dipole error (Debye)', 'dipole ||r|| error (Debye)', 'dipole ang error (Deg)', 'dipole magnitude error (Debye)', f'S-H distance (Ang)']
 for i, key in enumerate(keys):
     # print(key)
@@ -578,16 +582,20 @@ from matplotlib.lines import Line2D
 
 fig, axs = plt.subplots(4, 1, figsize=(10, 10))
 axes = {1: 0, 6: 1, 16: 2}
-print(ml_dpm_errors['atom_charges'][0].shape) atom_types = samp['batch_atom_numbers'][0].numpy() print('atom_types shape', atom_types.shape)
+print(ml_dpm_errors['atom_charges'][0].shape)
+atom_types = samp['batch_atom_numbers'][0].numpy()
+print('atom_types shape', atom_types.shape)
 cmap = plt.get_cmap("tab10")
 for i in range(ml_dpm_errors['atom_charges'][0].shape[1]):
     axs_idx = axes[atom_types[i]]
     charge_i_ml = [ml_dpm_errors['atom_charges'][j][0, i] for j in range(len(ml_dpm_errors['atom_charges']))]
     charge_i_df = [df_dpm_errors['atom_charges'][j][0, i] for j in range(len(df_dpm_errors['atom_charges']))]
     charge_i_ml_df = [ml_df_dpm_errors['atom_charges'][j][0, i] for j in range(len(ml_df_dpm_errors['atom_charges']))]
+    hirshfeld = [hirshfeld_charges[j][0, i] for j in range(len(hirshfeld_charges))]
     axs[axs_idx].plot(np.arange(len(ml_dpm_errors['atom_charges']))/2, charge_i_ml, label="ML", color=cmap(0))
-    axs[axs_idx].plot(np.arange(len(df_dpm_errors['atom_charges']))/2, charge_i_df, label="DF", color=cmap(1))
-    axs[axs_idx].plot(np.arange(len(ml_df_dpm_errors['atom_charges']))/2, charge_i_ml_df, label="ML-DF", color=cmap(2))
+    # axs[axs_idx].plot(np.arange(len(df_dpm_errors['atom_charges']))/2, charge_i_df, label="DF", color=cmap(1))
+    # axs[axs_idx].plot(np.arange(len(ml_df_dpm_errors['atom_charges']))/2, charge_i_ml_df, label="ML-DF", color=cmap(2))
+    axs[axs_idx].plot(np.arange(len(ml_df_dpm_errors['atom_charges']))/2, hirshfeld, label="hirshfeld", color=cmap(3))
     axs[axs_idx].set_ylabel('charges of {} atoms'.format(utils.numbers_to_symbols([atom_types[i]])[0]))
 fig.text(0.5, 0.05,
          'These figures show how the atomic charges based on the machine learned density coeffs\n' +
@@ -602,7 +610,7 @@ custom_lines = [Line2D([0], [0], color=cmap(0), lw=2),
                 ]
 
 plt.legend(custom_lines, ['ML', 'DF', 'ML-DF'])
-plt.savefig('figures/ethanethiol_md_charges_loc65k.png', dpi=300)
+# plt.savefig('figures/ethanethiol_md_charges_loc65k.png', dpi=300)
 plt.show()
 
 # %%
@@ -801,4 +809,37 @@ fig.text(0.5, 0.05,
          ha='center', va='center', fontsize=12)
 plt.legend()
 plt.savefig('figures/ethanethiol_md_dpm_errors_loc65k.png', dpi=300)
+plt.show()
+# %%
+from matplotlib.lines import Line2D
+
+fig, axs = plt.subplots(4, 1, figsize=(10, 10))
+axes = {1: 0, 6: 1, 16: 2}
+print(ml_dpm_errors['hirshfeld_charges'][0].shape)
+atom_types = samp['batch_atom_numbers'][0].numpy()
+print('atom_types shape', atom_types.shape)
+cmap = plt.get_cmap("tab10")
+for i in range(ml_dpm_errors['hirshfeld_charges'][0].shape[1]):
+    axs_idx = axes[atom_types[i]]
+    charge_i_ml = [ml_dpm_errors['hirshfeld_charges'][j][0, i] for j in range(len(ml_dpm_errors['hirshfeld_charges']))]
+    charge_i_df = [df_dpm_errors['hirshfeld_charges'][j][0, i] for j in range(len(df_dpm_errors['hirshfeld_charges']))]
+    charge_i_ml_df = [ml_df_dpm_errors['hirshfeld_charges'][j][0, i] for j in range(len(ml_df_dpm_errors['hirshfeld_charges']))]
+    axs[axs_idx].plot(np.arange(len(ml_dpm_errors['hirshfeld_charges']))/2, charge_i_ml, label="ML", color=cmap(0))
+    axs[axs_idx].plot(np.arange(len(df_dpm_errors['hirshfeld_charges']))/2, charge_i_df, label="DF", color=cmap(1))
+    axs[axs_idx].plot(np.arange(len(ml_df_dpm_errors['hirshfeld_charges']))/2, charge_i_ml_df, label="ML-DF", color=cmap(2))
+    axs[axs_idx].set_ylabel('charges of {} atoms'.format(utils.numbers_to_symbols([atom_types[i]])[0]))
+fig.text(0.5, 0.05,
+         'These figures show how the atomic charges based on the machine learned density coeffs\n' +
+         'change in a cutout of an MD trajectory of ethanethiol.',
+         ha='center', va='center', fontsize=12)
+axs[-1].plot(np.arange(len(ml_dpm_errors['dist_SH']))/2, ml_dpm_errors['dist_SH'], label='ML')
+axs[-1].set_ylabel('S-H distance (Ang)')
+axs[-1].set_xlabel('time (fs)')
+custom_lines = [Line2D([0], [0], color=cmap(0), lw=2),
+                Line2D([0], [0], color=cmap(1), lw=2),
+                Line2D([0], [0], color=cmap(2), lw=2)
+                ]
+
+plt.legend(custom_lines, ['ML', 'DF', 'ML-DF'])
+plt.savefig('figures/ethanethiol_md_hirshfeld_charges_loc65k.png', dpi=300)
 plt.show()
