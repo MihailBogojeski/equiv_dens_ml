@@ -422,9 +422,9 @@ class TorchNeighborList:
         idx_js = []
         idx_Ss = []
         if pbc:
-            pbc = torch.ones((3, )).to(atoms['positions']).type(torch.ByteTensor)
+            pbc = torch.ones((3, )).to(atoms['positions']).type(torch.BoolTensor)
         else:
-            pbc = torch.zeros((3, )).to(atoms['positions']).type(torch.ByteTensor)
+            pbc = torch.zeros((3, )).to(atoms['positions']).type(torch.BoolTensor)
         for i in range(atoms['positions'].shape[0]):
             numbers = atoms['atom_numbers'][i]
             nz = numbers > 0
