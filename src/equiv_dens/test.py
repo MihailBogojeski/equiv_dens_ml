@@ -107,6 +107,8 @@ dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_datas
                            cutoff=args.cutoff,
                            df_loss_weights=args.df_loss_weights,
                            projected_density=args.projected_density,
+                           atom_dens_path=args.atom_dens_path,
+                           atom_dens_type=args.atom_dens_type,
                            )
 
 if data_split_indices is None or args.ignore_split_indices:
@@ -143,6 +145,8 @@ if args.np_dataset_test is not None:
                                     cutoff=args.cutoff,
                                     df_loss_weights=args.df_loss_weights,
                                     projected_density=args.projected_density,
+                                    atom_dens_path=args.atom_dens_path,
+                                    atom_dens_type=args.atom_dens_type,
                                     )
 
     if args.num_test is not None:

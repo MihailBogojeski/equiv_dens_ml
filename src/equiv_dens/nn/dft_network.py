@@ -138,6 +138,8 @@ class DFTNetwork(nn.Module):
                 #     print('radial scale before', atoms['radial_scale'][0][(1, 0)])
                 #     print('radial width before', atoms['radial_width'][0][(1, 0)])
                 atoms = self.property_models[key](atoms)
+                if key == 'density' and self.remove_atom_density:
+                    atoms['density'] += atoms['atom_density']
                 # if key == 'core_density':
                 #     print('spherical coeffs after', atoms['spherical_coeffs'][0][(1, 0)])
                 #     print('radial scale after', atoms['radial_scale'][0][(1, 0)])
@@ -150,12 +152,12 @@ class DFTNetwork(nn.Module):
             with torch.no_grad():
                 for key in self.no_force_props:
                     atoms = self.property_models[key](atoms)
+                    if key == 'density' and self.remove_atom_density:
+                        atoms['density'] += atoms['atom_density']
                     if self.memory:
                         print('dft network forward', key, ':')
                         print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
                         print('Memory cached', torch.cuda.memory_cached() / 1024**2)
-        if 'density' in atoms.keys() and self.remove_atom_density:
-            atoms['density'] += atoms['atom_density']
         if not self.training:
             atoms = self.scaling.transform_back(atoms)
             atoms = self.conversions_out(atoms)
