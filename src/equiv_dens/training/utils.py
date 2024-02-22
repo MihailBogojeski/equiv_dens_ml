@@ -287,7 +287,8 @@ def prepare_datasets(args, required_properties, grid_vars, data_split_indices):
                                cutoff=args.cutoff,
                                df_loss_weights=args.df_loss_weights,
                                atom_dens_path=args.atom_dens_path,
-                               atom_dens_type=args.atom_dens_type,)
+                               atom_dens_type=args.atom_dens_type,
+                               )
 
 # split into train / valid / test
     if data_split_indices is None and args.np_dataset_valid is None:
@@ -318,7 +319,8 @@ def prepare_datasets(args, required_properties, grid_vars, data_split_indices):
                                          cutoff=args.cutoff,
                                          df_loss_weights=args.df_loss_weights,
                                          atom_dens_path=args.atom_dens_path,
-                                         atom_dens_type=args.atom_dens_type,)
+                                         atom_dens_type=args.atom_dens_type,
+                                         )
 
         if data_split_indices is None or args.ignore_split_indices:
             valid_inds = np.random.choice(np.arange(len(valid_dataset)), args.num_valid, replace=False)
@@ -359,7 +361,8 @@ def prepare_datasets(args, required_properties, grid_vars, data_split_indices):
                                         cutoff=args.cutoff,
                                         df_loss_weights=args.df_loss_weights,
                                         atom_dens_path=args.atom_dens_path,
-                                        atom_dens_type=args.atom_dens_type,)
+                                        atom_dens_type=args.atom_dens_type,
+                                        )
 
         if args.num_test is not None:
             test_size = args.num_test
