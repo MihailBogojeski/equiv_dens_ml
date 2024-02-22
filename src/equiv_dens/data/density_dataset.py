@@ -577,7 +577,6 @@ class AtomsDensityData(Dataset):
         return coords, coord_weights
 
     def sample_density(self, idx, sample_coords):
-        start = time.time()
         scaled_sample_coords = sample_coords.detach().cpu().numpy() / param.BOHR  # convert Angstrom grid to Bohr
         mols = [self.mols[i] for i in idx]
         for i, mol in enumerate(mols):
@@ -592,25 +591,21 @@ class AtomsDensityData(Dataset):
         dens = orbitals.sample_density_base(mols, scaled_sample_coords,
                                             coeffs, projected=False)
 
-        print('sample density time', time.time() - start)
         return dens
 
     def sample_atom_density(self, positions, atom_numbers, coords, individual_dens=False):
-        start = time.time()
         basis = self.mols[0].basis
         dens, atom_dens = orbitals.sample_atom_density(positions, atom_numbers,
                                                        coords, basis,
                                                        self.atom_dens_type,
                                                        self.atom_dens,
                                                        individual_dens)
-        print("atom density sample time", time.time() - start)
         if individual_dens:
             return atom_dens
         else:
             return dens
 
     def sample_projected_density(self, idx, sample_coords):
-        start = time.time()
         scaled_sample_coords = sample_coords.detach().cpu().numpy() / param.BOHR  # convert Angstrom grid to Bohr
         mols = [self.mols[i] for i in idx]
         for i, mol in enumerate(mols):
@@ -625,7 +620,6 @@ class AtomsDensityData(Dataset):
 
         dens = orbitals.sample_density_base(mols, scaled_sample_coords,
                                             df_coeffs, projected=True)
-        print('sample density time', time.time() - start)
         return dens
 
     def add_fixed_properties(self, property_dict):
