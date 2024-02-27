@@ -250,7 +250,7 @@ def prepare_cubic_datasets(args, required_properties, train_indices, valid_indic
         return None
 
 
-def prepare_datasets(args, required_properties, grid_vars, data_split_indices):
+def prepare_datasets(args, required_properties, grid_vars, data_split_indices, density_n_samp=None):
     """
     Prepare training, validation and test datasets.
 
@@ -266,11 +266,13 @@ def prepare_datasets(args, required_properties, grid_vars, data_split_indices):
         test_dataset: AtomsDensityData test dataset.
         valid_cube_dataset: AtomsDensityData validation dataset with cubic grid.
     """
+    if density_n_samp is None:
+        density_n_samp = args.density_subsamples
     train_dataset, valid_dataset, test_dataset = None, None, None
 
     dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_dataset,
                                orbitals_path=args.orbitals_file,
-                               density_n_samp=args.density_subsamples,
+                               density_n_samp=density_n_samp,
                                required_properties=required_properties,
                                center_positions=False,
                                radial_coeffs_file=args.radial_coeffs_file,
@@ -287,7 +289,8 @@ def prepare_datasets(args, required_properties, grid_vars, data_split_indices):
                                cutoff=args.cutoff,
                                df_loss_weights=args.df_loss_weights,
                                atom_dens_path=args.atom_dens_path,
-                               atom_dens_type=args.atom_dens_type,)
+                               atom_dens_type=args.atom_dens_type,
+                               )
 
 # split into train / valid / test
     if data_split_indices is None and args.np_dataset_valid is None:
@@ -302,7 +305,7 @@ def prepare_datasets(args, required_properties, grid_vars, data_split_indices):
     elif args.np_dataset_valid is not None:
         valid_dataset = AtomsDensityData(np_path=args.np_dataset_valid, density_path=args.dens_dataset_valid,
                                          orbitals_path=args.orbitals_file,
-                                         density_n_samp=args.density_subsamples,
+                                         density_n_samp=density_n_samp,
                                          required_properties=required_properties,
                                          center_positions=False,
                                          radial_coeffs_file=args.radial_coeffs_file,
@@ -318,7 +321,8 @@ def prepare_datasets(args, required_properties, grid_vars, data_split_indices):
                                          cutoff=args.cutoff,
                                          df_loss_weights=args.df_loss_weights,
                                          atom_dens_path=args.atom_dens_path,
-                                         atom_dens_type=args.atom_dens_type,)
+                                         atom_dens_type=args.atom_dens_type,
+                                         )
 
         if data_split_indices is None or args.ignore_split_indices:
             valid_inds = np.random.choice(np.arange(len(valid_dataset)), args.num_valid, replace=False)
@@ -345,7 +349,7 @@ def prepare_datasets(args, required_properties, grid_vars, data_split_indices):
     if args.np_dataset_test is not None:
         test_dataset = AtomsDensityData(np_path=args.np_dataset_test, density_path=args.dens_dataset_test,
                                         orbitals_path=args.orbitals_file,
-                                        density_n_samp=args.density_subsamples,
+                                        density_n_samp=density_n_samp,
                                         required_properties=required_properties,
                                         center_positions=False,
                                         radial_coeffs_file=args.radial_coeffs_file,
@@ -359,7 +363,8 @@ def prepare_datasets(args, required_properties, grid_vars, data_split_indices):
                                         cutoff=args.cutoff,
                                         df_loss_weights=args.df_loss_weights,
                                         atom_dens_path=args.atom_dens_path,
-                                        atom_dens_type=args.atom_dens_type,)
+                                        atom_dens_type=args.atom_dens_type,
+                                        )
 
         if args.num_test is not None:
             test_size = args.num_test

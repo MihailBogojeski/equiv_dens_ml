@@ -559,7 +559,6 @@ class DensityExpansion(nn.Module):
                     else:
                         self.r_max[key] = max_rad_c
 
-
     def forward(self, atoms, eval_atoms=None, eval_L=None):
         n_eval = len(atoms['spherical_coeffs'])
         start = time.time()
@@ -573,7 +572,7 @@ class DensityExpansion(nn.Module):
         L0_d = []
         L0_i = []
         L0_width = []
-        n_electrons = get_n_electrons(atoms['atom_numbers'])
+        n_electrons = get_n_electrons(atoms['batch_atom_numbers'])
         for i in range(n_eval):
             if self.verbose > 1 and self.memory:
                 print('Atom', i)
@@ -660,17 +659,11 @@ class DensityExpansion(nn.Module):
                     normalize = True
                 rbf = gaussian_rbf(L0_d[i].unsqueeze(-1), L0_width[i], curr_coeffs, 0, normalize=normalize)
                 sph = L0_sph[i].unsqueeze(-1)
-                # print('normalize', normalize)
-                # print('z', int(max(atoms['batch_atom_numbers'][:, i])))
-                # print('width', L0_width[i])
-                # print('scale', curr_coeffs)
-                # print('norms', 1/gto_norm(0, L0_width[i]))
-                # print('rbf integral', torch.sum(rbf * atoms['coord_weights'].unsqueeze(-1).unsqueeze(-1), dim=(-2, -3)))
                 if self.verbose > 2:
                     print('L', 0)
                     print('rbf integral', torch.sum(rbf * atoms['coord_weights'].unsqueeze(-1).unsqueeze(-1), dim=(-2, -3)))
                     print('abs sph', torch.sum(torch.abs(sph) * atoms['coord_weights'].unsqueeze(-1).unsqueeze(-1), dim=(-2, -3)))
-                if L0_i[0] in eval_atoms:
+                if L0_i[i] in eval_atoms:
                     L0_dens = torch.sum(rbf * sph, dim=(-1, -2))
                     L0_int = torch.sum(L0_dens * atoms['coord_weights'], dim=-1)
                     L0_integrals.append(L0_int)
