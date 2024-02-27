@@ -53,6 +53,17 @@ class DFTNetwork(nn.Module):
         """
         data = self.conversions_in(data)
         data = self.scaling(data)
+        return data
+
+    def transform_density(self, data):
+        """
+        Transform density by removing the free atom densities if required.
+
+        Args:
+            data: Dictionary containing a collection of atoms and their various properties
+        Returns:
+            data: Updated dictionary containing the original properties
+        """
         if 'density' in data.keys() and self.remove_atom_density:
             data['density'] -= data['atom_density']
         return data
@@ -68,9 +79,21 @@ class DFTNetwork(nn.Module):
         """
         data = self.scaling.transform_back(data)
         data = self.conversions_out(data)
+        return data
+
+    def transform_back_density(self, data):
+        """
+        Transform the density back to it's original form with the atom densities added back.
+
+        Args:
+            data: Dictionary containing a collection of atoms and their various properties
+        Returns:
+            data: Updated dictionary containing the original properties
+        """
         if 'density' in data.keys() and self.remove_atom_density:
             data['density'] += data['atom_density']
         return data
+
 
     def forward(self, data):
         """
@@ -115,6 +138,8 @@ class DFTNetwork(nn.Module):
                 #     print('radial scale before', atoms['radial_scale'][0][(1, 0)])
                 #     print('radial width before', atoms['radial_width'][0][(1, 0)])
                 atoms = self.property_models[key](atoms)
+                if key == 'density' and self.remove_atom_density:
+                    atoms['density'] += atoms['atom_density']
                 # if key == 'core_density':
                 #     print('spherical coeffs after', atoms['spherical_coeffs'][0][(1, 0)])
                 #     print('radial scale after', atoms['radial_scale'][0][(1, 0)])
@@ -127,6 +152,8 @@ class DFTNetwork(nn.Module):
             with torch.no_grad():
                 for key in self.no_force_props:
                     atoms = self.property_models[key](atoms)
+                    if key == 'density' and self.remove_atom_density:
+                        atoms['density'] += atoms['atom_density']
                     if self.memory:
                         print('dft network forward', key, ':')
                         print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
@@ -134,7 +161,5 @@ class DFTNetwork(nn.Module):
         if not self.training:
             atoms = self.scaling.transform_back(atoms)
             atoms = self.conversions_out(atoms)
-            if 'density' in atoms.keys() and self.remove_atom_density:
-                atoms['density'] += atoms['atom_density']
 
         return atoms

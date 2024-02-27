@@ -7,7 +7,8 @@ from pyscf.lib import param
 from pyscf import gto, df, lib, dft
 from pyscf.scf import hf
 import scipy
-import time
+# import time
+from equiv_dens.utils.hirshfeld_analysis import eval_spline_density
 
 hf.MUTE_CHKFILE = True
 
@@ -350,15 +351,52 @@ def coeffs_dict_to_vector(coeffs, orbital_basis, a_num, radial_coeffs=True, coef
 #
 #     return vector_coeffs
 
+def radial_basis_to_vector(a_num, orbital_basis, radial_basis):
+    """
+    Uses a radial basis definition to construct two vectors of scale and width radial coefficients for a given set of atomistic systems.
 
-def vector_to_coeffs_dict(coeffs, orbital_basis, a_num, radial_coeffs=True, convert_to_equiv_dens=True):
+    Args:
+        a_num (torch.Tensor): Tensor of atomic numbers.
+        orbital_basis (dict): Dictionary describing the orbital basis for a set of atom types.
+        radial_basis (dict): Dictionary containing the radial coefficients of the basis for a set of atom types.
+    """
+    # print('orbital basis', orbital_basis)
+    # print('radial basis', radial_basis)
+
+    radial_widths = []
+    radial_scales = []
+
+    all_nums = torch.max(a_num, dim=0)[0]
+    for z in all_nums:
+        z = int(z)
+        basis_z = radial_basis[z]
+        for i in range(len(basis_z)):
+            radial_widths.append(radial_basis[z][i][0])
+            radial_scales.append(radial_basis[z][i][1])
+
+    radial_widths = np.concatenate(radial_widths)
+    radial_scales = np.concatenate(radial_scales)
+    radial_widths = torch.tile(torch.from_numpy(radial_widths), (a_num.shape[0], 1))
+    radial_scales = torch.tile(torch.from_numpy(radial_scales), (a_num.shape[0], 1))
+
+    return radial_widths, radial_scales
+
+def vector_to_coeffs_dict(coeffs, orbital_basis, a_num, radial_coeffs=True,
+                          convert_to_equiv_dens=True, radial_basis=None):
     vec_sph = coeffs['spherical_coeffs']
     dict_sph = []
     if radial_coeffs:
-        vec_width = coeffs['radial_width']
-        vec_scale = coeffs['radial_scale']
+        if 'radial_width' not in coeffs.keys():
+            if radial_basis is None:
+                raise ValueError('No radial coefficients or radial basis definition was provided!')
+            else:
+                vec_width, vec_scale = radial_basis_to_vector(a_num, orbital_basis, radial_basis)
+        else:
+            vec_width = coeffs['radial_width']
+            vec_scale = coeffs['radial_scale']
         dict_width = []
         dict_scale = []
+    print("starting vector to coeffs dict")
     sph_count = 0
     rad_count = 0
     for i, z in enumerate(torch.max(a_num, dim=0)[0]):
@@ -680,7 +718,7 @@ def ml_basis_to_pyscf_env(pred, auxmol):
                 radial_widths = torch.cat([radial_widths, pred['radial_width'][i][key].squeeze()])
                 radial_scales = torch.cat([radial_scales, pred['radial_scale'][i][key].squeeze()])
         radial_coeffs = torch.stack([radial_widths, radial_scales], dim=1)
-        radial_coeffs = torch.abs(radial_coeffs.flatten())
+        radial_coeffs = radial_coeffs.flatten()
         # print('radial_coeffs', radial_coeffs)
         # print('auxmol env old', auxmol_ext._env[atom_bas[i][1][0]:atom_bas[i][1][1] + 1])
         auxmol_ext._env[atom_bas[i][1][0]:atom_bas[i][1][1] + 1] = radial_coeffs.detach().cpu().numpy()
@@ -733,3 +771,145 @@ def ml_basis_to_df_coeffs(pred, basis, auxbasis, mo_coeff=None, mo_occ=None):
     df_basis = lib.einsum('Pij,ij->P', df_coef, dm1)
 
     return df_basis, auxmol_ext
+
+def get_density_charges(atoms):
+    """
+    Calculate the atomwise electron density charges. 
+    Args:
+        atoms (dict): dictionary containing the properties of the atomic system, including positions and density coefficients
+    Returns:
+        charges (torch.Tensor): Atomwise electron density charges [batch_size, num_atoms]
+    """
+
+    charges = torch.zeros_like(atoms['batch_atom_numbers']).to(atoms['positions'])
+    for i in range(len(atoms['spherical_coeffs'])):
+        for key in atoms['spherical_coeffs'][i].keys():
+            z, L = key
+            if L > 0:
+                continue
+            sph = atoms['spherical_coeffs'][i][key]
+            width = atoms['radial_width'][i][key]
+            scale = atoms['radial_scale'][i][key]
+
+            charges[:, i] += torch.sum((sph * scale) / (gto_norm(0, width) * pyscf_gto_factor), dim=(-3, -2, -1))
+
+    return charges
+
+def get_atomic_dipoles(atoms, expansion_model):
+    """
+    Calculate the atomic dipoles of an atomic system.
+    Args:
+        atoms (dict): dictionary containing the properties of the atomic system, including positions and density coefficients
+    Returns:
+        dipoles (torch.Tensor): Atomic dipoles for each atom in the system [batch_size, num_atoms, 3]
+    """
+    atoms_c = {**atoms}
+    dipoles = torch.zeros_like(atoms['batch_positions'])
+    for i in range(len(atoms['spherical_coeffs'])):
+        dpm1 = expansion_model(atoms_c, eval_atoms=[i], eval_L=[0, 1])['density']
+        dpm1 = torch.sum((dpm1 * atoms['coord_weights']).unsqueeze(-1) * atoms['coords'], dim=-2)
+        dipoles[:, i] = dpm1
+
+    return dipoles
+
+def sample_single_atom_density_spline(position, atom_number, coords, spline_basis):
+    """
+    Sample the free atom density of a single atom on a given coordinate grid using a spline basis.
+    Args:
+        position (torch.Tensor): Position of the atom [batch, 1, 3]
+        atom_number (torch.Tensor): Atomic number of the atom [batch]
+        coords (torch.Tensor): Coordinates of the grid to sample the density on [num_coords, 3]
+        atom_dens_dict (dict): Dictionary containing the atom densities
+    Returns:
+        density (torch.Tensor): Free atom density of the atom
+    """
+    atom_coords = coords - position
+    anum_nz = atom_number != 0
+    dens_spline = eval_spline_density(spline_basis, atom_coords)
+
+    return torch.tensor(dens_spline) * anum_nz.view(-1, 1)
+
+def sample_single_atom_density_mo(position, atom_number, coords, basis, mo_coeffs):
+    """
+    Sample the free atom density of a single atom on a given coordinate grid using a molecular orbital basis.
+
+    Args:
+        position (torch.Tensor): Position of the atom [batch, 1, 3]
+        atom_number (torch.Tensor): Atomic number of the atom [batch]
+        coords (torch.Tensor): Coordinates of the grid to sample the density on [num_coords, 3]
+        atom_dens_dict (dict): Dictionary containing the atom densities
+    Returns:
+        density (torch.Tensor): Free atom density of the atom
+    """
+    dens = torch.zeros((coords.shape[0], coords.shape[1]))
+    coeffs = [{'mo_coeff': mo_coeffs['mo_coeff'],
+               'mo_occ': mo_coeffs['mo_occ']}] * coords.shape[0]
+    atom = utils.npy_to_pyscf(position.detach().cpu().numpy(),
+                              atom_number.detach().cpu().numpy(),
+                              basis)
+    dens = sample_density_base(atom, coords, coeffs,
+                               scale_coords=True, projected=False)
+
+    return dens
+
+def sample_single_atom_density_df(position, atom_number, coords, basis, df_coeffs):
+    """
+    Sample the free atom density of a single atom on a given coordinate grid using a density fitting basis.
+
+    Args:
+        position (torch.Tensor): Position of the atom [batch, 1, 3]
+        atom_number (torch.Tensor): Atomic number of the atom [batch]
+        coords (torch.Tensor): Coordinates of the grid to sample the density on [num_coords, 3]
+        atom_dens_dict (dict): Dictionary containing the atom densities
+    Returns:
+        density (torch.Tensor): Free atom density of the atom
+    """
+    df_coeffs = [df_coeffs] * coords.shape[0]
+    atom = utils.npy_to_pyscf(position.detach().cpu().numpy(),
+                              atom_number.detach().cpu().numpy(),
+                              basis)
+    dens = sample_density_base(atom, coords, df_coeffs,
+                               scale_coords=True, projected=True)
+    return dens
+
+def sample_atom_density(positions, atom_numbers, coords, basis,
+                        atom_dens_type, atom_dens_dict, individual_dens=False):
+    """
+    Sample the free atom density of a molecule on a given coordinate grid.
+
+    Args:
+        position (torch.Tensor): Position of the atom [batch, 1, 3]
+        atom_number (torch.Tensor): Atomic number of the atom [batch]
+        coords (torch.Tensor): Coordinates of the grid to sample the density on [num_coords, 3]
+        atom_dens_type (str): Type of the basis used to expand the atom densities
+        atom_dens_dict (dict): Dictionary containing the atom densities
+    Returns:
+        (density, atom_wise_density) (torch.Tensor, torch.Tensor): Tuple containing free atom
+        density of the molecule, plus the individual density of each atom in the molecule
+    """
+    dens = torch.zeros((coords.shape[0], coords.shape[1]))
+    atom_densities = []
+    for i in range(positions.shape[1]):
+        anum = int(torch.max(atom_numbers[:, i]))
+        if atom_dens_type == 'mo_coeffs':
+            atom_dens = sample_single_atom_density_mo(positions[:, [i]], atom_numbers[:, [i]],
+                                                      coords, basis, atom_dens_dict[anum])
+            dens += atom_dens
+        elif atom_dens_type == 'df_coeffs':
+            atom_dens = sample_single_atom_density_df(positions[:, [i]], atom_numbers[:, [i]],
+                                                      coords,
+                                                      atom_dens_dict[anum]['df_basis'],
+                                                      atom_dens_dict[anum]['df_coeffs'])
+            dens += atom_dens
+        elif atom_dens_type == 'spline':
+            atom_dens = sample_single_atom_density_spline(positions[:, [i]],
+                                                          atom_numbers[:, [i]], coords,
+                                                          atom_dens_dict[anum]['spline_interp'])
+            dens += atom_dens
+        else:
+            raise ValueError('Unknown free atom density type')
+        if individual_dens:
+            atom_densities.append(atom_dens)
+    if individual_dens:
+        atom_densities = torch.stack(atom_densities, dim=1)
+    return dens, atom_densities

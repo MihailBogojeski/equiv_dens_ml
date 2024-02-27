@@ -153,7 +153,7 @@ for phase in training_phases:
     trainer.run(args.max_steps, use_gpu=use_gpu, dtype=args.dtype)
     print('finished trainer run of phase', phase)
     ongoing_phases.remove(phase)
-    restore = False
+    train_vars['restore'] = False
 print('Starting test evaluation!!!')
 
 args.df_weight = 0.0
@@ -170,7 +170,8 @@ required_properties = train_utils.get_required_properties_from_args(args)
 grid_vars['rotate'] = False
 
 _, _, _, test_dataset, _, _ = train_utils.prepare_datasets(args, required_properties,
-                                                           grid_vars, data_split_indices)
+                                                           grid_vars, data_split_indices,
+                                                           density_n_samp=100000000000000000000)
 
 test_data_loader = set_up_data_loader(test_dataset, args.test_batch_size,
                                       args.electron_num_batching,
