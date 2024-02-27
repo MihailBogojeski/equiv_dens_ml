@@ -120,6 +120,7 @@ print('args use gpu', args.use_gpu)
 args.cube_grid = False
 args.radii_adjust = True
 args.expansion_constraint = None
+args.integral_constraint = 'coeffs'
 if args.cube_grid:
     args.cube_origin = -2
     args.cube_extent = 4
@@ -212,9 +213,9 @@ test_indices = checkpoint['data_split_indices']['test']
 print(test_indices)
 # %%
 model = model_loader.load_model(args, dataset)
-idx = 3
-samp = dataset.get_properties([idx])
-samp_df = dataset_df.get_properties([idx])
+idx = [3,4,5]
+samp = dataset.get_properties(idx)
+samp_df = dataset_df.get_properties(idx)
 
 res = model(samp)
 

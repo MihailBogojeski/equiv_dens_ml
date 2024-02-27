@@ -29,12 +29,15 @@ from equiv_dens.training import model_loader
 main_args = Namespace()
 
 # main_args.args_file = "args/resorcinol_all_001.txt"
-main_args.args_file = "args/ethanethiol_all_006_test.txt"
+# main_args.args_file = "args/ethanethiol_all_006_test.txt"
+main_args.args_file = "args/h2o_small_all_001.txt"
 # main_args.args_file = "args/ethanethiol_df_coeffs_001_test.txt"
 main_args.ref_np_load_file = None
 main_args.ref_dens_load_file = None
-main_args.res_load_file = 'datasets/ethanethiol_all_006_test.pt'
-main_args.save_file = 'ethanethiol_all_006'
+# main_args.res_load_file = 'datasets/ethanethiol_all_006_test.pt'
+main_args.res_load_file = None
+# main_args.save_file = 'ethanethiol_all_006'
+main_args.save_file = 'h2o_small_all_001'
 # main_args.res_load_file = 'datasets/resorcinol_all_005_test.pt'
 # main_args.save_file = 'resorcinol_all_005'
 # main_args.res_load_file = 'datasets/ethanethiol_df_coeffs_001_test.pt'
@@ -117,6 +120,7 @@ print('args use gpu', args.use_gpu)
 args.cube_grid = False
 args.radii_adjust = True
 args.expansion_constraint = None
+args.integral_constraint = 'coeffs'
 if args.cube_grid:
     args.cube_origin = -0.25
     args.cube_extent = 0.5
@@ -198,6 +202,13 @@ if main_args.df_error:
                                   )
 
 # %%
+idx = [1, 2, 3]
+samp = dataset.get_properties(idx)
+samp_df = dataset_df.get_properties(idx)
+print('density integral', torch.sum(samp['density'] * samp['coord_weights'], dim=1))
+print('density df integral', torch.sum(samp_df['density'] * samp['coord_weights'], dim=1))
+
+# %%
 model = model_loader.load_model(args, dataset)
 idx = 1
 samp = dataset.get_properties([idx])
@@ -230,7 +241,8 @@ print('dpm pointwise error', dpm_point_err.sum())
 # %%
 density_df_mae = torch.sum(torch.abs(samp['density'] - samp_df['density']) * samp['coord_weights']) / torch.sum(samp['atom_numbers'])
 density_df_err = torch.abs(samp['density'] - samp_df['density']) * samp['coord_weights']
-dpm_df_err = torch.norm(samp['dipole_moment'] - samp_df['dipole_moment'])
+dpm_df = orbitals.calc_dipole_moment(samp_df)['dipole_moment']
+dpm_df_err = torch.norm(samp['dipole_moment'] - dpm_df)
 # dpm_df_point_err = density_errors.dipole_pointwise_int_loss(samp_df['density'], samp['density'], samp['coords'], samp['coord_weights'])
 dpm_df_point_err = ((samp_df['density'] - samp['density']) * samp['coord_weights']).unsqueeze(-1) * (samp['coords'] - center_of_mass)
 print('density_df_mae', density_df_mae)

@@ -16,6 +16,7 @@ from argparse import Namespace
 from equiv_dens.training import density_errors
 import matplotlib.pyplot as plt
 import numpy as np
+import equiv_dens.training.utils as train_utils
 
 
 # %%
@@ -443,55 +444,11 @@ df_losses = None
 # %%
 args, hyperparam_args = parse_command_line_arguments(arg_file=main_args.args_file)
 
-# print('type dtype', type(args.dtype))
-args.fix_arguments = True
-# print('args np dir', args.np_dataset)
+args, hyperparam_args, test_vars = train_utils.init_training_vars(args, hyperparam_args)
+checkpoint = test_vars['checkpoint']
+args_dict = vars(args)
 
-if args.restart is None:
-    # generate "unique" id for the run (very unlikely that two runs will have the same ID)
-    model_code = generate_id()
-    directory = os.path.join(args.save_dir, datetime.utcnow().strftime("%Y-%m-%d_") +
-                             model_code)  # generate directory name
-    # create directories
-    # if not os.path.exists(directory):
-    #     os.makedirs(directory)
-    # # write command line arguments to file (useful for reproducibility)
-    # with open(os.path.join(directory, 'args.txt'), 'w') as f:
-    #     for key in args.__dict__.keys():
-    #         # special case for list input
-    #         if isinstance(args.__dict__[key], list):
-    #             for entry in args.__dict__[key]:
-    #                 f.write('--' + key + '=' + str(entry) + "\n")
-    #         else:
-    #             f.write('--' + key + '=' + str(args.__dict__[key]) + "\n")
-    checkpoint = None
-    latest_checkpoint = 0
-    step = 0
-    restore = False
-    data_split_indices = None
-    # restarts run from latest checkpoint
-else:
-    # no restart directory specified
-    directory = args.restart
-    # load latest checkpoint
-    checkpoint_path = os.path.join(directory, 'checkpoints')  # checkpoint directory
-    checkpoint = torch.load(os.path.join(
-        checkpoint_path, 'latest_checkpoint.pth'), map_location='cpu')
-    latest_checkpoint = checkpoint['step']
-    model_code = checkpoint['ID']  # load ID
-    step = checkpoint['step']
-    for arg in vars(checkpoint['args']):
-        if args.fix_arguments:
-            if arg in hyperparam_args:
-                # print('loading hyperparam arg', arg)
-                setattr(args, arg, getattr(checkpoint['args'], arg))
-        else:
-            # print('loading all arg', arg)
-            setattr(args, arg, getattr(checkpoint['args'], arg))
-    restore = True
-
-
-print('model code:', model_code)
+print('model code:', test_vars['model_code'])
 
 # determine whether GPU is used for training
 print('args use gpu', args.use_gpu)
@@ -501,29 +458,8 @@ args.use_gpu = False
 print("loading density from" + str(args.dens_dataset) + "...")
 print("loading atoms from" + args.np_dataset + "...")
 
-args.verbose = 0
-args.use_gpu = False
-args.cube_grid = False
-args.radii_adjust = True
-args.expansion_constraint = None
-if args.cube_grid:
-    args.cube_origin = -0.25
-    args.cube_extent = 0.5
-    args.cube_size = 50
-    args.radii_adjust = False
-    grid_origin = args.cube_origin
-    grid_extent = np.array([args.cube_extent] * 3)
-    grid_fn = partial(cubical_grid, nx=args.cube_size, ny=args.cube_size, nz=args.cube_size,
-                      extent=grid_extent,
-                      origin=np.array([grid_origin] * 3))
-    sampling_fn = cubical_sampling
-else:
-    args.spherical_grid_level = 1
-    grid_fn = partial(spherical_grid, level=args.spherical_grid_level)
-    sampling_fn = partial(spherical_radial_sampling, rotate=False)
-    grid_origin = 0
-    grid_extent = None
-    rotate = False
+grid_vars = train_utils.init_grid_vars(args, test=True)
+print('grid vars', grid_vars)
 
 required_properties = ['energy', 'forces', 'density', 'dipole_moment']
 
@@ -532,29 +468,33 @@ if main_args.ref_np_load_file is not None:
 if main_args.ref_dens_load_file is not None:
     args.dens_dataset_test = main_args.ref_dens_load_file
 
+
 dataset = AtomsDensityData(np_path=args.np_dataset_test, density_path=args.dens_dataset_test,
                            orbitals_path=args.orbitals_file,
-                           density_n_samp=10000000000000000000000,
+                           density_n_samp=10000000000000,
                            required_properties=required_properties,
                            center_positions=False,
                            radial_coeffs_file=args.radial_coeffs_file,
+                           L0_coeffs_file=args.L0_coeffs_file,
                            dtype=args.dtype,
-                           grid_fn=grid_fn,
+                           grid_fn=grid_vars['grid_fn'],
                            pyscf_grid=args.pyscf_grid,
-                           pyscf_rotate=rotate,
-                           sampling_fn=sampling_fn,
-                           grid_extent=grid_extent,
-                           grid_origin=grid_origin,
+                           pyscf_rotate=grid_vars['rotate'],
+                           sampling_fn=grid_vars['sampling_fn'],
+                           grid_extent=grid_vars['grid_extent'],
+                           grid_origin=grid_vars['grid_origin'],
+                           verbose=args.verbose,
+                           timing=args.timing,
                            cutoff=args.cutoff,
                            df_loss_weights=args.df_loss_weights,
-                           projected_density=args.projected_density,
+                           atom_dens_path=args.atom_dens_path,
+                           atom_dens_type=args.atom_dens_type,
+                           projected_density=False,
                            )
-print('dataset length', len(dataset))
-print('sample pos shape', dataset.get_properties([0])['positions'].shape)
-print('sample dens shape', dataset.get_properties([0])['density'].shape)
+
+
 if main_args.num_samples < 1:
     main_args_num_samples = len(dataset)
-
 # %%
 print('num samples', main_args.num_samples)
 df_losses = None
@@ -569,19 +509,24 @@ if main_args.df_error:
 
     dataset_df = AtomsDensityData(np_path=args.np_dataset_test, density_path=args.dens_dataset_test,
                                   orbitals_path=args.orbitals_file,
-                                  density_n_samp=10000000000000000000000,
+                                  density_n_samp=10000000000000,
                                   required_properties=required_properties,
                                   center_positions=False,
                                   radial_coeffs_file=args.radial_coeffs_file,
+                                  L0_coeffs_file=args.L0_coeffs_file,
                                   dtype=args.dtype,
-                                  grid_fn=grid_fn,
+                                  grid_fn=grid_vars['grid_fn'],
                                   pyscf_grid=args.pyscf_grid,
-                                  pyscf_rotate=rotate,
-                                  sampling_fn=sampling_fn,
-                                  grid_extent=grid_extent,
-                                  grid_origin=grid_origin,
+                                  pyscf_rotate=grid_vars['rotate'],
+                                  sampling_fn=grid_vars['sampling_fn'],
+                                  grid_extent=grid_vars['grid_extent'],
+                                  grid_origin=grid_vars['grid_origin'],
+                                  verbose=args.verbose,
+                                  timing=args.timing,
                                   cutoff=args.cutoff,
                                   df_loss_weights=args.df_loss_weights,
+                                  atom_dens_path=args.atom_dens_path,
+                                  atom_dens_type=args.atom_dens_type,
                                   projected_density=True,
                                   )
     for i in range(min(len(dataset), main_args.num_samples)):
