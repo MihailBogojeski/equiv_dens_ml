@@ -40,7 +40,7 @@ print("loading density from" + str(args.dens_dataset) + "...")
 print("loading atoms from" + args.np_dataset + "...")
 print('args num test', args.num_test)
 
-grid_vars = train_utils.init_grid_vars(args)
+grid_vars = train_utils.init_grid_vars(args, test=True)
 
 required_properties = train_utils.get_required_properties_from_args(args)
 

@@ -572,7 +572,7 @@ class DensityExpansion(nn.Module):
         L0_d = []
         L0_i = []
         L0_width = []
-        n_electrons = get_n_electrons(atoms['atom_numbers'])
+        n_electrons = get_n_electrons(atoms['batch_atom_numbers'])
         for i in range(n_eval):
             if self.verbose > 1 and self.memory:
                 print('Atom', i)
