@@ -382,7 +382,6 @@ class AtomsDensityData(Dataset):
                         properties[pname] = self.sample_projected_density(idx, properties['coords'] - pos_shift)
                     else:
                         properties[pname] = self.sample_density(idx, properties['coords'] - pos_shift)
-                        print("Debug density integral", torch.sum(properties[pname] * properties['coord_weights'], dim=-1))
                     if self.timing:
                         print('density time:', time.time() - density_start)
             else:
