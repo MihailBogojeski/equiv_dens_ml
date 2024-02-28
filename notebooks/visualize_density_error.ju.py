@@ -30,16 +30,19 @@ main_args = Namespace()
 
 # main_args.args_file = "args/resorcinol_all_001.txt"
 # main_args.args_file = "args/ethanethiol_all_006_test.txt"
-main_args.args_file = "args/h2o_small_all_001.txt"
+# main_args.args_file = "args/h2o_small_all_001.txt"
 # main_args.args_file = "args/ethanethiol_df_coeffs_001_test.txt"
+main_args.args_file = "args/ethanethiol_all_001_coreless_test.txt"
 main_args.ref_np_load_file = None
 main_args.ref_dens_load_file = None
 # main_args.res_load_file = 'datasets/ethanethiol_all_006_test.pt'
-main_args.res_load_file = None
-# main_args.save_file = 'ethanethiol_all_006'
-main_args.save_file = 'h2o_small_all_001'
+main_args.res_load_file = 'datasets/ethanethiol_all_001_coreless_test_results.npy'
+# main_args.res_load_file = None
 # main_args.res_load_file = 'datasets/resorcinol_all_005_test.pt'
+# main_args.save_file = 'ethanethiol_all_006'
+# main_args.save_file = 'h2o_small_all_001'
 # main_args.save_file = 'resorcinol_all_005'
+main_args.save_file = 'ethanethiol_all_001_coreless'
 # main_args.res_load_file = 'datasets/ethanethiol_df_coeffs_001_test.pt'
 # main_args.save_file = 'ethanethiol_df_coeffs_001'
 main_args.df_error = True
@@ -114,13 +117,13 @@ args.use_gpu = False
 print("loading density from" + str(args.dens_dataset) + "...")
 print("loading atoms from" + args.np_dataset + "...")
 
-args.verbose = 0
+args.verbose = 1
 args.use_gpu = False
 print('args use gpu', args.use_gpu)
 args.cube_grid = False
 args.radii_adjust = True
 args.expansion_constraint = None
-args.integral_constraint = 'coeffs'
+args.integral_constraint = None
 if args.cube_grid:
     args.cube_origin = -0.25
     args.cube_extent = 0.5
@@ -163,6 +166,8 @@ dataset = AtomsDensityData(np_path=args.np_dataset_test, density_path=args.dens_
                            cutoff=args.cutoff,
                            df_loss_weights=args.df_loss_weights,
                            projected_density=args.projected_density,
+                           atom_dens_path=args.atom_dens_path,
+                           atom_dens_type=args.atom_dens_type,
                            )
 print('dataset length', len(dataset))
 print('sample pos shape', dataset.get_properties([0])['positions'].shape)
@@ -199,6 +204,8 @@ if main_args.df_error:
                                   cutoff=args.cutoff,
                                   df_loss_weights=args.df_loss_weights,
                                   projected_density=True,
+                                  atom_dens_path=args.atom_dens_path,
+                                  atom_dens_type=args.atom_dens_type,
                                   )
 
 # %%
@@ -210,9 +217,9 @@ print('density df integral', torch.sum(samp_df['density'] * samp['coord_weights'
 
 # %%
 model = model_loader.load_model(args, dataset)
-idx = 1
-samp = dataset.get_properties([idx])
-samp_df = dataset_df.get_properties([idx])
+idx = [1, 2, 3]
+samp = dataset.get_properties(idx)
+samp_df = dataset_df.get_properties(idx)
 
 res = model(samp)
 
@@ -228,21 +235,21 @@ center_of_mass = torch.sum(samp['batch_positions'] * samp['batch_atom_numbers'].
 
 distance_from_com = torch.norm(samp['coords'] - center_of_mass, dim=2)
 
-density_mae = torch.sum(torch.abs(samp['density'] - res['density']) * samp['coord_weights']) / torch.sum(samp['atom_numbers'])
+density_mae = torch.sum(torch.abs(samp['density'] - res['density']) * samp['coord_weights'], dim=-1) / torch.sum(samp['batch_atom_numbers'], dim=-1)
 density_err = torch.abs(samp['density'] - res['density']) * samp['coord_weights']
 res = orbitals.calc_dipole_moment(res)
-dpm_err = torch.norm(samp['dipole_moment'] - res['dipole_moment'])
+dpm_err = torch.norm(samp['dipole_moment'] - res['dipole_moment'], dim=1)
 # dpm_point_err = density_errors.dipole_pointwise_int_loss(res['density'], samp['density'], samp['coords'], samp['coord_weights'])
 dpm_point_err = ((res['density'] - samp['density']) * samp['coord_weights']).unsqueeze(-1) * (samp['coords'] - center_of_mass)
 
 print('density_mae', density_mae)
 print('dpm norm error', dpm_err)
-print('dpm pointwise error', dpm_point_err.sum())
+print('dpm pointwise error', dpm_point_err.sum(dim=-1))
 # %%
-density_df_mae = torch.sum(torch.abs(samp['density'] - samp_df['density']) * samp['coord_weights']) / torch.sum(samp['atom_numbers'])
+density_df_mae = torch.sum(torch.abs(samp['density'] - samp_df['density']) * samp['coord_weights'], dim=-1) / torch.sum(samp['batch_atom_numbers'], dim=-1)
 density_df_err = torch.abs(samp['density'] - samp_df['density']) * samp['coord_weights']
 dpm_df = orbitals.calc_dipole_moment(samp_df)['dipole_moment']
-dpm_df_err = torch.norm(samp['dipole_moment'] - dpm_df)
+dpm_df_err = torch.norm(samp['dipole_moment'] - dpm_df, dim=-1)
 # dpm_df_point_err = density_errors.dipole_pointwise_int_loss(samp_df['density'], samp['density'], samp['coords'], samp['coord_weights'])
 dpm_df_point_err = ((samp_df['density'] - samp['density']) * samp['coord_weights']).unsqueeze(-1) * (samp['coords'] - center_of_mass)
 print('density_df_mae', density_df_mae)

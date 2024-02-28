@@ -697,6 +697,7 @@ class DensityExpansion(nn.Module):
                  timing=False,
                  memory=False,
                  grid_scaling_factor=False,
+                 remove_atom_density=False,
                  ):
         super().__init__()
         self.orbital_basis = orbital_basis
@@ -706,6 +707,7 @@ class DensityExpansion(nn.Module):
         self.timing = timing
         self.memory = memory
         self.verbose = verbose
+        self.remove_atom_density = remove_atom_density
         if grid_scaling_factor:
             self.register_buffer('grid_scaling_factor', torch.ones(size=(1,)))
         else:
@@ -820,9 +822,16 @@ class DensityExpansion(nn.Module):
             else:
                 norms = 1/gto_norm(0, L0_widths_comb)
                 coeffs_sum = torch.sum(L0_coeffs_comb * norms / pyscf_gto_factor, dim=1, keepdim=True)
-                scale_factor = n_electrons / coeffs_sum
-                L0_coeffs_comb = L0_coeffs_comb * scale_factor
-                L0_coeffs_comb = L0_coeffs_comb * torch.clamp(self.integral_scale, 0.5, 1.5)
+                if self.remove_atom_density:
+                    L0_coeffs_abs = torch.abs(L0_coeffs_comb)
+                    L0_coeffs_abs = torch.sign(coeffs_sum) * L0_coeffs_abs
+                    L0_coeffs_abs_sum = torch.sum(L0_coeffs_abs * norms / pyscf_gto_factor, dim=1, keepdim=True)
+                    scale_offset = (L0_coeffs_abs / L0_coeffs_abs_sum) * coeffs_sum
+                    L0_coeffs_comb = L0_coeffs_comb - scale_offset
+                else:
+                    scale_factor = n_electrons / coeffs_sum
+                    L0_coeffs_comb = L0_coeffs_comb * scale_factor
+                    L0_coeffs_comb = L0_coeffs_comb * torch.clamp(self.integral_scale, 0.5, 1.5)
         coeffs_pointer = 0
         L0_integrals = []
         if 0 in eval_L:
