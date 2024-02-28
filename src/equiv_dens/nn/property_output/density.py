@@ -826,7 +826,7 @@ class DensityExpansion(nn.Module):
                     L0_coeffs_abs = torch.abs(L0_coeffs_comb)
                     L0_coeffs_abs = torch.sign(coeffs_sum) * L0_coeffs_abs
                     L0_coeffs_abs_sum = torch.sum(L0_coeffs_abs * norms / pyscf_gto_factor, dim=1, keepdim=True)
-                    scale_offset = (L0_coeffs_abs / L0_coeffs_abs_sum) * coeffs_sum
+                    scale_offset = (L0_coeffs_abs / (L0_coeffs_abs_sum + 1e-10)) * coeffs_sum
                     L0_coeffs_comb = L0_coeffs_comb - scale_offset
                 else:
                     scale_factor = n_electrons / coeffs_sum
