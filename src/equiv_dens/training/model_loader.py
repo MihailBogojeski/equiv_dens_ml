@@ -96,6 +96,7 @@ def load_model(args, dataset, train=False):
                                             timing=args.timing,
                                             memory=args.memory,
                                             grid_scaling_factor=args.grid_scaling_factor,
+                                            remove_atom_density=args.remove_atom_density,
                                             )
         if args.core_density_basis > 0:
             core_coeffs_model = density_coeffs_network(
