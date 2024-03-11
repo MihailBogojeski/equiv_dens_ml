@@ -68,6 +68,7 @@ class AtomsDensityData(Dataset):
         calc_data=False,
         atom_dens_path=None,
         atom_dens_type=None,
+        split_atom_dens=False,
     ):
         self.density_path = density_path
         self.np_path = np_path
@@ -94,6 +95,7 @@ class AtomsDensityData(Dataset):
         self.cutoff = cutoff
         self.calc_data = calc_data
         self.atom_dens_type = atom_dens_type
+        self.split_atom_dens = split_atom_dens
         if 'dipole_moment' in self.required_properties:
             if 'density' not in self.required_properties:
                 self.required_properties.append('density')
@@ -368,7 +370,7 @@ class AtomsDensityData(Dataset):
         for pname in self.required_properties:
             # fallback for properties stored directly
             # in the row
-            if pname == 'coords' or pname == 'density':
+            if pname == 'coords' or 'density' in pname:
                 coords_start = time.time()
                 if self.pyscf_grid:
                     properties['coords'], properties['coord_weights'] = self.get_pyscf_coords(idx)
@@ -385,6 +387,17 @@ class AtomsDensityData(Dataset):
                         print("Debug density integral", torch.sum(properties[pname] * properties['coord_weights'], dim=-1))
                     if self.timing:
                         print('density time:', time.time() - density_start)
+                    if self.atom_dens is not None:
+                        if self.split_atom_dens:
+                            properties['atom_density_split'] = self.sample_atom_density(positions,
+                                                                                        atom_numbers,
+                                                                                        properties['coords'],
+                                                                                        individual_dens=True)
+                            properties['atom_density'] = torch.sum(properties['atom_density_split'], dim=1)
+                        else:
+                            properties['atom_density'] = self.sample_atom_density(positions,
+                                                                                  atom_numbers,
+                                                                                  properties['coords'])
             else:
                 properties[pname] = torch.from_numpy(props[pname]).type(self.dtype)
         if self.timing:
@@ -460,10 +473,6 @@ class AtomsDensityData(Dataset):
         if self.timing:
             print('final props time', time.time() - final_start)
             print('total time', time.time() - props_start)
-        if self.atom_dens is not None:
-            properties['atom_density'] = self.sample_atom_density(properties['batch_positions'],
-                                                                  properties['batch_atom_numbers'],
-                                                                  properties['coords'])
         return properties
 
     def get_basic_properties(self, idx):

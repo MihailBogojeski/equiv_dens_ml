@@ -518,7 +518,8 @@ def sample_density_base(mols, coords, coeffs, scale_coords=False, projected=Fals
     if scale_coords:
         coords = coords / param.BOHR
     if coords.shape[0] != len(mols):
-        raise ValueError('Batch dimension of coordinates must match number of molecules')
+        raise ValueError('Batch dimension of coordinates (' + str(coords.shape[0]) +
+                         ') must match number of molecules (' + str(len(mols)) + ')')
     dens = torch.zeros((coords.shape[0], coords.shape[1]))
     for i in range(len(mols)):
         mol = mols[i]
@@ -577,7 +578,10 @@ def sample_projected_density(atoms, df_coeffs, auxbasis, auxmol=None):
                                  atoms["batch_atom_numbers"].detach().cpu().numpy(),
                                  auxbasis)
     else:
-        mol = [auxmol]
+        if isinstance(auxmol, list):
+            mol = auxmol
+        else:
+            mol = [auxmol]
     dens = sample_density_base(mol, scaled_sample_coords,
                                df_coeffs,
                                projected=True)
@@ -690,7 +694,7 @@ def extend_aux_environment(auxmol, atom_bas, atom_count):
     return auxmol_ext
 
 
-def ml_basis_to_pyscf_env(pred, auxmol):
+def ml_basis_to_pyscf_env(pred, auxmol, index=0):
     atom_bas, atom_count = atom_basis_descriptors(auxmol)
     # Extending _env variable for duplicate atoms
     auxmol_ext = extend_aux_environment(auxmol, atom_bas, atom_count)
@@ -713,8 +717,8 @@ def ml_basis_to_pyscf_env(pred, auxmol):
         radial_scales = None
         for key in pred['radial_width'][i].keys():
             if radial_widths is None:
-                radial_widths = pred['radial_width'][i][key].squeeze()
-                radial_scales = pred['radial_scale'][i][key].squeeze()
+                radial_widths = pred['radial_width'][i][key][index].squeeze()
+                radial_scales = pred['radial_scale'][i][key][index].squeeze()
             else:
                 radial_widths = torch.cat([radial_widths, pred['radial_width'][i][key].squeeze()])
                 radial_scales = torch.cat([radial_scales, pred['radial_scale'][i][key].squeeze()])
@@ -737,47 +741,55 @@ def ml_basis_to_pyscf_env(pred, auxmol):
 
 
 def ml_basis_to_df_coeffs(pred, basis, auxbasis, mo_coeff=None, mo_occ=None):
-    atom = [(int(pred['batch_atom_numbers'][0, i].detach().cpu().numpy()),
-            pred['batch_positions'][0, i].detach().cpu().numpy()) for i in range(pred['batch_positions'].shape[1])]
-    auxmol = gto.M(atom=atom, basis=auxbasis)
-    auxmol.build()
+    nbatch = pred['batch_positions'].shape[0]
+    df_bases = []
+    auxmol_exts = []
+    for b in range(nbatch):
+        atom = [(int(pred['batch_atom_numbers'][b, i].detach().cpu().numpy()),
+                pred['batch_positions'][b, i].detach().cpu().numpy())
+                for i in range(pred['batch_positions'].shape[1])]
+        auxmol = gto.M(atom=atom, basis=auxbasis)
+        auxmol.build()
 
-    mol = gto.M(atom=atom, basis=basis)
-    mol.build()
-    if mo_coeff is None:
-        mf = dft.RKS(mol)
-        mf.chkfile = False
-        mf.xc = 'pbe'
-        mf.kernel()
-        dm1 = hf.make_rdm1(mf.mo_coeff, mf.mo_occ)
-    else:
-        dm1 = hf.make_rdm1(mo_coeff, mo_occ)
+        mol = gto.M(atom=atom, basis=basis)
+        mol.build()
+        if mo_coeff is None:
+            mf = dft.RKS(mol)
+            mf.chkfile = False
+            mf.xc = 'pbe'
+            mf.kernel()
+            dm1 = hf.make_rdm1(mf.mo_coeff, mf.mo_occ)
+        else:
+            dm1 = hf.make_rdm1(mo_coeff[b], mo_occ[b])
 
-    auxmol_ext = ml_basis_to_pyscf_env(pred, auxmol)
-    # print('auxmol_ext env', auxmol_ext._env)
+        auxmol_ext = ml_basis_to_pyscf_env(pred, auxmol, index=b)
+        # print('auxmol_ext env', auxmol_ext._env)
 
-    # Define the auxiliary fitting basis for 3-center integrals. Use the function
-    # make_auxmol to construct the auxiliary Mole object (auxmol) which will be
-    # used to generate integrals.
+        # Define the auxiliary fitting basis for 3-center integrals. Use the function
+        # make_auxmol to construct the auxiliary Mole object (auxmol) which will be
+        # used to generate integrals.
 
-    # ints_3c is the 3-center integral tensor (ij|P), where i and j are the
-    # indices of AO basis and P is the auxiliary basis
-    ints_3c2e = df.incore.aux_e2(mol, auxmol_ext, intor='int3c2e')
-    ints_2c2e = auxmol_ext.intor('int2c2e')
+        # ints_3c is the 3-center integral tensor (ij|P), where i and j are the
+        # indices of AO basis and P is the auxiliary basis
+        ints_3c2e = df.incore.aux_e2(mol, auxmol_ext, intor='int3c2e')
+        ints_2c2e = auxmol_ext.intor('int2c2e')
 
-    nao = mol.nao
-    naux = auxmol_ext.nao
+        nao = mol.nao
+        naux = auxmol_ext.nao
 
 # Compute the DF coefficients (df_coef) and the DF 2-electron (df_eri)
-    df_coef = scipy.linalg.solve(ints_2c2e, ints_3c2e.reshape(nao*nao, naux).T)
-    df_coef = df_coef.reshape(naux, nao, nao)
-    # print('df_coeff shape', df_coef.shape)
-    # print('atoms', auxmol_ext._atm)
-    df_basis = lib.einsum('Pij,ij->P', df_coef, dm1)
+        df_coef = scipy.linalg.solve(ints_2c2e, ints_3c2e.reshape(nao*nao, naux).T)
+        df_coef = df_coef.reshape(naux, nao, nao)
+        # print('df_coeff shape', df_coef.shape)
+        # print('atoms', auxmol_ext._atm)
+        df_basis = lib.einsum('Pij,ij->P', df_coef, dm1)
+        df_bases.append(torch.from_numpy(df_basis))
+        auxmol_exts.append(auxmol_ext)
 
-    return df_basis, auxmol_ext
+    df_bases = torch.stack(df_bases, dim=0)
+    return df_bases, auxmol_exts
 
-def get_density_charges(atoms):
+def get_density_charges(atoms, removed_free_atom=False):
     """
     Calculate the atomwise electron density charges. 
     Args:
@@ -798,9 +810,11 @@ def get_density_charges(atoms):
 
             charges[:, i] += torch.sum((sph * scale) / (gto_norm(0, width) * pyscf_gto_factor), dim=(-3, -2, -1))
 
+    if removed_free_atom:
+        charges += atoms['batch_atom_numbers']
     return charges
 
-def get_atomic_dipoles(atoms, expansion_model):
+def get_atomic_dipoles(atoms, expansion_model, removed_free_atom=False):
     """
     Calculate the atomic dipoles of an atomic system.
     Args:
@@ -809,10 +823,14 @@ def get_atomic_dipoles(atoms, expansion_model):
         dipoles (torch.Tensor): Atomic dipoles for each atom in the system [batch_size, num_atoms, 3]
     """
     atoms_c = {**atoms}
+    center_of_mass = torch.sum(atoms['batch_positions'] * atoms['batch_atom_numbers'].unsqueeze(-1), dim=1, keepdim=True)\
+        / torch.sum(atoms['batch_atom_numbers'].unsqueeze(-1), dim=1, keepdim=True)
     dipoles = torch.zeros_like(atoms['batch_positions'])
     for i in range(len(atoms['spherical_coeffs'])):
         dpm1 = expansion_model(atoms_c, eval_atoms=[i], eval_L=[0, 1])['density']
-        dpm1 = torch.sum((dpm1 * atoms['coord_weights']).unsqueeze(-1) * atoms['coords'], dim=-2)
+        if removed_free_atom:
+            dpm1 += atoms['atom_density'][i]
+        dpm1 = torch.sum((dpm1 * atoms['coord_weights']).unsqueeze(-1) * (atoms['coords'] - center_of_mass), dim=-2)
         dipoles[:, i] = dpm1
 
     return dipoles
