@@ -29,19 +29,22 @@ from equiv_dens.training import model_loader
 # %%
 main_args = Namespace()
 
-# main_args.args_file = "args/resorcinol_all_005.txt"
-# main_args.args_file = "args/CO_dens_001.txt"
-# main_args.args_file = "args/h2o_dens_002.txt"
-main_args.args_file = "args/ethanethiol_all_006_test.txt"
+# main_args.args_file = "args/resorcinol_all_001.txt"
+# main_args.args_file = "args/ethanethiol_all_006_test.txt"
+# main_args.args_file = "args/h2o_small_all_001.txt"
+# main_args.args_file = "args/ethanethiol_df_coeffs_001_test.txt"
+main_args.args_file = "args/ethanethiol_all_001_coreless_test.txt"
 main_args.ref_np_load_file = None
 main_args.ref_dens_load_file = None
-# main_args.save_file = 'CO_dens_001.txt'
-# main_args.save_file = 'h2o_dens_002.txt'
+# main_args.res_load_file = 'datasets/ethanethiol_all_006_test.pt'
+main_args.res_load_file = 'datasets/ethanethiol_all_001_coreless_test_results.npy'
+# main_args.res_load_file = None
 # main_args.res_load_file = 'datasets/resorcinol_all_005_test.pt'
+# main_args.save_file = 'ethanethiol_all_006'
+# main_args.save_file = 'h2o_small_all_001'
 # main_args.save_file = 'resorcinol_all_005'
-main_args.res_load_file = 'datasets/ethanethiol_all_006_test.pt'
-main_args.save_file = 'ethanethiol_all_006_test'
-# main_args.save_file = 'resorcinol_all_005'
+main_args.save_file = 'ethanethiol_all_001_coreless'
+# main_args.save_file = 'ethanethiol_df_coeffs_001'
 main_args.df_error = True
 main_args.use_gpu = False
 main_args.num_samples = 100
@@ -120,7 +123,7 @@ print('args use gpu', args.use_gpu)
 args.cube_grid = False
 args.radii_adjust = True
 args.expansion_constraint = None
-args.integral_constraint = 'coeffs'
+args.integral_constraint = False
 if args.cube_grid:
     args.cube_origin = -2
     args.cube_extent = 4
@@ -169,6 +172,7 @@ dataset = AtomsDensityData(np_path=args.np_dataset_test, density_path=args.dens_
                            calc_data=True,
                            atom_dens_path='datasets/free_atom_densities_augccpvdz_augccpvqzjkfit.npy',
                            atom_dens_type='spline',
+                           atom_dens_split=True,
                            )
 
 print('dataset length', len(dataset))
@@ -211,9 +215,10 @@ if main_args.df_error:
 # %%
 test_indices = checkpoint['data_split_indices']['test']
 print(test_indices)
+
 # %%
 model = model_loader.load_model(args, dataset)
-idx = [3,4,5]
+idx = [3]
 samp = dataset.get_properties(idx)
 samp_df = dataset_df.get_properties(idx)
 
@@ -227,31 +232,30 @@ print('res df_coeffs', res['df_coeffs'].shape)
 print('res density integral', torch.sum(res['density'] * res['coord_weights'], dim=1))
 print('density integral', torch.sum(samp['density'] * samp['coord_weights'], dim=1))
 print('density integral', torch.sum(samp_df['density'] * samp_df['coord_weights'], dim=1))
-print('density error', torch.sum(torch.abs(res['density'] - samp['density']) * samp['coord_weights'], dim=1) / torch.sum(samp['atom_numbers']))
-print('density df error', torch.sum(torch.abs(samp_df['density'] - samp['density']) * samp['coord_weights'], dim=1) / torch.sum(samp['atom_numbers']))
-# %%
+print('density error', torch.sum(torch.abs(res['density'] - samp['density']) * samp['coord_weights'], dim=1) / torch.sum(samp['batch_atom_numbers'], dim=1))
+print('density df error', torch.sum(torch.abs(samp_df['density'] - samp['density']) * samp['coord_weights'], dim=1) / torch.sum(samp['batch_atom_numbers'], dim=1))
 
-def get_atomwise_metrics(atoms, expansion_model):
-    charges = orbitals.get_density_charges(atoms)
-    dipoles = orbitals.get_atomic_dipoles(atoms, expansion_model)
+# %%
+def get_atomwise_metrics(atoms, expansion_model, removed_free_atom=False):
+    charges = orbitals.get_density_charges(atoms, removed_free_atom=removed_free_atom)
+    dipoles = orbitals.get_atomic_dipoles(atoms, expansion_model, removed_free_atom=removed_free_atom)
     return charges, dipoles
 
-
 # %%
-charges_ml, dipoles_ml = get_atomwise_metrics(res, model.property_models['density'])
+charges_ml, dipoles_ml = get_atomwise_metrics(res, model.property_models['density'], removed_free_atom=model.remove_atom_density)
 print('charges ml', charges_ml)
 print('dipoles ml', dipoles_ml)
 df_sph_coeffs = {'spherical_coeffs': samp_df['df_coeffs']}
-dens = orbitals.sample_projected_density(samp, torch.tensor(samp_df['df_coeffs']).unsqueeze(0),
+dens = orbitals.sample_projected_density(samp, samp_df['df_coeffs'].clone().detach(),
                                          auxbasis='augccpvqzjkfit')
-print('df dens diff to samp', torch.sum(torch.abs(samp['density'] - dens) * samp['coord_weights'], dim=1) / torch.sum(samp['atom_numbers']))
+print('df dens diff to samp', torch.sum(torch.abs(samp['density'] - dens) * samp['coord_weights'], dim=1) / torch.sum(samp['batch_atom_numbers'], dim=1))
 df_coeffs = orbitals.vector_to_coeffs_dict(df_sph_coeffs, dataset.orbital_basis_num, samp_df['batch_atom_numbers'], radial_coeffs=True,
                                            radial_basis=dataset.radial_coeffs)
 samp_df.update(df_coeffs)
 
 res_df = model.property_models['density'](samp_df)
 print('df_density integral', torch.sum(res_df['density'] * samp_df['coord_weights'], dim=1))
-print('df_density error', torch.sum(torch.abs(res_df['density'] - samp['density']) * samp['coord_weights'], dim=1) / torch.sum(samp['atom_numbers']))
+print('df_density error', torch.sum(torch.abs(res_df['density'] - samp['density']) * samp['coord_weights'], dim=1) / torch.sum(samp['batch_atom_numbers'], dim=1))
 charges_df, dipoles_df = get_atomwise_metrics(res_df, model.property_models['density'])
 print('charges df', charges_df)
 print('dipoles df', dipoles_df)
@@ -259,16 +263,17 @@ print('dipoles df', dipoles_df)
 basis = 'augccpvdz'
 auxbasis = 'augccpvqzjkfit'
 ml_df_coeffs, auxmol_ext = orbitals.ml_basis_to_df_coeffs(res, basis, auxbasis,
-                                                          mo_coeff=samp['mo_coeff'][0],
-                                                          mo_occ=samp['mo_occ'][0])
+                                                          mo_coeff=samp['mo_coeff'],
+                                                          mo_occ=samp['mo_occ'])
 ml_coeffs = orbitals.coeffs_dict_to_vector(res, dataset.orbital_basis_num, samp['batch_atom_numbers'], radial_coeffs=False)
 
 dens = orbitals.sample_projected_density(samp, ml_coeffs['spherical_coeffs'],
                                          auxbasis, auxmol=auxmol_ext,)
-
-print('ml dens diff to samp', torch.sum(torch.abs(samp['density'] - dens) * samp['coord_weights'], dim=1) / torch.sum(samp['atom_numbers']))
+if model.remove_atom_density:
+    dens += samp['atom_density']
+print('ml dens diff to samp', torch.sum(torch.abs(samp['density'] - dens) * samp['coord_weights'], dim=1) / torch.sum(samp['batch_atom_numbers'], dim=1))
 print('ml dens integral', torch.sum(dens * res['coord_weights'], dim=1))
-ml_df_coeffs = torch.from_numpy(ml_df_coeffs).unsqueeze(0)
+print('ml df coeffs', ml_df_coeffs.shape)
 ml_df_sph = orbitals.vector_to_coeffs_dict({'spherical_coeffs': ml_df_coeffs}, dataset.orbital_basis_num, samp['batch_atom_numbers'],
                                            radial_coeffs=False)
 
@@ -277,10 +282,11 @@ res_ml_df['spherical_coeffs'] = ml_df_sph['spherical_coeffs']
 res_ml_df = model.property_models['density'](res_ml_df)
 
 print('ml_df_density integral', torch.sum(res_ml_df['density'] * res_ml_df['coord_weights'], dim=1))
-print('ml_df_density error', torch.sum(torch.abs(res_ml_df['density'] - samp['density']) * samp['coord_weights'], dim=1) / torch.sum(samp['atom_numbers']))
+print('ml_df_density error', torch.sum(torch.abs(res_ml_df['density'] - samp['density']) * samp['coord_weights'], dim=1) / torch.sum(samp['batch_atom_numbers'], dim=1))
 charges_ml_df, dipoles_ml_df = get_atomwise_metrics(res_ml_df, model.property_models['density'])
 print('charges ml_df', charges_ml_df)
 print('dipoles ml_df', dipoles_ml_df)
+
 # %%
 model = model_loader.load_model(args, dataset)
 idx = 4
@@ -311,8 +317,6 @@ dens = orbitals.sample_projected_density(samp, torch.tensor(ml_df_coeffs).unsque
                                          auxbasis, auxmol=auxmol_ext,)
 print('dens diff to samp', torch.sum(torch.abs(samp['density'] - dens) * samp['coord_weights'], dim=1) / torch.sum(samp['atom_numbers']))
 
-
-
 # %%
 dens = orbitals.sample_density(samp, dataset.coeffs[idx]['mo_coeff'], dataset.coeffs[idx]['mo_occ'], basis=basis)
 print('dens diff to samp', torch.sum(torch.abs(samp['density'] - dens) * samp['coord_weights'], dim=1) / torch.sum(samp['atom_numbers']))
@@ -322,6 +326,7 @@ ml_df_coeffs, auxmol_ext = orbitals.ml_basis_to_df_coeffs(res, basis, auxbasis,
 dens = orbitals.sample_projected_density(samp, torch.tensor(ml_df_coeffs).unsqueeze(0),
                                          auxbasis, auxmol=auxmol_ext,)
 print('dens diff to samp', torch.sum(torch.abs(samp['density'] - dens) * samp['coord_weights'], dim=1) / torch.sum(samp['atom_numbers']))
+
 # %%
 # atoms = np.load('md_logs/2022-12-23_pJuMyc8e/simulation_-ethanethiol_cluster_all_001_compressed_0.npy', allow_pickle=True).item()
 # print(atoms['positions'].shape)
@@ -337,12 +342,16 @@ print('dens diff to samp', torch.sum(torch.abs(samp['density'] - dens) * samp['c
 # atoms_samp = utils.model_input_from_atoms(atoms_samp, args.use_gpu, density_expansion=True, pyscf_grid=args.pyscf_grid,
 #                                           grid_spec=dataset.grid_spec, grid_sampling_fn=dataset.sampling_fn,
 #                                           cutoff=args.cutoff)
+
 # %%
 # res  = model(atoms)
 # print('res density integral', torch.sum(res['density'] * res['coord_weights'], dim=1))
 # res_samp = model(atoms_samp)
 # print('res_samp density integral', torch.sum(res_samp['density'] * res_samp['coord_weights'], dim=1))
+
 # %%
+
+
 # %%
 ml_dpm_errors = {'dens_mae': [], 'dpm_norm': [],
                  'dpm_point_abs': [], 'dpm_point_norm': [],
@@ -356,12 +365,12 @@ df_dpm_errors = {'dens_mae': [], 'dpm_norm': [],
                  'atom_charges': [], 'atom_dpm': [],
                  'dist_SH': [], 'dist_HC': [], 'hirshfeld_charges': [],
                  }
-ml_df_dpm_errors = {'dens_mae': [], 'dpm_norm': [],
-                    'dpm_point_abs': [], 'dpm_point_norm': [],
-                    'dpm_r_norm': [], 'dpm_ang': [], 'dpm_mag': [],
-                    'atom_charges': [], 'atom_dpm': [],
-                    'dist_SH': [], 'dist_HC': [], 'hirshfeld_charges': [],
-                    }
+# ml_df_dpm_errors = {'dens_mae': [], 'dpm_norm': [],
+#                     'dpm_point_abs': [], 'dpm_point_norm': [],
+#                     'dpm_r_norm': [], 'dpm_ang': [], 'dpm_mag': [],
+#                     'atom_charges': [], 'atom_dpm': [],
+#                     'dist_SH': [], 'dist_HC': [], 'hirshfeld_charges': [],
+#                     }
 true_hirshfeld_charges = []
 
 for i in range(100):
@@ -374,8 +383,8 @@ for i in range(100):
 
     atom_dens = dataset.sample_atom_density(samp['batch_positions'], samp['batch_atom_numbers'], samp['coords'],
                                             individual_dens=True)
-    _, elec_charges = hirshfeld_partitioning(samp['density'], atom_dens, samp['batch_atom_numbers'],
-                                              samp['coords'], samp['coord_weights'])
+    _, elec_charges = hirshfeld_partitioning(samp['density'], atom_dens, samp['batch_atom_positions'],
+                                             samp['batch_atom_numbers'], samp['coords'], samp['coord_weights'])
     true_hirshfeld_charges.append(elec_charges)
     res = model(samp)
     distance_from_com = torch.norm(samp['coords'] - center_of_mass, dim=2)
@@ -397,7 +406,7 @@ for i in range(100):
     sh_dist = torch.norm(samp['batch_positions'][:, -1] - samp['batch_positions'][:, 5], dim=-1)
     hc_dist = torch.norm(samp['batch_positions'][:, 5] - samp['batch_positions'][:, 6], dim=-1)
     atom_charges, atom_dpm = \
-        get_atomwise_metrics(res, model.property_models['density'])
+        get_atomwise_metrics(res, model.property_models['density'], removed_free_atom=model.remove_atom_density)
 
     ml_dpm_errors['dens_mae'].append(density_mae.detach().cpu())
     ml_dpm_errors['dpm_norm'].append(dpm_err.detach().cpu())
@@ -460,59 +469,58 @@ for i in range(100):
     # print('dpm df point r norm error', dpm_df_point_err_r_norm)
     # print('')
 
-    basis = 'augccpvdz'
-    auxbasis = 'augccpvqzjkfit'
-    ml_df_coeffs, auxmol_ext = orbitals.ml_basis_to_df_coeffs(res, basis, auxbasis,
-                                                              mo_coeff=samp['mo_coeff'][0],
-                                                              mo_occ=samp['mo_occ'][0])
-    dens = orbitals.sample_projected_density(samp, torch.tensor(ml_df_coeffs).unsqueeze(0),
-                                             auxbasis, auxmol=auxmol_ext,)
-    # print(samp['atom_numbers'])
-    # print('auxmol ext basis', auxmol_ext._bas)
-    # print('auxmol ext env shape', auxmol_ext._env.shape)
-    # #
-    _, elec_charges_ml_df = hirshfeld_partitioning(dens, atom_dens, samp['batch_atom_numbers'],
-                                              samp['coords'], samp['coord_weights'])
-    samp2 = dataset.get_properties([i])
-    dpm = orbitals.calc_dipole_moment(samp2, density=dens, normalize_density=False, positive_density=False)['dipole_moment']
-    # print('dpm', dpm)
-    # print('samp dpm', samp['dipole_moment'])
-    density_ml_df_mae = torch.sum(torch.abs(samp['density'] - dens) * samp['coord_weights']) / torch.sum(samp['atom_numbers'])
-    # density_ml_df_err = torch.abs(samp['density'] - dens) * samp['coord_weights']
-    dpm_ml_df_err = torch.norm(samp['dipole_moment'] - dpm)
-    # dpm_ml_df_point_err = ((dens - samp['density']) * samp['coord_weights']).unsqueeze(-1) * (samp['coords'] - center_of_mass)
-    dpm_ml_df_point_abs_err = density_errors.dipole_pointwise_abs_loss(dens, samp['density'], samp['coords'], samp['coord_weights'])
-    dpm_ml_df_point_err_r_norm = torch.abs(torch.sum(((dens - samp['density']) * samp['coord_weights']) * torch.norm(samp['coords'] - center_of_mass, dim=-1), dim=1))
-    dpm_ml_df_point_norm_err = density_errors.dipole_pointwise_int_loss(dens, samp['density'], samp['coords'], samp['coord_weights'])
-    dpm_ml_df_mag_err = torch.abs(torch.norm(samp['dipole_moment']) - torch.norm(dpm))
-    dpm_ml_df_ang_error = (180 / torch.pi) * torch.acos(torch.mean(torch.sum(dpm*samp['dipole_moment']) /
-                                                        (torch.norm(dpm) * torch.norm(samp['dipole_moment']))))
-
-    ml_df_coeffs, auxmol_ext = orbitals.ml_basis_to_df_coeffs(res, basis, auxbasis,
-                                                              mo_coeff=samp['mo_coeff'][0],
-                                                              mo_occ=samp['mo_occ'][0])
-    ml_df_coeffs = torch.from_numpy(ml_df_coeffs).unsqueeze(0)
-    ml_df_sph = orbitals.vector_to_coeffs_dict({'spherical_coeffs': ml_df_coeffs}, dataset.orbital_basis_num, samp['batch_atom_numbers'],
-                                               radial_coeffs=False)
-
-    res_ml_df = {key: res[key] for key in res}
-    res_ml_df['spherical_coeffs'] = ml_df_sph['spherical_coeffs']
-    res_ml_df = model.property_models['density'](res_ml_df)
-    atom_charges, atom_dpm = \
-        get_atomwise_metrics(res_ml_df, model.property_models['density'])
-
-    ml_df_dpm_errors['dens_mae'].append(density_ml_df_mae.detach().cpu())
-    ml_df_dpm_errors['dpm_norm'].append(dpm_ml_df_err.detach().cpu())
-    ml_df_dpm_errors['dpm_point_abs'].append(dpm_ml_df_point_abs_err.detach().cpu())
-    ml_df_dpm_errors['dpm_point_norm'].append(dpm_ml_df_point_norm_err.detach().cpu())
-    ml_df_dpm_errors['dpm_r_norm'].append(dpm_ml_df_point_err_r_norm.detach().cpu())
-    ml_df_dpm_errors['dpm_ang'].append(dpm_ml_df_ang_error.detach().cpu())
-    ml_df_dpm_errors['dpm_mag'].append(dpm_ml_df_mag_err.detach().cpu())
-    ml_df_dpm_errors['atom_charges'].append(atom_charges.detach().cpu())
-    ml_df_dpm_errors['atom_dpm'].append(atom_dpm.detach().cpu())
-    ml_df_dpm_errors['dist_SH'].append(sh_dist.detach().cpu())
-    ml_df_dpm_errors['dist_HC'].append(hc_dist.detach().cpu())
-    ml_df_dpm_errors['hirshfeld_charges'].append(elec_charges_ml_df.detach().cpu())
+    # basis = 'augccpvdz'
+    # auxbasis = 'augccpvqzjkfit'
+    # ml_df_coeffs, auxmol_ext = orbitals.ml_basis_to_df_coeffs(res, basis, auxbasis,
+    #                                                           mo_coeff=samp['mo_coeff'],
+    #                                                           mo_occ=samp['mo_occ'])
+    # dens = orbitals.sample_projected_density(samp, ml_df_coeffs,
+    #                                          auxbasis, auxmol=auxmol_ext,)
+    # # print(samp['atom_numbers'])
+    # # print('auxmol ext basis', auxmol_ext._bas)
+    # # print('auxmol ext env shape', auxmol_ext._env.shape)
+    # # #
+    # _, elec_charges_ml_df = hirshfeld_partitioning(dens, atom_dens, samp['batch_atom_numbers'],
+    #                                           samp['coords'], samp['coord_weights'])
+    # samp2 = dataset.get_properties([i])
+    # dpm = orbitals.calc_dipole_moment(samp2, density=dens, normalize_density=False, positive_density=False)['dipole_moment']
+    # # print('dpm', dpm)
+    # # print('samp dpm', samp['dipole_moment'])
+    # density_ml_df_mae = torch.sum(torch.abs(samp['density'] - dens) * samp['coord_weights']) / torch.sum(samp['atom_numbers'])
+    # # density_ml_df_err = torch.abs(samp['density'] - dens) * samp['coord_weights']
+    # dpm_ml_df_err = torch.norm(samp['dipole_moment'] - dpm)
+    # # dpm_ml_df_point_err = ((dens - samp['density']) * samp['coord_weights']).unsqueeze(-1) * (samp['coords'] - center_of_mass)
+    # dpm_ml_df_point_abs_err = density_errors.dipole_pointwise_abs_loss(dens, samp['density'], samp['coords'], samp['coord_weights'])
+    # dpm_ml_df_point_err_r_norm = torch.abs(torch.sum(((dens - samp['density']) * samp['coord_weights']) * torch.norm(samp['coords'] - center_of_mass, dim=-1), dim=1))
+    # dpm_ml_df_point_norm_err = density_errors.dipole_pointwise_int_loss(dens, samp['density'], samp['coords'], samp['coord_weights'])
+    # dpm_ml_df_mag_err = torch.abs(torch.norm(samp['dipole_moment']) - torch.norm(dpm))
+    # dpm_ml_df_ang_error = (180 / torch.pi) * torch.acos(torch.mean(torch.sum(dpm*samp['dipole_moment']) /
+    #                                                     (torch.norm(dpm) * torch.norm(samp['dipole_moment']))))
+    #
+    # ml_df_coeffs, auxmol_ext = orbitals.ml_basis_to_df_coeffs(res, basis, auxbasis,
+    #                                                           mo_coeff=samp['mo_coeff'],
+    #                                                           mo_occ=samp['mo_occ'])
+    # ml_df_sph = orbitals.vector_to_coeffs_dict({'spherical_coeffs': ml_df_coeffs}, dataset.orbital_basis_num, samp['batch_atom_numbers'],
+    #                                            radial_coeffs=False)
+    #
+    # res_ml_df = {key: res[key] for key in res}
+    # res_ml_df['spherical_coeffs'] = ml_df_sph['spherical_coeffs']
+    # res_ml_df = model.property_models['density'](res_ml_df)
+    # atom_charges, atom_dpm = \
+    #     get_atomwise_metrics(res_ml_df, model.property_models['density'])
+    #
+    # ml_df_dpm_errors['dens_mae'].append(density_ml_df_mae.detach().cpu())
+    # ml_df_dpm_errors['dpm_norm'].append(dpm_ml_df_err.detach().cpu())
+    # ml_df_dpm_errors['dpm_point_abs'].append(dpm_ml_df_point_abs_err.detach().cpu())
+    # ml_df_dpm_errors['dpm_point_norm'].append(dpm_ml_df_point_norm_err.detach().cpu())
+    # ml_df_dpm_errors['dpm_r_norm'].append(dpm_ml_df_point_err_r_norm.detach().cpu())
+    # ml_df_dpm_errors['dpm_ang'].append(dpm_ml_df_ang_error.detach().cpu())
+    # ml_df_dpm_errors['dpm_mag'].append(dpm_ml_df_mag_err.detach().cpu())
+    # ml_df_dpm_errors['atom_charges'].append(atom_charges.detach().cpu())
+    # ml_df_dpm_errors['atom_dpm'].append(atom_dpm.detach().cpu())
+    # ml_df_dpm_errors['dist_SH'].append(sh_dist.detach().cpu())
+    # ml_df_dpm_errors['dist_HC'].append(hc_dist.detach().cpu())
+    # ml_df_dpm_errors['hirshfeld_charges'].append(elec_charges_ml_df.detach().cpu())
     # print('density_ml_df_mae', density_ml_df_mae)
     # print('dpm ml df norm error', dpm_ml_df_err)
     # print('dpm ml df pointwise error', dpm_ml_df_point_err.sum())
@@ -524,20 +532,32 @@ for i in range(100):
 print('ml_dpm_errors', ml_dpm_errors)
 print('df_dpm_errors', df_dpm_errors)
 print('ml_df_dpm_errors', ml_df_dpm_errors)
-np.save('results/ethanethiol_ml_dpm_errors_loc65.npy', ml_dpm_errors, allow_pickle=True)
-np.save('results/ethanethiol_df_dpm_errors_loc65.npy', df_dpm_errors, allow_pickle=True)
-np.save('results/ethanethiol_ml_df_dpm_errors_loc65.npy', ml_df_dpm_errors, allow_pickle=True)
+np.save('results/ethanethiol_ml_dpm_001_coreless_errors_loc65.npy', ml_dpm_errors, allow_pickle=True)
+np.save('results/ethanethiol_df_dpm_001_coreless_errors_loc65.npy', df_dpm_errors, allow_pickle=True)
+# np.save('results/ethanethiol_ml_df_dpm_001_coreless_errors_loc65.npy', ml_df_dpm_errors, allow_pickle=True)
+
 # %%
 hirshfeld_charges = [charges.detach().cpu().numpy() for charges in true_hirshfeld_charges]
-np.save('results/ethanethiol_hirshfeld_charges_loc65.npy', hirshfeld_charges, allow_pickle=True)
+np.save('results/ethanethiol_hirshfeld_charges_001_coreless_loc65.npy', hirshfeld_charges, allow_pickle=True)
+
 # %%
 ml_dpm_errors = np.load('results/ethanethiol_ml_dpm_errors_loc65.npy', allow_pickle=True).item()
 df_dpm_errors = np.load('results/ethanethiol_df_dpm_errors_loc65.npy', allow_pickle=True).item()
 ml_df_dpm_errors = np.load('results/ethanethiol_ml_df_dpm_errors_loc65.npy', allow_pickle=True).item()
+hirshfeld_charges = np.load('results/ethanethiol_hirshfeld_charges_loc65.npy', allow_pickle=True)
+
 # %%
 print('ml_dpm_errors atom dpm', ml_dpm_errors['atom_dpm'])
 print('df_dpm_errors atom dpm', df_dpm_errors['atom_dpm'])
 print('ML_df_dpm_errors atom dpm', ml_df_dpm_errors['atom_dpm'])
+
+print('ml_dpm_errors dens_mae', ml_dpm_errors['dens_mae'])
+print('df_dpm_errors dens_mae', df_dpm_errors['dens_mae'])
+print('ML_df_dpm_errors dens_mae', ml_df_dpm_errors['dens_mae'])
+
+# print('ml_dpm_errors dpm_norm', ml_dpm_errors['dpm_norm'])
+# print('df_dpm_errors dpm_norm', df_dpm_errors['dpm_norm'])
+# print('ML_df_dpm_errors dpm_norm', ml_df_dpm_errors['dpm_norm'])
 # %%
 for key in ml_dpm_errors.keys():
     print('key', key)
@@ -551,14 +571,15 @@ for key in ml_dpm_errors.keys():
 
         ml_dpm_errors[key][i] = factor * ml_dpm_errors[key][i]
         df_dpm_errors[key][i] = factor * df_dpm_errors[key][i]
-        ml_df_dpm_errors[key][i] = factor * ml_df_dpm_errors[key][i]
-        if torch.numel(ml_df_dpm_errors[key][i]) == 1:
+        # ml_df_dpm_errors[key][i] = factor * ml_df_dpm_errors[key][i]
+        if torch.numel(ml_dpm_errors[key][i]) == 1:
             ml_dpm_errors[key][i] = float(ml_dpm_errors[key][i])
             df_dpm_errors[key][i] = float(df_dpm_errors[key][i])
-            ml_df_dpm_errors[key][i] = float(ml_df_dpm_errors[key][i])
+            # ml_df_dpm_errors[key][i] = float(ml_df_dpm_errors[key][i])
+
 # %%
 fig, axs = plt.subplots(6, 1, figsize=(10, 15))
-keys = ['dens_mae', 'dpm_norm', 'dpm_r_norm', 'dpm_ang', 'dpm_mag', 'dist_HC']
+keys = ['dens_mae', 'dpm_norm', 'dpm_r_norm', 'dpm_ang', 'dpm_mag', 'dist_SH']
 labels = ['density APE (%)', 'dipole error (Debye)', 'dipole ||r|| error (Debye)', 'dipole ang error (Deg)', 'dipole magnitude error (Debye)', f'S-H distance (Ang)']
 for i, key in enumerate(keys):
     # print(key)
@@ -569,15 +590,16 @@ for i, key in enumerate(keys):
     axs[i].plot(np.arange(len(ml_dpm_errors[key]))/2, ml_df_dpm_errors[key], label='ML-DF')
     axs[i].set_ylabel(labels[i])
     if i == 0:
-        axs[i].set_ylim(0.0005, 0.0015)
+        axs[i].set_ylim(0.0004, 0.0012)
 axs[i].set_xlabel('time (fs)')
 fig.text(0.5, 0.05,
          'These figures show how the errors of the machine learned density and dipole\n' +
          'moment measured in different ways change in a cutout of an MD trajectory of ethanethiol.',
          ha='center', va='center', fontsize=12)
 plt.legend()
-plt.savefig('figures/ethanethiol_md_dpm_errors_loc65k.png', dpi=300)
+plt.savefig('figures/ethanethiol_md_coreless_001_dpm_errors_loc65k.png', dpi=300)
 plt.show()
+
 # %%
 from matplotlib.lines import Line2D
 
@@ -594,10 +616,12 @@ for i in range(ml_dpm_errors['atom_charges'][0].shape[1]):
     charge_i_ml_df = [ml_df_dpm_errors['atom_charges'][j][0, i] for j in range(len(ml_df_dpm_errors['atom_charges']))]
     hirshfeld = [hirshfeld_charges[j][0, i] for j in range(len(hirshfeld_charges))]
     axs[axs_idx].plot(np.arange(len(ml_dpm_errors['atom_charges']))/2, charge_i_ml, label="ML", color=cmap(0))
-    # axs[axs_idx].plot(np.arange(len(df_dpm_errors['atom_charges']))/2, charge_i_df, label="DF", color=cmap(1))
-    # axs[axs_idx].plot(np.arange(len(ml_df_dpm_errors['atom_charges']))/2, charge_i_ml_df, label="ML-DF", color=cmap(2))
+    axs[axs_idx].plot(np.arange(len(df_dpm_errors['atom_charges']))/2, charge_i_df, label="DF", color=cmap(1))
+    axs[axs_idx].plot(np.arange(len(ml_df_dpm_errors['atom_charges']))/2, charge_i_ml_df, label="ML-DF", color=cmap(2))
     axs[axs_idx].plot(np.arange(len(ml_df_dpm_errors['atom_charges']))/2, hirshfeld, label="hirshfeld", color=cmap(3))
     axs[axs_idx].set_ylabel('charges of {} atoms'.format(utils.numbers_to_symbols([atom_types[i]])[0]))
+    # if i == 0:
+    #     axs[i].set_ylim(0.95, 1)
 fig.text(0.5, 0.05,
          'These figures show how the atomic charges based on the machine learned density coeffs\n' +
          'change in a cutout of an MD trajectory of ethanethiol.',
@@ -607,11 +631,12 @@ axs[-1].set_ylabel('S-H distance (Ang)')
 axs[-1].set_xlabel('time (fs)')
 custom_lines = [Line2D([0], [0], color=cmap(0), lw=2),
                 Line2D([0], [0], color=cmap(1), lw=2),
-                Line2D([0], [0], color=cmap(2), lw=2)
+                Line2D([0], [0], color=cmap(2), lw=2),
+                Line2D([0], [0], color=cmap(3), lw=2)
                 ]
 
-plt.legend(custom_lines, ['ML', 'DF', 'ML-DF'])
-# plt.savefig('figures/ethanethiol_md_charges_loc65k.png', dpi=300)
+plt.legend(custom_lines, ['ML', 'DF', 'ML-DF', 'Hirshfeld'])
+plt.savefig('figures/ethanethiol_md_coreless_001_charges_loc65k.png', dpi=300)
 plt.show()
 
 # %%
@@ -647,13 +672,15 @@ custom_lines = [Line2D([0], [0], color=cmap(0), lw=2),
                 ]
 
 plt.legend(custom_lines, ['ML', 'DF', 'ML-DF'])
-plt.savefig('figures/ethanethiol_md_atom_dpm_loc65k.png', dpi=300)
+plt.savefig('figures/ethanethiol_md_coreless_001_atom_dpm_loc65k.png', dpi=300)
 plt.show()
+
 # %%
 def cosine_similarity(x, y):
     dpm_ang_error = (180 / torch.pi) * torch.acos(torch.mean(torch.sum(x * y) /
                                                              (torch.linalg.norm(x) * torch.linalg.norm(y))))
     return dpm_ang_error
+
 # %%
 from matplotlib.lines import Line2D
 
@@ -717,17 +744,20 @@ custom_lines = [Line2D([0], [0], color=cmap(0), lw=2),
                 ]
 
 plt.legend(custom_lines, ['ML', 'DF', 'ML-DF'])
-plt.savefig('figures/ethanethiol_md_atom_dpm_dev_loc65k.png', dpi=300)
+plt.savefig('figures/ethanethiol_md_coreless_001_atom_dpm_dev_loc65k.png', dpi=300)
 plt.show()
+
 # %%
 for key in keys:
     print('ML', key, np.nanmean(ml_dpm_errors[key]))
     print('DF', key, np.nanmean(df_dpm_errors[key]))
     print('ML-DF', key, np.nanmean(ml_df_dpm_errors[key]))
     print('')
+
 # %%
 for i in range(len(ml_dpm_errors['dpm_norm'])):
     print('i', i, 'ml err', ml_dpm_errors['dpm_norm'][i], 'df err', df_dpm_errors['dpm_norm'][i], 'ml-df err', ml_df_dpm_errors['dpm_norm'][i])
+
 # %%
 def calculate_dihedral_angle(positions):
     """
@@ -763,6 +793,7 @@ def calculate_dihedral_angle(positions):
     angle_degrees = torch.clamp(angle_degrees, min=0, max=180)
 
     return angle_degrees.item()
+
 # %%
 # Example usage
 positions = torch.tensor([
@@ -774,6 +805,7 @@ positions = torch.tensor([
 
 dihedral_angle = calculate_dihedral_angle(positions)
 print(f"Dihedral Angle: {dihedral_angle} degrees")
+
 # %%
 dihedrals = [] 
 for i in range(100):
@@ -787,6 +819,7 @@ for i in range(100):
     dihedral_angle = calculate_dihedral_angle(pos)
     print('dihedral_angle', dihedral_angle)
     dihedrals.append(dihedral_angle)
+
 # %%
 fig, axs = plt.subplots(7, 1, figsize=(10, 15))
 keys = ['dens_mae', 'dpm_norm', 'dpm_r_norm', 'dpm_ang', 'dpm_mag', 'dist_SH']
@@ -811,6 +844,7 @@ fig.text(0.5, 0.05,
 plt.legend()
 plt.savefig('figures/ethanethiol_md_dpm_errors_loc65k.png', dpi=300)
 plt.show()
+
 # %%
 from matplotlib.lines import Line2D
 
@@ -844,3 +878,4 @@ custom_lines = [Line2D([0], [0], color=cmap(0), lw=2),
 plt.legend(custom_lines, ['ML', 'DF', 'ML-DF'])
 plt.savefig('figures/ethanethiol_md_hirshfeld_charges_loc65k.png', dpi=300)
 plt.show()
+
