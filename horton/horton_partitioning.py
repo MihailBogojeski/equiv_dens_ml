@@ -1,4 +1,5 @@
 import numpy as np
+from os import getcwd
 from horton import *  # pylint: disable=wildcard-import,unused-wildcard-import
 
 def horton_partition(filepath, partitioning_type='Becke'):
@@ -15,7 +16,13 @@ def horton_partition(filepath, partitioning_type='Becke'):
     if partitioning_type = "Becke":
         wpart = BeckeWPart(mol.coordinates, mol.numbers, mol.pseudo_numbers, grid, moldens, local = True)
     elif partitioning_type = "IterativeStock":
-        wpart = IterativeStockWPart(mol.coordinates, mol.numbers, mol.pseudo_numbers, grid, moldens, local = True)
+        wpart = IterativeStockWPart(mol.coordinates, mol.numbers, mol.pseudo_numbers, grid, moldens)
+    elif partitioning_type = "Hirshfeld":
+        wpart = HirshfeldWPart(mol.coordinates, mol.numbers, mol.pseudo_numbers, grid, moldens, ProAtomDB.from_file(getcwd()+'/pratomic/atoms.h5'))
+    elif partitioning_type = "Hirshfeld-I":
+        wpart = HirshfeldIWPart(mol.coordinates, mol.numbers, mol.pseudo_numbers, grid, moldens, ProAtomDB.from_file(getcwd()+'/pratomic/atoms.h5'))
+    elif partitioning_type = "MBIS":
+        wpart = MBISWPart(mol.coordinates, mol.numbers, mol.pseudo_numbers, grid, moldens)
 
     wpart.do_moments()
 
