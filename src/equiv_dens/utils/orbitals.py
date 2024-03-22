@@ -782,13 +782,13 @@ def ml_basis_to_df_coeffs(pred, basis, auxbasis, mo_coeff=None, mo_occ=None):
 
 def get_density_charges(atoms, removed_free_atom=False):
     """
-    Calculate the atomwise electron density charges. 
+    Calculate the atomwise electron density charges.
+
     Args:
         atoms (dict): dictionary containing the properties of the atomic system, including positions and density coefficients
     Returns:
         charges (torch.Tensor): Atomwise electron density charges [batch_size, num_atoms]
     """
-
     charges = torch.zeros_like(atoms['batch_atom_numbers']).to(atoms['positions'])
     for i in range(len(atoms['spherical_coeffs'])):
         for key in atoms['spherical_coeffs'][i].keys():
@@ -801,34 +801,34 @@ def get_density_charges(atoms, removed_free_atom=False):
 
             charges[:, i] += torch.sum((sph * scale) / (gto_norm(0, width) * pyscf_gto_factor), dim=(-3, -2, -1))
 
-    if removed_free_atom:
-        charges += atoms['batch_atom_numbers']
+    if not removed_free_atom:
+        charges = atoms['batch_atom_numbers'] - charges
+    else:
+        charges = -charges
     return charges
 
-def get_atomic_dipoles(atoms, expansion_model, removed_free_atom=False):
+def get_atomic_dipoles(atoms, expansion_model):
     """
     Calculate the atomic dipoles of an atomic system.
+
     Args:
         atoms (dict): dictionary containing the properties of the atomic system, including positions and density coefficients
     Returns:
         dipoles (torch.Tensor): Atomic dipoles for each atom in the system [batch_size, num_atoms, 3]
     """
     atoms_c = {**atoms}
-    center_of_mass = torch.sum(atoms['batch_positions'] * atoms['batch_atom_numbers'].unsqueeze(-1), dim=1, keepdim=True)\
-        / torch.sum(atoms['batch_atom_numbers'].unsqueeze(-1), dim=1, keepdim=True)
     dipoles = torch.zeros_like(atoms['batch_positions'])
     for i in range(len(atoms['spherical_coeffs'])):
-        dpm1 = expansion_model(atoms_c, eval_atoms=[i], eval_L=[0, 1])['density']
-        if removed_free_atom:
-            dpm1 += atoms['atom_density'][i]
-        dpm1 = torch.sum((dpm1 * atoms['coord_weights']).unsqueeze(-1) * (atoms['coords'] - center_of_mass), dim=-2)
-        dipoles[:, i] = dpm1
+        dens = expansion_model(atoms_c, eval_atoms=[i], eval_L=[0, 1])['density']
+        dpm1 = torch.sum((dens * atoms['coord_weights']).unsqueeze(-1) * (atoms['coords'] - atoms['batch_positions'][:, [i]]), dim=-2)
+        dipoles[:, i] = -dpm1
 
     return dipoles
 
 def sample_single_atom_density_spline(position, atom_number, coords, spline_basis):
     """
     Sample the free atom density of a single atom on a given coordinate grid using a spline basis.
+
     Args:
         position (torch.Tensor): Position of the atom [batch, 1, 3]
         atom_number (torch.Tensor): Atomic number of the atom [batch]

@@ -29,37 +29,35 @@ import os
 # %autoreload 2
 # %cd /home/mihail/Documents/workspace/equiv_dens/
 # %%
-mol = gto.M(atom='O  0  0  1; H  0,  0, 2; N 0,  0, 3; C 0, 0, 4; S 0, 0, 5', basis='augccpvdz')
+mol = gto.M(atom='O  0  0  1; H  0,  0, 2; N 0,  0, 3; C 0, 0, 4; S 0, 0, 5; F 0, 0 6; Cl 0, 0, 7', basis='augccpvdz')
 
-# dict of spherical atomic RKS density 
+# dict of spherical atomic RKS density
 # TODO use becke scheme and see if difference is there -> no difference
 mf_elems = get_atm_nrks(mol, xc='PBE')
 result = {}
 for el in mf_elems:
     mf_elem = mf_elems[el]
-    anum = utils.symbols_to_numbers([el[0]])[0]
+    print('el', el)
+    anum = utils.symbols_to_numbers([el[:-1]])[0]
+    print('anum', anum)
     result[anum] = {}
     result[anum]["mo_coeff"] = mf_elem.mo_coeff
+    print('mo coeff shape', result[anum]["mo_coeff"].shape)
     result[anum]["mo_occ"] = mf_elem.mo_occ
     result[anum]["spline_interp"] = free_atom_spline(mf_elem)
 # np.save('datasets/free_atom_densities.npy', result, allow_pickle=True)
 # %%
 for anum in result.keys():
     atom_str = str(anum) + ' 0  0  0'
-    if (anum % 2 == 1):
-        mol = gto.M(atom=atom_str, spin=1, basis='augccpvdz')
-    else:
-        mol = gto.M(atom=atom_str, basis='augccpvdz')
+    mol = gto.M(atom=atom_str, spin=anum, basis='augccpvdz')
     mol.build()
-    if (anum % 2 == 1):
-        auxmol = gto.M(atom=atom_str, spin=1, basis='augccpvqzjkfit')
-    else:
-        auxmol = gto.M(atom=atom_str, basis='augccpvqzjkfit')
+    auxmol = gto.M(atom=atom_str, spin=anum, basis='augccpvqzjkfit')
     auxmol.build()
     atoms = {'atom_numbers': torch.tensor(anum).view(1, 1),
              'positions': torch.tensor([0, 0, 0]).view(1, 1, 3)}
 
     dm1 = hf.make_rdm1(result[anum]['mo_coeff'], result[anum]['mo_occ'])
+    print('dm shape', dm1.shape)
 
     ints_3c2e = df.incore.aux_e2(mol, auxmol, intor='int3c2e')
     ints_2c2e = auxmol.intor('int2c2e')
