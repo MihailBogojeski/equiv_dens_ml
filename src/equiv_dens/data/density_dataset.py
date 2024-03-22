@@ -105,11 +105,6 @@ class AtomsDensityData(Dataset):
         else:
             self.calc_dpm = False
         self.centered_positions = center_positions
-        print('np path', np_path)
-        print('cwd', os.getcwd())
-        print('exisis path', os.path.exists(np_path))
-        print('joined file path', os.path.join(os.getcwd(), np_path))
-        print('exisis joined path', os.path.exists(os.path.join(os.getcwd(), np_path)))
         self.atoms = np.load(np_path, allow_pickle=True).item()
         if self.atoms['atom_numbers'].ndim == 1:
             self.atoms['atom_numbers'] = self.atoms['atom_numbers'][None, :]
