@@ -28,6 +28,7 @@ import equiv_dens.utils.base as utils
 from equiv_dens.utils import orbitals
 from pyscf.dft import gen_grid, radi
 import time
+import os
 from equiv_dens.utils.hirshfeld_analysis import eval_spline_density
 
 logger = logging.getLogger(__name__)
@@ -104,6 +105,11 @@ class AtomsDensityData(Dataset):
         else:
             self.calc_dpm = False
         self.centered_positions = center_positions
+        print('np path', np_path)
+        print('cwd', os.getcwd())
+        print('exisis path', os.path.exists(np_path))
+        print('joined file path', os.path.join(os.getcwd(), np_path))
+        print('exisis joined path', os.path.exists(os.path.join(os.getcwd(), np_path)))
         self.atoms = np.load(np_path, allow_pickle=True).item()
         if self.atoms['atom_numbers'].ndim == 1:
             self.atoms['atom_numbers'] = self.atoms['atom_numbers'][None, :]
@@ -384,19 +390,18 @@ class AtomsDensityData(Dataset):
                         properties[pname] = self.sample_projected_density(idx, properties['coords'] - pos_shift)
                     else:
                         properties[pname] = self.sample_density(idx, properties['coords'] - pos_shift)
-                        print("Debug density integral", torch.sum(properties[pname] * properties['coord_weights'], dim=-1))
                     if self.timing:
                         print('density time:', time.time() - density_start)
                     if self.atom_dens is not None:
                         if self.split_atom_dens:
                             properties['atom_density_split'] = self.sample_atom_density(positions,
-                                                                                        atom_numbers,
+                                                                                        torch.LongTensor(atom_numbers),
                                                                                         properties['coords'],
                                                                                         individual_dens=True)
                             properties['atom_density'] = torch.sum(properties['atom_density_split'], dim=1)
                         else:
                             properties['atom_density'] = self.sample_atom_density(positions,
-                                                                                  atom_numbers,
+                                                                                  torch.LongTensor(atom_numbers),
                                                                                   properties['coords'])
             else:
                 properties[pname] = torch.from_numpy(props[pname]).type(self.dtype)
