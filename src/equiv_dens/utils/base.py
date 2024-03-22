@@ -704,17 +704,24 @@ def get_atom_num_first_positions(atom_numbers):
 
 def calc_dict_to_npy(data, convert_forces=True, compress_atoms=True):
     data_npy = {}
-    data_npy['energy'] = []
-    data_npy['forces'] = []
+
     data_npy['positions'] = []
     data_npy['atom_numbers'] = []
     data_npy['atom_types'] = []
+    for key in data[1][1].keys():
+        print(key)
+        if 'energy' in key or 'forces' in key:
+            print('key has energy or forces')
+            data_npy[key] = []
     for calc in data:
-        data_npy['energy'].append(calc[1]['energy'])
-        if convert_forces:
-            data_npy['forces'].append(-calc[1]['forces'] * to_bohr)
-        else:
-            data_npy['forces'].append(calc[1]['forces'])
+        for key in data_npy.keys():
+            if 'energy' in key:
+                data_npy[key].append(calc[1][key])
+            elif 'forces' in key:
+                if convert_forces:
+                    data_npy[key].append(-calc[1][key] * to_bohr)
+                else:
+                    data_npy[key].append(calc[1][key])
         pos = []
         at = []
         z = []
@@ -733,21 +740,27 @@ def calc_dict_to_npy(data, convert_forces=True, compress_atoms=True):
         data_npy['atom_types'].append(z)
     # print('data_npy atom numbers', data_npy['atom_numbers'][:10])
     # print('data_npy pos', data_npy['positions'][:10])
+    props = {'positions': data_npy['positions']}
+    for key in data_npy.keys():
+        if 'forces' in key:
+            props[key] = data_npy[key]
     if compress_atoms:
         atom_numbers, props = compress_batch_atoms(data_npy['atom_numbers'],
-                                                   {'positions': data_npy['positions'],
-                                                    'forces': data_npy['forces']})
+                                                   props)
     else:
         atom_numbers = np.array(data_npy['atom_numbers'])
-        props = {'positions': np.array(data_npy['positions']), 'forces': np.array(data_npy['forces'])}
-    data_npy['positions'] = props['positions'] 
+        props = {key: np.array(props[key]) for key in props.keys()}
+    data_npy['positions'] = props['positions']
     # print(data_npy['positions'].shape)
     data_npy['atom_numbers'] = atom_numbers.astype(int)
     # print(data_npy['atom_numbers'].shape)
     # print('data_npy atom numbers new', data_npy['atom_numbers'][:10])
     # print('data_npy pos new', data_npy['positions'][:10])
-    data_npy['forces'] = props['forces'] 
-    data_npy['energy'] = np.stack(data_npy['energy'], 0)[:, None]
+    for key in data_npy.keys():
+        if 'energy' in key:
+            data_npy[key] = np.stack(data_npy[key], 0)[:, None]
+        elif 'forces' in key:
+            data_npy[key] = props[key]
     return data_npy
 
 
@@ -944,3 +957,17 @@ def get_pyscf_coords(grid_spec, density_n_samp, atom_numbers, positions):
     pad_coords = nn.utils.rnn.pad_sequence(all_coords, batch_first=True, padding_value=0) * to_angstrom
     pad_weights = nn.utils.rnn.pad_sequence(all_weights, batch_first=True, padding_value=0)
     return pad_coords, pad_weights
+
+def center_of_mass(positions, atom_numbers, keepdim=True):
+    """
+    Compute the center of mass of a set of atoms.
+
+    Args:
+        positions (torch.Tensor): positions of atoms
+        atom_numbers (torch.Tensor): number of atoms
+        keepdim (bool, optional): whether to keep the atom dimension. Defaults to True.
+    Returns:
+        torch.Tensor: center of mass of the set of atoms
+    """
+    return torch.sum(positions * atom_numbers.unsqueeze(-1), dim=1, keepdim=keepdim)\
+        / torch.sum(atom_numbers.unsqueeze(-1), dim=1, keepdim=keepdim)
