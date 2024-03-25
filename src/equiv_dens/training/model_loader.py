@@ -60,6 +60,9 @@ def load_model(args, dataset, train=False):
         memory=args.memory,
         normalize=args.normalize,
         parity=args.parity_dens,
+        nonmixing_interaction=args.nonmixing_interaction,
+        nonmixing_interaction_residual=args.nonmixing_interaction_residual,
+
     )
 
     density_coeffs_network = DensityCoeffsNetwork
