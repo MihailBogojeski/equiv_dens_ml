@@ -64,7 +64,7 @@ def load_model(args, dataset, train=False):
                                                 memory=args.memory,
                                                 grid_scaling_factor=args.grid_scaling_factor,
                                                 )
-            # core density expansion not applicable here
+    # core density expansion not applicable here
     else:
         repr_class = EquivariantSphericalHarmonics
 
@@ -91,6 +91,8 @@ def load_model(args, dataset, train=False):
             memory=args.memory,
             normalize=args.normalize,
             parity=args.parity_dens,
+            nonmixing_interaction=args.nonmixing_interaction,
+            nonmixing_interaction_residual=args.nonmixing_interaction_residual,
         )
 
         density_coeffs_network = DensityCoeffsNetwork
