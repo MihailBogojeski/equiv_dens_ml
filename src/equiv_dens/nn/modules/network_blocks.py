@@ -478,7 +478,7 @@ class NonmixingInteractionBlock(nn.Module):
             mix_orders=False,
             normalize=normalize,
             parity=False,
-            bias=(not self.residual),
+            bias=self.residual,
         )
         self.residual_pre_vi = ResidualStack(
             num_blocks=self.num_residual_pre_vi,
@@ -520,18 +520,19 @@ class NonmixingInteractionBlock(nn.Module):
     def forward(self, xs, rbf, sph, idx_i, idx_j, neighbor_mask=1):
         ys = [1 * x for x in xs]
         # path for atoms i
-        yi = self.residual_pre_vi(ys)
-        yi[0] = self.activation_i(yi[0])
+        yi = [torch.zeros_like(y) for y in ys]
+        # yi = self.residual_pre_vi(ys)
+        # yi[0] = self.activation_i(yi[0])
         # print('yi norm:', float(torch.mean(yi[0]**2)))
-        if self.normalize > 1:
-            for L in range(len(yi)):
-                yi[L] = layer_norm(yi[L], dims=(-2, -1))
+        # if self.normalize > 1:
+        #     for L in range(len(yi)):
+        #         yi[L] = layer_norm(yi[L], dims=(-2, -1))
         # print('yi norm:', float(torch.mean(yi[0]**2)))
         # print('yi norm:', torch.mean(yi[0]**2, dim=(-2,-1)))
-        yi = self.linear_i(yi)
+        # yi = self.linear_i(yi)
 
-        for L in range(len(yi), self.order + 1):
-            yi.append(torch.zeros(*yi[0].shape[:2], (2 * L) + 1, yi[0].shape[-1]).to(yi[0]))
+        # for L in range(len(yi), self.order + 1):
+        #     yi.append(torch.zeros(*yi[0].shape[:2], (2 * L) + 1, yi[0].shape[-1]).to(yi[0]))
 
         # path for atoms j
         yj = self.residual_pre_vj(ys)
@@ -544,7 +545,7 @@ class NonmixingInteractionBlock(nn.Module):
         # print('yj norm:', float(torch.mean(yj[0]**2)))
         yj = self.linear_j(yj)
         # interaction function
-        for L in range(min(2 * self.input_order, self.order) + 1):
+        for L in range(min(2 * self.order, self.order) + 1):
             idx = idx_j.view(*(1,) * len(yj[L].shape[:-3]), -1, 1, 1).repeat(
                 *yj[L].shape[:-3], 1, *yj[L].shape[-2:]
             )
@@ -557,7 +558,10 @@ class NonmixingInteractionBlock(nn.Module):
         ang = self.angular_fn1(sph)
         # print('sph norm:', [float(torch.mean(sph[L]**2)) for L in range(len(sph))])
         # print('angular norm:', [float(torch.mean(ang[L]**2)) for L in range(len(ang))])
+        # print('rbf', rbf[:, :, :, 0])
         vs = self.mixing(yj, ang, rbf)
+        # print('vs 0', vs[0][:, :, :, 0])
+        # print('idx i', idx_i)
         # print('vs norm:', [float(torch.mean(vs[L]**2)) for L in range(len(vs))])
         a = self.angular_fn2(sph)
         # print('a norm:', [float(torch.mean(a[L]**2)) for L in range(len(a))])
@@ -746,7 +750,7 @@ class ResidualBlock(nn.Module):
         ys[0] = self.activation_post(ys[0])
         if self.normalize > 1:
             for L in range(len(ys)):
-                ys[L] = layer_norm(ys[L], dims=(-2, -1)) 
+                ys[L] = layer_norm(ys[L], dims=(-2, -1))
         #     # ys[0] = layer_norm(ys[0], dims=(-2, -1)) 
         # for L in range(len(ys)):
         #     if torch.mean(ys[L]**2) != 0:

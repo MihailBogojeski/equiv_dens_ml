@@ -37,6 +37,7 @@ class DensityCoeffsNetwork(nn.Module):
                  parity=False,
                  core_basis_ratio=0,
                  linear_out=False,
+                 nonmixing=False,
                  ):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
         super().__init__()
 
@@ -63,6 +64,7 @@ class DensityCoeffsNetwork(nn.Module):
         self.ml_width_offset = ml_width_min
         self.ml_width_scale = (ml_width_max - ml_width_min) / 2
         self.linear_out = linear_out
+        self.nonmixing = nonmixing
 
         # if core basis ratio > 0, reduce orbital basis to only the highest width s orbitals
         if self.core_basis_ratio > 0:
@@ -108,20 +110,27 @@ class DensityCoeffsNetwork(nn.Module):
         if self.init_coeffs is not None or self.core_basis_ratio > 0:
             self.output_bias = False
             self.output_zero_init = True
+            mix_orders = True
+        elif self.nonmixing:
+            self.output_bias = False
+            self.output_zero_init = False
+            mix_orders = False
         else:
             self.output_bias = True
             self.output_zero_init = False
+            mix_orders = True
 
         self.spherical_output = SphericalLinear(self.order, self.num_features,
                                                 self.orbitals_max_order,
-                                                max(self.sph_counts), self.clebsch_gordan, bias=self.output_bias,
+                                                max(self.sph_counts), self.clebsch_gordan,
+                                                mix_orders=mix_orders, bias=self.output_bias,
                                                 zero_init=self.output_zero_init, normalize=self.normalize,
                                                 parity=parity)
         if self.linear_out:
             self.linear_output = SphericalLinear(self.orbitals_max_order, max(self.sph_counts),
                                                  self.orbitals_max_order, max(self.sph_counts),
                                                  clebsch_gordan=None, mix_orders=False,
-                                                 bias=True, zero_init=True, normalize=self.normalize)
+                                                 bias=self.output_bias, zero_init=True, normalize=self.normalize)
         print('self.pred_radial_coeffs', self.pred_radial_coeffs)
         if self.pred_radial_coeffs:
             self.radial_width = nn.ModuleList([nn.Linear(self.num_features, self.rad_counts[L])
@@ -427,13 +436,16 @@ class DensityCoeffsNetwork(nn.Module):
         atoms['sph_repr_batch'] = [repr * 1 for repr in atoms['sph_repr']]
         atoms = batch_compressed_atoms(atoms, ['sph_repr_batch'])
         fs = atoms['sph_repr_batch']
+        print('fs[0]', fs[0][:, :, 0, 0])
         if self.verbose > 3:
             print('distances', atoms['distances'])
             print('fs[0]:', fs[0][:, 0, :, :10])
             print('fs[1]:', fs[1][:, 0, :, :10])
         out_sph = self.spherical_output(fs)
+        print('out_sph[0]', out_sph[0][:, :, 0, 0])
         if self.linear_out:
             out_sph = self.linear_output(out_sph)
+        print('out_sph[0] lin', out_sph[0][:, :, 0, 0])
         if self.scale_sph_order:
             for L in range(len(out_sph)):
                 out_sph[L] = out_sph[L] * 10**(-L)
