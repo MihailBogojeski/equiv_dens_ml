@@ -927,3 +927,101 @@ def sample_atom_density(positions, atom_numbers, coords, basis,
     if individual_dens:
         atom_densities = torch.stack(atom_densities, dim=1)
     return dens, atom_densities
+
+def model_input_from_atoms(atoms, use_gpu=False, density_expansion=False,
+                           pyscf_grid=True, grid_spec=None,
+                           grid_sampling_fn=None, cutoff=5, dtype=torch.float32,
+                           atom_dens_type='spline',
+                           free_atom_densities=None,
+                           split_atom_densities=False, basis=None):
+    """
+    Function to extracts neighbor lists, atom_types, positions e.t.c. from the system and generate a properly
+    formatted input for the schnetpack model.
+
+    Args:
+        system (schnetpack.md.System): System object containing current state of the simulation.
+
+    Returns:
+        dict(torch.Tensor): Schnetpack inputs in dictionary format.
+    """
+    positions = torch.tensor(atoms['positions'])
+    if atoms['atom_numbers'].shape[0] != positions.shape[0]:
+        atom_types = np.tile(atoms['atom_numbers'], (positions.shape[0], 1))
+    atom_types = torch.tensor(atoms['atom_numbers'])
+    if use_gpu:
+        positions = positions.cuda()
+        atom_types = atom_types.cuda()
+    natoms = atom_types.shape[-1]
+    positions = positions.view(-1, natoms, 3)
+    atom_types = atom_types.view(-1, natoms)
+    center = torch.sum(positions * atom_types.unsqueeze(-1), 1) / torch.sum(atom_types, 1).unsqueeze(-1)
+    # inputs = {'positions': positions + 10,
+    props = {'positions': (positions - center.unsqueeze(1)).cpu().numpy()}
+    atom_numbers, props = utils.compress_batch_atoms(atom_types.cpu().numpy(), props)
+    positions = torch.from_numpy(props['positions']).to(positions)
+    anums = torch.from_numpy(atom_numbers).to(positions).type(torch.long)
+    inputs = {}
+    if density_expansion:
+        # print('grid spec', self.grid_spec)
+        if pyscf_grid:
+            sample_coords, coord_weights = utils.get_pyscf_coords(grid_spec, 10000000000,
+                                                                  atom_numbers,
+                                                                  positions)
+        else:
+            sample_coords, coord_weights = utils.grid_sampling_fn(grid_spec, 10000000000,
+                                                                  atom_numbers,
+                                                                  positions)
+        if free_atom_densities is not None:
+
+            inputs['atom_density'], split_dens = sample_atom_density(positions=positions,
+                                                                     atom_numbers=anums,
+                                                                     coords=sample_coords,
+                                                                     basis=basis,
+                                                                     atom_dens_type=atom_dens_type,
+                                                                     atom_dens_dict=free_atom_densities,
+                                                                     individual_dens=split_atom_densities,
+                                                                     )
+            if split_atom_densities:
+                inputs['atom_density_split'] = split_dens
+        inputs['coords'] = sample_coords
+        inputs['coord_weights'] = coord_weights
+
+    inputs['positions'] = positions.type(dtype)
+    inputs['atom_numbers_first_positions'] = utils.get_atom_num_first_positions(atom_numbers)
+    inputs['atom_numbers'] = torch.tensor(atom_numbers).to(positions).type(torch.long)
+    inputs['atom_mask'] = inputs['atom_numbers'] > 0
+
+    nl = utils.TorchNeighborList(cutoff)
+    idx_is, idx_js, _ = nl.get_neighbors(inputs)
+    # print('inputs positions shape', inputs['positions'].shape)
+    prev_max = 0
+    for i in range(len(idx_is)):
+        n_atoms = torch.sum(inputs['atom_mask'][i])
+        idx_is[i] += prev_max
+        idx_js[i] += prev_max
+        prev_max += n_atoms
+
+    atom_batch_idx = np.zeros_like(atom_numbers)
+    for i in range(len(atom_numbers)):
+        atom_batch_idx[i, :] = i
+    atom_batch_idx = torch.tensor(atom_batch_idx).to(positions).type(torch.long)
+
+    idx_is = torch.cat(idx_is, dim=0)
+    idx_js = torch.cat(idx_js, dim=0)
+    inputs['idx_i'] = idx_is
+    inputs['idx_j'] = idx_js
+    inputs['batch_atom_numbers'] = inputs['atom_numbers'] * 1
+    inputs['batch_atom_mask'] = (inputs['atom_mask'] * 1).type(torch.bool)
+    inputs['batch_positions'] = inputs['positions'] * 1
+    inputs['positions'] = positions.view(1, -1, *inputs['positions'].shape[2:])
+    inputs['atom_numbers'] = inputs['batch_atom_numbers'].flatten()
+    inputs['atom_mask'] = inputs['batch_atom_mask'].flatten()
+    batch_nz = inputs['atom_mask'].to(inputs['positions'])
+    batch_idx_pos = batch_nz * torch.arange(len(batch_nz)).to(batch_nz)
+    inputs['batch_idx_pos'] = batch_idx_pos[inputs['atom_mask']].to(torch.long)
+    inputs['atom_numbers'] = inputs['atom_numbers'][inputs['atom_mask']].view(1, -1)
+    inputs['atom_batch_idx'] = atom_batch_idx.flatten()
+    inputs['atom_batch_idx'] = inputs['atom_batch_idx'][inputs['atom_mask']].view(1, -1)
+    inputs['positions'] = inputs['positions'][:, inputs['atom_mask']]
+
+    return inputs

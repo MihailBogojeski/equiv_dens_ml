@@ -416,11 +416,10 @@ class AtomsDensityData(Dataset):
         neighbor_batch_idx = []
         prev_max = 0
         for i in range(len(idx_is)):
+            n_atoms = torch.sum(properties['atom_mask'][i])
             idx_is[i] += prev_max
             idx_js[i] += prev_max
-            max_i = torch.max(idx_is[i])
-            max_j = torch.max(idx_is[i])
-            prev_max = max(max_i, max_j) + 1
+            prev_max += n_atoms
             neighbor_batch_idx.append(torch.ones_like(idx_is[i]) * i)
 
         atom_batch_idx = np.zeros_like(atom_numbers)
