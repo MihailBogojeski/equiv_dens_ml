@@ -436,16 +436,16 @@ class DensityCoeffsNetwork(nn.Module):
         atoms['sph_repr_batch'] = [repr * 1 for repr in atoms['sph_repr']]
         atoms = batch_compressed_atoms(atoms, ['sph_repr_batch'])
         fs = atoms['sph_repr_batch']
-        print('fs[0]', fs[0][:, :, 0, 0])
+        # print('fs[0]', fs[0][:, :, 0, 0])
         if self.verbose > 3:
             print('distances', atoms['distances'])
             print('fs[0]:', fs[0][:, 0, :, :10])
             print('fs[1]:', fs[1][:, 0, :, :10])
         out_sph = self.spherical_output(fs)
-        print('out_sph[0]', out_sph[0][:, :, 0, 0])
+        # print('out_sph[0]', out_sph[0][:, :, 0, 0])
         if self.linear_out:
             out_sph = self.linear_output(out_sph)
-        print('out_sph[0] lin', out_sph[0][:, :, 0, 0])
+        # print('out_sph[0] lin', out_sph[0][:, :, 0, 0])
         if self.scale_sph_order:
             for L in range(len(out_sph)):
                 out_sph[L] = out_sph[L] * 10**(-L)
