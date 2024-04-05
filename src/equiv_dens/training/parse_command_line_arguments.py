@@ -83,7 +83,7 @@ def parse_command_line_arguments(arg_file=None):
     args_hyperparams.add_argument("--expansion_constraint", metavar='STR', type=str, default=None,
                                   help="type of constraint used on density to ensure positivity")
     args_hyperparams.add_argument("--integral_constraint", metavar='STR', type=str, default=None,
-                                  choices=['None', 'grid', 'coeffs', 'True'], help="constrain density integral to number of electrons")
+                                  choices=['None', 'grid', 'coeffs', 'coeffs_in_coeffs_net', 'True'], help="constrain density integral to number of electrons")
     args_hyperparams.add_argument("--integral_scale", metavar='True|False', type=str2bool, default=False,
                                   choices=[True, False], help="scale density integral by a limited amount")
     args_hyperparams.add_argument("--integral_min", metavar='FLOAT', type=float, default=None,
