@@ -693,7 +693,7 @@ def extend_aux_environment(auxmol, atom_bas, atom_count):
 
 def ml_basis_to_pyscf_env(pred, auxmol):
     atom_bas, atom_count = atom_basis_descriptors(auxmol)
-# Extending _env variable for duplicate atoms
+    # Extending _env variable for duplicate atoms
     auxmol_ext = extend_aux_environment(auxmol, atom_bas, atom_count)
 
     for ab in atom_bas:
@@ -706,6 +706,8 @@ def ml_basis_to_pyscf_env(pred, auxmol):
     # old_env = auxmol_ext._env.copy()
     # print('auxmol_ext env', auxmol_ext._env)
     atom_bas, atom_count = atom_basis_descriptors(auxmol_ext)
+    all_radial_widths = []
+    all_radial_scales = []
 
     for i in range(len(pred['radial_width'])):
         radial_widths = None
@@ -717,6 +719,8 @@ def ml_basis_to_pyscf_env(pred, auxmol):
             else:
                 radial_widths = torch.cat([radial_widths, pred['radial_width'][i][key].squeeze()])
                 radial_scales = torch.cat([radial_scales, pred['radial_scale'][i][key].squeeze()])
+        all_radial_widths.append(radial_widths)
+        all_radial_scales.append(radial_scales)
         radial_coeffs = torch.stack([radial_widths, radial_scales], dim=1)
         radial_coeffs = radial_coeffs.flatten()
         # print('radial_coeffs', radial_coeffs)
@@ -724,7 +728,9 @@ def ml_basis_to_pyscf_env(pred, auxmol):
         auxmol_ext._env[atom_bas[i][1][0]:atom_bas[i][1][1] + 1] = radial_coeffs.detach().cpu().numpy()
         # print('auxmol env new', auxmol_ext._env[atom_bas[i][1][0]:atom_bas[i][1][1] + 1])
 
-# print('res radial width', pred['radial_width'])
+    auxmol_ext.exp = torch.cat(all_radial_widths).squeeze().numpy(force=True)
+    auxmol_ext.ctr_coeff = torch.cat(all_radial_scales).squeeze().numpy(force=True)
+    # print('res radial width', pred['radial_width'])
     # with np.printoptions(threshold=np.inf):
     #     print('auxmols env', np.stack([auxmol_ext._env, old_env], axis=1))
 
