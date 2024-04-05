@@ -609,6 +609,8 @@ class DFDensityCoeffs(nn.Module):
         for L in range(self.orbitals_max_order + 1):
             sph[L].unsqueeze_(-1)  # unsqueeze for broadcasting
         atoms['sph'] = sph
+        if 'density' in atoms:
+            del atoms['density']
         return atoms
 
 
@@ -675,6 +677,8 @@ class FreeAtomDensityCoeffs(nn.Module):
         for L in range(self.orbitals_max_order + 1):
             sph[L].unsqueeze_(-1)  # unsqueeze for broadcasting
         atoms['sph'] = sph
+        if 'density' in atoms:
+            del atoms['density']
         return atoms
 
 
