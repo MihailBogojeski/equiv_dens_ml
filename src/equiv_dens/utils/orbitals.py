@@ -396,7 +396,6 @@ def vector_to_coeffs_dict(coeffs, orbital_basis, a_num, radial_coeffs=True,
             vec_scale = coeffs['radial_scale']
         dict_width = []
         dict_scale = []
-    print("starting vector to coeffs dict")
     sph_count = 0
     rad_count = 0
     for i, z in enumerate(torch.max(a_num, dim=0)[0]):
