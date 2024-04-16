@@ -12,7 +12,7 @@ from equiv_dens.utils.hirshfeld_analysis import eval_spline_density
 
 hf.MUTE_CHKFILE = True
 
-pyscf_gto_factor = 3.5449070930480957
+pyscf_gto_factor = 2*np.sqrt(np.pi)
 
 #
 # def combine_orbitals(orbitals, order_max):
@@ -123,13 +123,27 @@ def gaussian_rbf(r, width, scale, order, normalize=False):
 
 
 def gto_norm(order, width):
-        # norm_factor = (width**(3 / 2)) / (np.pi**(3 / 2)) * utils.to_angstrom**3  
-        # norm_factor = (width**(3/2)) / (np.pi**(3 / 2))
+    # norm_factor = (width**(3 / 2)) / (np.pi**(3 / 2)) * utils.to_angstrom**3  
+    # norm_factor = (width**(3/2)) / (np.pi**(3 / 2))
 
-        n1 = (order + 3) / 2
-        n2 = order + 1
-        norm_factor = (sp.special.gamma(order/2 + 1) * 2**(order) * (width**(n1))) / ((np.pi**(3 / 2)) * sp.special.gamma(n2 + 1))
-        return norm_factor
+    n1 = (order + 3) / 2
+    n2 = order + 1
+    norm_factor = (sp.special.gamma(order/2 + 1) * 2**(order) * (width**(n1))) / ((np.pi**(3 / 2)) * sp.special.gamma(n2 + 1))
+    return norm_factor
+
+
+def gto_norm_pyscf(order, width):
+        if np.all(order >= 0):
+            #f = 2**(2*l+3) * math.factorial(l+1) * (2*expnt)**(l+1.5) \
+            #        / (math.factorial(2*l+2) * math.sqrt(math.pi))
+            #return math.sqrt(f)
+            n = (order * 2) + 2
+            alpha = width * 2
+            n1 = (n + 1) * .5
+            gaussian_int = sp.special.gamma(n1) / (2. * alpha**n1)
+            return 1/np.sqrt(gaussian_int)
+        else:
+            raise ValueError('l should be >= 0')
 
 
 def get_invariant_features(coeffs, permutational_invariance=True, keep_dims=False, radial_coeffs=True):
