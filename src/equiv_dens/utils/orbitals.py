@@ -671,78 +671,54 @@ def atom_basis_descriptors(auxmol):
     return atom_bas, atom_count
 
 
-def extend_aux_environment(auxmol, atom_bas, atom_count):
-    auxmol_ext = auxmol.copy()
-    auxmol_ext.build()
-    unseen_idx = {key: np.ones(auxmol_ext._bas.shape[0], dtype=bool) for key in atom_count}
-    offset = 0
-    for ab in atom_bas:
-        start_bas, end_bas = ab[0]
-        start_env, end_env = ab[1]
-        # print('start_bas', start_bas, ' end_bas', end_bas, ' start_env', start_env, ' end_env', end_env)
-        # print('offset start env', auxmol_ext._bas[start_bas, 5], 'offset end env', auxmol_ext._bas[end_bas, 6])
-        if atom_count[start_env] != 0:
-            # print('new atom')
-            offset_start = auxmol_ext._bas[start_bas, 5]
-            # print('offset start', offset_start)
-            offset = end_env - start_env + 1
-            # print('offset', offset)
-            offset_idx = auxmol_ext._bas[:, 5] >= offset_start
-            offset_idx = np.logical_and(offset_idx, unseen_idx[start_env])
-
-            auxmol_ext._env = np.concatenate([auxmol_ext._env[:auxmol_ext._bas[start_bas, 5] + offset],
-                                           auxmol._env[start_env:end_env + 1],
-                                           auxmol_ext._env[auxmol_ext._bas[end_bas, 6] + 1:]], axis=0)
-            auxmol_ext._bas[offset_idx, 5:7] += offset
-            # auxmol_ext._bas[start_bas:end_bas + 1, 5:7] += offset
-            # print('offset start env after', auxmol_ext._bas[start_bas, 5], 'offset end env after', auxmol_ext._bas[end_bas, 6])
-            # print('new env shape', auxmol_ext._env.shape)
-        atom_count[start_env] += 1
-        unseen_idx[start_env][start_bas:end_bas+1] = False
-
-    # print('old env shape', auxmol._env.shape)
-    # print('new env shape', auxmol_ext._env.shape)
-    # print(atom_bas)
-    # with np.printoptions(threshold=np.inf):
-    #     print('combined old new bas', np.concatenate([auxmol._bas, auxmol_ext._bas], axis=1))
-
-    return auxmol_ext
+def ml_basis_to_pyscf_basis(pred, atom_types, index=0):
+    basis_dict = {}
+    for i in range(len(pred['radial_scale'])):
+        at_symb = atom_types[i]
+        for key in pred['radial_scale'][i].keys():
+            z, L = key
+            radial_widths = pred['radial_width'][i][key][index].squeeze().numpy(force=True)
+            radial_scales = pred['radial_scale'][i][key][index].squeeze().numpy(force=True)
+            # print('z, L', z, L)
+            # print('radial widths shape', radial_widths.shape)
+            g_norm = gto_norm_pyscf(L, radial_widths)
+            radial_scales = radial_scales / g_norm
+            if at_symb in basis_dict:
+                for j in range(radial_widths.shape[-1]):
+                    basis_dict[at_symb].append([[L, [radial_widths[j].item(), radial_scales[j].item()]]])
+            if at_symb not in basis_dict:
+                basis_dict[at_symb] = [[[L, [radial_widths[j].item(), radial_scales[j].item()]]
+                                       for j in range(radial_widths.shape[-1])]]
+    return basis_dict
 
 
-def ml_basis_to_pyscf_env(pred, auxmol, index=0):
-    atom_bas, atom_count = atom_basis_descriptors(auxmol)
-# Extending _env variable for duplicate atoms
-    auxmol_ext = extend_aux_environment(auxmol, atom_bas, atom_count)
+def ml_basis_to_pyscf_env(pred, index=0):
+    anum = pred['batch_atom_numbers'][index]
+    atom_types = []
 
-    for ab in atom_bas:
-        start_bas, end_bas = ab[0]
-        start_env, end_env = ab[1]
-        # print('start_bas', start_bas, ' end_bas', end_bas)
-        # print('offset start env', auxmol_ext._bas[start_bas, 5], 'offset end env', auxmol_ext._bas[end_bas, 6])
-        # print('L', auxmol_ext._bas[start_bas, 1])
+    num_dict = {}
 
-    # old_env = auxmol_ext._env.copy()
-    # print('auxmol_ext env', auxmol_ext._env)
-    atom_bas, atom_count = atom_basis_descriptors(auxmol_ext)
+    for an in anum:
+        if an == 0:
+            continue
+        an = an.item()
+        symb = utils.numbers_to_symbols([an])[0]
+        if an in num_dict:
+            atom_types.append(symb + str(num_dict[an]))
+            num_dict[an] += 1
+        else:
+            atom_types.append(symb + str(0))
+            num_dict[an] = 1
+    pos_list = [pred['batch_positions'][index, i].numpy(force=True)
+                for i in range(anum.shape[0]) if anum[i] != 0]
+    atom = list(zip(atom_types, pos_list))
 
-    for i in range(len(pred['radial_width'])):
-        radial_widths = None
-        radial_scales = None
-        for key in pred['radial_width'][i].keys():
-            if radial_widths is None:
-                radial_widths = pred['radial_width'][i][key][index].squeeze()
-                radial_scales = pred['radial_scale'][i][key][index].squeeze()
-            else:
-                radial_widths = torch.cat([radial_widths, pred['radial_width'][i][key][index].squeeze()])
-                radial_scales = torch.cat([radial_scales, pred['radial_scale'][i][key][index].squeeze()])
-        radial_coeffs = torch.stack([radial_widths, radial_scales], dim=1)
-        radial_coeffs = radial_coeffs.flatten()
-        # print('radial_coeffs', radial_coeffs)
-        # print('auxmol env old', auxmol_ext._env[atom_bas[i][1][0]:atom_bas[i][1][1] + 1])
-        auxmol_ext._env[atom_bas[i][1][0]:atom_bas[i][1][1] + 1] = radial_coeffs.detach().cpu().numpy()
-        # print('auxmol env new', auxmol_ext._env[atom_bas[i][1][0]:atom_bas[i][1][1] + 1])
+    # Extending _env variable for duplicate atoms
+    basis_dict = ml_basis_to_pyscf_basis(pred, atom_types, index)
+    auxmol = gto.M(atom=atom, basis=basis_dict)
+    auxmol.build()
 
-    return auxmol_ext
+    return auxmol
 
 
 def ml_basis_to_df_coeffs(pred, basis, auxbasis, mo_coeff=None, mo_occ=None):
@@ -753,8 +729,6 @@ def ml_basis_to_df_coeffs(pred, basis, auxbasis, mo_coeff=None, mo_occ=None):
         atom = [(int(pred['batch_atom_numbers'][b, i].detach().cpu().numpy()),
                 pred['batch_positions'][b, i].detach().cpu().numpy())
                 for i in range(pred['batch_positions'].shape[1])]
-        auxmol = gto.M(atom=atom, basis=auxbasis)
-        auxmol.build()
 
         mol = gto.M(atom=atom, basis=basis)
         mol.build()
@@ -767,7 +741,7 @@ def ml_basis_to_df_coeffs(pred, basis, auxbasis, mo_coeff=None, mo_occ=None):
         else:
             dm1 = hf.make_rdm1(mo_coeff[b], mo_occ[b])
 
-        auxmol_ext = ml_basis_to_pyscf_env(pred, auxmol, index=b)
+        auxmol_ext = ml_basis_to_pyscf_env(pred, index=b)
         # print('auxmol_ext env', auxmol_ext._env)
 
         # Define the auxiliary fitting basis for 3-center integrals. Use the function
