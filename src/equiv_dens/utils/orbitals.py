@@ -4,7 +4,8 @@ import torch
 import scipy as sp
 from pyscf.dft import numint
 from pyscf.lib import param
-from pyscf import gto, df, lib, dft
+from pyscf import df, lib, dft
+import pyscf.gto.mole
 from pyscf.scf import hf
 import scipy
 # import time
@@ -682,8 +683,11 @@ def ml_basis_to_pyscf_basis(pred, atom_types, index=0):
             radial_scales = pred['radial_scale'][i][key][index].squeeze().numpy(force=True)
             # print('z, L', z, L)
             # print('radial widths shape', radial_widths.shape)
+            # print('radial_scales before', radial_scales)
             g_norm = gto_norm_pyscf(L, radial_widths)
+            # print('gto_norm', L, radial_widths, g_norm)
             radial_scales = radial_scales / g_norm
+            # print('radial_scales after', radial_scales)
             if at_symb in basis_dict:
                 for j in range(radial_widths.shape[-1]):
                     basis_dict[at_symb].append([[L, [radial_widths[j].item(), radial_scales[j].item()]]])
@@ -716,13 +720,18 @@ def ml_basis_to_auxmol(pred, index=0):
 
     # Extending _env variable for duplicate atoms
     basis_dict = ml_basis_to_pyscf_basis(pred, atom_types, index)
-    auxmol = gto.M(atom=atom, basis=basis_dict)
+    old_normalize = pyscf.gto.mole.NORMALIZE_GTO
+    pyscf.gto.mole.NORMALIZE_GTO = False
+    # print('gto normalize', pyscf.gto.mole.NORMALIZE_GTO)
+    auxmol = pyscf.gto.mole.M(atom=atom, basis=basis_dict)
     auxmol.build()
+    pyscf.gto.mole.NORMALIZE_GTO = old_normalize
+    # print('gto normalize', pyscf.gto.mole.NORMALIZE_GTO)
 
     return auxmol
 
 
-def ml_basis_to_df_coeffs(pred, basis, auxbasis, mo_coeff=None, mo_occ=None):
+def ml_basis_to_df_coeffs(pred, basis, mo_coeff=None, mo_occ=None):
     nbatch = pred['batch_positions'].shape[0]
     df_bases = []
     auxmol_exts = []
@@ -731,7 +740,7 @@ def ml_basis_to_df_coeffs(pred, basis, auxbasis, mo_coeff=None, mo_occ=None):
                 pred['batch_positions'][b, i].detach().cpu().numpy())
                 for i in range(pred['batch_positions'].shape[1])]
 
-        mol = gto.M(atom=atom, basis=basis)
+        mol = pyscf.gto.M(atom=atom, basis=basis)
         mol.build()
         if mo_coeff is None:
             mf = dft.RKS(mol)
