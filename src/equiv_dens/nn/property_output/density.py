@@ -6,10 +6,52 @@ from equiv_dens.nn.modules.spherical_harmonic_layers import SphericalLinear
 from equiv_dens.utils.spherical_harmonics import spherical_harmonics
 from equiv_dens.utils.orbitals import combine_orbital_basis, \
     gaussian_rbf, get_max_order, get_n_electrons, coeffs_dict_to_vector, \
-    gto_norm, pyscf_gto_factor
+    vector_to_coeffs_dict, gto_norm, pyscf_gto_factor
 from equiv_dens.utils.base import calculate_distances_and_directions, batch_compressed_atoms
 import numpy as np
 import time
+
+
+class CoeffsIntegralConstraint(nn.Module):
+    def __init__(self, integral_scale=False):
+        super().__init__()
+        if integral_scale:
+            self.register_parameter('integral_scale', nn.Parameter(torch.ones(size=(1,))))
+        else:
+            self.register_buffer('integral_scale', torch.ones(size=(1,)))
+
+    def forward(self, atoms):
+        n_electrons = get_n_electrons(atoms['batch_atom_numbers'])
+        L0_idxs = []
+        L0_coeffs = []
+        L0_width = []
+        for i, atom_sph in enumerate(atoms['spherical_coeffs']):
+            for key in atom_sph:
+                (z, L) = key
+                if z == 0:
+                    continue
+                width = atoms['radial_width'][i][key]
+                scale = atoms['radial_scale'][i][key]
+                sph_coeff = atoms['spherical_coeffs'][i][key]
+                if L == 0:
+                    L0_coeff = sph_coeff * scale
+                    L0_idxs.append((i, key))
+                    L0_coeffs.append(L0_coeff)
+                    L0_width.append(width)
+        L0_coeffs_comb = torch.cat([coeff.view((coeff.shape[0], -1)) for coeff in L0_coeffs], dim=1)
+        L0_widths_comb = torch.cat([width.view((width.shape[0], -1)) for width in L0_width], dim=1)
+        norms = 1/gto_norm(0, L0_widths_comb)
+        coeffs_sum = torch.sum(L0_coeffs_comb * norms / pyscf_gto_factor, dim=1, keepdim=True)
+        scale_factor = n_electrons / coeffs_sum
+        scale_factor = scale_factor.reshape(*scale_factor.shape, 1, 1)
+        L0_coeffs_comb = L0_coeffs_comb * torch.clamp(self.integral_scale, 0.5, 1.5)
+        coeffs_pointer = 0
+        for j, (i, key) in enumerate(L0_idxs):
+            L0_coeff_len = L0_coeffs[j].shape[-1]
+            atoms['spherical_coeffs'][i][key] = atoms['spherical_coeffs'][i][key] * scale_factor
+            coeffs_pointer += L0_coeff_len
+        return atoms
+
 
 class DensityCoeffsNetwork(nn.Module):
     """
@@ -21,6 +63,8 @@ class DensityCoeffsNetwork(nn.Module):
                  order=1,  # maximum order of spherical harmonics features
                  num_features=32,
                  positive_coeffs=False,
+                 integral_constraint=None,
+                 integral_scale=False,
                  clebsch_gordan=None,
                  verbose=0,
                  compressed_extraction=False,
@@ -49,6 +93,10 @@ class DensityCoeffsNetwork(nn.Module):
         self.order = order
         self.num_features = num_features
         self.positive_coeffs = positive_coeffs
+        if integral_constraint == 'coeffs_in_coeffs_net':
+            self.integral_constraint = CoeffsIntegralConstraint(integral_scale)
+        else:
+            self.integral_constraint = None
         self.verbose = verbose
         self.compressed_extraction = compressed_extraction
         self.timing = timing
@@ -460,6 +508,9 @@ class DensityCoeffsNetwork(nn.Module):
         if 'spherical_coeffs' not in atoms.keys():
             atoms['spherical_coeffs'], atoms['radial_width'], atoms['radial_scale'], atoms['coeff_weights'] =\
                 self.extract_coefficients(out_sph, out_width, out_scale, atoms)
+
+            if self.integral_constraint is not None:
+                atoms = self.integral_constraint(atoms)
         # if self.timing:
         #     print('density coeffs extract time:', time.time() - extract_start)
             all_coeffs = coeffs_dict_to_vector(atoms, self.orbital_basis,
@@ -498,6 +549,136 @@ class DensityCoeffsNetwork(nn.Module):
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
             print('Memory cached', torch.cuda.memory_cached() / 1024**2)
 
+        return atoms
+
+
+class DFDensityCoeffs(nn.Module):
+    """
+    Module to set density coefficients to density fitting values and compute all required properties
+    """
+
+    def __init__(self, orbital_basis, radial_coeffs, dtype, require_grads=True):
+        super().__init__()
+        self.orbital_basis = orbital_basis
+        self.radial_coeffs = radial_coeffs
+        self.dtype = dtype
+        self.require_grads = require_grads
+
+        # compute properties that are fixed for a given basis
+        self.orbitals_max_order = get_max_order(self.orbital_basis)
+        self.spherical_spec, _, _ = combine_orbital_basis(self.orbital_basis, self.orbitals_max_order)
+        self.sph_counts = [0 for L in range(self.orbitals_max_order + 1)]
+        self.spherical_dict = {}
+        for z in self.spherical_spec.keys():
+            for j in range(len(self.spherical_spec[z])):
+                orb = self.spherical_spec[z][j]
+                L = orb[2]
+                n = orb[1]
+                key = (z, L)
+                if key not in self.spherical_dict:
+                    self.spherical_dict[key] = torch.arange(self.sph_counts[L], self.sph_counts[L] + n)
+                    self.sph_counts[L] += n
+
+    def forward(self, atoms):
+        # set density coefficients to DF coeffs
+        coeffs_dict = vector_to_coeffs_dict(
+            {'spherical_coeffs': atoms['df_coeffs']},
+            self.orbital_basis,
+            atoms['batch_atom_numbers'],
+            radial_coeffs=True,
+            convert_to_equiv_dens=True,
+            radial_basis=self.radial_coeffs,)
+        dev = atoms['batch_atom_numbers'].device
+        coeffs_dict_conv = {}
+        for key in coeffs_dict:
+            coeffs_dict_conv[key] = [
+                {k: v.to(dtype=self.dtype, device=dev).requires_grad_(
+                    self.require_grads) for k, v in d.items()}
+                for d in coeffs_dict[key]]
+        del coeffs_dict
+        coeffs_dict = coeffs_dict_conv
+        atoms['radial_width'] = coeffs_dict['radial_width']
+        atoms['radial_scale'] = coeffs_dict['radial_scale']
+        atoms['spherical_coeffs'] = coeffs_dict['spherical_coeffs']
+        atoms['sph_dict'] = self.spherical_dict
+        dij, uij = calculate_distances_and_directions(
+            atoms['positions'], atoms['idx_i'], atoms['idx_j'])
+        atoms['distances'] = dij
+        atoms['directions'] = uij
+        sph = spherical_harmonics(self.orbitals_max_order, uij)
+        for L in range(self.orbitals_max_order + 1):
+            sph[L].unsqueeze_(-1)  # unsqueeze for broadcasting
+        atoms['sph'] = sph
+        if 'density' in atoms:
+            del atoms['density']
+        return atoms
+
+
+class FreeAtomDensityCoeffs(nn.Module):
+    """
+    Module to set density coefficients to free atom values and compute all required properties
+    """
+
+    def __init__(self, orbital_basis, radial_coeffs, atom_dens, dtype, require_grads=True):
+        super().__init__()
+        self.orbital_basis = orbital_basis
+        self.radial_coeffs = radial_coeffs
+        self.atom_dens = atom_dens
+        self.dtype = dtype
+        self.require_grads = require_grads
+
+        # compute properties that are fixed for a given basis
+        self.orbitals_max_order = get_max_order(self.orbital_basis)
+        self.spherical_spec, _, _ = combine_orbital_basis(self.orbital_basis, self.orbitals_max_order)
+        self.sph_counts = [0 for L in range(self.orbitals_max_order + 1)]
+        self.spherical_dict = {}
+        for z in self.spherical_spec.keys():
+            for j in range(len(self.spherical_spec[z])):
+                orb = self.spherical_spec[z][j]
+                L = orb[2]
+                n = orb[1]
+                key = (z, L)
+                if key not in self.spherical_dict:
+                    self.spherical_dict[key] = torch.arange(self.sph_counts[L], self.sph_counts[L] + n)
+                    self.sph_counts[L] += n
+
+    def forward(self, atoms):
+        # set density coefficients to free atom density coeffs
+        # assume all batch elements have identical Z vector (TODO)
+        Z = atoms['batch_atom_numbers'][0]
+        dev = atoms['batch_atom_numbers'].device
+        num_coeffs_mol = sum([self.atom_dens[z.item()]['df_coeffs'].shape[-1] for z in Z])
+        sph_coeffs_vec = torch.empty((len(atoms['batch_atom_numbers']), num_coeffs_mol), device=dev)
+        sph_coeffs_vec[:] = torch.cat([self.atom_dens[z.item()]['df_coeffs'] for z in Z], -1)
+        coeffs_dict = vector_to_coeffs_dict(
+            {'spherical_coeffs': sph_coeffs_vec},
+            self.orbital_basis,
+            atoms['batch_atom_numbers'],
+            radial_coeffs=True,
+            convert_to_equiv_dens=True,
+            radial_basis=self.radial_coeffs,)
+        coeffs_dict_conv = {}
+        for key in coeffs_dict:
+            coeffs_dict_conv[key] = [
+                {k: v.to(dtype=self.dtype, device=dev).requires_grad_(
+                    self.require_grads) for k, v in d.items()}
+                for d in coeffs_dict[key]]
+        del coeffs_dict
+        coeffs_dict = coeffs_dict_conv
+        atoms['radial_width'] = coeffs_dict['radial_width']
+        atoms['radial_scale'] = coeffs_dict['radial_scale']
+        atoms['spherical_coeffs'] = coeffs_dict['spherical_coeffs']
+        atoms['sph_dict'] = self.spherical_dict
+        dij, uij = calculate_distances_and_directions(
+            atoms['positions'], atoms['idx_i'], atoms['idx_j'])
+        atoms['distances'] = dij
+        atoms['directions'] = uij
+        sph = spherical_harmonics(self.orbitals_max_order, uij)
+        for L in range(self.orbitals_max_order + 1):
+            sph[L].unsqueeze_(-1)  # unsqueeze for broadcasting
+        atoms['sph'] = sph
+        if 'density' in atoms:
+            del atoms['density']
         return atoms
 
 

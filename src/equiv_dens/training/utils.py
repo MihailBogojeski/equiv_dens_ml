@@ -187,9 +187,10 @@ def get_required_properties_from_args(args):
         required_properties: List of required properties.
     """
     required_properties = []
-    if args.density_weight + args.dipole_moment_weight > 0:
+    if (args.density_weight + args.dipole_moment_weight > 0) \
+        or args.density_from_df or args.density_from_free_atoms:
         required_properties.append('density')
-    if args.df_weight > 0:
+    if args.df_weight > 0 or args.density_from_df:
         required_properties.append('df_coeffs')
     if args.dipole_moment_weight > 0:
         required_properties.append('dipole_moment')
