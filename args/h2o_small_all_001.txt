@@ -37,6 +37,7 @@
 --dens_dataset_test=datasets/h2o_small_test_augccpvdz_df_augccpvqzjkfit.npy
 --orbitals_file=datasets/augccpvqzjkfit_orbital_basis_df.npy
 --radial_coeffs_file=datasets/augccpvqzjkfit_radial_coeffs_libcint_df.npy
+--atom_dens_path=datasets/free_atom_densities_augccpvdz_augccpvqzjkfit.npy
 --pseudo_pot_path=pseudo_potentials
 --center_energy=True
 --num_train=100
@@ -102,3 +103,5 @@ mae
 --energy_unit_in=hartree
 --energy_unit_out=kcal/mol
 --wandb_mode=offline
+--density_from_df=False
+--density_from_free_atoms=False
