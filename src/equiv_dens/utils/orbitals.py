@@ -257,7 +257,8 @@ def coeffs_dict_to_tensors(coeffs, radial_coeffs=True):
     return all_sph, all_scale, all_width
 
 
-def coeffs_dict_to_vector(coeffs, orbital_basis, a_num, radial_coeffs=True, coeff_weighting=False, convert_to_pyscf=True):
+def coeffs_dict_to_vector(coeffs, orbital_basis, a_num, radial_coeffs=True,
+                          coeff_weighting=False, convert_to_pyscf=True):
     relevant_keys = ['spherical_coeffs']
     # sph_coeffs = coeffs['spherical_coeffs']
     if radial_coeffs:
@@ -692,7 +693,7 @@ def ml_basis_to_pyscf_basis(pred, atom_types, index=0):
     return basis_dict
 
 
-def ml_basis_to_pyscf_env(pred, index=0):
+def ml_basis_to_auxmol(pred, index=0):
     anum = pred['batch_atom_numbers'][index]
     atom_types = []
 
@@ -741,7 +742,7 @@ def ml_basis_to_df_coeffs(pred, basis, auxbasis, mo_coeff=None, mo_occ=None):
         else:
             dm1 = hf.make_rdm1(mo_coeff[b], mo_occ[b])
 
-        auxmol_ext = ml_basis_to_pyscf_env(pred, index=b)
+        auxmol_ext = ml_basis_to_auxmol(pred, index=b)
         # print('auxmol_ext env', auxmol_ext._env)
 
         # Define the auxiliary fitting basis for 3-center integrals. Use the function
