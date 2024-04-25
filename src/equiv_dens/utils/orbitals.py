@@ -100,10 +100,10 @@ def get_n_electrons(atom_numbers):
 #
 #
 def gaussian_rbf(r, width, scale, order, normalize=False):
-    print('scale shape', scale.shape)
-    print('width', width.shape)
-    print('r shape', r.shape)
-    print('L', order)
+    # print('scale shape', scale.shape)
+    # print('width', width.shape)
+    # print('r shape', r.shape)
+    # print('L', order)
     if normalize:
         # scale_calc = scale * (width**(3 / 2)) / (np.pi**(3 / 2)) * utils.to_angstrom**3  
         # scale_calc = scale * (width**(3/2)) / (np.pi**(3 / 2))
@@ -122,27 +122,29 @@ def gaussian_rbf(r, width, scale, order, normalize=False):
     return torch.sum(rbf, dim=-2, keepdim=True)
 
 
-# def gaussian_rbf_deriv(r, width, scale, order, normalize=False):
-#     print('scale shape', scale.shape)
-#     print('width', width.shape)
-#     print('r shape', r.shape)
-#     print('L', order)
-#     if normalize:
-#         # scale_calc = scale * (width**(3 / 2)) / (np.pi**(3 / 2)) * utils.to_angstrom**3  
-#         # scale_calc = scale * (width**(3/2)) / (np.pi**(3 / 2))
-#         scale_calc = scale * gto_norm(order, width)
-#     else:
-#         scale_calc = scale / pyscf_gto_factor
-#     # print('order', order)
-#     # print('width', width)
-#     # print('gto_norm', 1/gto_norm(order, width))
-#     # print('pyscf gto factor', pyscf_gto_factor)
-#     # print('scale calc', scale_calc)
-#     # print('scale calc * gto norm', scale_calc/gto_norm(order, width))
-#     r_bohr = r * utils.to_bohr
-#     rbf_deriv = -scale_calc * r_bohr**(order - 1) * (2x) * torch.exp(-width * (r_bohr)**2)
-#     # rbf = scale_calc * torch.exp(-width * (r_bohr)**2)
-#     return torch.sum(rbf, dim=-2, keepdim=True)
+def gaussian_rbf_deriv(r, width, scale, order, normalize=False):
+    # print('scale shape', scale.shape)
+    # print('width', width.shape)
+    # print('r shape', r.shape)
+    # print('L', order)
+    if normalize:
+        # scale_calc = scale * (width**(3 / 2)) / (np.pi**(3 / 2)) * utils.to_angstrom**3  
+        # scale_calc = scale * (width**(3/2)) / (np.pi**(3 / 2))
+        scale_calc = scale * gto_norm(order, width)
+    else:
+        scale_calc = scale / pyscf_gto_factor
+    # print('order', order)
+    # print('width', width)
+    # print('gto_norm', 1/gto_norm(order, width))
+    # print('pyscf gto factor', pyscf_gto_factor)
+    # print('scale calc', scale_calc)
+    # print('scale calc * gto norm', scale_calc/gto_norm(order, width))
+    r_bohr = r * utils.to_bohr
+    rbf_deriv = -scale_calc * r_bohr**(order - 1) * (2*width * (r_bohr)**2 - order) * torch.exp(-width * (r_bohr)**2)
+    rbf_deriv *= utils.to_bohr
+    # print('rbf_deriv internal shape', rbf_deriv.shape)
+    # rbf = scale_calc * torch.exp(-width * (r_bohr)**2)
+    return torch.sum(rbf_deriv, dim=-2, keepdim=True)
 
 
 def gto_norm(order, width):
