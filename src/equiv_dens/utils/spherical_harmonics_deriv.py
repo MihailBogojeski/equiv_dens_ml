@@ -25,12 +25,9 @@ output:
 
 def spherical_harmonics_deriv(L, u):
     Y = []
-    print(L, u)
     if L >= 0:
-        print('adding L = 0')
         Y.append(Y0_deriv(u))
     if L >= 1:
-        print('adding L = 1')
         shape = (*u.shape[:-1], 1)
         x = torch.gather(u, -1, u.new_full(shape, 0, dtype=torch.long))
         y = torch.gather(u, -1, u.new_full(shape, 1, dtype=torch.long))
@@ -40,7 +37,6 @@ def spherical_harmonics_deriv(L, u):
         dz = torch.cat([torch.zeros_like(z), torch.zeros_like(z), torch.ones_like(z)], dim=-1)
         Y.append(Y1_deriv(dx, dy, dz))
     if L >= 2:
-        print('adding L = 2')
         x2 = x * x
         y2 = y * y
         z2 = z * z
@@ -59,7 +55,6 @@ def spherical_harmonics_deriv(L, u):
         _d3z2m1 = 3 * dz2
         Y.append(Y2_deriv(dxy, dyz, dxz, _d3z2m1, _dx2my2))
     if L >= 3:
-        print('adding L = 3')
         xyz = xy * z
         _3x2my2 = 3 * x2 - y2
         _x2m3y2 = x2 - 3 * y2
@@ -69,7 +64,6 @@ def spherical_harmonics_deriv(L, u):
         Y.append(Y3_deriv(x, y, z, z2, _x2my2, _3x2my2, _x2m3y2,
                           dx, dy, dz, dz2, dxyz, _dx2my2, _d3x2my2, _dx2m3y2))
     if L >= 4:
-        print('adding L = 4')
         x4 = x2 * x2
         y4 = y2 * y2
         x2y2 = x2 * y2
@@ -105,8 +99,6 @@ sqrt15over2 = sqrt15 / 2
 #
 #
 def Y2_deriv(dxy, dyz, dxz, _d3z2m1, _dx2my2):
-    print('dxy shape', dxy.shape)
-    print('_d3z2m1 shape', _d3z2m1.shape)
     return torch.stack(
         (
             sqrt15 * dxy,
@@ -129,8 +121,6 @@ def Y3_deriv(x, y, z, z2, _x2my2, _3x2my2, _x2m3y2,
     _5z2 = 5 * z2
     _d5z2 = 5 * dz2
     _5z2m1 = _5z2 - 1
-    print('dxy shape', dxyz.shape)
-    print('_d3z2m1 shape', _d5z2.shape)
     return torch.stack(
         (
             sqrt70over4 * (y * _d3x2my2 + dy * _3x2my2),

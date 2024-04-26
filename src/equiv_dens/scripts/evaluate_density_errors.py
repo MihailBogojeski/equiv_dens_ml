@@ -532,6 +532,7 @@ if main_args.df_error:
     for i in range(min(len(dataset), main_args.num_samples)):
         sample = dataset.get_properties([i])
         sample_df = dataset_df.get_properties([i])
+        print('density integral', torch.sum(sample_df['density'] * sample['coord_weights']))
         calc_density_errors(sample_df['density'], sample, df_losses)
         # print('i', i, 'mae', df_error, 'rmse', df2_error, 'dpm', dpm_error, 'mag', dpm_mag_error, 'ang', dpm_ang_error, 'lda', lda_error)
 
@@ -554,10 +555,12 @@ res_losses = {'dens_mae': [], 'dens_rmse': [], 'dpm_mae': [],
               'dpm_pos_coord_rmse': [], 'dpm_neg_coord_rmse': [],
               'dpm_int_rmse': [], 'dpm_norm_error': []}
 for i in range(min(len(dataset), main_args.num_samples)):
-    sample = dataset.get_properties([i])
     # print('sample pdist', torch.cdist(sample['positions'], sample['positions'])[0, :3,:3])
     # print('res_pdist', torch.cdist(res_dataset['positions'][[i]], res_dataset['positions'][[i]])[0, :3,:3])
-    sample = dataset.get_properties([i])
+    sample = dataset.get_properties([i+1])
+    print('sample positions', sample['positions'])
+    print('res dataset_positions', res_dataset['positions'][[i]])
+    print('density integral', torch.sum(res_dataset['density'][[i]] * sample['coord_weights']))
     calc_density_errors(res_dataset['density'][[i]], sample, res_losses)
 
 np.save('datasets/' + main_args.save_file + '.npy', res_losses, allow_pickle=True)
