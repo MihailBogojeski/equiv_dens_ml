@@ -10,23 +10,18 @@ from pyscf.data.elements import NRSRHFS_CONFIGURATION
 import torch
 from pyscf.lib import param
 
-
-
 def get_atm_nrks(mol, atomic_configuration=NRSRHFS_CONFIGURATION, xc='slater', grid=(120, 770)):
-
     '''
     # Original file see https://github.com/pyscf/pyscf/blob/master/pyscf/scf/atom_ks.py
     # Slightly modified for hirshfeld charge analysis
-
     Performing atomic spherically averaged DFT calculation and return mf.object containing results
 
     Args:
         mol: Mol object
-        atomic_configuration: Non-relativistic spin-restricted spherically averaged exchange-only LDA a.k.a. Hartree-Fock-Slater configurations for use in atomic SAD
+        atomic_configuration: Non-relativistic spin-restricted spherically averaged exchange-only LDA a.k.a.
+            Hartree-Fock-Slater configurations for use in atomic SAD
         xc: name of exchange correlation functional
         grid: tuple of grid specifiction, default value should be ok for second to third row elements
-
-
     '''
     basis = mol.basis
     elem_list = list([a[0]+str(n) for n,a in enumerate(mol._atom)])
@@ -101,10 +96,19 @@ def spline_radial(x, y, k=7):
 
     return spl
 
-def eval_spline_density(spl, coords):
+
+def eval_spline_density(spl, coords, density_grad=False):
     x_in = torch.norm(coords, dim=-1) / param.BOHR
     y_out = spl(np.log(x_in))
+
     y_out[y_out < 0] = 0
+    y_out = torch.from_numpy(y_out)
+
+    if density_grad:
+        deriv = spl.derivative()
+        spl_deriv = torch.from_numpy(deriv(np.log(x_in)))
+        y_deriv = spl_deriv.unsqueeze(-1) * (1 / x_in).unsqueeze(-1) * (coords / x_in.unsqueeze(-1)) / param.BOHR
+        y_out = torch.cat([y_out.unsqueeze(-1), y_deriv], dim=-1)
     return y_out
 
 
@@ -187,7 +191,6 @@ class HirshfeldAnalysis:
         wA = rho_free / (rho_protomol + ((rho_protomol < 1e-15) * 1e-15))
         # molecular electron density rho(r) partitioned onto every atom
         rho_eff = np.einsum("g,ig -> ig",rho , wA)
-
 
         # num electrons per atom
         elec_atm = np.einsum("ig,g->gi",rho_eff,grid.weights).sum(axis=0)

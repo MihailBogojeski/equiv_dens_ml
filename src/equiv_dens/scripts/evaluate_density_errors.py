@@ -557,10 +557,10 @@ res_losses = {'dens_mae': [], 'dens_rmse': [], 'dpm_mae': [],
 for i in range(min(len(dataset), main_args.num_samples)):
     # print('sample pdist', torch.cdist(sample['positions'], sample['positions'])[0, :3,:3])
     # print('res_pdist', torch.cdist(res_dataset['positions'][[i]], res_dataset['positions'][[i]])[0, :3,:3])
-    sample = dataset.get_properties([i+1])
-    print('sample positions', sample['positions'])
-    print('res dataset_positions', res_dataset['positions'][[i]])
-    print('density integral', torch.sum(res_dataset['density'][[i]] * sample['coord_weights']))
+    sample = dataset.get_properties([i])
+    # print('sample positions', sample['positions'])
+    # print('res dataset_positions', res_dataset['positions'][[i]])
+    # print('density integral', torch.sum(res_dataset['density'][[i]] * sample['coord_weights']))
     calc_density_errors(res_dataset['density'][[i]], sample, res_losses)
 
 np.save('datasets/' + main_args.save_file + '.npy', res_losses, allow_pickle=True)
@@ -569,11 +569,11 @@ for key in res_losses.keys():
     print(key)
     print(np.nanmean(res_losses[key]), np.nanmean(df_losses[key]) if df_losses is not None else "")
 print('true dens max', torch.max(sample['density']))
+print('ML dens max', torch.max(res_dataset['density'][[i]]))
 if main_args.df_error:
     print('DF dens max', torch.max(sample_df['density']))
-print('ML dens max', torch.max(res_dataset['density'][[i]]))
-print('dpm pos neg diff', np.nanmean(res_losses['dpm_pos_coord_rmse']) - np.nanmean(res_losses['dpm_neg_coord_rmse']),
-      np.nanmean(df_losses['dpm_pos_coord_rmse']) - np.nanmean(df_losses['dpm_neg_coord_rmse']))
+    print('dpm pos neg diff', np.nanmean(res_losses['dpm_pos_coord_rmse']) - np.nanmean(res_losses['dpm_neg_coord_rmse']),
+        np.nanmean(df_losses['dpm_pos_coord_rmse']) - np.nanmean(df_losses['dpm_neg_coord_rmse']))
 
 # %%
 if main_args.make_plots and main_args.df_error:

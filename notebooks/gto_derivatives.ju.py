@@ -10,6 +10,7 @@ from torchviz import make_dot
 # %autoreload 2
 
 # %%
+# Setting up distances, directions and coeffs as variables
 coords = torch.randn(1, 3, 3)
 coords.requires_grad = True
 print('coords', coords)
@@ -31,6 +32,7 @@ print('widths', widths)
 print('coeffs', coeffs)
 
 # %%
+# basic gto calculation
 gto = 0
 
 for L in range(max_L + 1):
@@ -47,10 +49,14 @@ for L in range(max_L + 1):
 print(gto)
 
 # %%
-grad = torch.autograd.grad(gto[0,1], coords, retain_graph=True)
+# testing autograd calculation for gto
+grad = 0
+for i in range(3):
+    grad += torch.autograd.grad(gto.squeeze()[i], coords, retain_graph=True)[0]
 print(grad)
 
 # %%
+# main cell for calculating GTO gradient, comparing autodiff to explicit gradient
 print('coords requires grad', coords.requires_grad)
 print('u requires grad', u.requires_grad)
 print('s requres grad', s[0].requires_grad)
@@ -113,9 +119,18 @@ for L in range(max_L + 1):
     print('gto autograd', gto_autograd)
     print('gto deriv', gto_deriv)
     gto += gto_l 
+    gto_grad += gto_deriv
 
-# gto_autodiff = 0
+# grad = torch.autograd.grad(gto[0,1], coords, retain_graph=True)
+# print(grad)
+grad = 0
+for i in range(3):
+    grad += torch.autograd.grad(gto.squeeze()[i], coords, retain_graph=True)[0]
+print('gto', gto)
+print('total gto coords grad', grad)
+print('explicit gto coords grad', gto_grad)
 # %%
+# calculating gradient for u, the normalized interatomic direction
 du = 0.0
 for i in range(u.squeeze().shape[0]):
     for j in range(u.squeeze().shape[1]):
@@ -128,6 +143,7 @@ u_deriv = -(1 / d - (coords * torch.sum(coords, dim=(-1), keepdim=True) / d**3))
 print('du', du)
 print('u_deriv', u_deriv)
 # %%
+# combining gradient of degree 1 gto with the derivative of u via chain rule
 sph_grad = (s_deriv[1].unsqueeze(-1) * coeffs[1][..., [2, 0, 1], :]).sum(-1)
 # sph_grad = (s_deriv[2].unsqueeze(-1) * coeffs[2]).sum((-1, -2))
 print('sph grad shape', sph_grad.shape)
@@ -137,6 +153,7 @@ u_deriv = -(dcoords/d.unsqueeze(-1) - (coords.unsqueeze(-2) * coords.unsqueeze(-
 print('u_deriv shape', u_deriv.shape)
 print('u_deriv', (sph_grad.unsqueeze(-2) * u_deriv).sum(-1))
 # %%
+# further tests for calculating the derivative of the degree 1 GTO with plotting of gradient graph
 coords2 = torch.tensor(coords)
 coords2.requires_grad = True
 coeffs1 = torch.tensor(coeffs[1])
@@ -187,25 +204,7 @@ print('coords_grad', coords2.grad)
 print('l1 dummy', l1.dummy.grad)
 print('dir dummy', dir.dummy.grad)
 # %% 
-coords2 = torch.tensor(coords)
-coords2.requires_grad = True
-coeffs1 = torch.tensor(coeffs[1])
-d = torch.norm(coords2, dim=-1, keepdim=True)  # distances
-d.retain_grad()
-u = coords2 / d  # unit displacement vectors
-u.retain_grad()
-s = np.sqrt(3) * u[..., [1, 2, 0]]
-s.retain_grad()
-sph = s.unsqueeze(-1) * coeffs1
-sph.retain_grad()
-
-l = sph.sum()
-l.backward(retain_graph=True)
-print('coords grad', coords2.grad)
-print('sph grad', sph.grad)
-print('u grad', u.grad)
-print('d grad', d.grad)
-# %% 
+# calculating gradient graph for degree 1 gto detailed steps version with initial gradien from spherical harmonics
 coords2 = coords.clone().detach()
 coords2.requires_grad = True
 coeffs1 = coeffs[2].clone().detach()
@@ -230,7 +229,7 @@ print('coords', coords)
 print('final grad?', 2 * coords2 * c_pow2.grad + sph_grad/d)
 make_dot(l)
 # %%
-
+# explicitly calculating gradient for degree 1 GTO, ensuring correct dimensions and broadcasting
 s_deriv = sph_deriv.spherical_harmonics_deriv(2, u)
 
 sph_grad = (s_deriv[2].unsqueeze(-1) * coeffs[2]).sum((-1,-2))
