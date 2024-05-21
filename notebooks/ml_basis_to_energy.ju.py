@@ -721,6 +721,8 @@ for i in range(res['batch_positions'].shape[1]):
     # rho_atoms += rho_at
 # %%
 # Load dataset with option for density gradients
+args.spherical_grid_level = 4
+grid_fn = partial(spherical_grid, level=args.spherical_grid_level)
 dataset = AtomsDensityData(np_path=args.np_dataset_test, density_path=args.dens_dataset_test,
                            orbitals_path=args.orbitals_file,
                            density_n_samp=10000000000000000000000,
@@ -782,7 +784,6 @@ print('dens integral', torch.sum(dens_pbe[[0]] * samp['coord_weights']))
 print('dens_pbe shape', dens_pbe.shape)
 print('atom dens dataset shape', samp['atom_density'].shape)
 print('atom dens grad dataset shape', samp['atom_density_grad'].shape)
-# %%
 dens_at = torch.cat([samp['atom_density'], samp['atom_density_grad'].squeeze().t()], dim=0)
 print('dens at shape', dens_at.shape)
 
