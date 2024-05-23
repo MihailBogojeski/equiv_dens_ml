@@ -129,6 +129,7 @@ def gaussian_rbf_deriv(r, width, scale, order, normalize=False):
     # print('width', width.shape)
     # print('r shape', r.shape)
     # print('L', order)
+
     if normalize:
         # scale_calc = scale * (width**(3 / 2)) / (np.pi**(3 / 2)) * utils.to_angstrom**3
         # scale_calc = scale * (width**(3/2)) / (np.pi**(3 / 2))
@@ -139,7 +140,6 @@ def gaussian_rbf_deriv(r, width, scale, order, normalize=False):
     # print('width', width)
     # print('gto_norm', 1/gto_norm(order, width))
     # print('pyscf gto factor', pyscf_gto_factor)
-    # print('scale calc', scale_calc)
     # print('scale calc * gto norm', scale_calc/gto_norm(order, width))
     r_bohr = r * utils.to_bohr
     rbf_deriv = (
@@ -149,7 +149,6 @@ def gaussian_rbf_deriv(r, width, scale, order, normalize=False):
         * torch.exp(-width * (r_bohr) ** 2)
     )
     rbf_deriv *= utils.to_bohr
-    # print('rbf_deriv internal shape', rbf_deriv.shape)
     # rbf = scale_calc * torch.exp(-width * (r_bohr)**2)
     return torch.sum(rbf_deriv, dim=-2, keepdim=True)
 
@@ -1158,7 +1157,7 @@ def sample_atom_density(
     if individual_dens:
         atom_densities = torch.stack(atom_densities, dim=1)
     else:
-        atom_densities = torch.empty()
+        atom_densities = torch.zeros(1)
     return dens, atom_densities
 
 
@@ -1271,3 +1270,69 @@ def model_input_from_atoms(
     inputs["positions"] = inputs["positions"][:, inputs["atom_mask"]]
 
     return inputs
+
+
+def eval_gto(s, d, L, sph_coeff, width, scale):
+    """
+    Function to evaluate GTO from the spherical harmonics and basis coefficients.
+
+    Args:
+        s: spherical harmonics evaluation for a set of gridpoint
+        d: distances to each of the gridpoints
+        L: degree of spherical harmonics
+        sph_coeff: coefficients for angular part of GTO
+        width: width coefficient for radial part of GTO
+        scale: scale coefficient for radial part of GTO
+    """
+    sph = s.unsqueeze(-1) * sph_coeff
+    rbf = gaussian_rbf(d.unsqueeze(-1), width, scale, L)
+    return torch.sum(rbf * sph, dim=(-2, -1)), sph, rbf
+
+
+def eval_gto_grad(s_deriv, d, L, coords, sph_coeff, width, scale, sph, rbf):
+    """
+    Function to evaluate GTO gradient given spherical harmonic gradients and basis coefficients.
+
+    Args:
+        s_deriv: derivative of spherical harmonics for a set of gridpoint
+        d: distances to each of the gridpoints
+        u: direction vectors to each of the gridpoints
+        L: degree of spherical harmonics
+        sph_coeff: coefficients for angular part of GTO
+        width: width coefficient for radial part of GTO
+        scale: scale coefficient for radial part of GTO
+    """
+    print('s deriv shape', s_deriv.shape)
+    print('d shape', d.shape)
+    print('coords shape', coords.shape)
+    print('sph coeff shape', sph_coeff.shape)
+    print('width shape', width.shape)
+    print('scale shape', scale.shape)
+    print('sph shape', sph.shape)
+    print('rbf shape', rbf.shape)
+    dcoords = torch.eye(3).unsqueeze(0).unsqueeze(0)
+    # gradient of spherical harmonics expansion with respect to u
+    sph_grad = (s_deriv.unsqueeze(-1) * sph_coeff.unsqueeze(-2)).sum((-1, -3))
+    # gradient of spherical harmonics expansion with respect to grid coordinates
+    sph_grad_c = sph_grad.unsqueeze(-2) * -(dcoords / d.unsqueeze(-1)
+                                            - ((coords).unsqueeze(-2)
+                                            * (coords).unsqueeze(-1)
+                                            / d.unsqueeze(-1)**3))
+    sph_grad_c = sph_grad_c.sum(-1)
+    zeros = torch.zeros_like(sph_grad_c)
+    sph_grad_c = torch.where(torch.isnan(sph_grad_c), zeros, sph_grad_c)  # making sure there are no nans to avoid NaNs
+
+    print('gaussian rbd grad shape, ', gaussian_rbf_deriv(d.unsqueeze(-1), width, scale, L).shape)
+    print('coords/d shape', (coords / d).unsqueeze(-1).shape)
+    # gradient of gaussian radial functions with respect to coordinates
+    rbf_grad = gaussian_rbf_deriv(d.unsqueeze(-1), width, scale, L) * (coords / d).unsqueeze(-1)
+    zeros = torch.zeros_like(rbf_grad)
+    rbf_grad = torch.where(torch.isnan(rbf_grad), zeros, rbf_grad)  # making sure there are no nans to avoid NaNs
+    print('rbf grad', rbf_grad.shape)
+    print('sph_grad_c', sph_grad_c.shape)
+    # gradient of gto basis with respect to coordinates
+    gto_deriv = torch.sum(rbf_grad.unsqueeze(-2) * sph.unsqueeze(-3), -2) + rbf * sph_grad_c.unsqueeze(-1)
+    gto_deriv = gto_deriv.sum(-1)
+    print('gto_deriv.shape', gto_deriv.shape)
+    print('')
+    return gto_deriv

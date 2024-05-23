@@ -67,6 +67,8 @@ def init_training_vars(args, hyperparam_args):
         step = checkpoint['step']
         restore = True
         data_split_indices = checkpoint['data_split_indices']
+    if args.density_grad_weight > 0:
+        args.density_grad = True
     print('args core density basis', args.core_density_basis)
     train_vars = {'model_code': model_code, 'directory': directory, 'checkpoint': checkpoint,
                   'step': step, 'restore': restore, 'data_split_indices': data_split_indices}
@@ -235,7 +237,11 @@ def prepare_cubic_datasets(args, required_properties, train_indices, valid_indic
                                         sampling_fn=cube_sampling_fn,
                                         verbose=args.verbose,
                                         cutoff=args.cutoff,
-                                        df_loss_weights=args.df_loss_weights)
+                                        df_loss_weights=args.df_loss_weights,
+                                        atom_dens_path=args.atom_dens_path,
+                                        atom_dens_type=args.atom_dens_type,
+                                        density_grad=args.density_grad,
+                                        )
 
         valid_cube_dataset = torch.utils.data.Subset(cube_dataset, valid_indices)
 
@@ -291,6 +297,7 @@ def prepare_datasets(args, required_properties, grid_vars, data_split_indices, d
                                df_loss_weights=args.df_loss_weights,
                                atom_dens_path=args.atom_dens_path,
                                atom_dens_type=args.atom_dens_type,
+                               density_grad=args.density_grad,
                                )
 
 # split into train / valid / test
@@ -323,6 +330,7 @@ def prepare_datasets(args, required_properties, grid_vars, data_split_indices, d
                                          df_loss_weights=args.df_loss_weights,
                                          atom_dens_path=args.atom_dens_path,
                                          atom_dens_type=args.atom_dens_type,
+                                         density_grad=args.density_grad,
                                          )
 
         if data_split_indices is None or args.ignore_split_indices:
@@ -365,6 +373,7 @@ def prepare_datasets(args, required_properties, grid_vars, data_split_indices, d
                                         df_loss_weights=args.df_loss_weights,
                                         atom_dens_path=args.atom_dens_path,
                                         atom_dens_type=args.atom_dens_type,
+                                        density_grad=args.density_grad,
                                         )
 
         if args.num_test is not None:
@@ -420,6 +429,7 @@ def init_error_dict(args, test=False):
     """
     loss_weights = {}
     loss_weights['density'] = args.density_weight
+    loss_weights['density_grad'] = args.density_grad_weight
     loss_weights['dipole_moment'] = args.dipole_moment_weight
     loss_weights['df_coeffs'] = args.df_weight
     loss_weights['energy'] = args.energy_weight
@@ -453,18 +463,24 @@ def init_error_dict(args, test=False):
                                       in zip(args.df_loss_comp, args.df_loss_comp_weights)}
     loss_comp_weights['dipole_moment'] = {loss_comp: loss_weight
                                           for loss_comp, loss_weight
-                                          in zip(args.dipole_moment_loss_comp, args.dipole_moment_loss_comp_weights)}
+                                          in zip(args.dipole_moment_loss_comp,
+                                                 args.dipole_moment_loss_comp_weights)}
     loss_comp_weights['energy'] = {loss_comp: loss_weight
                                    for loss_comp, loss_weight
                                    in zip(args.energy_loss_comp, args.energy_loss_comp_weights)}
     loss_comp_weights['forces'] = {loss_comp: loss_weight
                                    for loss_comp, loss_weight
                                    in zip(args.forces_loss_comp, args.forces_loss_comp_weights)}
+    loss_comp_weights['density_grad'] = {loss_comp: loss_weight
+                                         for loss_comp, loss_weight
+                                         in zip(args.density_grad_loss_comp,
+                                                args.density_grad_loss_comp_weights)}
     if not test:
         loss_comp['density'] = args.density_loss_comp
         loss_comp_weights['density'] = {loss_comp: loss_weight
                                         for loss_comp, loss_weight
-                                        in zip(args.density_loss_comp, args.density_loss_comp_weights)}
+                                        in zip(args.density_loss_comp,
+                                               args.density_loss_comp_weights)}
         error_dict = ErrorDict(loss_weights, weights_balance=args.weights_balance,
                                percentage_error=args.percentage_error,
                                weights_decay=weights_decay, weights_min=weights_min,

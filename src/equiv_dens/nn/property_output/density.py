@@ -7,7 +7,7 @@ from equiv_dens.utils.spherical_harmonics import spherical_harmonics
 import equiv_dens.utils.spherical_harmonics_deriv as sph_deriv
 from equiv_dens.utils.orbitals import combine_orbital_basis, \
     gaussian_rbf, get_max_order, get_n_electrons, coeffs_dict_to_vector, \
-    vector_to_coeffs_dict, gto_norm, pyscf_gto_factor
+    vector_to_coeffs_dict, gto_norm, pyscf_gto_factor, eval_gto, eval_gto_grad
 from equiv_dens.utils.base import calculate_distances_and_directions, batch_compressed_atoms
 import numpy as np
 import time
@@ -41,7 +41,7 @@ class CoeffsIntegralConstraint(nn.Module):
                     L0_width.append(width)
         L0_coeffs_comb = torch.cat([coeff.view((coeff.shape[0], -1)) for coeff in L0_coeffs], dim=1)
         L0_widths_comb = torch.cat([width.view((width.shape[0], -1)) for width in L0_width], dim=1)
-        norms = 1/gto_norm(0, L0_widths_comb)
+        norms = 1 / gto_norm(0, L0_widths_comb)
         coeffs_sum = torch.sum(L0_coeffs_comb * norms / pyscf_gto_factor, dim=1, keepdim=True)
         scale_factor = n_electrons / coeffs_sum
         scale_factor = scale_factor.reshape(*scale_factor.shape, 1, 1)
@@ -702,9 +702,6 @@ class DensityExpansion(nn.Module):
     def __init__(self, orbital_basis,
                  expansion_constraint=None,
                  integral_constraint=None,
-                 softmax_norm=False,
-                 n_electrons=None,
-                 integral_scale=False,
                  verbose=0,
                  timing=False,
                  memory=False,
@@ -716,7 +713,6 @@ class DensityExpansion(nn.Module):
         self.orbital_basis = orbital_basis
         self.expansion_constraint = expansion_constraint
         self.integral_constraint = integral_constraint
-        self.softmax_norm = softmax_norm
         self.timing = timing
         self.memory = memory
         self.verbose = verbose
@@ -726,10 +722,7 @@ class DensityExpansion(nn.Module):
             self.register_buffer('grid_scaling_factor', torch.ones(size=(1,)))
         else:
             self.grid_scaling_factor = 0
-        if integral_scale:
-            self.register_parameter('integral_scale', nn.Parameter(torch.ones(size=(1,))))
-        else:
-            self.register_buffer('integral_scale', torch.ones(size=(1,)))
+        # self.register_buffer('integral_scale', torch.ones(size=(1,)))
         if self.verbose:
             print('expansion constraint', self.expansion_constraint)
             print('integral constraint', self.integral_constraint)
@@ -766,11 +759,8 @@ class DensityExpansion(nn.Module):
         if eval_L is None:
             eval_L = list(range(self.orbitals_max_order + 1))
         atoms['density'] = 0
-        L0_coeffs = []
-        L0_sph = []
-        L0_d = []
-        L0_i = []
-        L0_width = []
+        if density_grad:
+            atoms['density_grad'] = 0
         n_electrons = get_n_electrons(atoms['batch_atom_numbers'])
         for i in range(n_eval):
             if self.verbose > 1 and self.memory:
@@ -786,7 +776,6 @@ class DensityExpansion(nn.Module):
             s = spherical_harmonics(self.orbitals_max_order_dict[z], u)
             if density_grad:
                 s_deriv = sph_deriv.spherical_harmonics_deriv(self.orbitals_max_order_dict[z], u)
-                dcoords = torch.eye(3).unsqueeze(0).unsqueeze(0)
             for L in range(len(s)):
                 zeros = torch.zeros_like(s[L])
                 s[L] = torch.where(torch.isnan(s[L]), zeros, s[L])  # making sure there are no nans to avoid NaNs
@@ -811,82 +800,20 @@ class DensityExpansion(nn.Module):
                     scale = scale.reshape(scale.shape[:2] +
                                           (1,) * (dim_diff + 1) +
                                           scale.shape[2:])
-                if L == 0:
-                    L0_coeff = sph_coeff * scale
-                    L0_coeffs.append(L0_coeff)
-                    L0_sph.append(s[L])
-                    L0_d.append(d)
-                    L0_i.append(i)
-                    L0_width.append(width)
-                    continue
                 if i in eval_atoms and L in eval_L:
-                    sph = s[L].unsqueeze(-1) * sph_coeff
-                    if density_grad:
-                        if L != 1:
-                            sph_grad = (s_deriv[L].unsqueeze(-1) * sph_coeff.unsqueeze(0)).sum((-1, -2))
-                        else:
-                            sph_grad = (s_deriv[L].unsqueeze(-1) * sph_coeff[..., [2, 0, 1], :]).sum(-1)
-                    rbf = gaussian_rbf(d.unsqueeze(-1), width, scale, L)
+                    density_part, sph, rbf = eval_gto(s[L], d, L, sph_coeff, width, scale)
                     if self.verbose > 2:
                         print('L', L)
                         print('rbf integral', torch.sum(rbf * atoms['coord_weights'].unsqueeze(-1).unsqueeze(-1), dim=(-2, -3)))
                         print('abs sph', torch.sum(torch.abs(sph) * atoms['coord_weights'].unsqueeze(-1).unsqueeze(-1), dim=(-2, -3)))
-                    atoms['density'] += torch.sum(rbf * sph, dim=(-2, -1))
+                    atoms['density'] += density_part
+                    if density_grad:
+                        density_part_grad = eval_gto_grad(s_deriv[L], d, L, atoms['coords'] - pos,
+                                                          sph_coeff, width, scale, sph, rbf)
+                        atoms['density_grad'] += density_part_grad
+
         if self.verbose > 0:
             print('Density shape', atoms['density'].shape)
-        L0_coeffs_comb = torch.cat([coeff.view((coeff.shape[0], -1)) for coeff in L0_coeffs], dim=1)
-        L0_widths_comb = torch.cat([width.view((width.shape[0], -1)) for width in L0_width], dim=1)
-        atoms['L0_coeffs'] = L0_coeffs_comb
-        atoms['L0_widths'] = L0_coeffs_comb
-        if self.integral_constraint is True or self.integral_constraint == 'coeffs':
-            if self.softmax_norm:
-                L0_coeffs_comb = F.softmax(L0_coeffs_comb, dim=1)
-                L0_coeffs_comb = L0_coeffs_comb * n_electrons
-                L0_coeffs_comb = L0_coeffs_comb * torch.clamp(self.integral_scale, 0.5, 1.5)
-            else:
-                norms = 1/gto_norm(0, L0_widths_comb)
-                coeffs_sum = torch.sum(L0_coeffs_comb * norms / pyscf_gto_factor, dim=1, keepdim=True)
-                if self.remove_atom_density:
-                    L0_coeffs_abs = torch.abs(L0_coeffs_comb)
-                    L0_coeffs_abs = torch.sign(coeffs_sum) * L0_coeffs_abs
-                    L0_coeffs_abs_sum = torch.sum(L0_coeffs_abs * norms / pyscf_gto_factor, dim=1, keepdim=True)
-                    scale_offset = (L0_coeffs_abs / (L0_coeffs_abs_sum + 1e-10)) * coeffs_sum
-                    L0_coeffs_comb = L0_coeffs_comb - scale_offset
-                else:
-                    scale_factor = n_electrons / coeffs_sum
-                    L0_coeffs_comb = L0_coeffs_comb * scale_factor
-                    L0_coeffs_comb = L0_coeffs_comb * torch.clamp(self.integral_scale, 0.5, 1.5)
-        coeffs_pointer = 0
-        L0_integrals = []
-        if 0 in eval_L:
-            for i in range(len(L0_coeffs)):
-                coeffs_size = np.prod(list(L0_coeffs[i].shape[1:]))
-                curr_coeffs = L0_coeffs_comb[:, coeffs_pointer:(coeffs_size + coeffs_pointer)]
-                if self.verbose > 3:
-                    print('curr_coeffs', curr_coeffs)
-                    print('curr_coeffs sum', torch.sum(curr_coeffs))
-                    print('L0 width', L0_width[i])
-                curr_coeffs = curr_coeffs.view(L0_coeffs[i].shape)
-                coeffs_pointer += coeffs_size
-                normalize = False
-                if (self.integral_constraint is True or self.integral_constraint == 'coeffs') and self.softmax_norm:
-                    normalize = True
-                rbf = gaussian_rbf(L0_d[i].unsqueeze(-1), L0_width[i], curr_coeffs, 0, normalize=normalize)
-                sph = L0_sph[i].unsqueeze(-1)
-                if self.verbose > 2:
-                    print('L', 0)
-                    print('rbf integral', torch.sum(rbf * atoms['coord_weights'].unsqueeze(-1).unsqueeze(-1), dim=(-2, -3)))
-                    print('abs sph', torch.sum(torch.abs(sph) * atoms['coord_weights'].unsqueeze(-1).unsqueeze(-1), dim=(-2, -3)))
-                if L0_i[i] in eval_atoms:
-                    L0_dens = torch.sum(rbf * sph, dim=(-1, -2))
-                    L0_int = torch.sum(L0_dens * atoms['coord_weights'], dim=-1)
-                    L0_integrals.append(L0_int)
-                    if self.verbose > 2:
-                        print('L0_dens integral', L0_int)
-                        print('l0 dens shape', L0_dens.shape)
-                        print('atoms density shape', atoms['density'].shape)
-                    atoms['density'] += L0_dens
-        if self.verbose > 0:
             print('L0_int sum', torch.sum(torch.cat(L0_integrals)))
             print('sum neg integrals', torch.sum((atoms['density'] * atoms['coord_weights'])[atoms['density'] < 0], dim=-1))
         if self.expansion_constraint == 'sq':
