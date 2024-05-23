@@ -57,12 +57,11 @@ def load_model(args, dataset, train=False):
             expansion_model = density_expansion(dataset.orbital_basis_num,
                                                 expansion_constraint=args.expansion_constraint,
                                                 integral_constraint=args.integral_constraint,
-                                                integral_scale=args.integral_scale,
-                                                softmax_norm=args.softmax_norm,
                                                 verbose=args.verbose,
                                                 timing=args.timing,
                                                 memory=args.memory,
                                                 grid_scaling_factor=args.grid_scaling_factor,
+                                                density_grad=args.density_grad,
                                                 )
     # core density expansion not applicable here
     else:
@@ -124,12 +123,11 @@ def load_model(args, dataset, train=False):
             expansion_model = density_expansion(dataset.orbital_basis_num,
                                                 expansion_constraint=args.expansion_constraint,
                                                 integral_constraint=args.integral_constraint,
-                                                integral_scale=args.integral_scale,
-                                                softmax_norm=args.softmax_norm,
                                                 verbose=args.verbose,
                                                 timing=args.timing,
                                                 memory=args.memory,
                                                 grid_scaling_factor=args.grid_scaling_factor,
+                                                density_grad=args.density_grad,
                                                 )
             if args.core_density_basis > 0:
                 core_coeffs_model = density_coeffs_network(
@@ -292,6 +290,8 @@ def load_model(args, dataset, train=False):
                 if args.density_weight + args.df_weight > 0 \
                         and 'property_models.energy' not in key \
                         and 'property_models.density.init_' not in key \
+                        and 'property_models.density.integral_scale' not in key \
+                        and 'property_models.density.softmax_norm' not in key \
                         and 'property_models.core_density' not in key:
                     print('Unexpected keywords', key)
                     raise Exception('Unexpected keywords in density model state dict')

@@ -15,7 +15,9 @@ coords = torch.randn(1, 3, 3)
 coords.requires_grad = True
 print('coords', coords)
 max_L = 5
-d, u = utils.calculate_distances_and_directions(coords, center=torch.zeros(1, 1, 3))
+center = torch.ones(1, 1, 3) / 10
+coords = torch.cat([coords, center], dim=1)
+d, u = utils.calculate_distances_and_directions(coords, center=center)
 s = spherical_harmonics(max_L, u)
 print('s requires grad', [ss.requires_grad for ss in s])
 for L in range(len(s)):
@@ -23,9 +25,9 @@ for L in range(len(s)):
     s[L] = torch.where(torch.isnan(s[L]), zeros, s[L])  # making sure there are no nans to avoid NaNs
 print('dist', d)
 print('unit', u)
-scales = [torch.randn(1, 1, 1, 1) for L in range(max_L + 1)]
-widths = [torch.randn(1, 1, 1, 1)**2 for L in range(max_L + 1)]
-coeffs = [torch.randn(1, 1, 2 * L + 1, 1) for L in range(max_L + 1)]
+scales = [torch.randn(1, 1, 1, 2) for L in range(max_L + 1)]
+widths = [torch.randn(1, 1, 1, 2)**2 for L in range(max_L + 1)]
+coeffs = [torch.randn(1, 1, 2 * L + 1, 2) for L in range(max_L + 1)]
 print([ss.shape for ss in s])
 print('scales', scales)
 print('widths', widths)
@@ -65,66 +67,93 @@ print('u', u)
 gto = 0
 gto_grad = 0
 s_deriv = sph_deriv.spherical_harmonics_deriv(max_L, u)
+# for L in range(len(s_deriv)):
+#     zeros = torch.zeros_like(s_deriv[L])
+#     s_deriv[L] = torch.where(torch.isnan(s_deriv[L]), zeros, s_deriv[L])  # making sure there are no nans to avoid NaNs
 dcoords = torch.eye(3).unsqueeze(0).unsqueeze(0)
 print(dcoords.shape)
+# TODO: check robustness for zero coords
 for L in range(max_L + 1):
     scale = scales[L]
     width = widths[L]
     coeff = coeffs[L]
     sph = s[L].unsqueeze(-1) * coeff
     print('L', L)
-    print('coeff shape', coeff.shape)
     print('s[L] shape', s[L].shape)
     print('s[l] deriv shape', s_deriv[L].shape)
-    print('sph', sph)
+    print('d shape', d.shape)
+    print('coords shape', coords.shape)
+    print('sph coeff shape', coeff.shape)
+    print('width shape', width.shape)
+    print('scale shape', scale.shape)
+    print('sph shape', sph.shape)
+    print('rbf shape', rbf.shape)
     sph_autograd = 0
     du = 0
     if L != 0:
-        for i in range(sph.squeeze().shape[0]):
-            for j in range(sph.squeeze().shape[1]):
-                sph_autograd += torch.autograd.grad(sph.squeeze()[i, j], coords, retain_graph=True)[0]
-                du += torch.autograd.grad(sph.squeeze()[i, j], u, retain_graph=True)[0]
+        for i in range(sph.squeeze(0).shape[0]):
+            for j in range(sph.squeeze(0).shape[1]):
+                for k in range(sph.squeeze(0).shape[2]):
+                    sph_autograd += torch.autograd.grad(sph.squeeze(0)[i, j, k], coords, retain_graph=True)[0]
+                    du += torch.autograd.grad(sph.squeeze(0)[i, j, k], u, retain_graph=True)[0]
                 # print(sph_autograd)
     # print('sph du autograd', du)
-    if L != 1:
-        sph_grad = (s_deriv[L].unsqueeze(-1) * coeff.unsqueeze(0)).sum((-1, -2))
-    else:
-        sph_grad = (s_deriv[L].unsqueeze(-1) * coeff[..., [2, 0, 1], :]).sum(-1)
-    # print('sph du deriv', sph_grad)
-    # print('sph autograd', sph_autograd)
+    print('s deriv cooeffs size', (s_deriv[L].unsqueeze(-1) * coeff.unsqueeze(-2)).shape)
+    sph_grad = (s_deriv[L].unsqueeze(-1) * coeff.unsqueeze(-2)).sum((-1, -3))
     sph_grad_c = sph_grad.unsqueeze(-2) * -(dcoords/d.unsqueeze(-1) -
-                 (coords.unsqueeze(-2) * coords.unsqueeze(-1)/d.unsqueeze(-1)**3))
+                 ((coords - center).unsqueeze(-2) *(coords - center).unsqueeze(-1)/d.unsqueeze(-1)**3))
     sph_grad_c = sph_grad_c.sum(-1)
-    # print('sph u and c ratio', sph_autograd / sph_grad)
+    zeros = torch.zeros_like(sph_grad_c)
+    sph_grad_c = torch.where(torch.isnan(sph_grad_c), zeros, sph_grad_c)  # making sure there are no nans to avoid NaNs
+    # print('sph_grad_c', sph_grad_c)
+    # print('sph_autograd', sph_autograd)
     rbf = orbitals.gaussian_rbf(d.unsqueeze(-1), width, scale, L)
     rbf_autograd = 0
-    for i in range(3):
-        rbf_autograd += torch.autograd.grad(rbf.squeeze()[i], coords, retain_graph=True)[0]
+    for i in range(rbf.squeeze(0, -2).shape[0]):
+        for j in range(rbf.squeeze(0, -2).shape[1]):
+            rbf_autograd += torch.autograd.grad(rbf.squeeze(0, -2)[i, j], coords, retain_graph=True)[0]
     # print('rbf autograd', rbf_autograd)
-    rbf_grad = orbitals.gaussian_rbf_deriv(d.unsqueeze(-1), width, scale, L).squeeze(-1) * coords / d
+    print('gaussian rbd grad shape, ', orbitals.gaussian_rbf_deriv(d.unsqueeze(-1), width, scale, L).shape)
+    print('coords/d shape', ((coords - center) / d).unsqueeze(-1).shape)
+    rbf_grad = orbitals.gaussian_rbf_deriv(d.unsqueeze(-1), width, scale, L) * ((coords - center) / d).unsqueeze(-1)
+    print('rbf_grad.shape', rbf_grad.shape)
+    zeros = torch.zeros_like(rbf_grad)
+    rbf_grad = torch.where(torch.isnan(rbf_grad), zeros, rbf_grad)  # making sure there are no nans to avoid NaNs
+    # rbf_grad = rbf_grad.sum(-1)
+
     # print('rbf_deriv', rbf_grad)
-    print('coords.shape', coords.shape)
-    gto_l = torch.sum(rbf * sph, dim=(-2, -1)) 
+    # print('coords.shape', coords.shape)
+    gto_l = torch.sum(rbf * sph, dim=(-2, -1))
     gto_autograd = 0
-    for i in range(3):
+    for i in range(gto_l.squeeze().shape[0]):
         gto_autograd += torch.autograd.grad(gto_l.squeeze()[i], coords, retain_graph=True)[0]
-    print('rbf shape', rbf.shape)
-    print('rbf grad shape', rbf_grad.shape)
-    print('rbf grad unsqueeze shape', rbf_grad.unsqueeze(-2).shape)
-    print('sph shape', sph.shape)
-    print('sph deriv unsqueeze coords', sph_grad_c.unsqueeze(-1).shape) 
-    print('rbf_grad unsqueeze * sph', (rbf_grad.unsqueeze(-2) * sph).shape)
-    print('rbf* sph_grad unsqueeze ', (rbf * sph_grad_c.unsqueeze(-1)).shape)
-    gto_deriv = torch.sum(rbf_grad.unsqueeze(-2) * sph, -2) + rbf.squeeze(-1) * sph_grad_c
+    # print('rbf shape', rbf.shape)
+    # print('rbf grad shape', rbf_grad.shape)
+    # print('rbf grad unsqueeze shape', rbf_grad.unsqueeze(-2).shape)
+    # print('sph shape', sph.shape)
+    # print('sph deriv unsqueeze coords', sph_grad_c.unsqueeze(-1).shape)
+    # print('rbf_grad unsqueeze * sph', (rbf_grad.unsqueeze(-2) * sph).shape)
+    # print('rbf* sph_grad unsqueeze ', (rbf * sph_grad_c.unsqueeze(-1)).shape)
+    print('sph_grad_c', sph_grad_c.shape)
+    print('rbf grad', rbf_grad.shape)
+    print('rbf grad * sph', (rbf_grad.unsqueeze(-2) * sph.unsqueeze(-3)).shape)
+    print('rbf * sph grad', (rbf.unsqueeze(-3) * sph_grad_c.unsqueeze(-1).unsqueeze(-1)).shape)
+    gto_deriv = (rbf_grad.unsqueeze(-2) * sph.unsqueeze(-3)).sum((-2))\
+                + (rbf.unsqueeze(-3) * sph_grad_c.unsqueeze(-1).unsqueeze(-1)).sum((-2))
+    gto_deriv = gto_deriv.sum((-1))
+    print('gto_deriv.shape', gto_deriv.shape)
+    # print('sph_grad_c', sph_grad_c)
+    # print('rbf', rbf)
+    # print('sph', sph)
     print('gto autograd', gto_autograd)
     print('gto deriv', gto_deriv)
-    gto += gto_l 
+    gto += gto_l
     gto_grad += gto_deriv
 
 # grad = torch.autograd.grad(gto[0,1], coords, retain_graph=True)
 # print(grad)
 grad = 0
-for i in range(3):
+for i in range(gto.squeeze().shape[0]):
     grad += torch.autograd.grad(gto.squeeze()[i], coords, retain_graph=True)[0]
 print('gto', gto)
 print('total gto coords grad', grad)

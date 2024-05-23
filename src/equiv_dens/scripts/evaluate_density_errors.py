@@ -4,6 +4,7 @@ import argparse
 
 import torch
 from equiv_dens.training.parse_command_line_arguments import parse_command_line_arguments
+from pyscf.dft import numint
 from equiv_dens.data.density_dataset import AtomsDensityData
 from equiv_dens.utils.grids import cubical_grid, cubical_sampling, \
      CubicalGrid, spherical_grid, spherical_radial_sampling
@@ -19,6 +20,13 @@ import numpy as np
 import equiv_dens.training.utils as train_utils
 
 
+def str2bool(s):
+    if s.lower() in ('true', 't', '1'):
+        return True
+    elif s.lower() in ('false', 'f', '0'):
+        return False
+    else:
+        return s
 # %%
 def calc_density_errors(density, atoms, error_dict):
     r_dens = torch.clamp(density, min=0)
@@ -35,7 +43,7 @@ def calc_density_errors(density, atoms, error_dict):
     dpm2_error = 4.8 * torch.norm(dpm - atoms['dipole_moment'])
 
     dpm_mag_error = 4.8 * torch.mean(torch.abs(torch.linalg.norm(dpm) - torch.linalg.norm(atoms['dipole_moment'])))
-    dpm_ang_error = (180 / torch.pi) * torch.acos(torch.mean(torch.sum(dpm*atoms['dipole_moment']) /
+    dpm_ang_error = (180 / torch.pi) * torch.acos(torch.mean(torch.sum(dpm * atoms['dipole_moment']) /
                                                   (torch.linalg.norm(dpm) * torch.linalg.norm(atoms['dipole_moment']))))
 
     df43_error = torch.sum(torch.abs(atoms['density']**(4/3) -
@@ -88,6 +96,26 @@ def calc_density_errors(density, atoms, error_dict):
     error_dict['dpm_norm_error'].append(float(dpm_norm_error))
     error_dict['kl_loss'].append(float(kl_error))
     # print('i', i, 'mae', df_error, 'rmse', df2_error, 'dpm', dpm_error, 'mag', dpm_mag_error, 'ang', dpm_ang_error, 'lda', lda_error)
+
+
+def calc_density_grad_errors(density, atoms, error_dict):
+    dens_true = torch.permute(torch.cat([atoms['density'].unsqueeze(-1), atoms['density_grad']], dim=-1), (2, 1, 0)).squeeze()
+    ni = numint.NumInt()
+    exc_eff_pbe = torch.from_numpy(ni.eval_xc_eff('pbe', dens_true.numpy(force=True).astype(np.double), deriv=1, xctype='GGA')[0])
+    dens_calc = dens_true[0] * atoms['coord_weights']
+    # print('exchange correlation', exc_eff_pbe.shape)
+    exc_pbe = torch.sum(exc_eff_pbe * dens_calc)
+    exc_eff_pbe = torch.from_numpy(ni.eval_xc_eff('pbe', density.numpy(force=True).astype(np.double), deriv=1, xctype='GGA')[0])
+    dens_calc = density[0] * atoms['coord_weights']
+    # print('exchange correlation', exc_eff_pbe.shape)
+    exc_sum_pbe = torch.sum(exc_eff_pbe * dens_calc)
+    error_dict['exc_mae'].append(float(torch.abs(exc_sum_pbe - exc_pbe)))
+
+    vw_pred = torch.nansum(torch.norm(density[1:], dim=0)**2 / density * atoms['coord_weights'].squeeze())
+    vw_true = torch.nansum(torch.norm(dens_true[1:], dim=0)**2 / dens_true * atoms['coord_weights'].squeeze())
+    error_dict['vw_mae'].append(float(torch.abs(vw_pred - vw_true)))
+    error_dict['grad_norm_err'].append(float(torch.sum(torch.norm(density[1:] - dens_true[1:], dim=0) * atoms['coord_weigts'].squeeze())
+                                             / torch.sum(atoms['atom_numbers'])))
 
 # %%
 def make_plots(dens_ml, dens_df, sample_ref, save_name):
@@ -432,7 +460,10 @@ parser.add_argument('ref_np_load_file', type=str)
 parser.add_argument('ref_dens_load_file', type=str)
 parser.add_argument('res_load_file', type=str)
 parser.add_argument('save_file', type=str)
+parser.add_argument('--ml_error', type=str2bool, default=True)
 parser.add_argument('--df_error', action='store_true', default=False)
+parser.add_argument('--free_atom_error', action='store_true', default=False)
+parser.add_argument('--density_grad_error', action='store_true', default=False)
 parser.add_argument('--use_gpu', action='store_true', default=False)
 parser.add_argument('--num_samples', type=int, default=-1)
 parser.add_argument('--make_plots', action='store_true', default=False)
@@ -490,6 +521,7 @@ dataset = AtomsDensityData(np_path=args.np_dataset_test, density_path=args.dens_
                            atom_dens_path=args.atom_dens_path,
                            atom_dens_type=args.atom_dens_type,
                            projected_density=False,
+                           density_grad=main_args.density_grad_error,
                            )
 
 
@@ -499,13 +531,6 @@ if main_args.num_samples < 1:
 print('num samples', main_args.num_samples)
 df_losses = None
 if main_args.df_error:
-    df_losses = {'dens_mae': [], 'dens_rmse': [], 'dpm_mae': [],
-                 'dpm_rmse': [], 'kl_loss': [],
-                 'dpm_mag': [], 'dpm_ang': [], 'lda_mae': [],
-                 'coulomb': [], 'coulomb_int': [], 'mae_23': [], 'mae_43': [],
-                 'lda_23_mae': [], 'dpm_coord_rmse': [],
-                 'dpm_pos_coord_rmse': [], 'dpm_neg_coord_rmse': [],
-                 'dpm_int_rmse': [], 'dpm_norm_error': []}
 
     dataset_df = AtomsDensityData(np_path=args.np_dataset_test, density_path=args.dens_dataset_test,
                                   orbitals_path=args.orbitals_file,
@@ -528,13 +553,24 @@ if main_args.df_error:
                                   atom_dens_path=args.atom_dens_path,
                                   atom_dens_type=args.atom_dens_type,
                                   projected_density=True,
+                                  density_grad=main_args.density_grad_error,
                                   )
-    for i in range(min(len(dataset), main_args.num_samples)):
-        sample = dataset.get_properties([i])
-        sample_df = dataset_df.get_properties([i])
-        print('density integral', torch.sum(sample_df['density'] * sample['coord_weights']))
-        calc_density_errors(sample_df['density'], sample, df_losses)
-        # print('i', i, 'mae', df_error, 'rmse', df2_error, 'dpm', dpm_error, 'mag', dpm_mag_error, 'ang', dpm_ang_error, 'lda', lda_error)
+    if not main_args.density_grad_error:
+        df_losses = {'dens_mae': [], 'dens_rmse': [], 'dpm_mae': [],
+                     'dpm_rmse': [], 'kl_loss': [],
+                     'dpm_mag': [], 'dpm_ang': [], 'lda_mae': [],
+                     'coulomb': [], 'coulomb_int': [], 'mae_23': [], 'mae_43': [],
+                     'lda_23_mae': [], 'dpm_coord_rmse': [],
+                     'dpm_pos_coord_rmse': [], 'dpm_neg_coord_rmse': [],
+                     'dpm_int_rmse': [], 'dpm_norm_error': []}
+        for i in range(min(len(dataset), main_args.num_samples)):
+            sample = dataset.get_properties([i])
+            sample_df = dataset_df.get_properties([i])
+            print('density integral', torch.sum(sample_df['density'] * sample['coord_weights']))
+            calc_density_errors(sample_df['density'], sample, df_losses)
+    # else:
+    #     df_losses = {'exc_mae': [], 'vw_mae': [], 'grad_norm_err': []}
+    #     # print('i', i, 'mae', df_error, 'rmse', df2_error, 'dpm', dpm_error, 'mag', dpm_mag_error, 'ang', dpm_ang_error, 'lda', lda_error)
 
     np.save('datasets/' + main_args.save_file + '_df_losses.npy', df_losses, allow_pickle=True)
     print('DF losses')
@@ -542,38 +578,60 @@ if main_args.df_error:
         print(key)
         print(np.nanmean(df_losses[key]))
 
-# %%
-res_dataset = torch.load(main_args.res_load_file, map_location='cpu')
-print('res dataset length', len(res_dataset))
-print('res sample pos shape', res_dataset['positions'].shape)
-print('res sample dens shape', res_dataset['density'].shape)
-res_losses = {'dens_mae': [], 'dens_rmse': [], 'dpm_mae': [],
-              'dpm_rmse': [], 'kl_loss': [],
-              'dpm_mag': [], 'dpm_ang': [], 'lda_mae': [],
-              'coulomb': [], 'coulomb_int': [], 'mae_23': [], 'mae_43': [],
-              'lda_23_mae': [], 'dpm_coord_rmse': [],
-              'dpm_pos_coord_rmse': [], 'dpm_neg_coord_rmse': [],
-              'dpm_int_rmse': [], 'dpm_norm_error': []}
-for i in range(min(len(dataset), main_args.num_samples)):
-    # print('sample pdist', torch.cdist(sample['positions'], sample['positions'])[0, :3,:3])
-    # print('res_pdist', torch.cdist(res_dataset['positions'][[i]], res_dataset['positions'][[i]])[0, :3,:3])
-    sample = dataset.get_properties([i])
-    # print('sample positions', sample['positions'])
-    # print('res dataset_positions', res_dataset['positions'][[i]])
-    # print('density integral', torch.sum(res_dataset['density'][[i]] * sample['coord_weights']))
-    calc_density_errors(res_dataset['density'][[i]], sample, res_losses)
+if main_args.free_atom_error:
+    free_atom_losses = {'dens_mae': [], 'dens_rmse': [], 'dpm_mae': [],
+                        'dpm_rmse': [], 'kl_loss': [],
+                        'dpm_mag': [], 'dpm_ang': [], 'lda_mae': [],
+                        'coulomb': [], 'coulomb_int': [], 'mae_23': [], 'mae_43': [],
+                        'lda_23_mae': [], 'dpm_coord_rmse': [],
+                        'dpm_pos_coord_rmse': [], 'dpm_neg_coord_rmse': [],
+                        'dpm_int_rmse': [], 'dpm_norm_error': []}
 
-np.save('datasets/' + main_args.save_file + '.npy', res_losses, allow_pickle=True)
-print('Results losses')
-for key in res_losses.keys():
-    print(key)
-    print(np.nanmean(res_losses[key]), np.nanmean(df_losses[key]) if df_losses is not None else "")
-print('true dens max', torch.max(sample['density']))
-print('ML dens max', torch.max(res_dataset['density'][[i]]))
-if main_args.df_error:
-    print('DF dens max', torch.max(sample_df['density']))
-    print('dpm pos neg diff', np.nanmean(res_losses['dpm_pos_coord_rmse']) - np.nanmean(res_losses['dpm_neg_coord_rmse']),
-        np.nanmean(df_losses['dpm_pos_coord_rmse']) - np.nanmean(df_losses['dpm_neg_coord_rmse']))
+    for i in range(min(len(dataset), main_args.num_samples)):
+        sample = dataset.get_properties([i])
+        print('density integral', torch.sum(sample['atom_density'] * sample['coord_weights']))
+        calc_density_errors(sample['atom_density'], sample, free_atom_losses)
+        # print('i', i, 'mae', df_error, 'rmse', df2_error, 'dpm', dpm_error, 'mag', dpm_mag_error, 'ang', dpm_ang_error, 'lda', lda_error)
+
+    np.save('datasets/' + main_args.save_file + '_free_atom_losses.npy', free_atom_losses, allow_pickle=True)
+    print('DF losses')
+    for key in free_atom_losses.keys():
+        print(key)
+        print(np.nanmean(free_atom_losses[key]))
+
+# %%
+if main_args.ml_error:
+    res_dataset = torch.load(main_args.res_load_file, map_location='cpu')
+    print('res dataset length', len(res_dataset))
+    print('res sample pos shape', res_dataset['positions'].shape)
+    print('res sample dens shape', res_dataset['density'].shape)
+    res_losses = {'dens_mae': [], 'dens_rmse': [], 'dpm_mae': [],
+                  'dpm_rmse': [], 'kl_loss': [],
+                  'dpm_mag': [], 'dpm_ang': [], 'lda_mae': [],
+                  'coulomb': [], 'coulomb_int': [], 'mae_23': [], 'mae_43': [],
+                  'lda_23_mae': [], 'dpm_coord_rmse': [],
+                  'dpm_pos_coord_rmse': [], 'dpm_neg_coord_rmse': [],
+                  'dpm_int_rmse': [], 'dpm_norm_error': []}
+    for i in range(min(len(dataset), main_args.num_samples)):
+        # print('sample pdist', torch.cdist(sample['positions'], sample['positions'])[0, :3,:3])
+        # print('res_pdist', torch.cdist(res_dataset['positions'][[i]], res_dataset['positions'][[i]])[0, :3,:3])
+        sample = dataset.get_properties([i])
+        # print('sample positions', sample['positions'])
+        # print('res dataset_positions', res_dataset['positions'][[i]])
+        # print('density integral', torch.sum(res_dataset['density'][[i]] * sample['coord_weights']))
+        calc_density_errors(res_dataset['density'][[i]], sample, res_losses)
+
+    np.save('datasets/' + main_args.save_file + '.npy', res_losses, allow_pickle=True)
+    print('Results losses')
+    for key in res_losses.keys():
+        print(key)
+        print(np.nanmean(res_losses[key]), np.nanmean(df_losses[key]) if df_losses is not None else "")
+    print('true dens max', torch.max(sample['density']))
+    print('ML dens max', torch.max(res_dataset['density'][[i]]))
+    if main_args.df_error:
+        print('DF dens max', torch.max(sample_df['density']))
+        print('dpm pos neg diff', np.nanmean(res_losses['dpm_pos_coord_rmse']) - np.nanmean(res_losses['dpm_neg_coord_rmse']),
+              np.nanmean(df_losses['dpm_pos_coord_rmse']) - np.nanmean(df_losses['dpm_neg_coord_rmse']))
 
 # %%
 if main_args.make_plots and main_args.df_error:

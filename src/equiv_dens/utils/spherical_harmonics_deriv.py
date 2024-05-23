@@ -86,12 +86,13 @@ def spherical_harmonics_deriv(L, u):
 
 # spherical harmonics of order 0
 def Y0_deriv(u):
-    return u.new_zeros((*u.shape[:-1], 1))
+    return u.new_zeros((*u.shape[:-1], 1, u.shape[-1]))
 
 # spherical harmonics of order 1
 sqrt3 = np.sqrt(3)
 def Y1_deriv(dx, dy, dz):
-    return sqrt3 * (dx + dy + dz)
+    # return (sqrt3 / 3) * (dx + dy + dz).unsqueeze(-1).expand(-1, -1, -1, 3)
+    return sqrt3 * torch.stack((dy, dz,dx), dim=-2)
 # # spherical harmonics of order 2
 sqrt15 = np.sqrt(15)
 sqrt5over2 = np.sqrt(5) / 2
@@ -106,7 +107,7 @@ def Y2_deriv(dxy, dyz, dxz, _d3z2m1, _dx2my2):
             sqrt5over2 * _d3z2m1,
             sqrt15 * dxz,
             sqrt15over2 * _dx2my2,
-        ), dim=-1)
+        ), dim=-2)
 
 
 # spherical harmonics of order 3
@@ -131,7 +132,7 @@ def Y3_deriv(x, y, z, z2, _x2my2, _3x2my2, _x2m3y2,
             sqrt105over2 * (z * _dx2my2 + dz * _x2my2),
             sqrt70over4 * (dx * _x2m3y2 + x * _dx2m3y2),
         ),
-        dim=-1,
+        dim=-2,
     )
 #
 #
@@ -164,7 +165,7 @@ def Y4_deriv(x2, y2, z2, xy, yz, xz, _x2my2, _x2m3y2,
             sqrt70_3over4 * (dxz * _x2m3y2 + xz * _dx2m3y2),
             sqrt35_3over8 * (dx4 - 6 * dx2y2 + dy4),
         ),
-        dim=-1,
+        dim=-2,
     )
 
 # spherical harmonics of order 5
@@ -205,9 +206,9 @@ def Y5_deriv(x, y, z, z2, xyz, x4, y4, x2y2,
                              x * (_dx2m3y2 * _9z2m1 + _x2m3y2 * _d9z2m1)),
             sqrt385_3over8 * (dz * (x4 - 6 * x2y2 + y4) + z * (dx4 - 6 * dx2y2 + dy4)),
             sqrt154_3over16 * (dx * (x4 - 10 * x2y2 + 5 * y4) +
-                              x * (dx4 - 10 * dx2y2 + 5 * dy4)),
+                               x * (dx4 - 10 * dx2y2 + 5 * dy4)),
         ),
-        dim=-1,
+        dim=-2,
     )
 #
 #

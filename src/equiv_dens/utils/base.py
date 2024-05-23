@@ -62,8 +62,10 @@ def kcal_to_eV(en):
 def kcal_to_kelvin(en):
     return en / 0.001987191686485529
 
+
 def au_to_debye(dpm):
     return dpm * nist.AU2DEBYE
+
 
 def internal_to_debye(dpm):
     return dpm * nist.AU2DEBYE * to_bohr
@@ -399,6 +401,7 @@ def calculate_distances_and_directions(R, idx_i=None, idx_j=None, center=None):
     dij = torch.norm(rij, dim=-1, keepdim=True)  # distances
     uij = rij / dij  # unit displacement vectors
     return dij, uij
+
 
 class TorchNeighborList:
     """
