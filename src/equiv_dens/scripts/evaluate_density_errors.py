@@ -555,6 +555,7 @@ res_losses = {'dens_mae': [], 'dens_rmse': [], 'dpm_mae': [],
               'dpm_int_rmse': [], 'dpm_norm_error': []}
 for i in range(min(len(dataset), main_args.num_samples)):
     sample = dataset.get_properties([i])
+    print(i)
     # print('sample pdist', torch.cdist(sample['positions'], sample['positions'])[0, :3,:3])
     # print('res_pdist', torch.cdist(res_dataset['positions'][[i]], res_dataset['positions'][[i]])[0, :3,:3])
     sample = dataset.get_properties([i])
@@ -569,8 +570,8 @@ print('true dens max', torch.max(sample['density']))
 if main_args.df_error:
     print('DF dens max', torch.max(sample_df['density']))
 print('ML dens max', torch.max(res_dataset['density'][[i]]))
-print('dpm pos neg diff', np.nanmean(res_losses['dpm_pos_coord_rmse']) - np.nanmean(res_losses['dpm_neg_coord_rmse']),
-      np.nanmean(df_losses['dpm_pos_coord_rmse']) - np.nanmean(df_losses['dpm_neg_coord_rmse']))
+# print('dpm pos neg diff', np.nanmean(res_losses['dpm_pos_coord_rmse']) - np.nanmean(res_losses['dpm_neg_coord_rmse']),
+#       np.nanmean(df_losses['dpm_pos_coord_rmse']) - np.nanmean(df_losses['dpm_neg_coord_rmse']))
 
 # %%
 if main_args.make_plots and main_args.df_error:
