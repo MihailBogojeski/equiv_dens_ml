@@ -31,8 +31,10 @@ main_args = Namespace()
 # main_args.args_file = "args/ethanethiol_all_106_test.txt"
 # main_args.args_file = "args/h2o_small_all_001.txt"
 # main_args.args_file = "args/ethanethiol_df_coeffs_001_test.txt"
-main_args.args_file = "args/ethanethiol_all_001_coreless_test.txt"
-# main_args.args_file = "args/ethanethiol_all_004_coreless.txt"
+# main_args.args_file = "args/ethanethiol_all_001_coreless_test.txt"
+# main_args.args_file = "args/resorcinol_all_001_coreless.txt"
+# main_args.args_file = "args/ethanol_all_002_coreless_test.txt"
+main_args.args_file = "args/ethanethiol_all_004_coreless.txt"
 # main_args.args_file = "args/ethanethiol_all_001_SH_even.txt"
 main_args.ref_np_load_file = None
 main_args.ref_dens_load_file = None
@@ -44,8 +46,10 @@ main_args.ref_dens_load_file = None
 # main_args.save_file = 'ethanethiol_all_106'
 # main_args.save_file = 'h2o_small_all_001'
 # main_args.save_file = 'resorcinol_all_005'
-main_args.save_file = 'ethanethiol_all_001_coreless'
-# main_args.save_file = 'ethanethiol_all_004_coreless'
+# main_args.save_file = 'ethanethiol_all_001_coreless'
+# main_args.save_file = 'resorcinol_all_001_coreless'
+# main_args.save_file = 'ethanol_all_002_coreless'
+main_args.save_file = 'ethanethiol_all_004_coreless'
 # main_args.save_file = 'ethanethiol_all_001_SH_even'
 # main_args.save_file = 'ethanethiol_df_coeffs_001'
 main_args.df_error = True
@@ -152,8 +156,8 @@ if main_args.ref_np_load_file is not None:
 if main_args.ref_dens_load_file is not None:
     args.dens_dataset_test = main_args.ref_dens_load_file
 
-args.np_dataset_test = "datasets/ethanethiol_md_traj_every1000_dft_augccpvdz.npy"
-args.dens_dataset_test = "datasets/ethanethiol_md_traj_every1000_dft_augccpvdz_df_augccpvqzjkfit.npy"
+# args.np_dataset_test = "datasets/ethanethiol_md_traj_every1000_dft_augccpvdz.npy"
+# args.dens_dataset_test = "datasets/ethanethiol_md_traj_every1000_dft_augccpvdz_df_augccpvqzjkfit.npy"
 
 dataset = AtomsDensityData(np_path=args.np_dataset_test, density_path=args.dens_dataset_test,
                            orbitals_path=args.orbitals_file,
@@ -231,9 +235,9 @@ print('res density integral', torch.sum(res['density'] * res['coord_weights'], d
 print('density integral', torch.sum(samp['density'] * samp['coord_weights'], dim=1))
 print('density integral', torch.sum(samp_df['density'] * samp_df['coord_weights'], dim=1))
 print('density error', torch.sum(torch.abs(res['density'] - samp['density']) * samp['coord_weights'], dim=1)
-                       / torch.sum(samp['batch_atom_numbers'], dim=1))
+      / torch.sum(samp['batch_atom_numbers'], dim=1))
 print('density df error', torch.sum(torch.abs(samp_df['density'] - samp['density']) * samp['coord_weights'], dim=1)
-                          / torch.sum(samp['batch_atom_numbers'], dim=1))
+      / torch.sum(samp['batch_atom_numbers'], dim=1))
 
 # %%
 # Calculate LDA energy
@@ -287,7 +291,7 @@ ao = numint.eval_ao(mol, coords_scale[0], deriv=0)
 rho_lda = numint.eval_rho2(mol, ao, mo_coeff=mf_lda.mo_coeff,
                            mo_occ=mf_lda.mo_occ, xctype='LDA')
 dens_lda = torch.from_numpy(rho_lda)
-dens_lda_base = dens_lda.clone() 
+dens_lda_base = dens_lda.clone()
 # Evaluate energy for sample density
 
 ni = numint.NumInt()
@@ -342,7 +346,7 @@ print('exc diff kcal/mol', utils.hartree_to_kcal(np.abs(exc_sum_lda - exc_lda)))
 auxmol = gto.M(atom=atom, basis=auxbasis)
 auxmol.build()
 ml_coeffs_lda = orbitals.vector_to_coeffs_dict({'spherical_coeffs': samp_df['df_coeffs']}, dataset.orbital_basis_num, res['batch_atom_numbers'],
-                                           radial_coeffs=True, convert_to_equiv_dens=True, radial_basis=dataset.radial_coeffs)
+                                               radial_coeffs=True, convert_to_equiv_dens=True, radial_basis=dataset.radial_coeffs)
 res_df_lda = {key: res[key] for key in res}
 res_df_lda['spherical_coeffs'] = ml_coeffs_lda['spherical_coeffs']
 res_df_lda['radial_width'] = ml_coeffs_lda['radial_width']
@@ -500,18 +504,20 @@ print('exc diff kcal/mol', utils.hartree_to_kcal(np.abs(exc_sum_pbe - exc_pbe)))
 # Evaluate PBE energy for DF coeffs
 auxmol = gto.M(atom=atom, basis=auxbasis)
 auxmol.build()
-ml_coeffs_pbe = orbitals.vector_to_coeffs_dict({'spherical_coeffs': samp_df['df_coeffs']}, dataset.orbital_basis_num, res['batch_atom_numbers'],
-                                           radial_coeffs=True, convert_to_equiv_dens=True, radial_basis=dataset.radial_coeffs)
-res_df_pbe = {key: res[key] for key in res}
-res_df_pbe['spherical_coeffs'] = ml_coeffs_pbe['spherical_coeffs']
-res_df_pbe['radial_width'] = ml_coeffs_pbe['radial_width']
-res_df_pbe['radial_scale'] = ml_coeffs_pbe['radial_scale']
-df_bases_pbe, auxmols_pbe = orbitals.ml_basis_to_df_coeffs(res_df_pbe, basis, [mf_pbe.mo_coeff], [mf_pbe.mo_occ])
+# ml_coeffs_pbe = orbitals.vector_to_coeffs_dict({'spherical_coeffs': samp_df['df_coeffs']}, dataset.orbital_basis_num, res['batch_atom_numbers'],
+#                                            radial_coeffs=True, convert_to_equiv_dens=True, radial_basis=dataset.radial_coeffs)
+# res_df_pbe = {key: res[key] for key in res}
+# res_df_pbe['spherical_coeffs'] = ml_coeffs_pbe['spherical_coeffs']
+# res_df_pbe['radial_width'] = ml_coeffs_pbe['radial_width']
+# res_df_pbe['radial_scale'] = ml_coeffs_pbe['radial_scale']
+# df_bases_pbe, auxmols_pbe = orbitals.ml_basis_to_df_coeffs(res_df_pbe, basis, [mf_pbe.mo_coeff], [mf_pbe.mo_occ])
 coords = samp['coords'] / param.BOHR
-auxmol_pbe = auxmols_pbe[0]
-ao = numint.eval_ao(auxmol_pbe, coords[0], deriv=1)
+# auxmol_pbe = auxmols_pbe[0]
+ao = numint.eval_ao(auxmol, coords[0], deriv=1)
+df_basis = samp['df_coeffs'].squeeze()
+print('df basis shape', df_basis.shape)
 print('ao.shape', ao.shape)
-rho_pbe = np.einsum('ijk,k->ij', ao, df_bases_pbe[0])
+rho_pbe = np.einsum('ijk,k->ij', ao, df_basis.numpy(force=True))
 dens_pbe = torch.from_numpy(rho_pbe)
 print('dens integral', torch.sum(dens_pbe[[0]] * samp['coord_weights']))
 
@@ -529,7 +535,7 @@ print('exc diff kcal/mol', utils.hartree_to_kcal(np.abs(exc_sum_pbe - exc_pbe)))
 # Evaluate PBE energy for ML coeffs
 auxmol_pbe = orbitals.ml_basis_to_auxmol(res)
 df_coeffs_pbe = orbitals.coeffs_dict_to_vector(res, dataset.orbital_basis_num, res['batch_atom_numbers'],
-                                           radial_coeffs=False, convert_to_pyscf=True)['spherical_coeffs'].squeeze().detach()
+                                               radial_coeffs=False, convert_to_pyscf=True)['spherical_coeffs'].squeeze().detach()
 coords = samp['coords'] / param.BOHR
 ao = numint.eval_ao(auxmol_pbe, coords[0], deriv=1)
 print('ao.shape', ao.shape)
@@ -551,7 +557,7 @@ print('exc diff kcal/mol', utils.hartree_to_kcal(np.abs(exc_sum_pbe - exc_pbe)))
 # Evaluate PBE energy for ML coeffs coreless
 auxmol_pbe = orbitals.ml_basis_to_auxmol(res)
 df_coeffs_pbe = orbitals.coeffs_dict_to_vector(res, dataset.orbital_basis_num, res['batch_atom_numbers'],
-                                           radial_coeffs=False, convert_to_pyscf=True)['spherical_coeffs'].squeeze().detach()
+                                               radial_coeffs=False, convert_to_pyscf=True)['spherical_coeffs'].squeeze().detach()
 coords = samp['coords'] / param.BOHR
 ao = numint.eval_ao(auxmol_pbe, coords[0], deriv=1)
 print('ao.shape', ao.shape)
@@ -565,7 +571,7 @@ for i in range(res['batch_positions'].shape[1]):
     anum = int(torch.max(res['batch_atom_numbers'][:, i]))
     mo_coeffs = atom_dens_dict[anum]
     coeffs = [{'mo_coeff': mo_coeffs['mo_coeff'],
-                'mo_occ': mo_coeffs['mo_occ']}] * coords.shape[0]
+               'mo_occ': mo_coeffs['mo_occ']}] * coords.shape[0]
     atom = utils.npy_to_pyscf(res['batch_positions'][:, [i]].numpy(force=True),
                               res['batch_atom_numbers'][:, [i]].numpy(force=True),
                               basis)
@@ -722,7 +728,7 @@ for i in range(res['batch_positions'].shape[1]):
 # %%
 # Load dataset with option for density gradients
 args.spherical_grid_level = 1
-args.density_grad = False
+args.density_grad = True
 grid_fn = partial(spherical_grid, level=args.spherical_grid_level)
 dataset = AtomsDensityData(np_path=args.np_dataset_test, density_path=args.dens_dataset_test,
                            orbitals_path=args.orbitals_file,
@@ -757,25 +763,26 @@ print('args use gpu', args.use_gpu)
 
 # %%
 model = model_loader.load_model(args, dataset)
-model.eval()
-idx = [3]
+model.train()
+# model.eval()
+idx = [666]
 samp = dataset.get_properties(idx)
-samp_df = dataset_df.get_properties(idx)
+# samp_df = dataset_df.get_properties(idx)
 
 res = model(samp)
 
-print('samp df_coeffs', samp_df['df_coeffs'].shape)
+# print('samp df_coeffs', samp_df['df_coeffs'].shape)
 print('res df_coeffs', res['df_coeffs'].shape)
 
 # print('res_radial width', res['radial_width'])
 # print('dataset radial coeffs', dataset.radial_coeffs)
 print('res density integral', torch.sum(res['density'] * res['coord_weights'], dim=1))
 print('density integral', torch.sum(samp['density'] * samp['coord_weights'], dim=1))
-print('density integral', torch.sum(samp_df['density'] * samp_df['coord_weights'], dim=1))
+# print('density integral', torch.sum(samp_df['density'] * samp_df['coord_weights'], dim=1))
 print('density error', torch.sum(torch.abs(res['density'] - samp['density']) * samp['coord_weights'], dim=1)
-                       / torch.sum(samp['batch_atom_numbers'], dim=1))
-print('density df error', torch.sum(torch.abs(samp_df['density'] - samp['density']) * samp['coord_weights'], dim=1)
-                          / torch.sum(samp['batch_atom_numbers'], dim=1))
+      / torch.sum(samp['batch_atom_numbers'], dim=1))
+# print('density df error', torch.sum(torch.abs(samp_df['density'] - samp['density']) * samp['coord_weights'], dim=1)
+#                           / torch.sum(samp['batch_atom_numbers'], dim=1))
 print('res density grad', res['density_grad'].shape)
 # %%
 # Evaluate PBE energy for density with derivatives directly from data loader
@@ -783,11 +790,11 @@ ni = numint.NumInt()
 samp = dataset.get_properties(idx)
 coords_scale = (samp['coords'] - samp['pos_shift']) / param.BOHR
 print('dens integral', torch.sum(samp['density'] * samp['coord_weights']))
-dens_pbe = torch.permute(torch.cat([samp['density'].unsqueeze(-1), samp['density_grad']], dim=-1), (2, 1, 0)).squeeze()
-print('dens_deriv integral', torch.sum(torch.abs(dens_pbe[1:] * samp['coord_weights'])))
-print(dens_pbe.shape)
-exc_eff_pbe = torch.from_numpy(ni.eval_xc_eff('pbe', dens_pbe.numpy(force=True).astype(np.double), deriv=1, xctype='GGA')[0])
-dens_calc = dens_pbe[0] * samp['coord_weights']
+dens_true = torch.permute(torch.cat([samp['density'].unsqueeze(-1), samp['density_grad']], dim=-1), (2, 1, 0)).squeeze()
+print('dens_deriv integral', torch.sum(torch.abs(dens_true[1:] * samp['coord_weights'])))
+print(dens_true.shape)
+exc_eff_pbe = torch.from_numpy(ni.eval_xc_eff('pbe', dens_true.numpy(force=True).astype(np.double), deriv=1, xctype='GGA')[0])
+dens_calc = dens_true[0] * samp['coord_weights']
 # print('exchange correlation', exc_eff_pbe.shape)
 exc_pbe = torch.sum(exc_eff_pbe * dens_calc)
 # print('exc_pbe', exc_pbe)
@@ -807,17 +814,18 @@ print('dens integral', torch.sum(dens_pbe[[0]] * samp['coord_weights']))
 print('dens_deriv integral', torch.sum(torch.abs(dens_pbe[1:] * samp['coord_weights'])))
 print('dens pbd 1: shape', dens_pbe[1:].shape)
 print('atom density grad shape', samp['atom_density_grad'][0].shape)
-print('atom dens_deriv integral', torch.sum(torch.abs(samp['atom_density_grad'][0].t() * samp['coord_weights'])))
 print('dens_pbe shape', dens_pbe.shape)
 print('atom dens dataset shape', samp['atom_density'].shape)
 print('atom dens grad dataset shape', samp['atom_density_grad'].shape)
 dens_at = torch.cat([samp['atom_density'], samp['atom_density_grad'].squeeze().t()], dim=0)
 print('dens at shape', dens_at.shape)
 
+print('dens_pbe', dens_pbe[1:, :3])
 dens_pbe += dens_at
 print('dens pbe shape', dens_pbe.shape)
 print('rho atoms integral', torch.sum(dens_at[[0]] * samp['coord_weights']))
 print('dens integral', torch.sum(dens_pbe[[0]] * samp['coord_weights']))
+print('dens_deriv integral', torch.sum(torch.abs(dens_pbe[1:] * samp['coord_weights'])))
 rho_pbe = dens_pbe.numpy(force=True)
 ni = numint.NumInt()
 
@@ -830,8 +838,14 @@ print('exc diff', np.abs(exc_sum_pbe - exc_pbe))
 print('exc diff kcal/mol', utils.hartree_to_kcal(np.abs(exc_sum_pbe - exc_pbe)))
 # %%
 # Evaluate PBE energy for ML coeffs coreless, from spline from dataset
-coords_scale = (samp['coords'] - samp['pos_shift']) / param.BOHR
+samp['coords'].requires_grad = True
 res = model(samp)
+print(res['density_grad'][:, :3] - res['atom_density_grad'][:, :3])
+grad = 0
+for i in range(3):
+    grad_part = torch.autograd.grad(res['density'].squeeze()[i], res['coords'], retain_graph=True)[0]
+    grad += grad_part
+print('grad', grad)
 dens_pbe = torch.permute(torch.cat([res['density'].unsqueeze(-1), res['density_grad']], dim=-1), (2, 1, 0)).squeeze()
 print(dens_pbe.shape)
 print('dens integral', torch.sum(dens_pbe[[0]] * samp['coord_weights']))
@@ -841,5 +855,14 @@ dens_calc = dens_pbe[0] * samp['coord_weights']
 # print('exchange correlation', exc_eff_pbe.shape)
 exc_sum_pbe = torch.sum(exc_eff_pbe * dens_calc)
 print('exc energy', exc_sum_pbe)
-print('exc diff', np.abs(exc_sum_pbe - exc_pbe))
-print('exc diff kcal/mol', utils.hartree_to_kcal(np.abs(exc_sum_pbe - exc_pbe)))
+print('exc diff', torch.abs(exc_sum_pbe - exc_pbe))
+print('exc diff kcal/mol', utils.hartree_to_kcal(torch.abs(exc_sum_pbe - exc_pbe)))
+# %%
+vw_pred = torch.nansum(torch.norm(dens_pbe[1:], dim=0)**2 / dens_pbe[0] * samp['coord_weights'].squeeze()) / 8
+vw_true = torch.nansum((torch.norm(dens_true[1:], dim=0)**2 / dens_true[0]) * samp['coord_weights'].squeeze()) / 8
+print(torch.abs(vw_pred - vw_true))
+print(torch.sum(torch.norm(dens_pbe[1:] - dens_true[1:], dim=0) * samp['coord_weights'].squeeze())
+      / torch.sum(samp['atom_numbers']))
+# %%
+# autodiff grad for density
+
