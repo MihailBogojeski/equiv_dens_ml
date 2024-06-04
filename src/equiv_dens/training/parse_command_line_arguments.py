@@ -116,6 +116,10 @@ def parse_command_line_arguments(arg_file=None):
                                   help="Minimum value of the learned factor that is multiplied to the initial width")
     args_hyperparams.add_argument("--ml_width_max", metavar='FLOAT', type=float, default=2,
                                   help="Maximum value of the learned factor that is multiplied to the initial width")
+    args_hyperparams.add_argument("--nonmixing_interaction", metavar='True|False', type=str2bool, default=False,
+                                  help="Use a non-mixing interaction as a final representation layer.")
+    args_hyperparams.add_argument("--nonmixing_interaction_residual", metavar='True|False', type=str2bool, default=True,
+                                  help="Whether the final nonmixing layer is residual or not.")
     hyperparam_args = [act.dest for act in args_hyperparams._group_actions]
 
     # arguments for training
@@ -172,8 +176,12 @@ def parse_command_line_arguments(arg_file=None):
                                help="beta2 for the optimizer (only relevant for Adam/AMSGrad)")
     args_training.add_argument("--momentum", metavar='FLOAT', type=float, default=0.0,
                                help="momentum for the optimizer (only relevant for SGD)")
+    args_training.add_argument("--density_grad", metavar='True|False', type=str2bool, default=False,
+                               help="Calculate the density gradient")
     args_training.add_argument("--density_weight", metavar='FLOAT', type=float, default=1.0,
                                help="weight of the density in the loss function")
+    args_training.add_argument("--density_grad_weight", metavar='FLOAT', type=float, default=1.0,
+                               help="weight of the density gradient in the loss function")
     args_training.add_argument("--df_weight", metavar='FLOAT', type=float, default=0.0,
                                help="weight of the density fitting coeffs in the loss function")
     args_training.add_argument("--dipole_moment_weight", metavar='FLOAT', type=float, default=0.0,
@@ -189,6 +197,9 @@ def parse_command_line_arguments(arg_file=None):
                                         'coulomb', 'perc_mae', 'perc_rmse', 'mixed_dist_err',
                                         'perc_mixed_dist_err', 'kl_loss', 'dpm_loss', 'dpm_abs_loss'],
                                help="Composition of the density loss.")
+    args_training.add_argument("--density_grad_loss_comp", metavar='STR', type=str, default=['norm'], nargs='+',
+                               choices=['norm_int', 'perc_norm_int', 'kinetic_vw'],
+                               help="Composition of the density loss.")
     args_training.add_argument("--dipole_moment_loss_comp", metavar='STR', type=str, default=['mae'], nargs='+',
                                choices=['mae', 'rmse'], help="composition of the dipole moment loss")
     args_training.add_argument("--df_loss_comp", metavar='STR', type=str, default=['mae'], nargs='+',
@@ -198,6 +209,8 @@ def parse_command_line_arguments(arg_file=None):
     args_training.add_argument("--forces_loss_comp", metavar='STR', type=str, default=['mae'], nargs='+',
                                choices=['mae', 'rmse'], help="composition of the forces loss")
     args_training.add_argument("--density_loss_comp_weights", metavar='FLOAT', type=float, default=[1.0], nargs='+',
+                               help="weights of the composition of the density loss")
+    args_training.add_argument("--density_grad_loss_comp_weights", metavar='FLOAT', type=float, default=[1.0], nargs='+',
                                help="weights of the composition of the density loss")
     args_training.add_argument("--dipole_moment_loss_comp_weights", metavar='FLOAT', type=float, default=[1.0], nargs='+',
                                help="weights of the composition of the dipole moment loss")
@@ -209,6 +222,8 @@ def parse_command_line_arguments(arg_file=None):
                                help="weights of the composition of the forces loss")
     args_training.add_argument("--density_weight_min", metavar='FLOAT', type=float, default=0.0,
                                help="minimum weight of the density in the loss function")
+    args_training.add_argument("--density_grad_weight_min", metavar='FLOAT', type=float, default=0.0,
+                               help="minimum weight of the density gradient in the loss function")
     args_training.add_argument("--dipole_moment_weight_min", metavar='FLOAT', type=float, default=0.0,
                                help="minimum weight of the dipole moment in the loss function")
     args_training.add_argument("--df_weight_min", metavar='FLOAT', type=float, default=0.0,
@@ -221,6 +236,8 @@ def parse_command_line_arguments(arg_file=None):
                                help="minimum weight of the energy minimization loss")
     args_training.add_argument("--density_weight_decay", metavar='FLOAT', type=float, default=1.0,
                                help="decay of the weight of the density in the loss function")
+    args_training.add_argument("--density_grad_weight_decay", metavar='FLOAT', type=float, default=1.0,
+                               help="decay of the weight of the density gradient in the loss function")
     args_training.add_argument("--dipole_moment_weight_decay", metavar='FLOAT', type=float, default=1.0,
                                help="decay of the weight of the dipole moment in the loss function")
     args_training.add_argument("--df_weight_decay", metavar='FLOAT', type=float, default=1.0,

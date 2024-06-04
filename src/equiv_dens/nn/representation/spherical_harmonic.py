@@ -3,7 +3,7 @@ import torch.nn as nn
 from equiv_dens.nn.modules.radial_basis_functions import BernsteinRadialBasisFunctions, GaussianRadialBasisFunctions,\
     ExponentialBernsteinRadialBasisFunctions, ExponentialGaussianRadialBasisFunctions
 from equiv_dens.nn.modules.embeddings import SphericalEmbedding
-from equiv_dens.nn.modules.network_blocks import ModularBlock, ResidualBlock
+from equiv_dens.nn.modules.network_blocks import ModularBlock, ResidualBlock, NonmixingInteractionBlock
 from equiv_dens.nn.modules.spherical_harmonic_layers import SphericalLinear
 from equiv_dens.utils.spherical_harmonics import spherical_harmonics
 from equiv_dens.utils.base import calculate_distances_and_directions
@@ -44,6 +44,9 @@ class EquivariantSphericalHarmonics(nn.Module):
                  # type of activation function used (swish / ssp)
                  activation='swish',
                  clebsch_gordan=None,  # instance of the clebsch gordan matrix
+                 # whether to use a final nonmixing interaction
+                 nonmixing_interaction=False,
+                 nonmixing_interaction_residual=True,
                  Zmax=87,
                  timing=False,
                  memory=False,
@@ -81,6 +84,7 @@ class EquivariantSphericalHarmonics(nn.Module):
         self.verbose = verbose
         self.num_neighbours = num_neighbours
         self.normalize = normalize
+        self.nonmixing_interaction = nonmixing_interaction
 
         # self.orbital_basis = {}
         # for orb in orbitals:
@@ -142,21 +146,36 @@ class EquivariantSphericalHarmonics(nn.Module):
         else:
             print("basis function type:",
                   basis_functions, "is not supported")
-        modules = [ModularBlock(self.order[0], self.num_features, self.num_basis_functions,
-                                self.num_residual_pre_x, self.num_residual_post_x, self.num_residual_pre_vi,
-                                self.num_residual_pre_vj, self.num_residual_post_v, self.num_residual_output,
-                                self.clebsch_gordan, True, self.mixing_order[0], 0, self.activation,
-                                self.num_neighbours, normalize, parity=parity)]
-        modules.extend([ModularBlock(self.order[i], self.num_features, self.num_basis_functions,
-                                     self.num_residual_pre_x, self.num_residual_post_x, self.num_residual_pre_vi,
-                                     self.num_residual_pre_vj, self.num_residual_post_v, self.num_residual_output,
-                                     self.clebsch_gordan, True, self.mixing_order[i], self.order[i - 1],
-                                     self.activation, self.num_neighbours, normalize, parity=parity) for i in range(1, self.num_modules)])
+        modules = [ModularBlock(order=self.order[0], num_features=self.num_features,
+                                num_basis_functions=self.num_basis_functions,
+                                num_residual_pre_x=self.num_residual_pre_x,
+                                num_residual_post_x=self.num_residual_post_x,
+                                num_residual_pre_vi=self.num_residual_pre_vi,
+                                num_residual_pre_vj=self.num_residual_pre_vj,
+                                num_residual_post_v=self.num_residual_post_v,
+                                num_residual_output=self.num_residual_output,
+                                clebsch_gordan=self.clebsch_gordan,
+                                mix_orders=True, mixing_order=self.mixing_order[0],
+                                input_order=0, activation=self.activation,
+                                num_neighbours=self.num_neighbours, normalize=normalize,
+                                parity=parity)]
+        modules.extend([ModularBlock(order=self.order[i], num_features=self.num_features,
+                                     num_basis_functions=self.num_basis_functions,
+                                     num_residual_pre_x=self.num_residual_pre_x,
+                                     num_residual_post_x=self.num_residual_post_x,
+                                     num_residual_pre_vi=self.num_residual_pre_vi,
+                                     num_residual_pre_vj=self.num_residual_pre_vj,
+                                     num_residual_post_v=self.num_residual_post_v,
+                                     num_residual_output=self.num_residual_output,
+                                     clebsch_gordan=self.clebsch_gordan, mix_orders=True,
+                                     mixing_order=self.mixing_order[i], input_order=self.order[i - 1],
+                                     activation=self.activation, num_neighbours=self.num_neighbours,
+                                     normalize=normalize, parity=parity) for i in range(1, self.num_modules)])
         self.module = nn.ModuleList(modules)
         self.order_change = [nn.Identity()]
         for i in range(1, self.num_modules):
             if self.order[i] != self.order[i - 1]:
-                self.order_change.append(ResidualBlock(self.order[i - 1], self.num_features,
+                self.order_change.append(ResidualBlock(order=self.order[i - 1], num_features=self.num_features,
                                                        clebsch_gordan=self.clebsch_gordan,
                                                        activation=self.activation,
                                                        order_out=self.order[i], normalize=normalize,
@@ -164,6 +183,20 @@ class EquivariantSphericalHarmonics(nn.Module):
             else:
                 self.order_change.append(nn.Identity())
         self.order_change = nn.ModuleList(self.order_change)
+        if self.nonmixing_interaction:
+            self.nonmixing_interaction_block = NonmixingInteractionBlock(order=self.order[-1],
+                                                                         num_features=self.num_features,
+                                                                         num_basis_functions=self.num_basis_functions,
+                                                                         num_residual_pre_vi=self.num_residual_pre_vi,
+                                                                         num_residual_pre_vj=self.num_residual_pre_vj,
+                                                                         num_residual_post_v=self.num_residual_post_v,
+                                                                         clebsch_gordan=self.clebsch_gordan,
+                                                                         activation=self.activation,
+                                                                         num_neighbours=self.num_neighbours,
+                                                                         normalize=self.normalize,
+                                                                         residual=nonmixing_interaction_residual,
+                                                                         )
+
 
     def forward(self, atoms):
         """
@@ -182,7 +215,7 @@ class EquivariantSphericalHarmonics(nn.Module):
         # idx_j = torch.arange(N).view(1, -1).repeat(N, 1).view(-1).to(R).type(torch.int64)
         idx_i = atoms['idx_i']
         idx_j = atoms['idx_j']
-        neighbor_mask = 1 
+        neighbor_mask = 1
         # neighbor_mask = atoms['atom_mask'].view(batch_size, 1, -1).repeat(1, N, 1).view(batch_size, -1)
         # exclude self - interactions
         # neighbor_mask = neighbor_mask[:, idx_i != idx_j]
@@ -277,6 +310,8 @@ class EquivariantSphericalHarmonics(nn.Module):
                 print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
                 print('Memory cached', torch.cuda.memory_cached() / 1024**2)
             # print('fs norms', [torch.mean(torch.sum(fs[i]**2, dim=-2), dim=-1) for i in range(len(fs))])
+        if self.nonmixing_interaction:
+            fs = self.nonmixing_interaction_block(fs, rbf, sph, idx_i, idx_j, neighbor_mask=neighbor_mask)
         atoms['sph_repr'] = fs
         if self.timing:
             print('sph repr time', time.time() - start)

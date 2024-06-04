@@ -62,8 +62,10 @@ def kcal_to_eV(en):
 def kcal_to_kelvin(en):
     return en / 0.001987191686485529
 
+
 def au_to_debye(dpm):
     return dpm * nist.AU2DEBYE
+
 
 def internal_to_debye(dpm):
     return dpm * nist.AU2DEBYE * to_bohr
@@ -400,6 +402,7 @@ def calculate_distances_and_directions(R, idx_i=None, idx_j=None, center=None):
     uij = rij / dij  # unit displacement vectors
     return dij, uij
 
+
 class TorchNeighborList:
     """
     Environment provider making use of neighbor lists as implemented in TorchAni
@@ -704,17 +707,24 @@ def get_atom_num_first_positions(atom_numbers):
 
 def calc_dict_to_npy(data, convert_forces=True, compress_atoms=True):
     data_npy = {}
-    data_npy['energy'] = []
-    data_npy['forces'] = []
+
     data_npy['positions'] = []
     data_npy['atom_numbers'] = []
     data_npy['atom_types'] = []
+    for key in data[1][1].keys():
+        print(key)
+        if 'energy' in key or 'forces' in key:
+            print('key has energy or forces')
+            data_npy[key] = []
     for calc in data:
-        data_npy['energy'].append(calc[1]['energy'])
-        if convert_forces:
-            data_npy['forces'].append(-calc[1]['forces'] * to_bohr)
-        else:
-            data_npy['forces'].append(calc[1]['forces'])
+        for key in data_npy.keys():
+            if 'energy' in key:
+                data_npy[key].append(calc[1][key])
+            elif 'forces' in key:
+                if convert_forces:
+                    data_npy[key].append(-calc[1][key] * to_bohr)
+                else:
+                    data_npy[key].append(calc[1][key])
         pos = []
         at = []
         z = []
@@ -733,21 +743,27 @@ def calc_dict_to_npy(data, convert_forces=True, compress_atoms=True):
         data_npy['atom_types'].append(z)
     # print('data_npy atom numbers', data_npy['atom_numbers'][:10])
     # print('data_npy pos', data_npy['positions'][:10])
+    props = {'positions': data_npy['positions']}
+    for key in data_npy.keys():
+        if 'forces' in key:
+            props[key] = data_npy[key]
     if compress_atoms:
         atom_numbers, props = compress_batch_atoms(data_npy['atom_numbers'],
-                                                   {'positions': data_npy['positions'],
-                                                    'forces': data_npy['forces']})
+                                                   props)
     else:
         atom_numbers = np.array(data_npy['atom_numbers'])
-        props = {'positions': np.array(data_npy['positions']), 'forces': np.array(data_npy['forces'])}
-    data_npy['positions'] = props['positions'] 
+        props = {key: np.array(props[key]) for key in props.keys()}
+    data_npy['positions'] = props['positions']
     # print(data_npy['positions'].shape)
     data_npy['atom_numbers'] = atom_numbers.astype(int)
     # print(data_npy['atom_numbers'].shape)
     # print('data_npy atom numbers new', data_npy['atom_numbers'][:10])
     # print('data_npy pos new', data_npy['positions'][:10])
-    data_npy['forces'] = props['forces'] 
-    data_npy['energy'] = np.stack(data_npy['energy'], 0)[:, None]
+    for key in data_npy.keys():
+        if 'energy' in key:
+            data_npy[key] = np.stack(data_npy[key], 0)[:, None]
+        elif 'forces' in key:
+            data_npy[key] = props[key]
     return data_npy
 
 
@@ -812,93 +828,6 @@ def write_cube_from_atoms(density, atoms, fname, cube_size):
     cubetools.write_cube(data=density_cube, meta=meta, fname=fname)
 
 
-def model_input_from_atoms(atoms, use_gpu=False, density_expansion=False,
-                           pyscf_grid=True, grid_spec=None,
-                           grid_sampling_fn=None, cutoff=5):
-    """
-    Function to extracts neighbor lists, atom_types, positions e.t.c. from the system and generate a properly
-    formatted input for the schnetpack model.
-
-    Args:
-        system (schnetpack.md.System): System object containing current state of the simulation.
-
-    Returns:
-        dict(torch.Tensor): Schnetpack inputs in dictionary format.
-    """
-    positions = torch.tensor(atoms['positions'])
-    if atoms['atom_numbers'].shape[0] != positions.shape[0]:
-        atom_types = np.tile(atoms['atom_numbers'], (positions.shape[0], 1))
-    atom_types = torch.tensor(atoms['atom_numbers'])
-    if use_gpu:
-        positions = positions.cuda()
-        atom_types = atom_types.cuda()
-    natoms = atom_types.shape[-1]
-    positions = positions.view(-1, natoms, 3)
-    atom_types = atom_types.view(-1, natoms)
-    center = torch.sum(positions * atom_types.unsqueeze(-1), 1) / torch.sum(atom_types, 1).unsqueeze(-1)
-    # inputs = {'positions': positions + 10,
-    props = {'positions': (positions - center.unsqueeze(1)).cpu().numpy()}
-    atom_numbers, props = compress_batch_atoms(atom_types.cpu().numpy(), props)
-    positions = torch.from_numpy(props['positions']).to(positions)
-    inputs = {}
-    if density_expansion:
-        # print('grid spec', self.grid_spec)
-        if pyscf_grid:
-            sample_coords, coord_weights = get_pyscf_coords(grid_spec, 10000000000,
-                                                            atom_numbers,
-                                                            positions)
-        else:
-            sample_coords, coord_weights = grid_sampling_fn(grid_spec, 10000000000,
-                                                            atom_numbers,
-                                                            positions)
-        inputs['coords'] = sample_coords
-        inputs['coord_weights'] = coord_weights
-
-    inputs['positions'] = positions
-    inputs['atom_numbers_first_positions'] = get_atom_num_first_positions(atom_numbers)
-    inputs['atom_numbers'] = torch.tensor(atom_numbers).to(positions).type(torch.long)
-    inputs['atom_mask'] = inputs['atom_numbers'] > 0
-
-    nl = TorchNeighborList(cutoff)
-    print(inputs['positions'])
-    idx_is, idx_js, _ = nl.get_neighbors(inputs)
-    # print('inputs positions shape', inputs['positions'].shape)
-    # print('idx_is', idx_is)
-    prev_max = 0
-    for i in range(len(idx_is)):
-        idx_is[i] += prev_max
-        idx_js[i] += prev_max
-        print('idx_is shape', idx_is[i].shape)
-        max_i = torch.max(idx_is[i])
-        max_j = torch.max(idx_is[i])
-        prev_max = max(max_i, max_j) + 1
-
-    atom_batch_idx = np.zeros_like(atom_numbers)
-    for i in range(len(atom_numbers)):
-        atom_batch_idx[i, :] = i
-    atom_batch_idx = torch.tensor(atom_batch_idx).to(positions).type(torch.long)
-
-    idx_is = torch.cat(idx_is, dim=0)
-    idx_js = torch.cat(idx_js, dim=0)
-    inputs['idx_i'] = idx_is
-    inputs['idx_j'] = idx_js
-    inputs['batch_atom_numbers'] = inputs['atom_numbers'] * 1
-    inputs['batch_atom_mask'] = (inputs['atom_mask'] * 1).type(torch.bool)
-    inputs['batch_positions'] = inputs['positions'] * 1
-    inputs['positions'] = positions.view(1, -1, *inputs['positions'].shape[2:])
-    inputs['atom_numbers'] = inputs['batch_atom_numbers'].flatten()
-    inputs['atom_mask'] = inputs['batch_atom_mask'].flatten()
-    batch_nz = inputs['atom_mask'].to(inputs['positions'])
-    batch_idx_pos = batch_nz * torch.arange(len(batch_nz)).to(batch_nz)
-    inputs['batch_idx_pos'] = batch_idx_pos[inputs['atom_mask']].to(torch.long)
-    inputs['atom_numbers'] = inputs['atom_numbers'][inputs['atom_mask']].view(1, -1)
-    inputs['atom_batch_idx'] = atom_batch_idx.flatten()
-    inputs['atom_batch_idx'] = inputs['atom_batch_idx'][inputs['atom_mask']].view(1, -1)
-    inputs['positions'] = inputs['positions'][:, inputs['atom_mask']]
-
-    return inputs
-
-
 def get_pyscf_coords(grid_spec, density_n_samp, atom_numbers, positions):
     """
     Get density grid coordinates using PySCF gen_grid.
@@ -911,7 +840,6 @@ def get_pyscf_coords(grid_spec, density_n_samp, atom_numbers, positions):
     """
     # mol = utils.npy_to_ase(dataset.atoms['positions'][0:1], dataset.atoms['atom_numbers'][0:1])[0]
     # utils.npy_to_ase(dataset.atoms['positions'][0:1], dataset.atoms['atom_numbers'][0:1])[0]
-    start = time.time()
     max_len = 0
     all_coords = []
     all_weights = []
@@ -921,11 +849,9 @@ def get_pyscf_coords(grid_spec, density_n_samp, atom_numbers, positions):
         atom_numbers = atom_numbers.unsqueeze(0)
         pos = pos.unsqueeze(0)
     for i in range(atom_numbers.shape[0]):
-        loop_start = time.time()
         atom = [(atom_numbers[i, j], pos[i, j]) for j in range(atom_numbers.shape[1])]
         mol = gto.Mole(atom=atom)
         if not mol._built:
-            build_start = time.time()
             mol.build()
         rot_spec = grid_spec
         coords, weights = dft.gen_grid.get_partition(mol, rot_spec)
@@ -944,3 +870,17 @@ def get_pyscf_coords(grid_spec, density_n_samp, atom_numbers, positions):
     pad_coords = nn.utils.rnn.pad_sequence(all_coords, batch_first=True, padding_value=0) * to_angstrom
     pad_weights = nn.utils.rnn.pad_sequence(all_weights, batch_first=True, padding_value=0)
     return pad_coords, pad_weights
+
+def center_of_mass(positions, atom_numbers, keepdim=True):
+    """
+    Compute the center of mass of a set of atoms.
+
+    Args:
+        positions (torch.Tensor): positions of atoms
+        atom_numbers (torch.Tensor): number of atoms
+        keepdim (bool, optional): whether to keep the atom dimension. Defaults to True.
+    Returns:
+        torch.Tensor: center of mass of the set of atoms
+    """
+    return torch.sum(positions * atom_numbers.unsqueeze(-1), dim=1, keepdim=keepdim)\
+        / torch.sum(atom_numbers.unsqueeze(-1), dim=1, keepdim=keepdim)
