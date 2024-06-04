@@ -1,14 +1,12 @@
 import torch
 import torch.nn as nn
 import numpy as np
-import equiv_dens.utils.base as utils
-from equiv_dens.nn.modules.clebsch_gordan import sparsify_cg_matrix
+# import equiv_dens.utils.base as utils
+# from equiv_dens.nn.modules.clebsch_gordan import sparsify_cg_matrix
 
 
 class SphericalLinear(nn.Module):
-    """
-    Like a linear layer, but acting on spherical harmonic features (optionally mixes features)
-    """
+    """Like a linear layer, but acting on spherical harmonic features (optionally mixes features)."""
 
     def __init__(
         self,
@@ -23,6 +21,21 @@ class SphericalLinear(nn.Module):
         normalize=0,
         parity=False,
     ):
+        """
+        Initialize a SphericalLinear layer.
+
+        Args:
+            order_in (int): order of the input spherical features
+            num_in (int): dimensionality of the input features
+            order_out (int): order of the output spherical features
+            num_out (int): dimensionality of the output features
+            clebsch_gordan (torch.Tensor): Clebsch-Gordan coefficients
+            mix_orders (bool): whether to mix input features
+            bias (bool): whether to use bias
+            zero_init (bool): whether to initialize with zeros
+            normalize (int): normalization of the output features
+            parity (bool): whether to preserve parity of spherical features
+        """
         super().__init__()
         self.order_in = order_in
         self.num_in = num_in
@@ -50,6 +63,7 @@ class SphericalLinear(nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
+        """Initialize/reset the layer's parameters."""
         if self.zero_init:
             for L in range(self.order_out + 1):
                 nn.init.zeros_(self.linear[L].weight)
@@ -60,6 +74,14 @@ class SphericalLinear(nn.Module):
             nn.init.zeros_(self.linear[0].bias)
 
     def forward(self, xs):
+        """
+        Forward pass of the layer.
+
+        Args:
+            xs (list of torch.Tensor): input features
+        Returns:
+            ys (list of torch.Tensor): output features
+        """
         if self.mix_orders:
             ys = self.mixing(xs)
             for L in range(self.order_out + 1):
@@ -72,12 +94,22 @@ class SphericalLinear(nn.Module):
 
 
 class SelfMixing(nn.Module):
-    """
-    Mixes features of different orders
-    """
+    """Mixes spherical features of different orders."""
 
-    def __init__(self, order_in, order_out, num_features,
+    def __init__(self, order_in,
+                 order_out, num_features,
                  clebsch_gordan, normalize=0, parity=False):
+        """
+        Initialize a SelfMixing layer.
+
+        Args:
+            order_in (int): order of the input spherical features
+            order_out (int): order of the output spherical features
+            num_features (int): dimensionality of the input features
+            clebsch_gordan (torch.Tensor): Clebsch-Gordan coefficients
+            normalize (int): normalization of the output features
+            parity (bool): whether to preserve parity of spherical features
+        """
         super().__init__()
         self.order_in = order_in
         self.order_out = order_out
@@ -101,6 +133,7 @@ class SelfMixing(nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
+        """Initialize/reset the layer's parameters."""
         count = [1 for L in range(self.order_out + 1)]
         # for L in range(min(self.order_in, self.order_out) + 1):
         #     count[L] += 1
@@ -137,12 +170,38 @@ class SelfMixing(nn.Module):
                     )
 
     def keepcoeff(self, L):
+        """
+        Get the mixing coefficients for the given order.
+
+        Args:
+            L (int): output order
+        Returns:
+            keepcoeff (torch.Tensor): mixing coefficients
+        """
         return getattr(self, "keepcoeff_{}".format(L))
 
     def mixcoeff(self, l1, l2, L):
+        """
+        Get the mixing coefficients for the given orders.
+
+        Args:
+            l1 (int): first order
+            l2 (int): second order
+            L (int): output order
+        Returns:
+            mixcoeff (torch.Tensor): mixing coefficients
+        """
         return getattr(self, "mixcoeff_{}_{}_{}".format(l1, l2, L))
 
     def forward(self, xs):
+        """
+        Compute the spherical tensor product between the different orders of the same atomic features.
+
+        Args:
+            x1 (list of torch.Tensor): set of spherical features
+        Returns:
+            ys (list of torch.Tensor): features after self-mixing
+        """
         # print('in', self.order_in, 'out', self.order_out)
         # print('xs norm selfmix', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
         # initialize output
@@ -196,10 +255,7 @@ class SelfMixing(nn.Module):
 
 
 class PairMixing(nn.Module):
-    """
-    Mixes pairs of atomic features in a distance dependent way using a learnable radial function
-    and outputs pair features
-    """
+    """Mixes pairs of atomic features in a distance dependent way and outputs pair features."""
 
     def __init__(
         self,
@@ -212,6 +268,19 @@ class PairMixing(nn.Module):
         normalize=0,
         parity=False,
     ):
+        """
+        Initialize the PairMixing object.
+
+        Args:
+            order_in1 (int): order of first input spherical harmonics
+            order_in2 (int): order of second input spherical harmonics
+            order_out (int): order of output spherical harmonics
+            num_basis_functions (int): number of basis functions
+            num_features (int): dimensionality of the feature space
+            clebsch_gordan (torch.Tensor): Clebsch-Gordan coefficients
+            normalize (int): whether to normalize the output features
+            parity (bool): whether to preserve parity of spherical features
+        """
         super().__init__()
         self.order_in1 = order_in1
         self.order_in2 = order_in2
@@ -219,7 +288,7 @@ class PairMixing(nn.Module):
         self.num_basis_functions = num_basis_functions
         self.num_features = num_features
         self.clebsch_gordan = clebsch_gordan
-        self.normalize = normalize 
+        self.normalize = normalize
         self.parity = parity
         # distance - dependent coefficients for mixing
         for l1 in range(self.order_in1 + 1):
@@ -238,6 +307,7 @@ class PairMixing(nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
+        """Initialize/reset the layer's parameters."""
         for l1 in range(self.order_in1 + 1):
             for l2 in range(self.order_in2 + 1):
                 for L in range(abs(l1 - l2), min(l1 + l2, self.order_out) + 1):
@@ -247,9 +317,29 @@ class PairMixing(nn.Module):
                     self.L_count[L] += 1
 
     def coeff(self, l1, l2, L):
+        """
+        Retrieve the learneable mixing coefficients.
+
+        Args:
+            l1 (int): order of first input spherical harmonics
+            l2 (int): order of second input spherical harmonics
+            L (int): order of output spherical harmonics
+        Returns:
+            coeff (torch.Tensor): mixing coefficients
+        """
         return getattr(self, "coeff_{}_{}_{}".format(l1, l2, L))
 
     def forward(self, x1s, x2s, rbf):
+        """
+        Compute the spherical tensor product between two spherical features by mixing orders.
+
+        Args:
+            x1s (list of torch.Tensor): first set of spherical features
+            x2s (list of torch.Tensor): second set of spherical features
+            rbf (torch.Tensor): radial basis function
+        Returns:
+            ys (list of torch.Tensor): features after pair interaction
+        """
         # initialize output to zeros
         ys = [
             torch.zeros_like(x1s[0]).repeat(
@@ -302,7 +392,7 @@ class PairMixing(nn.Module):
                     # print('num basis functions', self.num_basis_functions)
                     # print('num features', self.num_features)
                     if self.normalize:
-                        norm_factor =  np.sqrt(L + 1) * np.sqrt(self.num_features/self.num_basis_functions)
+                        norm_factor = np.sqrt(L + 1) * np.sqrt(self.num_features / self.num_basis_functions)
                     else:
                         norm_factor = 1
                     ys[L] = ys[L] + self.coeff(l1, l2, L)(rbf) * (norm_factor) * (
@@ -311,6 +401,129 @@ class PairMixing(nn.Module):
         # print('ys pairmix norm', [float(torch.mean(ys[L] ** 2)) for L in range(len(ys))])
         return ys
 
+
+class PairInteraction(nn.Module):
+    """Lets a pair of atomic features interact in a distance dependent way, without mixing different orders."""
+
+    def __init__(
+        self,
+        order,
+        num_basis_functions,
+        num_features,
+        clebsch_gordan,
+        normalize=0,
+    ):
+        """
+        Initialize the PairInteraction object.
+
+        Args:
+            order (int): order of spherical harmonics
+            num_basis_functions (int): number of basis functions
+            num_features (int): dimensionality of the feature space
+            clebsch_gordan (torch.Tensor): Clebsch-Gordan coefficients
+            normalize (int): whether to normalize the output features
+        """
+        super().__init__()
+        self.order = order
+        self.num_basis_functions = num_basis_functions
+        self.num_features = num_features
+        self.clebsch_gordan = clebsch_gordan
+        self.normalize = normalize
+        # distance - dependent coefficients for mixing
+        for L in range(self.order + 1):
+            name = "coeff_{}".format(L)
+            self.add_module(
+                name,
+                nn.Linear(
+                    self.num_basis_functions, self.num_features, bias=False
+                ),
+            )
+        self.L_count = [0 for L in range(self.order + 1)]
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        """Initialize/reset the layer's parameters."""
+        for L in range(self.order + 1):
+            nn.init.orthogonal_(self.coeff(L).weight)
+            self.L_count[L] += 1
+
+    def coeff(self, L):
+        """
+        Retrieve the learneable coefficients for the order L.
+
+        Args:
+            L (int): order of spherical harmonics
+        Returns:
+            coeff (torch.Tensor): mixing coefficients
+        """
+        return getattr(self, "coeff_{}".format(L))
+
+    def forward(self, x1s, x2s, rbf):
+        """
+        Compute the spherical tensor product between the same orders only.
+
+        Args:
+            x1s (list of torch.Tensor): first set of spherical features
+            x2s (list of torch.Tensor): second set of spherical features
+            rbf (torch.Tensor): radial basis function
+        Returns:
+            ys (list of torch.Tensor): features after pair interaction
+        """
+        # initialize output to zeros
+        ys = [
+            torch.zeros_like(x1s[0]).repeat(
+                *(1,) * len(x1s[0].shape[:-2]), 2 * L + 1, 1
+            )
+            for L in range(self.order + 1)
+        ]
+        if self.clebsch_gordan is not None:
+            cg_matrix, _ = self.clebsch_gordan(
+                self.order, self.order, self.order
+            )
+        else:
+            cg_matrix = torch.ones((1, 1, 1)).to(x1s[0])
+        # loop over all combinations of orders
+        # print('xs1 pairmix norm', [float(torch.mean(x1s[L] ** 2)) for L in range(len(x1s))])
+        # print('xs2 pairmix norm', [float(torch.mean(x2s[L] ** 2)) for L in range(len(x2s))])
+        # print('L_counts', self.L_count)
+        for L in range(self.order + 1):
+            # get view of x1s[l1] that enables broadcasting to compute the spherical tensor product
+            x1 = x1s[L].view(
+                *x1s[L].shape[:-2], x1s[L].size(-2), 1, 1, self.num_features
+            )
+            # get view of x2s[l2] that enables broadcasting to compute the spherical tensor product
+            x2 = x2s[L].view(
+                *x2s[L].shape[:-2], 1, x2s[L].size(-2), 1, self.num_features
+            )
+            # compute spherical tensor product
+            # print('ls', l1, l2)
+            # print('x1 norm', float(torch.mean(x1 ** 2)))
+            # print('x2 norm', float(torch.mean(x2 ** 2)))
+            tp = x1 * x2
+            # print('tp norm', float(torch.mean(tp ** 2)))
+            # decompose tensor product into irreducible representations and collect contributions
+
+            cg = cg_matrix[
+                L ** 2:(L + 1) ** 2,
+                L ** 2:(L + 1) ** 2,
+                L ** 2:(L + 1) ** 2,
+            ]
+            cg = cg.view((*(1,) * len(tp.shape[:-4]), *cg.shape, 1))
+            # contract and addi
+            # print("L", L)
+            # print('cg * tp norm', float(torch.mean((self.coeff(l1, l2, L)(rbf) * np.sqrt(2* L + 1) * (cg * tp).sum(-3).sum(-3)) ** 2)))
+            # print('coeff norm', float(torch.mean((self.coeff(l1, l2, L)(rbf) * np.sqrt(self.num_features/self.num_basis_functions)) ** 2)))
+            # print('num basis functions', self.num_basis_functions)
+            # print('num features', self.num_features)
+            if self.normalize:
+                norm_factor = np.sqrt(L + 1) * np.sqrt(self.num_features / self.num_basis_functions)
+            else:
+                norm_factor = 1
+            ys[L] = ys[L] + self.coeff(L)(rbf) * (norm_factor) * (
+                (cg * tp).sum(-3).sum(-3) / np.sqrt(self.L_count[L])
+            )
+        # print('ys pairmix norm', [float(torch.mean(ys[L] ** 2)) for L in range(len(ys))])
+        return ys
 # class SelfMixing_new(nn.Module):
 #     """
 #     Mixes features of different orders

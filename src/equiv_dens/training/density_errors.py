@@ -162,3 +162,32 @@ def dipole_pointwise_abs_loss(pred_dens, target_dens, grid_coords, grid_weights)
     dpm_int_error = torch.sum((torch.abs(target_dens - pred_dens) * grid_weights) *
                               torch.norm(grid_coords - center_of_coords, dim=-1), dim=1)
     return dpm_int_error
+
+
+def density_grad_VW_energy_mae(pred_dens, pred_dens_grad, target_dens, target_dens_grad, grid_weights):
+    """
+    Compute the absolute difference in von Weizsacker kinetic energy of the density gradient.
+
+    Args:
+        pred_dens (torch.Tensor): Predicted density.
+        pred_dens_grad (torch.Tensor): Gradient of the predicted density.
+        target_dens (torch.Tensor): Target/ground truth density.
+        target_dens_grad (torch.Tensor): Gradient of target/ground truth density.
+        grid_weights (torch.Tensor): Weights of the integration grid.
+    """
+    vw_pred = torch.nansum(torch.norm(pred_dens_grad, dim=-1)**2 / pred_dens * grid_weights) / 8
+    vw_true = torch.nansum((torch.norm(target_dens_grad, dim=-1)**2 / target_dens) * grid_weights) / 8
+    return torch.abs(vw_pred - vw_true)
+
+
+def density_grad_norm_int(pred_dens_grad, target_dens_grad, grid_weights):
+    """
+    Compute the integral of the norm of the difference between the density gradients.
+
+    Args:
+        pred_dens_grad (torch.Tensor): Gradient of the predicted density.
+        target_dens_grad (torch.Tensor): Gradient of target/ground truth density.
+        grid_weights (torch.Tensor): Weights of the integration grid.
+    """
+
+    return torch.sum(torch.norm(pred_dens_grad - target_dens_grad, dim=-1) * grid_weights)

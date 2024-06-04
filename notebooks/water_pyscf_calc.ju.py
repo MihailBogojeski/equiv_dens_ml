@@ -8,8 +8,10 @@ from pyscf.scf import hf
 import scipy
 from equiv_dens.utils import base as utils
 # %cd /home/mihail/Documents/workspace/equiv_dens/
-# %%
 hf.MUTE_CHKFILE = True
+# %load_ext autoreload
+# %autoreload 2
+# %%
 
 # mol = gto.M(atom='O  0  0  0.1184; H  0,  0.7532, -0.4735; H 0,  -0.7532, -0.4735 ', basis='def2svp')
 # mf = dft.RKS(mol)
@@ -90,6 +92,165 @@ np.save(save_path, results, allow_pickle=True)
 npy_data = utils.calc_dict_to_npy(results, convert_forces=False, compress_atoms=False)
 np.save(npy_path, npy_data, allow_pickle=True)
 
+# %%
+# calculating for a single molecule, and getting different energy components
+data = np.load('datasets/h2o_dynamic_centered.npy', allow_pickle=True).item()
+basis = 'augccpvdz'
+
+atom_types = data['atom_types']
+
+i = 0
+print('calc', i)
+start = time.time()
+pos = data['positions'][i]
+atom = []
+for j in range(len(atom_types)):
+    atom.append((atom_types[j], pos[j, :]))
+mol = gto.M(atom=atom, basis=basis)
+#print(mol.pack())
+mf = hf.RHF(mol)
+mf.max_cycle = 0
+mf.init_guess = 'atom'
+mf.chkfile=False
+mf.kernel()
+print(mf.energy_tot())
+print(mf.e_tot)
+# %%
+dm = mf.make_rdm1()
+m_kin = mol.intor('int1e_kin')
+m_nuc = mol.intor('int1e_nuc')
+
+e_kin = np.einsum('ij,ji', dm, m_kin)
+e_nuc = np.einsum('ij,ji', dm, m_nuc)
+
+veff = mf.get_veff()
+ecoul = veff.ecoul
+exc = veff.exc
+
+print('total energy', e_kin + e_nuc + ecoul + exc + mf.energy_nuc())
+print(mf.__dir__())
+print('total_energy etot', mf.e_tot)
+print('total_energy', mf.energy_tot())
+print('nuclear energy', mf.energy_nuc())
+print('eletronic energy, coulomb energy', mf.energy_elec())
+print(mf.get_veff().shape)
+print(mf.mo_coeff.shape)
+# %%
+def get_energy_components(mol, mf):
+    """
+    Get energy components for a single molecule.
+
+    Args:
+        mol: pyscf molecule
+        mf: pyscf scf object
+    Returns:
+        energies: dictionary of energy components
+    """
+    dm = mf.make_rdm1()
+    m_kin = mol.intor('int1e_kin')
+    m_nuc = mol.intor('int1e_nuc')
+    h1e = mf.get_hcore()
+    veff = mf.get_veff()
+
+    energies = {}
+    energies['energy'] = mf.energy_tot()
+    energies['energy_e_kin'] = np.einsum('ij,ji', dm, m_kin)
+    energies['energy_e_nuc'] = np.einsum('ij,ji', dm, m_nuc)
+    energies['energy_coul'] = veff.ecoul
+    energies['energy_exc'] = veff.exc
+    energies['energy_nuc'] = mf.energy_nuc()
+    # print('energies', energies)
+    # print('total energy', energies['energy'])
+    # print('mf energy elec', mf.energy_elec())
+    # print('mf energy nuc', mf.energy_nuc())
+    # print('mf energy elec + nuc', mf.energy_elec() + mf.energy_nuc())
+    # print('mf ecoul', energies['energy_coul'] + energies['energy_exc'])
+    # print('energy h1e', energies['energy_e_kin'] + energies['energy_e_nuc'])
+    # print('mf h1e', np.einsum('ij,ji', dm, h1e))
+    #
+    # print('total elec', energies['energy_e_kin'] + energies['energy_e_nuc'] +
+    #       energies['energy_coul'] + energies['energy_exc'])
+    # print('mf elec', np.einsum('ij,ji', dm, h1e) + energies['energy_coul'] + energies['energy_exc'])
+    # print('summed components', energies['energy_e_kin'] + energies['energy_e_nuc'] +
+    #       energies['energy_coul'] + energies['energy_exc'] + energies['energy_nuc'])
+
+    assert np.isclose(energies['energy'], energies['energy_e_kin'] + energies['energy_e_nuc'] +
+                      energies['energy_coul'] + energies['energy_exc'] + energies['energy_nuc'])
+    return energies
+
+# %%
+set_types = ['train', 'valid', 'test']
+for set_type in set_types:
+    data = np.load('datasets/h2o_small_' + set_type + '_augccpvdz.npy', allow_pickle=True).item()
+    basis = 'augccpvdz'
+    auxbasis = 'augccpvqzjkfit'
+
+    print(len(data['positions']))
+    save_path = 'datasets/h2o_small_' + set_type + '_dft_augccpvdz_energy_comps_calc.npy'
+    npy_path = 'datasets/h2o_small_' + set_type + '_dft_augccpvdz_energy_comps.npy'
+    if os.path.exists(save_path):
+        results = list(np.load(save_path, allow_pickle=True))
+    else:
+        results = []
+    print('results len', len(results))
+    for i in range(len(results), len(data['positions'])):
+        print('calc', i)
+        start = time.time()
+        print('data positions shape', data['positions'].shape)
+        pos = data['positions'][i]
+        anums = data['atom_numbers'][i]
+        print('pos shape', pos.shape)
+        atom = []
+        for j in range(len(anums)):
+            atom.append((anums[j], pos[j, :])) 
+        mol = gto.M(atom=atom, basis=basis)
+        res = []
+        res.append(mol.pack())
+        #print(mol.pack())
+        mf = dft.RKS(mol)
+        mf.init_guess = 'atom'
+        mf.max_cycle = 0
+        mf.chkfile=False
+        mf.xc = 'pbe'
+        mf.kernel()
+        g = mf.nuc_grad_method()
+        gradients = g.grad()
+        energies_SAD = get_energy_components(mol, mf)
+        energies_SAD = {k + '_SAD': v for k, v in energies_SAD.items()}
+        calc_dict = {}
+        calc_dict.update(energies_SAD)
+        calc_dict['forces_SAD'] = -gradients/ase.units.Bohr
+        mol = gto.M(atom=atom, basis=basis)
+        #print(mol.pack())
+        mf = dft.RKS(mol)
+        mf.chkfile=False
+        mf.xc = 'pbe'
+        mf.kernel()
+        g = mf.nuc_grad_method()
+        gradients = g.grad()
+        energies = get_energy_components(mol, mf)
+
+        calc_dict['forces'] = -gradients/ase.units.Bohr
+        calc_dict.update(energies)
+
+        print('calc_dict', calc_dict)
+        res.append(calc_dict)
+        results.append(res)
+
+        if i%10 == 0:
+            np.save(save_path, results, allow_pickle=True)
+    np.save(save_path, results, allow_pickle=True)
+    npy_data = utils.calc_dict_to_npy(results, convert_forces=False, compress_atoms=False)
+    npy_data_compressed = utils.calc_dict_to_npy(results, convert_forces=False, compress_atoms=True)
+    print('atom_number nc', npy_data['atom_numbers'][:3])
+    print('atom_number c', npy_data_compressed['atom_numbers'][:3])
+    print('pos nc', npy_data['positions'][:3])
+    print('pos c', npy_data_compressed['positions'][:3])
+    print('forces nc', npy_data['forces'][:3])
+    print('forces c', npy_data_compressed['forces'][:3])
+    print('forces sad nc', npy_data['forces_SAD'][:3])
+    print('forces sad c', npy_data_compressed['forces_SAD'][:3])
+    np.save(npy_path, npy_data, allow_pickle=True)
 # %%
 np.save(save_path, results, allow_pickle=True)
 
