@@ -438,6 +438,7 @@ def init_error_dict(args, test=False):
     if not test:
         weights_decay = {}
         weights_decay['density'] = args.density_weight_decay
+        weights_decay['density_grad'] = args.density_grad_weight_decay
         weights_decay['dipole_moment'] = args.dipole_moment_weight_decay
         weights_decay['df_coeffs'] = args.df_weight_decay
         weights_decay['energy'] = args.energy_weight_decay
@@ -445,6 +446,7 @@ def init_error_dict(args, test=False):
         weights_decay['energy_min'] = args.energy_min_weight_decay
         weights_min = {}
         weights_min['density'] = args.density_weight_min
+        weights_min['density_grad'] = args.density_grad_weight_min
         weights_min['dipole_moment'] = args.dipole_moment_weight_min
         weights_min['df_coeffs'] = args.df_weight_min
         weights_min['energy'] = args.energy_weight_min
@@ -456,6 +458,7 @@ def init_error_dict(args, test=False):
     loss_comp['df_coeffs'] = args.df_loss_comp
     loss_comp['energy'] = args.energy_loss_comp
     loss_comp['forces'] = args.forces_loss_comp
+    loss_comp['density_grad'] = args.density_grad_loss_comp
 
     loss_comp_weights = {}
     loss_comp_weights['df_coeffs'] = {loss_comp: loss_weight
