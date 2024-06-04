@@ -124,7 +124,7 @@ print("loading density from" + str(args.dens_dataset) + "...")
 print("loading atoms from" + args.np_dataset + "...")
 
 args.verbose = 0
-args.use_gpu = False
+args.use_gpu = True
 print('args use gpu', args.use_gpu)
 args.cube_grid = False
 args.radii_adjust = True
@@ -159,6 +159,7 @@ if main_args.ref_dens_load_file is not None:
 # args.np_dataset_test = "datasets/ethanethiol_md_traj_every1000_dft_augccpvdz.npy"
 # args.dens_dataset_test = "datasets/ethanethiol_md_traj_every1000_dft_augccpvdz_df_augccpvqzjkfit.npy"
 
+args.density_grad = True
 dataset = AtomsDensityData(np_path=args.np_dataset_test, density_path=args.dens_dataset_test,
                            orbitals_path=args.orbitals_file,
                            density_n_samp=10000000000000000000000,
@@ -179,6 +180,7 @@ dataset = AtomsDensityData(np_path=args.np_dataset_test, density_path=args.dens_
                            atom_dens_path='datasets/free_atom_densities_augccpvdz_augccpvqzjkfit.npy',
                            atom_dens_type='spline',
                            split_atom_dens=True,
+                           density_grad=args.density_grad,
                            )
 
 print('dataset length', len(dataset))
@@ -217,28 +219,74 @@ if main_args.df_error:
                                   projected_density=True,
                                   radii_adjust=args.radii_adjust,
                                   )
-
 # %%
 model = model_loader.load_model(args, dataset)
-idx = [3]
+idx = list(range(4))
 samp = dataset.get_properties(idx)
-samp_df = dataset_df.get_properties(idx)
+if args.use_gpu:
+    model.cuda()
+    for key in samp.keys():
+        if isinstance(samp[key], torch.Tensor):
+            samp[key] = samp[key].cuda()
+# samp_df = dataset_df.get_properties(idx)
 
 res = model(samp)
 
-print('samp df_coeffs', samp_df['df_coeffs'].shape)
+# print('samp df_coeffs', samp_df['df_coeffs'].shape)
 print('res df_coeffs', res['df_coeffs'].shape)
 
 # print('res_radial width', res['radial_width'])
 # print('dataset radial coeffs', dataset.radial_coeffs)
 print('res density integral', torch.sum(res['density'] * res['coord_weights'], dim=1))
 print('density integral', torch.sum(samp['density'] * samp['coord_weights'], dim=1))
-print('density integral', torch.sum(samp_df['density'] * samp_df['coord_weights'], dim=1))
-print('density error', torch.sum(torch.abs(res['density'] - samp['density']) * samp['coord_weights'], dim=1)
-      / torch.sum(samp['batch_atom_numbers'], dim=1))
-print('density df error', torch.sum(torch.abs(samp_df['density'] - samp['density']) * samp['coord_weights'], dim=1)
-      / torch.sum(samp['batch_atom_numbers'], dim=1))
+# print('density integral', torch.sum(samp_df['density'] * samp_df['coord_weights'], dim=1))
+dens_mae = torch.sum(torch.abs(res['density'] - samp['density']) * samp['coord_weights'], dim=1) \
+    / torch.sum(samp['batch_atom_numbers'], dim=1)
+print('density error', dens_mae)
+dens_deriv_err = torch.sum(torch.norm(res['density_grad'] - samp['density_grad'], dim=-1) * samp['coord_weights'], dim=1) \
+    / torch.sum(samp['batch_atom_numbers'], dim=1)
+print('density grad error', dens_deriv_err)
+# print('density df error', torch.sum(torch.abs(samp_df['density'] - samp['density']) * samp['coord_weights'], dim=1)
+      # / torch.sum(samp['batch_atom_numbers'], dim=1))
+loss = torch.mean(dens_mae + dens_deriv_err)
+start = time.time()
+loss.backward()
+print('backward time', time.time() - start)
 
+# %%
+model = model_loader.load_model(args, dataset)
+# idx = list(range(6))
+idx = list(range(4))
+samp = dataset.get_properties(idx)
+if args.use_gpu:
+    model.cuda()
+    for key in samp.keys():
+        if isinstance(samp[key], torch.Tensor):
+            samp[key] = samp[key].cuda()
+# samp_df = dataset_df.get_properties(idx)
+
+res = model(samp)
+
+# print('samp df_coeffs', samp_df['df_coeffs'].shape)
+print('res df_coeffs', res['df_coeffs'].shape)
+
+# print('res_radial width', res['radial_width'])
+# print('dataset radial coeffs', dataset.radial_coeffs)
+print('res density integral', torch.sum(res['density'] * res['coord_weights'], dim=1))
+print('density integral', torch.sum(samp['density'] * samp['coord_weights'], dim=1))
+# print('density integral', torch.sum(samp_df['density'] * samp_df['coord_weights'], dim=1))
+dens_mae = torch.sum(torch.abs(res['density'] - samp['density']) * samp['coord_weights'], dim=1) \
+    / torch.sum(samp['batch_atom_numbers'], dim=1)
+print('density error', dens_mae)
+dens_deriv_err = torch.sum(torch.norm(res['density_grad'] - samp['density_grad'], dim=-1) * samp['coord_weights'], dim=1) \
+    / torch.sum(samp['batch_atom_numbers'], dim=1)
+print('density grad error', dens_deriv_err)
+# print('density df error', torch.sum(torch.abs(samp_df['density'] - samp['density']) * samp['coord_weights'], dim=1)
+      # / torch.sum(samp['batch_atom_numbers'], dim=1))
+loss = torch.mean(dens_mae + dens_deriv_err)
+start = time.time()
+loss.backward()
+print('backward time', time.time() - start)
 # %%
 # Calculate LDA energy
 basis = 'augccpvdz'
@@ -765,7 +813,7 @@ print('args use gpu', args.use_gpu)
 model = model_loader.load_model(args, dataset)
 model.train()
 # model.eval()
-idx = [666]
+idx = list(range(3))
 samp = dataset.get_properties(idx)
 # samp_df = dataset_df.get_properties(idx)
 

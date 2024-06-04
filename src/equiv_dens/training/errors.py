@@ -83,14 +83,21 @@ class ErrorDict:
                     if key == "energy" and self.relative_en:
                         en_offset = torch.mean(predictions[key]) - torch.mean(data[key])
                         diff = diff - en_offset
-                    if key == "density" and coord_weights is not None:
+                    if "density" in key and coord_weights is not None:
                         balanced_weights = torch.sign(coord_weights)\
                             * torch.abs(coord_weights) ** (1 / self.weights_balance)
                         balanced_weights *= torch.sum(coord_weights) / torch.sum(balanced_weights)
                     else:
                         balanced_weights = 1
-                    abs_diff = torch.abs(diff) * balanced_weights
-                    sq_diff = (diff ** 2) * balanced_weights
+                    if isinstance(balanced_weights, torch.Tensor) and (diff.dim() - balanced_weights.dim() > 0):
+                        dim_diff = diff.dim() - balanced_weights.dim()
+                        padded_weights = balanced_weights.view(balanced_weights.shape
+                                                               + (1,) * dim_diff)
+                        abs_diff = torch.abs(diff) * padded_weights
+                        sq_diff = (diff ** 2) * padded_weights
+                    else:
+                        abs_diff = torch.abs(diff) * balanced_weights
+                        sq_diff = (diff ** 2) * balanced_weights
                     if key == 'density':
                         mse = torch.sum(sq_diff, dim=1)
                         rmse = torch.sqrt(mse)
@@ -138,6 +145,22 @@ class ErrorDict:
                             losses['dpm_abs_loss'] = torch.mean(density_errors.dipole_pointwise_abs_loss(
                                 predictions['density'], data['density'],
                                 data['coords'], coord_weights))
+                    if key == 'density_grad':
+                        if 'norm_int' in self.loss_comp[key] or 'perc_norm_int' in self.loss_comp[key]:
+                            losses['norm_int'] = torch.mean(density_errors.density_grad_norm_int(predictions['density_grad'],
+                                                                                                 data['density_grad'],
+                                                                                                 coord_weights))
+                            if 'perc_norm_int' in self.loss_comp[key]:
+                                losses['perc_norm_int'] = losses['norm_int'] \
+                                    / torch.mean(torch.sum(data['density'] * balanced_weights, dim=1))
+                        if 'kinetic_vw' in self.loss_comp[key]:
+                            losses['kinetic_vw'] = torch.mean(density_errors.density_grad_VW_energy_mae(
+                                predictions['density'],
+                                predictions['density_grad'],
+                                data['density'],
+                                data['density_grad'],
+                                coord_weights,
+                            ))
                     if mae > self.max_errors[key]:
                         losses['mae'] = torch.clamp(losses['mae'], self.max_errors[key])
                         losses['rmse'] = torch.clamp(losses['rmse'], torch.sqrt(2) * self.max_errors[key])

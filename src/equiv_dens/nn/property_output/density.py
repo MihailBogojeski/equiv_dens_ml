@@ -7,7 +7,8 @@ from equiv_dens.utils.spherical_harmonics import spherical_harmonics
 import equiv_dens.utils.spherical_harmonics_deriv as sph_deriv
 from equiv_dens.utils.orbitals import combine_orbital_basis, \
     get_max_order, get_n_electrons, coeffs_dict_to_vector, \
-    vector_to_coeffs_dict, gto_norm, pyscf_gto_factor, eval_gto, eval_gto_grad
+    vector_to_coeffs_dict, gto_norm, pyscf_gto_factor, \
+    eval_gto, eval_gto_grad, eval_gto_einsum, eval_gto_grad_einsum
 from equiv_dens.utils.base import calculate_distances_and_directions, batch_compressed_atoms, \
     bohr_to_angstrom
 import time
@@ -729,6 +730,7 @@ class DensityExpansion(nn.Module):
                         self.r_max[key] = max_rad_c
 
     def forward(self, atoms, eval_atoms=None, eval_L=None, density_grad=None):
+        start = time.time()
         if density_grad is None:
             density_grad = self.density_grad
         n_eval = len(atoms['spherical_coeffs'])
