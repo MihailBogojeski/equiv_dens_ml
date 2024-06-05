@@ -460,7 +460,7 @@ class DensityCoeffsNetwork(nn.Module):
             print('density coeffs forward start:')
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
             print('Memory cached', torch.cuda.memory_cached() / 1024**2)
-        start = time.time()
+        # start = time.time()
         atoms['sph_repr_batch'] = [repr * 1 for repr in atoms['sph_repr']]
         atoms = batch_compressed_atoms(atoms, ['sph_repr_batch'])
         fs = atoms['sph_repr_batch']
@@ -534,8 +534,8 @@ class DensityCoeffsNetwork(nn.Module):
         else:
             atoms['rad_dict'] = {key: self.rad_dict[key].to('cpu') for key in self.rad_dict.keys()}
             atoms['sph_dict'] = {key: self.sph_dict[key].to('cpu') for key in self.sph_dict.keys()}
-        if self.timing:
-            print('density coeffs time:', time.time() - start)
+        # if self.timing:
+        #     print('density coeffs time:', time.time() - start)
         if self.memory:
             print('density coeffs forward end:')
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
@@ -730,11 +730,10 @@ class DensityExpansion(nn.Module):
                         self.r_max[key] = max_rad_c
 
     def forward(self, atoms, eval_atoms=None, eval_L=None, density_grad=None):
-        start = time.time()
         if density_grad is None:
             density_grad = self.density_grad
         n_eval = len(atoms['spherical_coeffs'])
-        start = time.time()
+        # start = time.time()
         if eval_atoms is None:
             eval_atoms = list(range(n_eval))
         if eval_L is None:
@@ -809,8 +808,8 @@ class DensityExpansion(nn.Module):
                 print('grid_scaling_factor', (1 - self.grid_scaling_factor))
             grid_scaling = grid_scaling * (1 - self.grid_scaling_factor) + self.grid_scaling_factor
             atoms['density'] = (atoms['density'] * grid_scaling)
-        if self.timing:
-            print('density expansion time:', time.time() - start)
+        # if self.timing:
+        #     print('density expansion time:', time.time() - start)
         # print('atoms density end', atoms['density'][0, :3])
         # print('density grad end', atoms['density_grad'][0, :3])
         return atoms
