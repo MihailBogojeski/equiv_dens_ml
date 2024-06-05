@@ -265,6 +265,7 @@ class Trainer:
         self.train_batch_num = -1
         # initialize state
         self._module.train()
+        self._module = torch.compile(self._module, fullgraph=True, backend='inductor', mode=None)
         self.train_iterator = iter(self.train_loader)
         new_valid = False
         new_best = False
@@ -368,7 +369,7 @@ class Trainer:
 
         data = self._module.transform_input(data)
         # print('model embedding layer before', self._model.density_repr_model[0].embedding.embedding.element_embedding)
-        predictions = self._model(data)
+        predictions = self._module(data)
         # print('model embedding layer after pred', self._model.density_repr_model[0].embedding.embedding.element_embedding)
 
         if self.verbose > 0:
@@ -499,7 +500,7 @@ class Trainer:
 
             data = self._module.transform_input(data)
             # print('post-conversion forces:', data['forces'])
-            predictions = self._model(data)
+            predictions = self._module(data)
             # print('predictions, sph repr', predictions['sph_repr_batch'][0][0])
             # print('predictions, sph coeffs', predictions['spherical_coeffs'][0])
 
