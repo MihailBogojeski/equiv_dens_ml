@@ -446,6 +446,8 @@ def parse_command_line_arguments(arg_file=None):
             args.energy_model = None
         if args.start_idx[0] == -1:
             args.start_idx = None
+        if args.atom_dens_path == 'None':
+            args.atom_dens_path = None
 
         args.energy_unit_in = args.energy_unit_in.split('/')[0]
         args.energy_unit_out = args.energy_unit_out.split('/')[0]
