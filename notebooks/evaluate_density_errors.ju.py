@@ -3,6 +3,7 @@ import os
 from datetime import datetime
 
 import torch
+from pyscf.dft import numint
 from equiv_dens.training.parse_command_line_arguments import parse_command_line_arguments
 from equiv_dens.data.density_dataset import AtomsDensityData
 from equiv_dens.utils.grids import cubical_grid, cubical_sampling, \
@@ -91,6 +92,26 @@ def calc_density_errors(density, atoms, error_dict):
     error_dict['dpm_int_rmse'].append(float(dpm_int_error))
     error_dict['kl_loss'].append(float(kl_error))
     # print('i', i, 'mae', df_error, 'rmse', df2_error, 'dpm', dpm_error, 'mag', dpm_mag_error, 'ang', dpm_ang_error, 'lda', lda_error)
+
+
+def calc_density_grad_errors(density, atoms, error_dict):
+    dens_true = torch.permute(torch.cat([atoms['density'].unsqueeze(-1), atoms['density_grad']], dim=-1), (2, 1, 0)).squeeze()
+    ni = numint.NumInt()
+    exc_eff_pbe = torch.from_numpy(ni.eval_xc_eff('pbe', dens_true.numpy(force=True).astype(np.double), deriv=1, xctype='GGA')[0])
+    dens_calc = dens_true[0] * atoms['coord_weights']
+    # print('exchange correlation', exc_eff_pbe.shape)
+    exc_pbe = torch.sum(exc_eff_pbe * dens_calc)
+    exc_eff_pbe = torch.from_numpy(ni.eval_xc_eff('pbe', density.numpy(force=True).astype(np.double), deriv=1, xctype='GGA')[0])
+    dens_calc = density[0] * atoms['coord_weights']
+    # print('exchange correlation', exc_eff_pbe.shape)
+    exc_sum_pbe = torch.sum(exc_eff_pbe * dens_calc)
+    error_dict['exc_mae'].append(float(torch.abs(exc_sum_pbe - exc_pbe)))
+
+    vw_pred = torch.nansum(torch.norm(density[1:], dim=0)**2 / density * atoms['coord_weights'].squeeze())
+    vw_true = torch.nansum(torch.norm(dens_true[1:], dim=0)**2 / dens_true * atoms['coord_weights'].squeeze())
+    error_dict['vw_mae'].append(float(torch.abs(vw_pred - vw_true)))
+    error_dict['grad_norm_err'].append(float(torch.sum(torch.norm(density[1:] - dens_true[1:], dim=0) * atoms['coord_weigts'].squeeze())
+                                             / torch.sum(atoms['atom_numbers'])))
 
 # %%
 def make_plots(dens_ml, dens_df, sample_ref, save_name):
@@ -416,8 +437,6 @@ else:
             # print('loading all arg', arg)
             setattr(args, arg, getattr(checkpoint['args'], arg))
     restore = True
-
-
 print('model code:', model_code)
 
 # determine whether GPU is used for training
@@ -475,13 +494,16 @@ dataset = AtomsDensityData(np_path=args.np_dataset_test, density_path=args.dens_
                            cutoff=args.cutoff,
                            df_loss_weights=args.df_loss_weights,
                            projected_density=args.projected_density,
+                           atom_dens_path='datasets/free_atom_densities_augccpvdz_augccpvqzjkfit.npy',
+                           atom_dens_type='spline',
+                           split_atom_dens=False,
+                           density_grad=True,
                            )
 print('dataset length', len(dataset))
 print('sample pos shape', dataset.get_properties([0])['positions'].shape)
 print('sample dens shape', dataset.get_properties([0])['density'].shape)
 if main_args.num_samples < 1:
     main_args_num_samples = len(dataset)
-
 # %%
 print('num samples', main_args.num_samples)
 df_losses = None
@@ -510,6 +532,10 @@ if main_args.df_error:
                                   cutoff=args.cutoff,
                                   df_loss_weights=args.df_loss_weights,
                                   projected_density=True,
+                                  atom_dens_path='datasets/free_atom_densities_augccpvdz_augccpvqzjkfit.npy',
+                                  atom_dens_type='spline',
+                                  split_atom_dens=False,
+                                  density_grad=True,
                                   )
     for i in range(min(len(dataset), main_args.num_samples)):
         sample = dataset.get_properties([i])
@@ -522,7 +548,6 @@ if main_args.df_error:
     for key in df_losses.keys():
         print(key)
         print(np.nanmean(df_losses[key]))
-
 # %%
 res_dataset = torch.load(main_args.res_load_file, map_location='cpu')
 print('res dataset length', len(res_dataset))
@@ -553,7 +578,6 @@ if main_args.df_error:
 print('ML dens max', torch.max(res_dataset['density'][[i]]))
 print('dpm pos neg diff', np.nanmean(res_losses['dpm_pos_coord_rmse']) - np.nanmean(res_losses['dpm_neg_coord_rmse']),
       np.nanmean(df_losses['dpm_pos_coord_rmse']) - np.nanmean(df_losses['dpm_neg_coord_rmse']))
-
 # %%
 res_dataset = torch.load(main_args.res_load_file, map_location='cpu')
 print('res dataset length', len(res_dataset))
@@ -631,23 +655,23 @@ grid_origin = 0
 grid_extent = None
 rotate = False
 
-dataset_new= AtomsDensityData(np_path=args.np_dataset_test, density_path=args.dens_dataset_test,
-                           orbitals_path=args.orbitals_file,
-                           density_n_samp=10000000000000000000000,
-                           required_properties=required_properties,
-                           center_positions=False,
-                           radial_coeffs_file=args.radial_coeffs_file,
-                           dtype=args.dtype,
-                           grid_fn=grid_fn,
-                           pyscf_grid=args.pyscf_grid,
-                           pyscf_rotate=rotate,
-                           sampling_fn=sampling_fn,
-                           grid_extent=grid_extent,
-                           grid_origin=grid_origin,
-                           cutoff=args.cutoff,
-                           df_loss_weights=args.df_loss_weights,
-                           projected_density=args.projected_density,
-                           )
+dataset_new = AtomsDensityData(np_path=args.np_dataset_test, density_path=args.dens_dataset_test,
+                               orbitals_path=args.orbitals_file,
+                               density_n_samp=10000000000000000000000,
+                               required_properties=required_properties,
+                               center_positions=False,
+                               radial_coeffs_file=args.radial_coeffs_file,
+                               dtype=args.dtype,
+                               grid_fn=grid_fn,
+                               pyscf_grid=args.pyscf_grid,
+                               pyscf_rotate=rotate,
+                               sampling_fn=sampling_fn,
+                               grid_extent=grid_extent,
+                               grid_origin=grid_origin,
+                               cutoff=args.cutoff,
+                               df_loss_weights=args.df_loss_weights,
+                               projected_density=args.projected_density,
+                               )
 # %%
 sample = dataset.get_properties([0])
 sample_new = dataset_new.get_properties([0])

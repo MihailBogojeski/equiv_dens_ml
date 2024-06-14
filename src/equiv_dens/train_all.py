@@ -53,7 +53,7 @@ if checkpoint is None or 'training_phases' not in checkpoint:
     training_phases = []
     if args.df_weight > 0:
         training_phases.append('df')
-    if args.density_weight > 0:
+    if args.density_weight > 0 and not (args.density_from_df or args.density_from_free_atoms):
         training_phases.append('density')
     if args.dipole_moment_weight > 0:
         training_phases.append('dipole_moment')
@@ -114,6 +114,11 @@ for phase in training_phases:
     if args.use_gpu:
         model.cuda()
     model.to(args.dtype)
+
+    # set wandb metric (x-axis) for training phase
+    phase_metric = f'step_{phase}'
+    wandb.define_metric(phase_metric)
+    wandb.define_metric('*', step_metric=phase_metric)
 
     print('restore before training', phase, train_vars['restore'])
     print('num neighbors', args.num_neighbours)

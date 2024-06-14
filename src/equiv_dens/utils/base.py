@@ -62,8 +62,10 @@ def kcal_to_eV(en):
 def kcal_to_kelvin(en):
     return en / 0.001987191686485529
 
+
 def au_to_debye(dpm):
     return dpm * nist.AU2DEBYE
+
 
 def internal_to_debye(dpm):
     return dpm * nist.AU2DEBYE * to_bohr
@@ -400,6 +402,7 @@ def calculate_distances_and_directions(R, idx_i=None, idx_j=None, center=None):
     uij = rij / dij  # unit displacement vectors
     return dij, uij
 
+
 class TorchNeighborList:
     """
     Environment provider making use of neighbor lists as implemented in TorchAni
@@ -422,9 +425,9 @@ class TorchNeighborList:
         idx_js = []
         idx_Ss = []
         if pbc:
-            pbc = torch.ones((3, )).to(atoms['positions']).type(torch.ByteTensor)
+            pbc = torch.ones((3, )).to(atoms['positions']).type(torch.BoolTensor)
         else:
-            pbc = torch.zeros((3, )).to(atoms['positions']).type(torch.ByteTensor)
+            pbc = torch.zeros((3, )).to(atoms['positions']).type(torch.BoolTensor)
         for i in range(atoms['positions'].shape[0]):
             numbers = atoms['atom_numbers'][i]
             nz = numbers > 0
