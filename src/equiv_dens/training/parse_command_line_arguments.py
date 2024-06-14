@@ -197,8 +197,8 @@ def parse_command_line_arguments(arg_file=None):
                                         'coulomb', 'perc_mae', 'perc_rmse', 'mixed_dist_err',
                                         'perc_mixed_dist_err', 'kl_loss', 'dpm_loss', 'dpm_abs_loss'],
                                help="Composition of the density loss.")
-    args_training.add_argument("--density_grad_loss_comp", metavar='STR', type=str, default=['mae'], nargs='+',
-                               choices=['mae', 'rmse', 'kinetic'],
+    args_training.add_argument("--density_grad_loss_comp", metavar='STR', type=str, default=['norm'], nargs='+',
+                               choices=['norm_int', 'perc_norm_int', 'kinetic_vw'],
                                help="Composition of the density loss.")
     args_training.add_argument("--dipole_moment_loss_comp", metavar='STR', type=str, default=['mae'], nargs='+',
                                choices=['mae', 'rmse'], help="composition of the dipole moment loss")
@@ -222,6 +222,8 @@ def parse_command_line_arguments(arg_file=None):
                                help="weights of the composition of the forces loss")
     args_training.add_argument("--density_weight_min", metavar='FLOAT', type=float, default=0.0,
                                help="minimum weight of the density in the loss function")
+    args_training.add_argument("--density_grad_weight_min", metavar='FLOAT', type=float, default=0.0,
+                               help="minimum weight of the density gradient in the loss function")
     args_training.add_argument("--dipole_moment_weight_min", metavar='FLOAT', type=float, default=0.0,
                                help="minimum weight of the dipole moment in the loss function")
     args_training.add_argument("--df_weight_min", metavar='FLOAT', type=float, default=0.0,
@@ -234,6 +236,8 @@ def parse_command_line_arguments(arg_file=None):
                                help="minimum weight of the energy minimization loss")
     args_training.add_argument("--density_weight_decay", metavar='FLOAT', type=float, default=1.0,
                                help="decay of the weight of the density in the loss function")
+    args_training.add_argument("--density_grad_weight_decay", metavar='FLOAT', type=float, default=1.0,
+                               help="decay of the weight of the density gradient in the loss function")
     args_training.add_argument("--dipole_moment_weight_decay", metavar='FLOAT', type=float, default=1.0,
                                help="decay of the weight of the dipole moment in the loss function")
     args_training.add_argument("--df_weight_decay", metavar='FLOAT', type=float, default=1.0,
@@ -442,6 +446,8 @@ def parse_command_line_arguments(arg_file=None):
             args.energy_model = None
         if args.start_idx[0] == -1:
             args.start_idx = None
+        if args.atom_dens_path == 'None':
+            args.atom_dens_path = None
 
         args.energy_unit_in = args.energy_unit_in.split('/')[0]
         args.energy_unit_out = args.energy_unit_out.split('/')[0]

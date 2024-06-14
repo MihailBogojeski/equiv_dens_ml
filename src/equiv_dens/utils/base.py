@@ -284,6 +284,11 @@ def npy_to_ase(arr, atom_list):
     return mols
 
 
+def npy_to_xyz(npy_data, filename):
+    mols = npy_to_ase(npy_data['positions'], npy_data['atom_numbers'])
+    ase.io.write(filename, mols, parallel=False)
+
+
 def npy_to_pyscf(arr, atom_list, basis):
     if atom_list.ndim == 1:
         atom_list = atom_list[None, :]
@@ -333,6 +338,8 @@ def positions_from_xyz(filename, convert_to_bohr=True):
         pos = angstrom_to_bohr(pos)
 
     return pos
+
+
 
 
 def get_molecule_dists(target, neighbours, charges=None):
