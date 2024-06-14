@@ -6,7 +6,8 @@ from equiv_dens.nn.dft_network import DFTNetwork
 from equiv_dens.nn.representation.spherical_harmonic import EquivariantSphericalHarmonics
 from equiv_dens.nn.property_output.energy import SphericalHarmonicsEnergyNetwork,\
     SphericalLinearEnergyNetwork, RepresentationEnergyNetwork
-from equiv_dens.nn.property_output.density import DensityCoeffsNetwork, DensityExpansion
+from equiv_dens.nn.property_output.density import DensityCoeffsNetwork, DFDensityCoeffs,\
+    FreeAtomDensityCoeffs, DensityExpansion
 from equiv_dens.nn.property_output.dipole_moment import DipoleMomentCalc
 from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
 from equiv_dens.utils.scaling import UnitConversion, VarianceScaling
@@ -35,96 +36,122 @@ def load_model(args, dataset, train=False):
     print('conversions in', conversions_in.en_conversion_func)
     print('conversions out', conversions_out.en_conversion_func)
 
-    repr_class = EquivariantSphericalHarmonics
+    if args.density_from_df or args.density_from_free_atoms:
+        repr_model = nn.Identity()
 
-    repr_model = repr_class(
-        orbital_basis=dataset.orbital_basis_num,
-        order=args.order,
-        num_features=args.num_features,
-        num_basis_functions=args.num_basis_functions,
-        num_modules=args.num_modules,
-        num_residual_pre_x=args.num_residual_pre_x,
-        num_residual_post_x=args.num_residual_post_x,
-        num_residual_pre_vi=args.num_residual_pre_vi,
-        num_residual_pre_vj=args.num_residual_pre_vj,
-        num_residual_post_v=args.num_residual_post_v,
-        num_residual_output=args.num_residual_output,
-        num_radial_components=args.num_radial_components,
-        num_neighbours=args.num_neighbours,
-        basis_functions=args.basis_functions,
-        cutoff=args.cutoff,
-        activation=args.activation,
-        clebsch_gordan=clebsch_gordan,
-        verbose=args.verbose,
-        timing=args.timing,
-        memory=args.memory,
-        normalize=args.normalize,
-        parity=args.parity_dens,
-        nonmixing_interaction=args.nonmixing_interaction,
-        nonmixing_interaction_residual=args.nonmixing_interaction_residual,
-
-    )
-
-    density_coeffs_network = DensityCoeffsNetwork
-    density_expansion = DensityExpansion
-
-    dens_model = density_coeffs_network(
-        orbital_basis=dataset.orbital_basis_num,
-        order=args.order[-1],
-        num_features=args.num_features,
-        positive_coeffs=args.positive_coeffs,
-        clebsch_gordan=clebsch_gordan,
-        verbose=args.verbose,
-        timing=args.timing,
-        memory=args.memory,
-        init_coeffs=dataset.L0_coeffs,
-        coeff_weights=dataset.coeff_weights,
-        pred_radial_coeffs=args.pred_radial_coeffs,
-        init_radial_coeffs=dataset.radial_coeffs,
-        ml_width_min=args.ml_width_min,
-        ml_width_max=args.ml_width_max,
-        scale_sph_order=args.scale_sph_order,
-        normalize=args.normalize,
-        parity=args.parity_dens,
-        linear_out=args.remove_atom_density,
-        nonmixing=args.nonmixing_interaction,
-    )
-
-    if args.density_weight + args.dipole_moment_weight > 0:
-        expansion_model = density_expansion(dataset.orbital_basis_num,
-                                            expansion_constraint=args.expansion_constraint,
-                                            integral_constraint=args.integral_constraint,
-                                            integral_scale=args.integral_scale,
-                                            softmax_norm=args.softmax_norm, n_electrons=sum(z_vals),
-                                            verbose=args.verbose,
-                                            timing=args.timing,
-                                            memory=args.memory,
-                                            grid_scaling_factor=args.grid_scaling_factor,
-                                            remove_atom_density=args.remove_atom_density,
-                                            )
-        if args.core_density_basis > 0:
-            core_coeffs_model = density_coeffs_network(
+        if args.density_from_df:
+            dens_model = DFDensityCoeffs(
                 orbital_basis=dataset.orbital_basis_num,
-                order=args.order[-1],
-                num_features=args.num_features,
-                positive_coeffs=args.positive_coeffs,
-                clebsch_gordan=clebsch_gordan,
-                verbose=args.verbose,
-                timing=args.timing,
-                memory=args.memory,
-                init_coeffs=dataset.L0_coeffs,
-                init_radial_coeffs=dataset.radial_coeffs,
-                ml_width_min=args.ml_width_min,
-                ml_width_max=args.ml_width_max,
-                coeff_weights=dataset.coeff_weights,
-                pred_radial_coeffs=args.pred_radial_coeffs,
-                scale_sph_order=args.scale_sph_order,
-                normalize=args.normalize,
-                parity=args.parity_dens,
-                core_basis_ratio=args.core_density_basis,
+                radial_coeffs=dataset.radial_coeffs,
+                dtype=args.dtype,
             )
+        else:
+            dens_model = FreeAtomDensityCoeffs(
+                orbital_basis=dataset.orbital_basis_num,
+                radial_coeffs=dataset.radial_coeffs,
+                atom_dens=dataset.atom_dens,
+                dtype=args.dtype,
+            )
+        if args.density_weight + args.dipole_moment_weight > 0:
+            density_expansion = DensityExpansion
+            expansion_model = density_expansion(dataset.orbital_basis_num,
+                                                expansion_constraint=args.expansion_constraint,
+                                                integral_constraint=args.integral_constraint,
+                                                verbose=args.verbose,
+                                                timing=args.timing,
+                                                memory=args.memory,
+                                                grid_scaling_factor=args.grid_scaling_factor,
+                                                density_grad=args.density_grad,
+                                                )
+    # core density expansion not applicable here
     else:
-        expansion_model = None
+        repr_class = EquivariantSphericalHarmonics
+
+        repr_model = repr_class(
+            orbital_basis=dataset.orbital_basis_num,
+            order=args.order,
+            num_features=args.num_features,
+            num_basis_functions=args.num_basis_functions,
+            num_modules=args.num_modules,
+            num_residual_pre_x=args.num_residual_pre_x,
+            num_residual_post_x=args.num_residual_post_x,
+            num_residual_pre_vi=args.num_residual_pre_vi,
+            num_residual_pre_vj=args.num_residual_pre_vj,
+            num_residual_post_v=args.num_residual_post_v,
+            num_residual_output=args.num_residual_output,
+            num_radial_components=args.num_radial_components,
+            num_neighbours=args.num_neighbours,
+            basis_functions=args.basis_functions,
+            cutoff=args.cutoff,
+            activation=args.activation,
+            clebsch_gordan=clebsch_gordan,
+            verbose=args.verbose,
+            timing=args.timing,
+            memory=args.memory,
+            normalize=args.normalize,
+            parity=args.parity_dens,
+            nonmixing_interaction=args.nonmixing_interaction,
+            nonmixing_interaction_residual=args.nonmixing_interaction_residual,
+        )
+
+        density_coeffs_network = DensityCoeffsNetwork
+        density_expansion = DensityExpansion
+
+        dens_model = density_coeffs_network(
+            orbital_basis=dataset.orbital_basis_num,
+            order=args.order[-1],
+            num_features=args.num_features,
+            positive_coeffs=args.positive_coeffs,
+            integral_constraint=args.integral_constraint,
+            clebsch_gordan=clebsch_gordan,
+            verbose=args.verbose,
+            timing=args.timing,
+            memory=args.memory,
+            init_coeffs=dataset.L0_coeffs,
+            coeff_weights=dataset.coeff_weights,
+            pred_radial_coeffs=args.pred_radial_coeffs,
+            init_radial_coeffs=dataset.radial_coeffs,
+            ml_width_min=args.ml_width_min,
+            ml_width_max=args.ml_width_max,
+            scale_sph_order=args.scale_sph_order,
+            normalize=args.normalize,
+            parity=args.parity_dens,
+            linear_out=args.remove_atom_density
+        )
+
+        if args.density_weight + args.dipole_moment_weight > 0:
+            expansion_model = density_expansion(dataset.orbital_basis_num,
+                                                expansion_constraint=args.expansion_constraint,
+                                                integral_constraint=args.integral_constraint,
+                                                verbose=args.verbose,
+                                                timing=args.timing,
+                                                memory=args.memory,
+                                                grid_scaling_factor=args.grid_scaling_factor,
+                                                density_grad=args.density_grad,
+                                                )
+            if args.core_density_basis > 0:
+                core_coeffs_model = density_coeffs_network(
+                    orbital_basis=dataset.orbital_basis_num,
+                    order=args.order[-1],
+                    num_features=args.num_features,
+                    positive_coeffs=args.positive_coeffs,
+                    clebsch_gordan=clebsch_gordan,
+                    verbose=args.verbose,
+                    timing=args.timing,
+                    memory=args.memory,
+                    init_coeffs=dataset.L0_coeffs,
+                    init_radial_coeffs=dataset.radial_coeffs,
+                    ml_width_min=args.ml_width_min,
+                    ml_width_max=args.ml_width_max,
+                    coeff_weights=dataset.coeff_weights,
+                    pred_radial_coeffs=args.pred_radial_coeffs,
+                    scale_sph_order=args.scale_sph_order,
+                    normalize=args.normalize,
+                    parity=args.parity_dens,
+                    core_basis_ratio=args.core_density_basis,
+                )
+        else:
+            expansion_model = None
 
     calculate_forces = args.forces_weight > 0
 
@@ -263,6 +290,8 @@ def load_model(args, dataset, train=False):
                 if args.density_weight + args.df_weight > 0 \
                         and 'property_models.energy' not in key \
                         and 'property_models.density.init_' not in key \
+                        and 'property_models.density.integral_scale' not in key \
+                        and 'property_models.density.softmax_norm' not in key \
                         and 'property_models.core_density' not in key:
                     print('Unexpected keywords', key)
                     raise Exception('Unexpected keywords in density model state dict')
@@ -270,7 +299,6 @@ def load_model(args, dataset, train=False):
                     print('Unexpected keywords', key)
                     raise Exception('Unexpected keywords in energy model state dict')
         if len(missing) > 0 and not args.ignore_missing_keywords:
-            print(missing)
             for key in missing:
                 if 'init_' not in key:
                     if args.df_weight > 0 and 'property_models.density' not in key:
