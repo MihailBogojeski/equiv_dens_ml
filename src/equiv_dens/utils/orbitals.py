@@ -17,35 +17,6 @@ hf.MUTE_CHKFILE = True
 
 pyscf_gto_factor = 2 * np.sqrt(np.pi)
 
-#
-# def combine_orbitals(orbitals, order_max):
-#     radial_spec = [None] * len(orbitals)
-#     spherical_spec = [None] * len(orbitals)
-#     radial_counts = [None] * len(orbitals)
-#     for i in range(len(orbitals)):
-#         radial_L_count = [0] * (order_max + 2)
-#         spherical_L_count = [0] * (order_max + 2)
-#         radial_spec[i] = []
-#         spherical_spec[i] = []
-#         radial_counts[i] = [[] for i in range(order_max + 2)]
-#         # print('density L count len', len(density_L_count))
-#         z = orbitals[i][0][0]
-#         for j in range(len(orbitals[i])):
-#             orb = orbitals[i][j]
-#             L = orb[2]
-#             radial_L_count[L] += orb[1]
-#             spherical_L_count[L] += 1
-#             radial_counts[i][L].append(orb[1])
-#         for L, c in enumerate(radial_L_count):
-#             if c == 0:
-#                 continue
-#             radial_spec[i].append((z, c, L))
-#         for L, c in enumerate(spherical_L_count):
-#             if c == 0:
-#                 continue
-#             spherical_spec[i].append((z, c, L))
-#     return spherical_spec, radial_spec, radial_counts
-
 
 def combine_orbital_basis(orbital_basis, order_max):
     radial_spec = {}
@@ -57,7 +28,6 @@ def combine_orbital_basis(orbital_basis, order_max):
         radial_spec[z] = []
         spherical_spec[z] = []
         radial_counts[z] = [[] for i in range(order_max + 2)]
-        # print('density L count len', len(density_L_count))
         for j in range(len(orbital_basis[z])):
             orb = orbital_basis[z][j]
             L = orb[2]
@@ -102,45 +72,21 @@ def get_n_electrons(atom_numbers):
 #
 #
 def gaussian_rbf(r, width, scale, order, normalize=False):
-    # print('scale shape', scale.shape)
-    # print('width', width.shape)
-    # print('r shape', r.shape)
-    # print('L', order)
     if normalize:
-        # scale_calc = scale * (width**(3 / 2)) / (np.pi**(3 / 2)) * utils.to_angstrom**3
-        # scale_calc = scale * (width**(3/2)) / (np.pi**(3 / 2))
         scale_calc = scale * gto_norm(order, width)
     else:
         scale_calc = scale / pyscf_gto_factor
-    # print('order', order)
-    # print('width', width)
-    # print('gto_norm', 1/gto_norm(order, width))
-    # print('pyscf gto factor', pyscf_gto_factor)
-    # print('scale calc', scale_calc)
-    # print('scale calc * gto norm', scale_calc/gto_norm(order, width))
     r_bohr = r * utils.to_bohr
     rbf = scale_calc * r_bohr ** (order) * torch.exp(-width * (r_bohr) ** 2)
-    # rbf = scale_calc * torch.exp(-width * (r_bohr)**2)
     return torch.sum(rbf, dim=-2, keepdim=True)
 
 
 def gaussian_rbf_deriv(r, width, scale, order, normalize=False):
-    # print('scale shape', scale.shape)
-    # print('width', width.shape)
-    # print('r shape', r.shape)
-    # print('L', order)
 
     if normalize:
-        # scale_calc = scale * (width**(3 / 2)) / (np.pi**(3 / 2)) * utils.to_angstrom**3
-        # scale_calc = scale * (width**(3/2)) / (np.pi**(3 / 2))
         scale_calc = scale * gto_norm(order, width)
     else:
         scale_calc = scale / pyscf_gto_factor
-    # print('order', order)
-    # print('width', width)
-    # print('gto_norm', 1/gto_norm(order, width))
-    # print('pyscf gto factor', pyscf_gto_factor)
-    # print('scale calc * gto norm', scale_calc/gto_norm(order, width))
     r_bohr = r * utils.to_bohr
     rbf_deriv = (
         -scale_calc
@@ -149,7 +95,6 @@ def gaussian_rbf_deriv(r, width, scale, order, normalize=False):
         * torch.exp(-width * (r_bohr) ** 2)
     )
     rbf_deriv *= utils.to_bohr
-    # rbf = scale_calc * torch.exp(-width * (r_bohr)**2)
     return torch.sum(rbf_deriv, dim=-2, keepdim=True)
 
 
@@ -254,7 +199,6 @@ def coeffs_dict_to_tensors(coeffs, radial_coeffs=True):
 
     max_num_coeffs = [0] * (max_order + 1)
     max_num_radial = [0] * (max_order + 1)
-    # print('max order', model.order_max)
     for i in range(len(sph_coeffs)):
         for key in sph_coeffs[i].keys():
             L = key[1]
@@ -263,8 +207,6 @@ def coeffs_dict_to_tensors(coeffs, radial_coeffs=True):
                 max_num_coeffs[L] = sph_dict[key][-1] + 1
             if rad_scale[i][key].shape[-2] > max_num_radial[L]:
                 max_num_radial[L] = rad_scale[i][key].shape[-2]
-    # print('max num coeffs', max_num_coeffs)
-    # print('max num radial', max_num_radial)
 
     all_sph = [
         [
@@ -302,8 +244,6 @@ def coeffs_dict_to_tensors(coeffs, radial_coeffs=True):
         for key in sph_coeffs[i].keys():
             L = key[1]
             inds = sph_dict[key]
-            # print('i, ', i, ', key', key)
-            # print('padding', padding)
             all_sph[L][i][..., inds] = sph_coeffs[i][key]
             if radial_coeffs:
                 all_width[L][i][..., inds] = rad_width[i][key]
@@ -458,8 +398,6 @@ def radial_basis_to_vector(a_num, orbital_basis, radial_basis):
         orbital_basis (dict): Dictionary describing the orbital basis for a set of atom types.
         radial_basis (dict): Dictionary containing the radial coefficients of the basis for a set of atom types.
     """
-    # print('orbital basis', orbital_basis)
-    # print('radial basis', radial_basis)
 
     radial_widths = []
     radial_scales = []
@@ -643,17 +581,13 @@ def calc_dipole_moment(
         dim=1,
     )
     # positive_dipole_moment = torch.sum(atoms['batch_positions'] * atoms['batch_atom_numbers'].unsqueeze(-1), dim=1)
-    # print('positive_dipole_moment', positive_dipole_moment)
     weighted_dens = density * atoms["coord_weights"]
-    # # print('weighted dens shape', weighted_dens.shape)
-    # # print('atom numbers shape', atoms['atom_numbers'].shape)
     # weighted_dens = weighted_dens / torch.sum(weighted_dens, dim=1, keepdim=True) * \
     #                 torch.sum(atoms['batch_atom_numbers'], dim=1, keepdim=True)
 
     negative_moment = weighted_dens.unsqueeze(-1) * (atoms["coords"] - center_of_mass)
     # negative_moment = weighted_dens.unsqueeze(-1) * atoms['coords']
     negative_dipole_moment = torch.sum(negative_moment, dim=1)
-    # print('negative_dipole_moment', negative_dipole_moment)
 
     atoms["dipole_moment"] = positive_dipole_moment - negative_dipole_moment
     return atoms
@@ -675,7 +609,6 @@ def sample_density_base(mols, coords, coeffs, scale_coords=False, projected=Fals
         dens = torch.zeros((coords.shape[0], coords.shape[1], coords.shape[2] + 1))
     else:
         dens = torch.zeros((coords.shape[0], coords.shape[1]))
-    print('density_base dens shape start', dens.shape)
     for i in range(len(mols)):
         mol = mols[i]
         if not mol._built:
@@ -741,7 +674,6 @@ def sample_density(atoms, mo_coeff, mo_occ, basis="augccpvdz", density_grad=Fals
         projected=False,
         density_grad=density_grad,
     )
-    # print('mol_time', time.time() - mol_start)
     return dens
 
 
@@ -787,7 +719,6 @@ def expand_df_density_by_degree(
     for z, atom_coeffs in df_coeffs_split:
         if z not in masks:
             masks[z] = torch.zeros_like(torch.tensor(atom_coeffs))
-    # print('max orbitals', max_orbitals)
     for L in range(max(eval_degrees) + 1):
         nc = 2 * L + 1
         max_coeffs = max_orbitals[L][1]
@@ -798,7 +729,6 @@ def expand_df_density_by_degree(
                 if L in eval_degrees:
                     masks[z][masks_pos[z] : masks_pos[z] + nc] = 1
                 masks_pos[z] += nc
-                # print('L', L, 'max coeffs', max_coeffs, 'i', i, 'z', z, 'masks_pos', masks_pos[z])
 
     mask_coeffs = []
     for z, atom_coeffs in df_coeffs_split:
@@ -835,8 +765,6 @@ def atom_basis_descriptors(auxmol):
     if start_env not in atom_count:
         atom_count[start_env] = 0
 
-    # print('atom_bas', atom_bas)
-    # print('atom_count', atom_count)
     return atom_bas, atom_count
 
 
@@ -852,13 +780,8 @@ def ml_basis_to_pyscf_basis(pred, atom_types, index=0):
             radial_scales = (
                 pred["radial_scale"][i][key][index].squeeze().numpy(force=True)
             )
-            # print('z, L', z, L)
-            # print('radial widths shape', radial_widths.shape)
-            # print('radial_scales before', radial_scales)
             g_norm = gto_norm_pyscf(L, radial_widths)
-            # print('gto_norm', L, radial_widths, g_norm)
             radial_scales = radial_scales / g_norm
-            # print('radial_scales after', radial_scales)
             if at_symb in basis_dict:
                 for j in range(radial_widths.shape[-1]):
                     basis_dict[at_symb].append(
@@ -902,11 +825,9 @@ def ml_basis_to_auxmol(pred, index=0):
     basis_dict = ml_basis_to_pyscf_basis(pred, atom_types, index)
     old_normalize = pyscf.gto.mole.NORMALIZE_GTO
     pyscf.gto.mole.NORMALIZE_GTO = False
-    # print('gto normalize', pyscf.gto.mole.NORMALIZE_GTO)
     auxmol = pyscf.gto.mole.M(atom=atom, basis=basis_dict)
     auxmol.build()
     pyscf.gto.mole.NORMALIZE_GTO = old_normalize
-    # print('gto normalize', pyscf.gto.mole.NORMALIZE_GTO)
 
     return auxmol
 
@@ -936,7 +857,6 @@ def ml_basis_to_df_coeffs(pred, basis, mo_coeff=None, mo_occ=None):
             dm1 = hf.make_rdm1(mo_coeff[b], mo_occ[b])
 
         auxmol_ext = ml_basis_to_auxmol(pred, index=b)
-        # print('auxmol_ext env', auxmol_ext._env)
 
         # Define the auxiliary fitting basis for 3-center integrals. Use the function
         # make_auxmol to construct the auxiliary Mole object (auxmol) which will be
@@ -953,8 +873,6 @@ def ml_basis_to_df_coeffs(pred, basis, mo_coeff=None, mo_occ=None):
         # Compute the DF coefficients (df_coef) and the DF 2-electron (df_eri)
         df_coef = scipy.linalg.solve(ints_2c2e, ints_3c2e.reshape(nao * nao, naux).T)
         df_coef = df_coef.reshape(naux, nao, nao)
-        # print('df_coeff shape', df_coef.shape)
-        # print('atoms', auxmol_ext._atm)
         df_basis = lib.einsum("Pij,ij->P", df_coef, dm1)
         df_bases.append(torch.from_numpy(df_basis))
         auxmol_exts.append(auxmol_ext)
@@ -975,7 +893,7 @@ def get_density_charges(atoms, removed_free_atom=False):
     charges = torch.zeros_like(atoms["batch_atom_numbers"]).to(atoms["positions"])
     for i in range(len(atoms["spherical_coeffs"])):
         for key in atoms["spherical_coeffs"][i].keys():
-            z, L = key
+            _, L = key
             if L > 0:
                 continue
             sph = atoms["spherical_coeffs"][i][key]
@@ -1205,7 +1123,6 @@ def model_input_from_atoms(
     anums = torch.from_numpy(atom_numbers).to(positions).type(torch.long)
     inputs = {}
     if density_expansion:
-        # print('grid spec', self.grid_spec)
         if pyscf_grid:
             sample_coords, coord_weights = utils.get_pyscf_coords(
                 grid_spec, 10000000000, atom_numbers, positions
@@ -1238,7 +1155,6 @@ def model_input_from_atoms(
 
     nl = utils.TorchNeighborList(cutoff)
     idx_is, idx_js, _ = nl.get_neighbors(inputs)
-    # print('inputs positions shape', inputs['positions'].shape)
     prev_max = 0
     for i in range(len(idx_is)):
         n_atoms = torch.sum(inputs["atom_mask"][i])
@@ -1289,6 +1205,25 @@ def eval_gto(s, d, L, sph_coeff, width, scale):
     return torch.sum(rbf * sph, dim=(-2, -1)), sph, rbf
 
 
+def eval_gto_einsum(s, d, L, sph_coeff, width, scale):
+    """
+    Function to evaluate GTO from the spherical harmonics and basis coefficients.
+
+    Args:
+        s: spherical harmonics evaluation for a set of gridpoint
+        d: distances to each of the gridpoints
+        L: degree of spherical harmonics
+        sph_coeff: coefficients for angular part of GTO
+        width: width coefficient for radial part of GTO
+        scale: scale coefficient for radial part of GTO
+    """
+    sph = s.unsqueeze(-1) * sph_coeff
+    sph = torch.einsum('bis, bisr -> bisr', s, sph_coeff)
+    rbf = gaussian_rbf(d.unsqueeze(-1), width, scale, L)
+    # return torch.sum(rbf * sph, dim=(-2, -1)), sph, rbf
+    return torch.einsum('bisr, bisr -> bi', rbf, sph), sph, rbf
+
+
 def eval_gto_grad(s_deriv, d, L, coords, sph_coeff, width, scale, sph, rbf):
     """
     Function to evaluate GTO gradient given spherical harmonic gradients and basis coefficients.
@@ -1302,37 +1237,60 @@ def eval_gto_grad(s_deriv, d, L, coords, sph_coeff, width, scale, sph, rbf):
         width: width coefficient for radial part of GTO
         scale: scale coefficient for radial part of GTO
     """
-    print('s deriv shape', s_deriv.shape)
-    print('d shape', d.shape)
-    print('coords shape', coords.shape)
-    print('sph coeff shape', sph_coeff.shape)
-    print('width shape', width.shape)
-    print('scale shape', scale.shape)
-    print('sph shape', sph.shape)
-    print('rbf shape', rbf.shape)
-    dcoords = torch.eye(3).unsqueeze(0).unsqueeze(0)
+    dcoords = torch.eye(3).unsqueeze(0).unsqueeze(0).to(coords)
     # gradient of spherical harmonics expansion with respect to u
-    sph_grad = (s_deriv.unsqueeze(-1) * sph_coeff.unsqueeze(-2)).sum((-1, -3))
+    sph_grad = (s_deriv.unsqueeze(-1) * sph_coeff.unsqueeze(-2))
     # gradient of spherical harmonics expansion with respect to grid coordinates
-    sph_grad_c = sph_grad.unsqueeze(-2) * -(dcoords / d.unsqueeze(-1)
-                                            - ((coords).unsqueeze(-2)
-                                            * (coords).unsqueeze(-1)
-                                            / d.unsqueeze(-1)**3))
-    sph_grad_c = sph_grad_c.sum(-1)
+    u_grad = -(dcoords / d.unsqueeze(-1)
+               - ((coords).unsqueeze(-2)
+               * (coords).unsqueeze(-1)
+               / d.unsqueeze(-1)**3))
+    sph_grad_c = sph_grad.unsqueeze(2) * u_grad.unsqueeze(-2).unsqueeze(-1)
+    sph_grad_c = sph_grad_c.sum(-2)
     zeros = torch.zeros_like(sph_grad_c)
     sph_grad_c = torch.where(torch.isnan(sph_grad_c), zeros, sph_grad_c)  # making sure there are no nans to avoid NaNs
 
-    print('gaussian rbd grad shape, ', gaussian_rbf_deriv(d.unsqueeze(-1), width, scale, L).shape)
-    print('coords/d shape', (coords / d).unsqueeze(-1).shape)
     # gradient of gaussian radial functions with respect to coordinates
     rbf_grad = gaussian_rbf_deriv(d.unsqueeze(-1), width, scale, L) * (coords / d).unsqueeze(-1)
     zeros = torch.zeros_like(rbf_grad)
     rbf_grad = torch.where(torch.isnan(rbf_grad), zeros, rbf_grad)  # making sure there are no nans to avoid NaNs
-    print('rbf grad', rbf_grad.shape)
-    print('sph_grad_c', sph_grad_c.shape)
     # gradient of gto basis with respect to coordinates
-    gto_deriv = torch.sum(rbf_grad.unsqueeze(-2) * sph.unsqueeze(-3), -2) + rbf * sph_grad_c.unsqueeze(-1)
+    gto_deriv = (rbf_grad.unsqueeze(-2) * sph.unsqueeze(-3)).sum(-2)\
+        + (rbf.unsqueeze(-3) * sph_grad_c).sum(-2)
     gto_deriv = gto_deriv.sum(-1)
-    print('gto_deriv.shape', gto_deriv.shape)
-    print('')
+    return gto_deriv
+
+
+def eval_gto_grad_einsum(s_deriv, d, L, coords, sph_coeff, width, scale, sph, rbf):
+    """
+    Function to evaluate GTO gradient given spherical harmonic gradients and basis coefficients.
+
+    Args:
+        s_deriv: derivative of spherical harmonics for a set of gridpoint
+        d: distances to each of the gridpoints
+        u: direction vectors to each of the gridpoints
+        L: degree of spherical harmonics
+        sph_coeff: coefficients for angular part of GTO
+        width: width coefficient for radial part of GTO
+        scale: scale coefficient for radial part of GTO
+    """
+    dcoords = torch.eye(3).to(coords)
+    # gradient of spherical harmonics expansion with respect to u
+    sph_grad = torch.einsum('bisc, bisr -> bisrc', s_deriv, sph_coeff)
+    u_grad = -(torch.einsum('cd, bis -> bicd', dcoords, 1 / d)
+               - torch.einsum('bic, bid, bid -> bicd', coords, coords, 1 / (d**3)))
+    sph_grad_c = torch.einsum('bisrd, bicd -> bicsr', sph_grad, u_grad)
+    zeros = torch.zeros_like(sph_grad_c)
+    sph_grad_c = torch.where(torch.isnan(sph_grad_c), zeros, sph_grad_c)  # making sure there are no nans to avoid NaNs
+
+    # gradient of gaussian radial functions with respect to coordinates
+    rbf_grad = gaussian_rbf_deriv(d.unsqueeze(-1), width, scale, L) * (coords / d).unsqueeze(-1)
+    zeros = torch.zeros_like(rbf_grad)
+    rbf_grad = torch.where(torch.isnan(rbf_grad), zeros, rbf_grad)  # making sure there are no nans to avoid NaNs
+    # gradient of gto basis with respect to coordinates
+    gto_deriv = (rbf_grad.unsqueeze(-2) * sph.unsqueeze(-3)).sum(-2)\
+        + (rbf.unsqueeze(-3) * sph_grad_c).sum(-2)
+    drbf_sph = torch.einsum('bicr, bisr -> bicr', rbf_grad, sph)
+    rbf_dsph = torch.einsum('bisr, bicsr -> bicr', rbf, sph_grad_c)
+    gto_deriv = (drbf_sph + rbf_dsph).sum(-1)
     return gto_deriv

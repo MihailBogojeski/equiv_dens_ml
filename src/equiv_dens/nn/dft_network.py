@@ -116,7 +116,7 @@ class DFTNetwork(nn.Module):
                 atoms[key] = data[key]
 
         if self.calculate_forces:
-            atoms['positions'].requires_grad = True
+            atoms['positions'].requires_grad_(True)
 
         atoms = self.density_repr_model(atoms)
         # run the models that require forces first, then turn off gradient for the positions
@@ -129,7 +129,7 @@ class DFTNetwork(nn.Module):
             # if self.verbose > 2:
             #     print('dft network forward after prop:', key, torch.cuda.memory_summary())
 
-        atoms['positions'].requires_grad = False
+        atoms['positions'].requires_grad_(False)
         if self.training:
             for key in self.no_force_props:
                 # if key == 'core_density':

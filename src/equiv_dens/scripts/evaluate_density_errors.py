@@ -1,19 +1,15 @@
-import os
-from datetime import datetime
+from pyscf import gto
 import argparse
 
 import torch
 from equiv_dens.training.parse_command_line_arguments import parse_command_line_arguments
 from pyscf.dft import numint
 from equiv_dens.data.density_dataset import AtomsDensityData
-from equiv_dens.utils.grids import cubical_grid, cubical_sampling, \
-     CubicalGrid, spherical_grid, spherical_radial_sampling
 import equiv_dens.utils.base as utils
 import equiv_dens.utils.orbitals as orbitals
-from equiv_dens.utils.misc import generate_id
+from pyscf.lib import param
+from equiv_dens.training.model_loader import load_model
 
-from functools import partial
-from argparse import Namespace
 from equiv_dens.training import density_errors
 import matplotlib.pyplot as plt
 import numpy as np
@@ -27,6 +23,8 @@ def str2bool(s):
         return False
     else:
         return s
+
+
 # %%
 def calc_density_errors(density, atoms, error_dict):
     r_dens = torch.clamp(density, min=0)
@@ -36,8 +34,10 @@ def calc_density_errors(density, atoms, error_dict):
     tmp_atoms['density'] = r_dens
     dpm = orbitals.calc_dipole_moment(tmp_atoms, center_coordinates=True)['dipole_moment']
 
-    df_error = torch.sum(torch.abs(atoms['density'] - r_dens) * atoms['coord_weights'])/torch.sum(atoms['atom_numbers'])
-    df2_error = torch.sqrt(torch.sum((atoms['density'] - r_dens)**2 * atoms['coord_weights'])/torch.sum(atoms['atom_numbers']))
+    df_error = torch.sum(torch.abs(atoms['density'] - r_dens) * atoms['coord_weights']) \
+        / torch.sum(atoms['atom_numbers'])
+    df2_error = torch.sqrt(torch.sum((atoms['density'] - r_dens)**2 * atoms['coord_weights'])
+                           / torch.sum(atoms['atom_numbers']))
 
     dpm_error = 4.8 * torch.mean(torch.abs(dpm - atoms['dipole_moment']))
     dpm2_error = 4.8 * torch.norm(dpm - atoms['dipole_moment'])
@@ -46,14 +46,14 @@ def calc_density_errors(density, atoms, error_dict):
     dpm_ang_error = (180 / torch.pi) * torch.acos(torch.mean(torch.sum(dpm * atoms['dipole_moment']) /
                                                   (torch.linalg.norm(dpm) * torch.linalg.norm(atoms['dipole_moment']))))
 
-    df43_error = torch.sum(torch.abs(atoms['density']**(4/3) -
-                           r_dens**(4/3)) * atoms['coord_weights'])
-    df23_error = torch.sum(torch.abs(atoms['density']**(2/3) -
-                           r_dens**(2/3)) * atoms['coord_weights'])
-    lda_error = torch.abs(torch.sum((atoms['density']**(4/3) -
-                          r_dens**(4/3)) * atoms['coord_weights']))
-    lda23_error = torch.abs(torch.sum((atoms['density']**(2/3) -
-                            r_dens**(2/3)) * atoms['coord_weights']))
+    df43_error = torch.sum(torch.abs(atoms['density']**(4 / 3) -
+                           r_dens**(4 / 3)) * atoms['coord_weights'])
+    df23_error = torch.sum(torch.abs(atoms['density']**(2 / 3) -
+                           r_dens**(2 / 3)) * atoms['coord_weights'])
+    lda_error = torch.abs(torch.sum((atoms['density']**(4 / 3) -
+                          r_dens**(4 / 3)) * atoms['coord_weights']))
+    lda23_error = torch.abs(torch.sum((atoms['density']**(2 / 3) -
+                            r_dens**(2 / 3)) * atoms['coord_weights']))
     coul_error = density_errors._density_coulomb_loss(r_dens - atoms['density'], atoms['coords'], atoms['coord_weights'])
 
     coul_int_error = torch.abs(density_errors.density_hartree_loss(r_dens, atoms['density'], atoms['coords'], atoms['coord_weights']))
@@ -64,11 +64,15 @@ def calc_density_errors(density, atoms, error_dict):
     dpm_coord_error = torch.sum(torch.norm((atoms['density'] - r_dens).unsqueeze(-1) *
                                 (atoms['coords'] - center_of_mass), dim=2) * atoms['coord_weights'])
     # positive dipole moment error at every grid point, RMSE
-    dpm_pos_coord_error = torch.sqrt(torch.sum(torch.sum((((atoms['density'] - r_dens) * ((atoms['density'] - r_dens) > 0)) * atoms['coord_weights']).unsqueeze(-1) *
-                                     (atoms['coords'] - center_of_mass), dim=1)**2))
+    dpm_pos_coord_error = torch.sqrt(torch.sum(torch.sum((((atoms['density'] - r_dens)
+                                                           * ((atoms['density'] - r_dens) > 0))
+                                                          * atoms['coord_weights']).unsqueeze(-1)
+                                                         * (atoms['coords'] - center_of_mass), dim=1)**2))
     # negative dipole moment error at every grid point, RMSE
-    dpm_neg_coord_error = torch.sqrt(torch.sum(torch.sum((((atoms['density'] - r_dens) * ((atoms['density'] - r_dens) < 0)) * atoms['coord_weights']).unsqueeze(-1) *
-                                     (atoms['coords'] - center_of_mass), dim=1)**2))
+    dpm_neg_coord_error = torch.sqrt(torch.sum(torch.sum((((atoms['density'] - r_dens)
+                                                           * ((atoms['density'] - r_dens) < 0))
+                                                          * atoms['coord_weights']).unsqueeze(-1)
+                                                         * (atoms['coords'] - center_of_mass), dim=1)**2))
     # unsigned dipole moment error at every grid point, RMSE
     dpm_int_error = torch.norm(torch.sum(((atoms['density'] - r_dens) * atoms['coord_weights']).unsqueeze(-1) *
                                (atoms['coords'] - center_of_mass), dim=1))
@@ -109,13 +113,14 @@ def calc_density_grad_errors(density, atoms, error_dict):
     dens_calc = density[0] * atoms['coord_weights']
     # print('exchange correlation', exc_eff_pbe.shape)
     exc_sum_pbe = torch.sum(exc_eff_pbe * dens_calc)
-    error_dict['exc_mae'].append(float(torch.abs(exc_sum_pbe - exc_pbe)))
+    error_dict['exc_mae'].append(float(utils.hartree_to_kcal(torch.abs(exc_sum_pbe - exc_pbe))))
 
-    vw_pred = torch.nansum(torch.norm(density[1:], dim=0)**2 / density * atoms['coord_weights'].squeeze())
-    vw_true = torch.nansum(torch.norm(dens_true[1:], dim=0)**2 / dens_true * atoms['coord_weights'].squeeze())
+    vw_pred = torch.nansum(torch.norm(density[1:], dim=0)**2 / density[0] * atoms['coord_weights'].squeeze()) / 8
+    vw_true = torch.nansum((torch.norm(dens_true[1:], dim=0)**2 / dens_true[0]) * atoms['coord_weights'].squeeze()) / 8
     error_dict['vw_mae'].append(float(torch.abs(vw_pred - vw_true)))
-    error_dict['grad_norm_err'].append(float(torch.sum(torch.norm(density[1:] - dens_true[1:], dim=0) * atoms['coord_weigts'].squeeze())
+    error_dict['grad_norm_err'].append(float(torch.sum(torch.norm(density[1:] - dens_true[1:], dim=0) * atoms['coord_weights'].squeeze())
                                              / torch.sum(atoms['atom_numbers'])))
+
 
 # %%
 def make_plots(dens_ml, dens_df, sample_ref, save_name):
@@ -126,7 +131,7 @@ def make_plots(dens_ml, dens_df, sample_ref, save_name):
     dens_df = dens_df / torch.sum(dens_df * sample_ref['coord_weights']) * torch.sum(sample_ref['atom_numbers'])
 
     center_of_mass = torch.sum(sample_ref['batch_positions'] * sample_ref['batch_atom_numbers'].unsqueeze(-1), dim=1, keepdim=True)\
-                    / torch.sum(sample_ref['batch_atom_numbers'].unsqueeze(-1), dim=1, keepdim=True)
+        / torch.sum(sample_ref['batch_atom_numbers'].unsqueeze(-1), dim=1, keepdim=True)
 
     distance_from_com = torch.norm(sample_ref['coords'] - center_of_mass, dim=2)
 
@@ -140,7 +145,7 @@ def make_plots(dens_ml, dens_df, sample_ref, save_name):
 
     min_distance_from_atoms = torch.min(distance_from_atoms, dim=1)[0]
 
-    fig, axs = plt.subplots(5, 4, figsize=(10, 12))
+    _, axs = plt.subplots(5, 4, figsize=(10, 12))
 
     axs[1, 0].scatter(dens_df_mae.squeeze(), distance_from_com, label='DF', c='blue')
     axs[1, 0].scatter(dens_ml_mae.squeeze(), distance_from_com, label='ML', c='orange')
@@ -290,6 +295,7 @@ def make_plots(dens_ml, dens_df, sample_ref, save_name):
     # plt.show()
     plt.savefig('figures/' + save_name + '_density_errors_all.png', dpi=300)
 
+
 def make_compact_plots(dens_ml, dens_df, sample_ref, save_name):
     dens_ml = torch.clamp(dens_ml, min=0)
     dens_ml = dens_ml / torch.sum(dens_ml * sample_ref['coord_weights']) * torch.sum(sample_ref['atom_numbers'])
@@ -298,16 +304,16 @@ def make_compact_plots(dens_ml, dens_df, sample_ref, save_name):
     dens_df = dens_df / torch.sum(dens_df * sample_ref['coord_weights']) * torch.sum(sample_ref['atom_numbers'])
 
     center_of_mass = torch.sum(sample_ref['batch_positions'] * sample_ref['batch_atom_numbers'].unsqueeze(-1), dim=1, keepdim=True)\
-                    / torch.sum(sample_ref['batch_atom_numbers'].unsqueeze(-1), dim=1, keepdim=True)
+        / torch.sum(sample_ref['batch_atom_numbers'].unsqueeze(-1), dim=1, keepdim=True)
 
     distance_from_com = torch.norm(sample_ref['coords'] - center_of_mass, dim=2)
 
-    distance_from_atoms = torch.norm(sample_ref['coords'].unsqueeze(1) - sample_ref['positions'].unsqueeze(2), dim=-1)
-    min_distance_from_atoms = torch.min(distance_from_atoms, dim=1)[0]
+    # distance_from_atoms = torch.norm(sample_ref['coords'].unsqueeze(1) - sample_ref['positions'].unsqueeze(2), dim=-1)
+    # min_distance_from_atoms = torch.min(distance_from_atoms, dim=1)[0]
 
     plt.rcParams['text.usetex'] = True
 
-    fig, axs = plt.subplots(1, 4, figsize=(10, 2))
+    _, axs = plt.subplots(1, 4, figsize=(10, 2))
 
     # absolute density errors unscaled
     dens_df_err = (dens_df - sample_ref['density'])
@@ -392,12 +398,12 @@ def make_scatter_plots(res_density, dataset_df, dataset, save_name):
         dens_df = dens_df / torch.sum(dens_df * sample_ref['coord_weights']) * torch.sum(sample_ref['atom_numbers'])
 
         center_of_mass = torch.sum(sample_ref['batch_positions'] * sample_ref['batch_atom_numbers'].unsqueeze(-1), dim=1, keepdim=True)\
-                        / torch.sum(sample_ref['batch_atom_numbers'].unsqueeze(-1), dim=1, keepdim=True)
+            / torch.sum(sample_ref['batch_atom_numbers'].unsqueeze(-1), dim=1, keepdim=True)
 
-        distance_from_com = torch.norm(sample_ref['coords'] - center_of_mass, dim=2)
+        # distance_from_com = torch.norm(sample_ref['coords'] - center_of_mass, dim=2)
 
-        distance_from_atoms = torch.norm(sample_ref['coords'].unsqueeze(1) - sample_ref['positions'].unsqueeze(2), dim=-1)
-        min_distance_from_atoms = torch.min(distance_from_atoms, dim=1)[0]
+        # distance_from_atoms = torch.norm(sample_ref['coords'].unsqueeze(1) - sample_ref['positions'].unsqueeze(2), dim=-1)
+        # min_distance_from_atoms = torch.min(distance_from_atoms, dim=1)[0]
 
         tmp_atoms = {key: sample_ref[key] for key in sample_ref}
         tmp_atoms['density'] = dens_ml
@@ -406,16 +412,18 @@ def make_scatter_plots(res_density, dataset_df, dataset, save_name):
         tmp_atoms['density'] = dens_df
         dpm_df = orbitals.calc_dipole_moment(tmp_atoms, center_coordinates=True)['dipole_moment']
 
-        dens_df_mae.append(torch.sum(torch.abs(sample_ref['density'] - dens_df) * sample_ref['coord_weights'])/torch.sum(sample_ref['atom_numbers']))
-        dens_ml_mae.append(torch.sum(torch.abs(sample_ref['density'] - dens_ml) * sample_ref['coord_weights'])/torch.sum(sample_ref['atom_numbers']))
+        dens_df_mae.append(torch.sum(torch.abs(sample_ref['density'] - dens_df) * sample_ref['coord_weights'])
+                           / torch.sum(sample_ref['atom_numbers']))
+        dens_ml_mae.append(torch.sum(torch.abs(sample_ref['density'] - dens_ml) * sample_ref['coord_weights'])
+                           / torch.sum(sample_ref['atom_numbers']))
 
         dpm_df_rmse.append(4.8 * torch.norm(dpm_df - sample_ref['dipole_moment']))
         dpm_ml_rmse.append(4.8 * torch.norm(dpm_ml - sample_ref['dipole_moment']))
 
-        lda_df_mae.append(torch.abs(torch.sum((sample_ref['density']**(4/3) -
-                          dens_df**(4/3)) * sample_ref['coord_weights'])))
-        lda_ml_mae.append(torch.abs(torch.sum((sample_ref['density']**(4/3) -
-                          dens_ml**(4/3)) * sample_ref['coord_weights'])))
+        lda_df_mae.append(torch.abs(torch.sum((sample_ref['density']**(4 / 3) -
+                          dens_df**(4 / 3)) * sample_ref['coord_weights'])))
+        lda_ml_mae.append(torch.abs(torch.sum((sample_ref['density']**(4 / 3) -
+                          dens_ml**(4 / 3)) * sample_ref['coord_weights'])))
 
         # absolute dipole moment error at every grid point, RMSE
         dpm_coord_df_rmse.append(torch.sum(torch.norm((sample_ref['density'] - dens_df).unsqueeze(-1) *
@@ -425,7 +433,7 @@ def make_scatter_plots(res_density, dataset_df, dataset, save_name):
 
     plt.rcParams['text.usetex'] = True
 
-    fig, axs = plt.subplots(1, 4, figsize=(10, 2))
+    _, axs = plt.subplots(1, 4, figsize=(10, 2))
 
     # absolute density errors scaled
     axs[0].scatter(dens_df_mae, dens_ml_mae, s=1)
@@ -492,7 +500,7 @@ print("loading atoms from" + args.np_dataset + "...")
 grid_vars = train_utils.init_grid_vars(args, test=True)
 print('grid vars', grid_vars)
 
-required_properties = ['energy', 'forces', 'density', 'dipole_moment']
+required_properties = ['energy', 'forces', 'density', 'dipole_moment', 'df_coeffs']
 
 if main_args.ref_np_load_file is not None:
     args.np_dataset_test = main_args.ref_np_load_file
@@ -527,6 +535,10 @@ dataset = AtomsDensityData(np_path=args.np_dataset_test, density_path=args.dens_
 
 if main_args.num_samples < 1:
     main_args_num_samples = len(dataset)
+if main_args.density_grad_error:
+    grad_str = '_grad'
+else:
+    grad_str = ''
 # %%
 print('num samples', main_args.num_samples)
 df_losses = None
@@ -568,33 +580,63 @@ if main_args.df_error:
             sample_df = dataset_df.get_properties([i])
             print('density integral', torch.sum(sample_df['density'] * sample['coord_weights']))
             calc_density_errors(sample_df['density'], sample, df_losses)
-    # else:
-    #     df_losses = {'exc_mae': [], 'vw_mae': [], 'grad_norm_err': []}
-    #     # print('i', i, 'mae', df_error, 'rmse', df2_error, 'dpm', dpm_error, 'mag', dpm_mag_error, 'ang', dpm_ang_error, 'lda', lda_error)
+    else:
+        df_losses = {'exc_mae': [], 'vw_mae': [], 'grad_norm_err': []}
+        # print('i', i, 'mae', df_error, 'rmse', df2_error, 'dpm', dpm_error, 'mag', dpm_mag_error, 'ang', dpm_ang_error, 'lda', lda_error)
+        for i in range(min(len(dataset), main_args.num_samples)):
+            atoms = dataset.get_properties([i])
+            samp_df = dataset_df.get_properties([i])
+            basis = 'augccpvdz'
+            auxbasis = 'augccpvqzjkfit'
 
-    np.save('datasets/' + main_args.save_file + '_df_losses.npy', df_losses, allow_pickle=True)
+            pos = atoms['batch_positions'][0]
+            atom_types = atoms['batch_atom_numbers'][0]
+            atom = []
+            for j in range(len(atom_types)):
+                atom.append((atom_types[j].numpy(force=True), pos[j, :].numpy(force=True)))
+            auxmol = gto.M(atom=atom, basis=auxbasis)
+            auxmol.build()
+            df_basis = samp_df['df_coeffs'].squeeze()
+            coords = samp_df['coords'] / param.BOHR
+            ao = numint.eval_ao(auxmol, coords[0], deriv=1)
+            rho_pbe = np.einsum('ijk,k->ij', ao, df_basis.numpy(force=True))
+            dens_grad_df = torch.from_numpy(rho_pbe)
+            calc_density_grad_errors(dens_grad_df, atoms, df_losses)
+    np.save('datasets/' + main_args.save_file + '_df' + grad_str + '_losses.npy', df_losses, allow_pickle=True)
     print('DF losses')
     for key in df_losses.keys():
         print(key)
         print(np.nanmean(df_losses[key]))
 
+
 if main_args.free_atom_error:
-    free_atom_losses = {'dens_mae': [], 'dens_rmse': [], 'dpm_mae': [],
-                        'dpm_rmse': [], 'kl_loss': [],
-                        'dpm_mag': [], 'dpm_ang': [], 'lda_mae': [],
-                        'coulomb': [], 'coulomb_int': [], 'mae_23': [], 'mae_43': [],
-                        'lda_23_mae': [], 'dpm_coord_rmse': [],
-                        'dpm_pos_coord_rmse': [], 'dpm_neg_coord_rmse': [],
-                        'dpm_int_rmse': [], 'dpm_norm_error': []}
+    if not main_args.density_grad_error:
+        free_atom_losses = {'dens_mae': [], 'dens_rmse': [], 'dpm_mae': [],
+                            'dpm_rmse': [], 'kl_loss': [],
+                            'dpm_mag': [], 'dpm_ang': [], 'lda_mae': [],
+                            'coulomb': [], 'coulomb_int': [], 'mae_23': [], 'mae_43': [],
+                            'lda_23_mae': [], 'dpm_coord_rmse': [],
+                            'dpm_pos_coord_rmse': [], 'dpm_neg_coord_rmse': [],
+                            'dpm_int_rmse': [], 'dpm_norm_error': []}
 
-    for i in range(min(len(dataset), main_args.num_samples)):
-        sample = dataset.get_properties([i])
-        print('density integral', torch.sum(sample['atom_density'] * sample['coord_weights']))
-        calc_density_errors(sample['atom_density'], sample, free_atom_losses)
-        # print('i', i, 'mae', df_error, 'rmse', df2_error, 'dpm', dpm_error, 'mag', dpm_mag_error, 'ang', dpm_ang_error, 'lda', lda_error)
+        for i in range(min(len(dataset), main_args.num_samples)):
+            sample = dataset.get_properties([i])
+            print('density integral', torch.sum(sample['atom_density'] * sample['coord_weights']))
+            calc_density_errors(sample['atom_density'], sample, free_atom_losses)
+            # print('i', i, 'mae', df_error, 'rmse', df2_error, 'dpm', dpm_error, 'mag', dpm_mag_error, 'ang', dpm_ang_error, 'lda', lda_error)
+    else:
+        free_atom_losses = {'exc_mae': [], 'vw_mae': [], 'grad_norm_err': []}
+        for i in range(min(len(dataset), main_args.num_samples)):
+            sample = dataset.get_properties([i])
+            print('density integral', torch.sum(sample['atom_density'] * sample['coord_weights']))
+            dens_grad_atom = sample['atom_density_grad'].squeeze()
+            dens_grad_atom = dens_grad_atom.t()
+            dens_grad_atom = torch.cat([sample['atom_density'], dens_grad_atom], dim=0)
+            print('dens_grad atom shape', dens_grad_atom.shape)
+            calc_density_grad_errors(dens_grad_atom, sample, free_atom_losses)
 
-    np.save('datasets/' + main_args.save_file + '_free_atom_losses.npy', free_atom_losses, allow_pickle=True)
-    print('DF losses')
+    np.save('datasets/' + main_args.save_file + '_free_atom' + grad_str + '_losses.npy', free_atom_losses, allow_pickle=True)
+    print('Free atom losses')
     for key in free_atom_losses.keys():
         print(key)
         print(np.nanmean(free_atom_losses[key]))
@@ -602,26 +644,41 @@ if main_args.free_atom_error:
 # %%
 if main_args.ml_error:
     res_dataset = torch.load(main_args.res_load_file, map_location='cpu')
-    print('res dataset length', len(res_dataset))
-    print('res sample pos shape', res_dataset['positions'].shape)
-    print('res sample dens shape', res_dataset['density'].shape)
-    res_losses = {'dens_mae': [], 'dens_rmse': [], 'dpm_mae': [],
-                  'dpm_rmse': [], 'kl_loss': [],
-                  'dpm_mag': [], 'dpm_ang': [], 'lda_mae': [],
-                  'coulomb': [], 'coulomb_int': [], 'mae_23': [], 'mae_43': [],
-                  'lda_23_mae': [], 'dpm_coord_rmse': [],
-                  'dpm_pos_coord_rmse': [], 'dpm_neg_coord_rmse': [],
-                  'dpm_int_rmse': [], 'dpm_norm_error': []}
-    for i in range(min(len(dataset), main_args.num_samples)):
-        # print('sample pdist', torch.cdist(sample['positions'], sample['positions'])[0, :3,:3])
-        # print('res_pdist', torch.cdist(res_dataset['positions'][[i]], res_dataset['positions'][[i]])[0, :3,:3])
-        sample = dataset.get_properties([i])
-        # print('sample positions', sample['positions'])
-        # print('res dataset_positions', res_dataset['positions'][[i]])
-        # print('density integral', torch.sum(res_dataset['density'][[i]] * sample['coord_weights']))
-        calc_density_errors(res_dataset['density'][[i]], sample, res_losses)
+    if not main_args.density_grad_error:
+        print('res dataset length', len(res_dataset))
+        print('res sample pos shape', res_dataset['positions'].shape)
+        print('res sample dens shape', res_dataset['density'].shape)
+        res_losses = {'dens_mae': [], 'dens_rmse': [], 'dpm_mae': [],
+                      'dpm_rmse': [], 'kl_loss': [],
+                      'dpm_mag': [], 'dpm_ang': [], 'lda_mae': [],
+                      'coulomb': [], 'coulomb_int': [], 'mae_23': [], 'mae_43': [],
+                      'lda_23_mae': [], 'dpm_coord_rmse': [],
+                      'dpm_pos_coord_rmse': [], 'dpm_neg_coord_rmse': [],
+                      'dpm_int_rmse': [], 'dpm_norm_error': []}
+        for i in range(min(len(dataset), main_args.num_samples)):
+            # print('sample pdist', torch.cdist(sample['positions'], sample['positions'])[0, :3,:3])
+            # print('res_pdist', torch.cdist(res_dataset['positions'][[i]], res_dataset['positions'][[i]])[0, :3,:3])
+            sample = dataset.get_properties([i])
+            # print('sample positions', sample['positions'])
+            # print('res dataset_positions', res_dataset['positions'][[i]])
+            # print('density integral', torch.sum(res_dataset['density'][[i]] * sample['coord_weights']))
+            calc_density_errors(res_dataset['density'][[i]], sample, res_losses)
+    else:
+        res_losses = {'exc_mae': [], 'vw_mae': [], 'grad_norm_err': []}
+        if 'density_grad' in res_dataset.keys():
+            for i in range(min(len(dataset), main_args.num_samples)):
+                sample = dataset.get_properties([i])
+                dens_ml = torch.cat([res_dataset['density'][[i]], res_dataset['density_grad'][i].t()], dim=0)
+                calc_density_grad_errors(res_dataset['density_grad'][[i]], sample, res_losses)
+        else:
+            for i in range(min(len(dataset), main_args.num_samples)):
+                sample = dataset.get_properties([i])
+                model = load_model(args, dataset)
+                res = model(sample)
+                dens_ml = torch.cat([res['density'], res['density_grad'][0].t()], dim=0)
+                calc_density_grad_errors(dens_ml, sample, res_losses)
 
-    np.save('datasets/' + main_args.save_file + '.npy', res_losses, allow_pickle=True)
+    np.save('datasets/' + main_args.save_file + grad_str + '.npy', res_losses, allow_pickle=True)
     print('Results losses')
     for key in res_losses.keys():
         print(key)
