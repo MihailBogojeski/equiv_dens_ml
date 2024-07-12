@@ -265,7 +265,6 @@ class Trainer:
         self.train_batch_num = -1
         # initialize state
         self._module.train()
-        self._module = torch.compile(self._module, fullgraph=True, backend='inductor', mode=None)
         self.train_iterator = iter(self.train_loader)
         new_valid = False
         new_best = False
