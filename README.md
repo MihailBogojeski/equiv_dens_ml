@@ -4,13 +4,12 @@ An SE3 equivariant model that predicts the electron density of a molecule.
 
 The easiest way to install the package is using a conda environment to take care of all the dependencies. Create using with the necessary requirements installed using:
 ```
-$ conda env create -n equiv_dens_ml -f requirements_conda.yaml
+$ conda create -n equiv_dens_ml python=3.10 pip
 ```
 Next, activate the environment and install the package using:
 ```
 $ conda activate equiv_dens_ml
-$ pip install -e .
-```
+$ pip install -e . -r requirements.txt
 
 ## Usage
 

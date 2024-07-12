@@ -407,7 +407,6 @@ class Trainer:
         errors = self.error_dict.compute(predictions, data)
         # check for nans
         found_nans = False
-        # print('errors', errors)
         for key in errors.keys():
             if torch.any(torch.isnan(errors[key])):
                 print('Nans found in', key, 'error')
