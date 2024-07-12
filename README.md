@@ -10,7 +10,7 @@ Next, activate the environment and install the package using:
 ```
 $ conda activate equiv_dens_ml
 $ pip install -e . -r requirements.txt
-
+```
 ## Usage
 
 Cofigurations for training, test and molecular dynamics runs are done via argument files stored in the 'args' directory.
@@ -22,5 +22,5 @@ simultaneously.
 
 To run a short example training and test run with a small water dataset, you can use the provided sample argument file 'args/h2o_small_all_001.txt' and the train_all.py script: 
 ```
-python src/equiv_dens/train_all.py @args/h2o_small_all_001.txt
+$ python src/equiv_dens/train_all.py @args/h2o_small_all_001.txt
 ```
