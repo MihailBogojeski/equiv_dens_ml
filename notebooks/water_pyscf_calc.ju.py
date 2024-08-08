@@ -339,6 +339,89 @@ for set_type in set_types:
     # print('forces sad c', npy_data_compressed['forces_SAD'][:3])
     np.save(npy_path, npy_data, allow_pickle=True)
 # %%
+data = np.load('datasets/h2o_static_pyscf_dft.npy', allow_pickle=True)
+basis = 'augccpvdz'
+auxbasis = 'augccpvqzjkfit'
+
+# %%
+print(len(data))
+save_path = 'datasets/h2o_static_pyscf_dft_augccpvdz_df_hm_dm_oe_calc.npy'
+npy_path = 'datasets/h2o_static_pyscf_dft_augccpvdz_df_hm_dm_oe.npy'
+if os.path.exists(save_path):
+    results = list(np.load(save_path, allow_pickle=True))
+else:
+    results = []
+print('results len', len(results))
+for i in range(len(results), len(data)):
+    print('calc', i)
+    start = time.time()
+    atom = data[i][0]["atom"] 
+    mol = gto.M(atom=atom, basis=basis)
+    res = []
+    res.append(mol.pack())
+    mf = dft.RKS(mol)
+    mf.chkfile=False
+    mf.xc = 'pbe'
+    mf.kernel()
+    g = mf.nuc_grad_method()
+    gradients = g.grad()
+    print('elapsed', time.time() - start)
+    #print(mfs[i].mo_coeff)
+    res = []
+    res.append(mol.pack())
+    calc_dict = {}
+    calc_dict['mo_coeff'] = mf.mo_coeff
+    print('mo_coeff shape', calc_dict['mo_coeff'].shape)
+    calc_dict['mo_occ'] = mf.mo_occ
+    calc_dict['energy'] = mf.e_tot
+    calc_dict['forces'] = -gradients/ase.units.Bohr
+
+    dm1 = mf.make_rdm1(mf.mo_coeff, mf.mo_occ)
+    auxmol = df.addons.make_auxmol(mol, auxbasis)
+
+    ints_3c2e = df.incore.aux_e2(mol, auxmol, intor='int3c2e')
+    ints_2c2e = auxmol.intor('int2c2e')
+    print('ints3c2e shape', ints_3c2e.shape)
+    print('ints2c2e shape', ints_2c2e.shape)
+
+    nao = mol.nao
+    naux = auxmol.nao
+    df_coef = scipy.linalg.solve(ints_2c2e, ints_3c2e.reshape(nao*nao, naux).T)
+    df_coef = df_coef.reshape(naux, nao, nao)
+    if dm1.ndim > 2:
+        df_basis = []
+        for j in range(dm1.shape[0]):
+            df_basis.append(lib.einsum('Pij,ij->P', df_coef, dm1[j]))
+        df_basis = np.stack(df_basis, axis=0)
+        print(df_basis.shape)
+
+    else:
+        df_basis = lib.einsum('Pij,ij->P', df_coef, dm1)
+
+    calc_dict['df_coeff'] = df_basis
+    calc_dict['auxbasis'] = auxbasis
+    # print('calc_dict', calc_dict)
+    oe = mf.mo_energy
+    hm = hf.get_fock(mf)
+    calc_dict.update({"mo_energies":oe, "density_matrix": dm1,
+                        "hamiltonian_matrix": hm})
+    res.append(calc_dict)
+    results.append(res)
+    if i%10 == 0:
+        np.save(save_path, results, allow_pickle=True)
+np.save(save_path, results, allow_pickle=True)
+npy_data = utils.calc_dict_to_npy(results, convert_forces=False, compress_atoms=False)
+npy_data_compressed = utils.calc_dict_to_npy(results, convert_forces=False, compress_atoms=True)
+# print('atom_number nc', npy_data['atom_numbers'][:3])
+# print('atom_number c', npy_data_compressed['atom_numbers'][:3])
+# print('pos nc', npy_data['positions'][:3])
+# print('pos c', npy_data_compressed['positions'][:3])
+# print('forces nc', npy_data['forces'][:3])
+# print('forces c', npy_data_compressed['forces'][:3])
+# print('forces sad nc', npy_data['forces_SAD'][:3])
+# print('forces sad c', npy_data_compressed['forces_SAD'][:3])
+np.save(npy_path, npy_data, allow_pickle=True)
+# %%
 set_types = ['train', 'valid', 'test']
 for set_type in set_types:
     data1 = np.load('datasets/h2o_small_' + set_type + '_augccpvdz_df_augccpvqzjkfit.npy', allow_pickle=True)
