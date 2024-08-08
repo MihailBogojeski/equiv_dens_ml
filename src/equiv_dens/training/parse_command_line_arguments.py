@@ -352,6 +352,8 @@ def parse_command_line_arguments(arg_file=None):
                                choices=[True, False], help="Set density coeffs to DF coeffs instead of predicting them")
     args_training.add_argument("--density_from_free_atoms", metavar='True|False', type=str2bool, default=False,
                                choices=[True, False], help="Set density coeffs to free atom coeffs instead of predicting them")
+    args_training.add_argument("--compile", metavar='True|False', type=str2bool, default=False,
+                               choices=[True, False], help="Compile the model for higher efficiency.")
     # arguments for simulations
     args_simulation = parser.add_argument_group("simulation hyperparameters")
     args_simulation.add_argument("--temperature", metavar='INT', type=int, default=300,
