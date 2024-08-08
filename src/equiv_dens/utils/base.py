@@ -571,7 +571,7 @@ def neighbor_pairs(padding_mask, coordinates, cell, shifts, cutoff):
     return atom_index1, atom_index2, shifts
 
 
-def compress_batch_atoms(numbers, props_dict, basis_size=None):
+def compress_batch_atoms(numbers, props_dict, df_basis_size=None, ao_basis_size=None):
     atom_num_count = {}
     for i in range(len(numbers)):
         nums = np.unique(numbers[i])
@@ -595,12 +595,27 @@ def compress_batch_atoms(numbers, props_dict, basis_size=None):
         new_nums = np.zeros((len(common_numbers),))
         new_props = {}
         for key in props.keys():
+            if 'df' in key:
+                basis_size = df_basis_size
+            else:
+                basis_size = ao_basis_size
             if isinstance(props[key], np.ndarray):
                 new_props[key] = np.zeros((len(common_numbers), props[key].shape[1]))
+                print('key', key)
+                print('new_props shape', new_props[key].shape)
             elif basis_size is not None:
                 new_props[key] = []
-                for z in common_numbers:
-                    new_props[key].append(np.zeros((basis_size[z], )))
+                if isinstance(props[key][0][1], np.ndarray):
+                    # add atom centered orbital property
+                    for z in common_numbers:
+                        new_props[key].append(np.zeros((basis_size[z], )))
+                else:
+                    # add operator matrix property
+                    for z1 in common_numbers:
+                        row = []
+                        for z2 in common_numbers:
+                            row.append(np.zeros((basis_size[z1], basis_size[z2])))
+                        new_props[key].append(row)
             else:
                 raise Exception('No basis size given for df coeffs!')
 
@@ -616,15 +631,39 @@ def compress_batch_atoms(numbers, props_dict, basis_size=None):
                     # print('numpy array add props')
                     new_props[key][last_idx:last_idx + len(idx)] = props[key][idx]
                 else:
-                    # print('df coeffs add props')
                     charges = np.array([prop[0] for prop in props[key]])
                     idx_alt = np.where(charges == z)[0]
-                    new_props[key][last_idx:last_idx + len(idx_alt)] = [props[key][j][1] for j in idx_alt]
+                    print('idx alt', idx_alt)
+                    if isinstance(props[key][0][1], np.ndarray):
+                        # print('df coeffs add props')
+                        new_props[key][last_idx:last_idx + len(idx_alt)] = [props[key][j][1] for j in idx_alt]
+                    else:
+                        # print('df coeffs add props')
+                        last_idx2 = 0
+                        for z2 in atom_num_count.keys():
+                            idx_alt2 = np.where(charges == z2)[0]
+                            print('charges', z, z2)
+                            print('idx alt2', idx_alt2)
+                            # new_props[key][last_idx:last_idx + len(idx_alt),
+                            #                last_idx2:last_idx2 + len(idx_alt2)]\
+                            #     = [[props[key][i][1][j][1] for j in idx_alt2] for i in idx_alt]
+                            for i in range(len(idx_alt)):
+                                print('i', i)
+                                print('props size', [props[key][idx_alt[i]][1][j][1].shape for j in idx_alt2])
+                                print('last_idx', last_idx, len(idx_alt))
+                                print('last_idx2', last_idx2, len(idx_alt2))
+                                new_props[key][last_idx + i][last_idx2:last_idx2 + len(idx_alt2)] =\
+                                    [props[key][idx_alt[i]][1][j][1] for j in idx_alt2]
+                            last_idx2 += atom_num_count[z2]
             last_idx += atom_num_count[z]
         batch_nums.append(new_nums)
         for key in new_props.keys():
             if not isinstance(new_props[key], np.ndarray):
-                new_props[key] = np.concatenate(new_props[key])
+                if isinstance(props[key][0][1], np.ndarray):
+                    new_props[key] = np.concatenate(new_props[key])
+                else:
+                    new_props[key] = [np.concatenate(new_props[key][i], axis=1) for i in range(len(new_props[key]))]
+                    new_props[key] = np.concatenate(new_props[key], axis=0)
             if key in batch_props.keys():
                 batch_props[key].append(new_props[key])
             else:
