@@ -133,6 +133,7 @@ def parse_command_line_arguments(arg_file=None):
     args_training.add_argument("--dens_dataset_valid", metavar='STR', type=str, help="filepath to density validation dataset")
     args_training.add_argument("--pseudo_pot_path", metavar='STR', type=str, help="filepath to pseudo potentials")
     args_training.add_argument("--orbitals_file", metavar='STR', type=str, help="filepath to orbital basis")
+    args_training.add_argument("--calc_basis_file", metavar='STR', type=str, help="filepath to calculation basis")
     args_training.add_argument("--radial_coeffs_file", metavar='STR', type=str, default=None,
                                help="filepath to initial radial coefficients")
     args_training.add_argument("--L0_coeffs_file", metavar='STR', type=str, default=None,
