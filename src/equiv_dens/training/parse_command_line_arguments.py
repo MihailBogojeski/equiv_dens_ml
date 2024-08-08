@@ -133,6 +133,7 @@ def parse_command_line_arguments(arg_file=None):
     args_training.add_argument("--dens_dataset_valid", metavar='STR', type=str, help="filepath to density validation dataset")
     args_training.add_argument("--pseudo_pot_path", metavar='STR', type=str, help="filepath to pseudo potentials")
     args_training.add_argument("--orbitals_file", metavar='STR', type=str, help="filepath to orbital basis")
+    args_training.add_argument("--calc_basis_file", metavar='STR', type=str, help="filepath to calculation basis")
     args_training.add_argument("--radial_coeffs_file", metavar='STR', type=str, default=None,
                                help="filepath to initial radial coefficients")
     args_training.add_argument("--L0_coeffs_file", metavar='STR', type=str, default=None,
@@ -180,7 +181,7 @@ def parse_command_line_arguments(arg_file=None):
                                help="Calculate the density gradient")
     args_training.add_argument("--density_weight", metavar='FLOAT', type=float, default=1.0,
                                help="weight of the density in the loss function")
-    args_training.add_argument("--density_grad_weight", metavar='FLOAT', type=float, default=1.0,
+    args_training.add_argument("--density_grad_weight", metavar='FLOAT', type=float, default=0.0,
                                help="weight of the density gradient in the loss function")
     args_training.add_argument("--df_weight", metavar='FLOAT', type=float, default=0.0,
                                help="weight of the density fitting coeffs in the loss function")
@@ -197,7 +198,7 @@ def parse_command_line_arguments(arg_file=None):
                                         'coulomb', 'perc_mae', 'perc_rmse', 'mixed_dist_err',
                                         'perc_mixed_dist_err', 'kl_loss', 'dpm_loss', 'dpm_abs_loss'],
                                help="Composition of the density loss.")
-    args_training.add_argument("--density_grad_loss_comp", metavar='STR', type=str, default=['norm'], nargs='+',
+    args_training.add_argument("--density_grad_loss_comp", metavar='STR', type=str, default=['norm_int'], nargs='+',
                                choices=['norm_int', 'perc_norm_int', 'kinetic_vw'],
                                help="Composition of the density loss.")
     args_training.add_argument("--dipole_moment_loss_comp", metavar='STR', type=str, default=['mae'], nargs='+',

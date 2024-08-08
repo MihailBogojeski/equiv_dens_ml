@@ -9,6 +9,7 @@ from pyscf import df, lib, dft
 import pyscf.gto.mole
 from pyscf.scf import hf
 import scipy
+from ase.data import chemical_symbols
 
 # import time
 from equiv_dens.utils.hirshfeld_analysis import eval_spline_density
@@ -257,6 +258,28 @@ def coeffs_dict_to_tensors(coeffs, radial_coeffs=True):
 
     return all_sph, all_scale, all_width
 
+def convert_coeffs_to_pyscf(coeffs):
+    new_coeffs = {key: coeffs[key] for key in coeffs.keys()}
+    new_coeffs["spherical_coeffs"] = []
+    for i in range(len(coeffs["spherical_coeffs"])):
+        new_coeffs["spherical_coeffs"].append({})
+        for key in coeffs["spherical_coeffs"][i].keys():
+            if key[1] == 1:
+                new_coeffs["spherical_coeffs"][i][key] = coeffs["spherical_coeffs"][
+                    i
+                ][key]
+                new_coeffs["spherical_coeffs"][i][key] = new_coeffs[
+                    "spherical_coeffs"
+                ][i][key][:, :, [2, 0, 1], :]
+            else:
+                new_coeffs["spherical_coeffs"][i][key] = coeffs["spherical_coeffs"][
+                    i
+                ][key]
+            if key[1] % 2 == 1:
+                new_coeffs["spherical_coeffs"][i][key] = (
+                    -1 * new_coeffs["spherical_coeffs"][i][key]
+                )
+    return new_coeffs
 
 def coeffs_dict_to_vector(
     coeffs,
@@ -277,27 +300,7 @@ def coeffs_dict_to_vector(
         # coeff_weights = coeffs['coeff_weights']
 
     if convert_to_pyscf:
-        new_coeffs = {key: coeffs[key] for key in coeffs.keys()}
-        new_coeffs["spherical_coeffs"] = []
-        for i in range(len(coeffs["spherical_coeffs"])):
-            new_coeffs["spherical_coeffs"].append({})
-            for key in coeffs["spherical_coeffs"][i].keys():
-                if key[1] == 1:
-                    new_coeffs["spherical_coeffs"][i][key] = coeffs["spherical_coeffs"][
-                        i
-                    ][key]
-                    new_coeffs["spherical_coeffs"][i][key] = new_coeffs[
-                        "spherical_coeffs"
-                    ][i][key][:, :, [2, 0, 1], :]
-                else:
-                    new_coeffs["spherical_coeffs"][i][key] = coeffs["spherical_coeffs"][
-                        i
-                    ][key]
-                if key[1] % 2 == 1:
-                    new_coeffs["spherical_coeffs"][i][key] = (
-                        -1 * new_coeffs["spherical_coeffs"][i][key]
-                    )
-        coeffs = new_coeffs
+        coeffs = convert_coeffs_to_pyscf(coeffs) 
 
     all_coeffs = {key: None for key in relevant_keys}
     # all_sph = None
@@ -418,6 +421,24 @@ def radial_basis_to_vector(a_num, orbital_basis, radial_basis):
     return radial_widths, radial_scales
 
 
+def convert_coeffs_to_equiv_dens(coeffs):
+    for i in range(len(coeffs["spherical_coeffs"])):
+        for key in coeffs["spherical_coeffs"][i].keys():
+            if key[1] == 1:
+                coeffs["spherical_coeffs"][i][key] = coeffs[
+                    "spherical_coeffs"
+                ][i][key][:, :, [1, 2, 0], :]
+            else:
+                coeffs["spherical_coeffs"][i][key] = coeffs[
+                    "spherical_coeffs"
+                ][i][key]
+            if key[1] % 2 == 1:
+                coeffs["spherical_coeffs"][i][key] = (
+                    -1 * coeffs["spherical_coeffs"][i][key]
+                )
+    return coeffs
+
+
 def vector_to_coeffs_dict(
     coeffs,
     orbital_basis,
@@ -492,21 +513,7 @@ def vector_to_coeffs_dict(
         dict_coeffs["radial_scale"] = dict_scale
 
     if convert_to_equiv_dens:
-        for i in range(len(dict_coeffs["spherical_coeffs"])):
-            for key in dict_coeffs["spherical_coeffs"][i].keys():
-                if key[1] == 1:
-                    dict_coeffs["spherical_coeffs"][i][key] = dict_coeffs[
-                        "spherical_coeffs"
-                    ][i][key][:, :, [1, 2, 0], :]
-                else:
-                    dict_coeffs["spherical_coeffs"][i][key] = dict_coeffs[
-                        "spherical_coeffs"
-                    ][i][key]
-                if key[1] % 2 == 1:
-                    dict_coeffs["spherical_coeffs"][i][key] = (
-                        -1 * dict_coeffs["spherical_coeffs"][i][key]
-                    )
-
+        dict_coeffs = convert_coeffs_to_equiv_dens(dict_coeffs)
     return dict_coeffs
 
 
@@ -532,20 +539,41 @@ def parse_orbitals(orbitals, atom_types, basis_def):
     return split_orbitals
 
 
-def split_df_coeffs(atom, df_coeffs, basis_size):
+def split_ao_coeffs(atom, ao_coeffs, basis_size):
     atom_numbers = []
     for at in atom:
         if isinstance(at[0], str):
             atom_numbers.append(utils.symbols_to_numbers([at[0]])[0])
         else:
             atom_numbers.append(at[0])
-    df_coeffs_split = []
+    ao_coeffs_split = []
     curr_idx = 0
     for an in atom_numbers:
-        df_coeffs_split.append((an, df_coeffs[curr_idx : curr_idx + basis_size[an]]))
+        ao_coeffs_split.append((an, ao_coeffs[curr_idx : curr_idx + basis_size[an]]))
         curr_idx += basis_size[an]
 
-    return df_coeffs_split
+    return ao_coeffs_split
+
+def split_ao_matrix(atom, matrix, basis_size):
+    atom_numbers = []
+    for at in atom:
+        if isinstance(at[0], str):
+            atom_numbers.append(utils.symbols_to_numbers([at[0]])[0])
+        else:
+            atom_numbers.append(at[0])
+    ao_matrix_split = []
+    curr_idx1 = 0
+    for an1 in atom_numbers:
+        curr_idx2 = 0
+        row = []
+        for an2 in atom_numbers:
+            row.append((an2, matrix[curr_idx1 : curr_idx1 + basis_size[an1],
+                                                       curr_idx2 : curr_idx2 + basis_size[an2]]))
+            curr_idx2 += basis_size[an2]
+        ao_matrix_split.append((an1, row))
+        curr_idx1 += basis_size[an1]
+
+    return ao_matrix_split
 
 
 def calc_dipole_moment(
@@ -1294,3 +1322,60 @@ def eval_gto_grad_einsum(s_deriv, d, L, coords, sph_coeff, width, scale, sph, rb
     rbf_dsph = torch.einsum('bisr, bicsr -> bicr', rbf, sph_grad_c)
     gto_deriv = (drbf_sph + rbf_dsph).sum(-1)
     return gto_deriv
+
+def get_basis_from_mol(mol, libcint=True):
+    """
+    Function to get basis set from pyscf molecule object
+
+    Args:
+        mol: pyscf molecule object
+        libcint: use libcint basis set coefficients
+
+    Returns:
+        ao_basis: dictionary contatining basis set definition
+        ao_coeffs: dictionary containing basis set coefficients
+    """
+    ao_coeffs = {}
+    ao_basis = {}
+    repeat = {}
+    for i in range(mol._bas.shape[0]):
+        a_ind = mol.bas_atom(i)
+        a_num = mol._atm[a_ind, 0]
+        symbol = chemical_symbols[a_num]
+        if symbol not in ao_basis:
+            ao_basis[symbol] = []
+            ao_coeffs[symbol] = []
+            repeat[symbol] = a_ind
+        if repeat[symbol] != a_ind:
+            continue
+        L = mol.bas_angular(i)
+        nprim = mol.bas_nprim(i)
+        nctr = mol.bas_nctr(i)
+        exp = mol.bas_exp(i)
+        if libcint:
+            ctr = mol._libcint_ctr_coeff(i)
+        else:
+            ctr = mol.bas_ctr_coeff(i)
+        for j in range(nctr):
+            ao_basis[symbol].append((a_num, nprim, L))
+            ao_coeffs[symbol].append((np.array(exp), np.array(ctr[:, j])))
+
+    return ao_basis, ao_coeffs
+
+
+def get_num_basis(ao_basis_sym, all_atom_numbers):
+    ao_basis_num = {}
+    for key in ao_basis_sym.keys():
+        z = utils.symbols_to_numbers([key])[0]
+        if z in all_atom_numbers:
+            ao_basis_num[z] = ao_basis_sym[key]
+    return ao_basis_num
+
+
+def get_basis_size(ao_basis):
+    orbital_basis_size = {}
+    for key in ao_basis.keys():
+        orbital_basis_size[key] = 0
+        for orb in ao_basis[key]:
+            orbital_basis_size[key] += ((2 * orb[2]) + 1)
+    return orbital_basis_size

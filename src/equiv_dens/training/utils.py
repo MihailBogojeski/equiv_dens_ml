@@ -241,6 +241,7 @@ def prepare_cubic_datasets(args, required_properties, train_indices, valid_indic
                                         atom_dens_path=args.atom_dens_path,
                                         atom_dens_type=args.atom_dens_type,
                                         density_grad=args.density_grad,
+                                        calc_basis_path=args.calc_basis_file,
                                         )
 
         valid_cube_dataset = torch.utils.data.Subset(cube_dataset, valid_indices)
@@ -298,6 +299,7 @@ def prepare_datasets(args, required_properties, grid_vars, data_split_indices, d
                                atom_dens_path=args.atom_dens_path,
                                atom_dens_type=args.atom_dens_type,
                                density_grad=args.density_grad,
+                               calc_basis_path=args.calc_basis_file,
                                )
 
 # split into train / valid / test
@@ -331,6 +333,7 @@ def prepare_datasets(args, required_properties, grid_vars, data_split_indices, d
                                          atom_dens_path=args.atom_dens_path,
                                          atom_dens_type=args.atom_dens_type,
                                          density_grad=args.density_grad,
+                                         calc_basis_path=args.calc_basis_file,
                                          )
 
         if data_split_indices is None or args.ignore_split_indices:
@@ -374,6 +377,7 @@ def prepare_datasets(args, required_properties, grid_vars, data_split_indices, d
                                         atom_dens_path=args.atom_dens_path,
                                         atom_dens_type=args.atom_dens_type,
                                         density_grad=args.density_grad,
+                                        calc_basis_path=args.calc_basis_file,
                                         )
 
         if args.num_test is not None:
