@@ -122,7 +122,6 @@ def load_model(args, dataset, train=False):
             parity=args.parity_dens,
             linear_out=args.remove_atom_density
         )
-
         if args.density_weight + args.dipole_moment_weight > 0:
             expansion_model = density_expansion(dataset.orbital_basis_num,
                                                 expansion_constraint=args.expansion_constraint,

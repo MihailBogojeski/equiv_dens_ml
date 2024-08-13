@@ -347,7 +347,7 @@ def parse_command_line_arguments(arg_file=None):
     args_training.add_argument('--atom_dens_path', metavar='STR', type=str,
                                help="Path to free atom densities file.")
     args_training.add_argument('--atom_dens_type', metavar='STR', type=str,
-                               default='df_coeffs', choices=['spline', 'df_coeffs', 'mo_coeffs'],
+                               default='spline', choices=['spline', 'df_coeffs', 'mo_coeffs'],
                                help="Type of functions to expand the free atom densities.")
     args_training.add_argument("--density_from_df", metavar='True|False', type=str2bool, default=False,
                                choices=[True, False], help="Set density coeffs to DF coeffs instead of predicting them")

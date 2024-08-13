@@ -236,7 +236,7 @@ def symbols_to_numbers(symbols):
     return numbers
 
 
-def numbers_to_symbols(numbers, join=True):
+def numbers_to_symbols(numbers, join=False):
     symbols = []
     for n in numbers:
         symbols.append(ase.data.chemical_symbols[n])
@@ -289,17 +289,17 @@ def npy_to_xyz(npy_data, filename):
     ase.io.write(filename, mols, parallel=False)
 
 
-def npy_to_pyscf(arr, atom_list, basis):
+def npy_to_pyscf(pos, atom_list, basis):
     if atom_list.ndim == 1:
         atom_list = atom_list[None, :]
-    if arr.ndim == 2:
-        arr = arr[None, :]
-    if atom_list.shape[0] != arr.shape[0]:
-        atom_list = np.tile(atom_list, (arr.shape[0], 1))
+    if pos.ndim == 2:
+        pos = pos[None, :]
+    if atom_list.shape[0] != pos.shape[0]:
+        atom_list = np.tile(atom_list, (pos.shape[0], 1))
     mols = []
-    for i in range(arr.shape[0]):
+    for i in range(pos.shape[0]):
         atom = [(int(atom_list[i, j]),
-                arr[i, j]) for j in range(arr.shape[1]) if atom_list[i, j] != 0]
+                pos[i, j]) for j in range(pos.shape[1]) if atom_list[i, j] != 0]
         # mol = gto.M(atom=atom, basis=basis)
         if (np.sum(atom_list[i, :]) % 2 == 1):
             mol = gto.M(atom=atom, spin=1, basis=basis)
@@ -601,8 +601,6 @@ def compress_batch_atoms(numbers, props_dict, df_basis_size=None, ao_basis_size=
                 basis_size = ao_basis_size
             if isinstance(props[key], np.ndarray):
                 new_props[key] = np.zeros((len(common_numbers), props[key].shape[1]))
-                print('key', key)
-                print('new_props shape', new_props[key].shape)
             elif basis_size is not None:
                 new_props[key] = []
                 if isinstance(props[key][0][1], np.ndarray):
@@ -633,7 +631,6 @@ def compress_batch_atoms(numbers, props_dict, df_basis_size=None, ao_basis_size=
                 else:
                     charges = np.array([prop[0] for prop in props[key]])
                     idx_alt = np.where(charges == z)[0]
-                    print('idx alt', idx_alt)
                     if isinstance(props[key][0][1], np.ndarray):
                         # print('df coeffs add props')
                         new_props[key][last_idx:last_idx + len(idx_alt)] = [props[key][j][1] for j in idx_alt]
@@ -642,16 +639,10 @@ def compress_batch_atoms(numbers, props_dict, df_basis_size=None, ao_basis_size=
                         last_idx2 = 0
                         for z2 in atom_num_count.keys():
                             idx_alt2 = np.where(charges == z2)[0]
-                            print('charges', z, z2)
-                            print('idx alt2', idx_alt2)
                             # new_props[key][last_idx:last_idx + len(idx_alt),
                             #                last_idx2:last_idx2 + len(idx_alt2)]\
                             #     = [[props[key][i][1][j][1] for j in idx_alt2] for i in idx_alt]
                             for i in range(len(idx_alt)):
-                                print('i', i)
-                                print('props size', [props[key][idx_alt[i]][1][j][1].shape for j in idx_alt2])
-                                print('last_idx', last_idx, len(idx_alt))
-                                print('last_idx2', last_idx2, len(idx_alt2))
                                 new_props[key][last_idx + i][last_idx2:last_idx2 + len(idx_alt2)] =\
                                     [props[key][idx_alt[i]][1][j][1] for j in idx_alt2]
                             last_idx2 += atom_num_count[z2]
