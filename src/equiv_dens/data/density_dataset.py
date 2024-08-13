@@ -126,9 +126,14 @@ class AtomsDensityData(Dataset):
         self.orbital_basis_num = orbitals.get_num_basis(self.orbital_basis, all_atom_numbers)
         self.orbital_basis_size = orbitals.get_basis_size(self.orbital_basis_num)
 
-        self.calc_basis = np.load(calc_basis_path, allow_pickle=True).item()
-        self.calc_basis_num = orbitals.get_num_basis(self.calc_basis, all_atom_numbers)
-        self.calc_basis_size = orbitals.get_basis_size(self.calc_basis_num)
+        if calc_basis_path is not None:
+            self.calc_basis = np.load(calc_basis_path, allow_pickle=True).item()
+            self.calc_basis_num = orbitals.get_num_basis(self.calc_basis, all_atom_numbers)
+            self.calc_basis_size = orbitals.get_basis_size(self.calc_basis_num)
+        else:
+            self.calc_basis = None
+            self.calc_basis_num = None 
+            self.calc_basis_size = None 
 
         self.atoms["shifted_positions"] = self.atoms["positions"] - grid_origin
         calc_results = []
@@ -729,12 +734,10 @@ class AtomsDensityData(Dataset):
     def sample_atom_density(
         self, positions, atom_numbers, coords, individual_dens=False, density_grad=False,
     ):
-        basis = self.mols[0].basis
         dens, atom_dens = orbitals.sample_atom_density(
             positions,
             atom_numbers,
             coords,
-            basis,
             self.atom_dens_type,
             self.atom_dens,
             individual_dens,
