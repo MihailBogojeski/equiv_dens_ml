@@ -594,8 +594,6 @@ def compress_batch_atoms(numbers, props_dict, df_basis_size=None, ao_basis_size=
                 basis_size = ao_basis_size
             if isinstance(props[key], np.ndarray):
                 new_props[key] = np.zeros((len(common_numbers), props[key].shape[1]))
-                print('key', key)
-                print('new_props shape', new_props[key].shape)
             elif basis_size is not None:
                 new_props[key] = []
                 if isinstance(props[key][0][1], np.ndarray):
