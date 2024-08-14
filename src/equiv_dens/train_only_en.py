@@ -295,13 +295,13 @@ if args.load_from is not None:
     density_dict = {}
 
     for key in model_dict.keys():
-        if 'density_repr_model' in key:
+        if 'repr_model' in key:
             split_key = key.split('.')[1:]
             new_key = '.'.join(split_key)
             density_dict[new_key] = model_dict[key]
 
-    model.density_repr_model.load_state_dict(density_dict)
-    for param_group in model.density_repr_model.parameters():
+    model.repr_model.load_state_dict(density_dict)
+    for param_group in model.repr_model.parameters():
         param_group.requires_grad = False
 
 parameter_list = [

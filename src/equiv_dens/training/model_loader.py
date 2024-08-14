@@ -101,27 +101,30 @@ def load_model(args, dataset, train=False):
         density_coeffs_network = DensityCoeffsNetwork
         density_expansion = DensityExpansion
 
-        dens_model = density_coeffs_network(
-            orbital_basis=dataset.orbital_basis_num,
-            order=args.order[-1],
-            num_features=args.num_features,
-            positive_coeffs=args.positive_coeffs,
-            integral_constraint=args.integral_constraint,
-            clebsch_gordan=clebsch_gordan,
-            verbose=args.verbose,
-            timing=args.timing,
-            memory=args.memory,
-            init_coeffs=dataset.L0_coeffs,
-            coeff_weights=dataset.coeff_weights,
-            pred_radial_coeffs=args.pred_radial_coeffs,
-            init_radial_coeffs=dataset.radial_coeffs,
-            ml_width_min=args.ml_width_min,
-            ml_width_max=args.ml_width_max,
-            scale_sph_order=args.scale_sph_order,
-            normalize=args.normalize,
-            parity=args.parity_dens,
-            linear_out=args.remove_atom_density
-        )
+        
+        if args.density_coeffs:
+            dens_model = density_coeffs_network(
+                orbital_basis=dataset.orbital_basis_num,
+                order=args.order[-1],
+                num_features=args.num_features,
+                positive_coeffs=args.positive_coeffs,
+                integral_constraint=args.integral_constraint,
+                clebsch_gordan=clebsch_gordan,
+                verbose=args.verbose,
+                timing=args.timing,
+                memory=args.memory,
+                init_coeffs=dataset.L0_coeffs,
+                coeff_weights=dataset.coeff_weights,
+                pred_radial_coeffs=args.pred_radial_coeffs,
+                init_radial_coeffs=dataset.radial_coeffs,
+                ml_width_min=args.ml_width_min,
+                ml_width_max=args.ml_width_max,
+                scale_sph_order=args.scale_sph_order,
+                normalize=args.normalize,
+                parity=args.parity_dens,
+                linear_out=args.remove_atom_density
+            )
+
         if args.density_weight + args.dipole_moment_weight > 0:
             expansion_model = density_expansion(dataset.orbital_basis_num,
                                                 expansion_constraint=args.expansion_constraint,
@@ -233,7 +236,10 @@ def load_model(args, dataset, train=False):
                                    store_energy=(args.energy_model is None))
         functional_en_model = nn.Sequential(expansion_model, functional)
 
-    density_model = nn.Sequential(repr_model, dens_model)
+    if args.density_coeffs:
+        density_model = nn.Sequential(repr_model, dens_model)
+    else:
+        density_model = repr_model
 
     property_models = {}
     calculate_forces_dict = {}
