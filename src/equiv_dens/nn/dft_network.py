@@ -9,7 +9,7 @@ class DFTNetwork(nn.Module):
     Neural network for computing molecular electronic densities and density-derived properties
     """
 
-    def __init__(self, repr_model,
+    def __init__(self, density_repr_model,
                  property_model_dict,
                  calculate_forces_dict=None,
                  verbose=0,
@@ -19,7 +19,7 @@ class DFTNetwork(nn.Module):
                  scaling=VarianceScaling(),
                  remove_atom_density=False,):
         super().__init__()
-        self.repr_model = repr_model
+        self.density_repr_model = density_repr_model
         self.property_models = nn.ModuleDict(property_model_dict)
         self.verbose = verbose
         self.conversions_in = conversions_in
@@ -94,6 +94,7 @@ class DFTNetwork(nn.Module):
             data['density'] += data['atom_density']
         return data
 
+
     def forward(self, data):
         """
         Compute the electron density and needed density-derived properties.
@@ -117,7 +118,7 @@ class DFTNetwork(nn.Module):
         if self.calculate_forces:
             atoms['positions'].requires_grad = True
 
-        atoms = self.repr_model(atoms)
+        atoms = self.density_repr_model(atoms)
         # run the models that require forces first, then turn off gradient for the positions
         for key in self.force_props:
             atoms = self.property_models[key](atoms)
