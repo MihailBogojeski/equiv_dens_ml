@@ -7,8 +7,9 @@ from pyscf import gto, dft, df, lib
 from pyscf.scf import hf
 import scipy
 from equiv_dens.utils import base as utils
-# %cd /home/mihail/Documents/workspace/equiv_dens/
 hf.MUTE_CHKFILE = True
+# %%
+# %cd ..
 # %load_ext autoreload
 # %autoreload 2
 # %%

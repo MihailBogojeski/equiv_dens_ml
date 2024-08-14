@@ -25,9 +25,10 @@ from equiv_dens.utils.grids import spherical_grid
 from pyscf.dft import gen_grid, radi
 import os
 
+# %%
 # %load_ext autoreload
 # %autoreload 2
-# %cd /home/mihail/Documents/workspace/equiv_dens/
+# %cd ..
 # %%
 mol = gto.M(atom='O  0  0  1; H  0,  0, 2; N 0,  0, 3; C 0, 0, 4; S 0, 0, 5; F 0, 0 6; Cl 0, 0, 7', basis='augccpvdz')
 

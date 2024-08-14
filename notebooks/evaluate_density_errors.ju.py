@@ -18,9 +18,10 @@ from equiv_dens.training import density_errors
 import matplotlib.pyplot as plt
 import numpy as np
 
+# %%
 # %load_ext autoreload
 # %autoreload 2
-# %cd /home/mihail/Documents/workspace/equiv_dens/
+# %cd ..
 
 # %%
 def calc_density_errors(density, atoms, error_dict):

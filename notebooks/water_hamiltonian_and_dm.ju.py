@@ -13,8 +13,9 @@ from equiv_dens.training.parse_command_line_arguments import parse_command_line_
 from equiv_dens.utils import orbitals
 from equiv_dens.data.custom_samplers import set_up_data_loader
 import torch
-# %cd /home/mihail/Documents/workspace/equiv_dens/
 hf.MUTE_CHKFILE = True
+# %%
+# %cd ..
 # %load_ext autoreload
 # %autoreload 2
 # %%
