@@ -594,8 +594,6 @@ def compress_batch_atoms(numbers, props_dict, df_basis_size=None, ao_basis_size=
                 basis_size = ao_basis_size
             if isinstance(props[key], np.ndarray):
                 new_props[key] = np.zeros((len(common_numbers), props[key].shape[1]))
-                print('key', key)
-                print('new_props shape', new_props[key].shape)
             elif basis_size is not None:
                 new_props[key] = []
                 if isinstance(props[key][0][1], np.ndarray):
@@ -626,7 +624,6 @@ def compress_batch_atoms(numbers, props_dict, df_basis_size=None, ao_basis_size=
                 else:
                     charges = np.array([prop[0] for prop in props[key]])
                     idx_alt = np.where(charges == z)[0]
-                    print('idx alt', idx_alt)
                     if isinstance(props[key][0][1], np.ndarray):
                         # print('df coeffs add props')
                         new_props[key][last_idx:last_idx + len(idx_alt)] = [props[key][j][1] for j in idx_alt]
@@ -635,16 +632,10 @@ def compress_batch_atoms(numbers, props_dict, df_basis_size=None, ao_basis_size=
                         last_idx2 = 0
                         for z2 in atom_num_count.keys():
                             idx_alt2 = np.where(charges == z2)[0]
-                            print('charges', z, z2)
-                            print('idx alt2', idx_alt2)
                             # new_props[key][last_idx:last_idx + len(idx_alt),
                             #                last_idx2:last_idx2 + len(idx_alt2)]\
                             #     = [[props[key][i][1][j][1] for j in idx_alt2] for i in idx_alt]
                             for i in range(len(idx_alt)):
-                                print('i', i)
-                                print('props size', [props[key][idx_alt[i]][1][j][1].shape for j in idx_alt2])
-                                print('last_idx', last_idx, len(idx_alt))
-                                print('last_idx2', last_idx2, len(idx_alt2))
                                 new_props[key][last_idx + i][last_idx2:last_idx2 + len(idx_alt2)] =\
                                     [props[key][idx_alt[i]][1][j][1] for j in idx_alt2]
                             last_idx2 += atom_num_count[z2]
@@ -751,9 +742,7 @@ def calc_dict_to_npy(data, convert_forces=True, compress_atoms=True):
     data_npy['atom_numbers'] = []
     data_npy['atom_types'] = []
     for key in data[1][1].keys():
-        print(key)
         if 'energy' in key or 'forces' in key:
-            print('key has energy or forces')
             data_npy[key] = []
     for calc in data:
         for key in data_npy.keys():
@@ -848,18 +837,11 @@ def write_cube_from_atoms(density, atoms, fname, cube_size):
     for i in range(atoms['positions'].shape[1]):
         pos = angstrom_to_bohr(atoms['positions'])
         meta['atoms'].append((atoms['atom_numbers'].squeeze()[i], pos.squeeze()[i].tolist()))
-    print('atoms', meta['atoms'])
     density_cube = density.reshape(cube_size, cube_size, cube_size)
-    print('density cube shape', density_cube.shape)
     min_coords, _ = torch.min(angstrom_to_bohr(atoms['coords'].view(-1, 3)), dim=0)
     max_coords, _ = torch.max(angstrom_to_bohr(atoms['coords'].view(-1, 3)), dim=0)
-    print('min coords', min_coords)
-    print('max coords', max_coords)
-    print('grid_weights', atoms['coord_weights'])
     lattice = (max_coords - min_coords).detach().cpu().numpy()
-    print('lattice', lattice)
     step_size = lattice/density_cube.squeeze().shape
-    print('step_size', step_size)
     meta['org'] = min_coords.tolist()
     meta['xvec'] = [step_size[0], 0, 0]
     meta['yvec'] = [0, step_size[1], 0]
