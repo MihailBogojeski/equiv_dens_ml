@@ -76,7 +76,6 @@ class ErrorDict:
                 else:
                     diff = predictions[key] - (data[key])
                     if key == 'df_coeffs':
-                        diff = predictions[key] - transform_df_coeffs.transform(data[key], data['batch_atom_numbers'])
                         if self.df_loss_weights:
                             diff = diff * predictions['df_weights']
 
