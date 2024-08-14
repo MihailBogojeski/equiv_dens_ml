@@ -3,10 +3,11 @@ from pyscf import gto
 import numpy as np
 from pyscf.dft import gen_grid, radi, numint
 import ase.io
+# %%
 
 # %load_ext autoreload
 # %autoreload 2
-# %cd /home/mihail/Documents/workspace/equiv_dens/
+# %cd ..
 
 # %%
 # # loading from npy
