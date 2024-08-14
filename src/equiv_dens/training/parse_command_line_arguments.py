@@ -120,6 +120,8 @@ def parse_command_line_arguments(arg_file=None):
                                   help="Use a non-mixing interaction as a final representation layer.")
     args_hyperparams.add_argument("--nonmixing_interaction_residual", metavar='True|False', type=str2bool, default=True,
                                   help="Whether the final nonmixing layer is residual or not.")
+    args_hyperparams.add_argument("--density_coeffs", metavar='True|False', type=str2bool, default=True,
+                                  help="Use density coefficients as part of representation.")
     hyperparam_args = [act.dest for act in args_hyperparams._group_actions]
 
     # arguments for training
