@@ -132,8 +132,8 @@ class AtomsDensityData(Dataset):
             self.calc_basis_size = orbitals.get_basis_size(self.calc_basis_num)
         else:
             self.calc_basis = None
-            self.calc_basis_num = None 
-            self.calc_basis_size = None 
+            self.calc_basis_num = None
+            self.calc_basis_size = None
 
         self.atoms["shifted_positions"] = self.atoms["positions"] - grid_origin
         calc_results = []
