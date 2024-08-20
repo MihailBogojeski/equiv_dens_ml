@@ -132,8 +132,8 @@ class AtomsDensityData(Dataset):
             self.calc_basis_size = orbitals.get_basis_size(self.calc_basis_num)
         else:
             self.calc_basis = None
-            self.calc_basis_num = None 
-            self.calc_basis_size = None 
+            self.calc_basis_num = None
+            self.calc_basis_size = None
 
         self.atoms["shifted_positions"] = self.atoms["positions"] - grid_origin
         calc_results = []
@@ -495,8 +495,6 @@ class AtomsDensityData(Dataset):
         neighbor_start = time.time()
         nl = utils.TorchNeighborList(self.cutoff)
         idx_is, idx_js, _ = nl.get_neighbors(properties)
-        properties['idx_i_pure'] = torch.cat(idx_is, dim=0)
-        properties['idx_j_pure'] = torch.cat(idx_js, dim=0)
         neighbor_batch_idx = []
         prev_max = 0
         for i in range(len(idx_is)):
