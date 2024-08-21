@@ -25,9 +25,10 @@ from equiv_dens.utils.grids import spherical_grid
 from pyscf.dft import gen_grid, radi
 import os
 
+# %%
 # %load_ext autoreload
 # %autoreload 2
-# %cd /home/mihail/Documents/workspace/equiv_dens/
+# %cd ..
 # %%
 mol = gto.M(atom='O  0  0  1; H  0,  0, 2; N 0,  0, 3; C 0, 0, 4; S 0, 0, 5; F 0, 0 6; Cl 0, 0, 7', basis='augccpvdz')
 
@@ -333,8 +334,12 @@ idx = [1, 2, 3, 4, 5]
 bases = {'spline': None, 'df_coeffs': dataset_df.density_fitting['auxbasis'], 'mo_coeffs': datasets_ad['mo_coeffs'].mols[0].basis}
 for t in ['spline', 'df_coeffs', 'mo_coeffs']:
     samp = datasets_ad[t].get_properties(idx)
-    dens, atom_dens = orbitals.sample_atom_density(samp['batch_positions'], samp['batch_atom_numbers'], samp['coords'],
-                                                   bases[t], t, datasets_ad[t].atom_dens)
+    dens, atom_dens = orbitals.sample_atom_density(samp['batch_positions'], 
+                                                   samp['batch_atom_numbers'], samp['coords'],
+                                                   bases[t], t, datasets_ad[t].atom_dens,
+                                                   individual_dens=True)
+    print('dens shape', dens.shape)
+    print('atom dens shape', atom_dens.shape)
     print(t + ' error', torch.sum(torch.abs(dens - denss[t]) * samp['coord_weights'], dim=-1) /
           torch.sum(samp['batch_atom_numbers'], dim=1))
     dens_sum = torch.sum(atom_dens, dim=1)
@@ -422,9 +427,333 @@ for t in ['spline', 'df_coeffs', 'mo_coeffs']:
                                                        samp['coords'],
                                                        individual_dens=True)
     print('sep atom dens shape', sep_atom_dens.shape)
-    wA, elec_charges = hirshfeld_partitioning(samp['density'], sep_atom_dens, samp['batch_atom_numbers'],
+    wA, elec_charges, dipoles = hirshfeld_partitioning(samp['density'], sep_atom_dens, samp['batch_positions'],
+                                              samp['batch_atom_numbers'],
                                               samp['coords'], samp['coord_weights'])
     print('elec_charges', elec_charges)
     print('atom_numbers', samp['batch_atom_numbers'])
 
+# %%
+# idx = 4
+import time
 
+idx = [1, 2, 3, 4, 5]
+denss = {}
+datasets_ad = {}
+for t in ['spline', 'df_coeffs', 'mo_coeffs']:
+    datasets_ad[t] = AtomsDensityData(np_path=args.np_dataset_test,
+                                      density_path=args.dens_dataset_test,
+                                      orbitals_path=args.orbitals_file,
+                                      density_n_samp=10000000000000000000000,
+                                      required_properties=required_properties,
+                                      center_positions=True,
+                                      radial_coeffs_file=args.radial_coeffs_file,
+                                      dtype=args.dtype,
+                                      grid_fn=grid_fn,
+                                      pyscf_grid=args.pyscf_grid,
+                                      sampling_fn=sampling_fn,
+                                      grid_extent=grid_extent,
+                                      grid_origin=grid_origin,
+                                      cutoff=args.cutoff,
+                                      df_loss_weights=args.df_loss_weights,
+                                      projected_density=args.projected_density,
+                                      radii_adjust=args.radii_adjust,
+                                      calc_data=True,
+                                      atom_dens_path='datasets/free_atom_densities_augccpvdz_augccpvqzjkfit.npy',
+                                      atom_dens_type=t,
+                                      )
+    
+    start = time.time()
+    samp = datasets_ad[t].get_properties(idx)
+    print(t + ' sampling time', time.time() - start)
+    print(t + ' error', torch.sum(torch.abs(samp['density'] - samp['atom_density']) * samp['coord_weights'], dim=-1) /
+          torch.sum(samp['batch_atom_numbers'], dim=1))
+    print(t + ' intergral', torch.sum(torch.abs(samp['atom_density']) * samp['coord_weights'], dim=-1))
+
+    denss[t] = samp['atom_density']
+    print('atom density shape', samp['atom_density'].shape)
+
+print('spline df diff', torch.sum(torch.abs(denss['spline'] - denss['df_coeffs']) * samp['coord_weights'], dim=-1) /
+      torch.sum(samp['batch_atom_numbers'], dim=1))
+print('spline mo diff', torch.sum(torch.abs(denss['spline'] - denss['mo_coeffs']) * samp['coord_weights'], dim=-1) /
+      torch.sum(samp['batch_atom_numbers'], dim=1))
+print('mo df diff', torch.sum(torch.abs(denss['mo_coeffs'] - denss['df_coeffs']) * samp['coord_weights'], dim=-1) /
+      torch.sum(samp['batch_atom_numbers'], dim=1))
+
+# %%
+
+model = model_loader.load_model(args, datasets_ad['mo_coeffs'])
+
+res = model(samp)
+
+auxmol = orbitals.ml_basis_to_auxmol(res)
+# %%
+print('auxmol basis', auxmol._basis)
+
+mols = utils.npy_to_pyscf(samp['batch_positions'].numpy(force=True), samp['batch_atom_numbers'].numpy(force=True), basis=auxmol._basis)
+
+print(mols)
+# %%
+
+atom_dens = datasets_ad['mo_coeffs'].atom_dens
+print(atom_dens)
+print('mo_basis')
+basis = 'augccpvdz'
+
+atom = [[1, [0,0,0]]]
+
+mol = gto.M(atom=atom, basis=basis, spin=1)
+mol.build()
+print(mol._basis)
+# %%
+atom_dens_min = {z: {} for z in atom_dens.keys()}
+basis = 'augccpvdz'
+auxbasis = 'augccpvqzjkfit'
+for z in atom_dens.keys():
+    print('z', z)
+    at_dens = atom_dens[z]
+    symbol = utils.numbers_to_symbols([z])[0]
+    keys = list(at_dens.keys())
+    atom_dens[z]["mo_basis"] = {}
+    atom_dens[z]["df_basis"] = {}
+    atom_dens_min[z]["mo_basis"] = {}
+    atom_dens_min[z]["df_basis"] = {}
+    print(keys)
+    for key in keys:
+        print('key', key)
+        if 'spline' in key:
+            atom_dens_min[z][key] = at_dens[key]
+        elif 'coeff' in key:
+            if key == 'mo_coeff':
+                bas = basis
+            elif key == 'df_coeffs':
+                bas = auxbasis
+            print('basis', bas)
+            atom = [[z, [0,0,0]]]
+            mol = gto.M(atom=atom, basis=bas, spin=z%2)
+            mol.build()
+            prefix = key.split("_")[0]
+            atom_dens[z][prefix + "_basis"][z] = mol._basis[symbol]
+            s_orb_count = np.sum([len(b[1]) - 1 for b in atom_dens[z][prefix + "_basis"][z] if b[0] == 0])
+            max_degree = np.max([b[0] for b in atom_dens[z][prefix + "_basis"][z]])
+            print('max degree', max_degree)
+            orbital_spec, _, _ = orbitals.combine_pyscf_basis(atom_dens[z][prefix + "_basis"], max_degree)
+            n_s_orb = orbital_spec[z][0][1]
+            if key == 'mo_coeff':
+                mo_occ = atom_dens[z]["mo_occ"]
+                max_occ = len(mo_occ)
+
+                # iterate over mo_occ list in reverse
+                for i in range(len(mo_occ) - 1, -1, -1):
+                    if mo_occ[i] == 0:
+                        max_occ = i
+                    else:
+                        break
+                num_min_orb = max(max_occ, n_s_orb)
+                curr_orb = 0
+                num_min_coeff = 0
+
+                for z, num_L_orb, L in orbital_spec[z]:
+                    if curr_orb + num_L_orb > num_min_orb:
+                        num_min_coeff += (num_min_orb - curr_orb) * ((2 * L) + 1)
+                        break
+                    else:
+                        num_min_coeff += num_L_orb * ((2 * L) + 1)
+                        curr_orb += num_L_orb
+
+                print('atom_dens basis', atom_dens[z][prefix + "_basis"])
+                atom_dens_min[z][key] = atom_dens[z][key][:num_min_coeff, :num_min_coeff]
+
+                curr_orb = 0
+                atom_dens_min[z][prefix + "_basis"][z] = []
+
+                for orb in atom_dens[z][prefix + "_basis"][z]:
+                    curr_num_orb = len(orb[1]) - 1
+                    if curr_orb + curr_num_orb < num_min_orb:
+                        atom_dens_min[z][prefix + "_basis"][z].append(orb)
+                        curr_orb += curr_num_orb
+                    else:
+                        rest_orb = num_min_orb - curr_orb
+                        atom_dens_min[z][prefix + "_basis"][z].append([orb[0]] + [orb[i][:(rest_orb + 1)] for i in range(1, len(orb))])
+                        break
+                print('orbital spec', orbital_spec[z])
+                print('num_min_orb', num_min_orb)
+                print('num_min_coeff', num_min_coeff)
+                atom_dens_min[z]['mo_occ'] = mo_occ[:num_min_coeff]
+                print('atom_dens_min basis', atom_dens_min[z][prefix + "_basis"])
+            if key == 'df_coeffs':
+                print('df coeffs shape', atom_dens[z][key].shape)
+                atom_dens_min[z][key] = atom_dens[z][key][:, :n_s_orb]
+                atom_dens_min[z][prefix + "_basis"][z] = atom_dens[z][prefix + "_basis"][z][:n_s_orb]
+                print('atom_dens_min basis', atom_dens_min[z][prefix + "_basis"])
+
+# %%
+print('atom_dens', atom_dens)
+print('atom_dens_min', atom_dens_min)
+print('atom_dens', atom_dens[8]['mo_basis'])
+print('atom_dens min', atom_dens_min[8]['mo_basis'])
+# %%
+np.save('datasets/free_atom_densities_augccpvdz_augccpvqzjkfit_pyscf.npy', atom_dens, allow_pickle=True)
+np.save('datasets/free_atom_densities_augccpvdz_augccpvqzjkfit_pyscf_minimized.npy', atom_dens_min, allow_pickle=True)
+# %%
+# compare outcomes of old and new free atom density data
+#idx = 4
+import time
+
+idx = [1, 2, 3, 4, 5]
+denss = {}
+datasets_ad = {}
+for t in ['spline', 'df_coeffs', 'mo_coeffs']:
+    dataset_old = AtomsDensityData(np_path=args.np_dataset_test,
+                                   density_path=args.dens_dataset_test,
+                                   orbitals_path=args.orbitals_file,
+                                   density_n_samp=10000000000000000000000,
+                                   required_properties=required_properties,
+                                   center_positions=True,
+                                   radial_coeffs_file=args.radial_coeffs_file,
+                                   dtype=args.dtype,
+                                   grid_fn=grid_fn,
+                                   pyscf_grid=args.pyscf_grid,
+                                   sampling_fn=sampling_fn,
+                                   grid_extent=grid_extent,
+                                   grid_origin=grid_origin,
+                                   cutoff=args.cutoff,
+                                   df_loss_weights=args.df_loss_weights,
+                                   projected_density=args.projected_density,
+                                   radii_adjust=args.radii_adjust,
+                                   calc_data=True,
+                                   atom_dens_path='datasets/free_atom_densities_augccpvdz_augccpvqzjkfit.npy',
+                                   atom_dens_type=t,
+                                   )
+    
+    dataset_new = AtomsDensityData(np_path=args.np_dataset_test,
+                                   density_path=args.dens_dataset_test,
+                                   orbitals_path=args.orbitals_file,
+                                   density_n_samp=10000000000000000000000,
+                                   required_properties=required_properties,
+                                   center_positions=True,
+                                   radial_coeffs_file=args.radial_coeffs_file,
+                                   dtype=args.dtype,
+                                   grid_fn=grid_fn,
+                                   pyscf_grid=args.pyscf_grid,
+                                   sampling_fn=sampling_fn,
+                                   grid_extent=grid_extent,
+                                   grid_origin=grid_origin,
+                                   cutoff=args.cutoff,
+                                   df_loss_weights=args.df_loss_weights,
+                                   projected_density=args.projected_density,
+                                   radii_adjust=args.radii_adjust,
+                                   calc_data=True,
+                                   atom_dens_path='datasets/free_atom_densities_augccpvdz_augccpvqzjkfit_pyscf.npy',
+                                   atom_dens_type=t,
+                                   )
+    samp_old = dataset_old.get_properties(idx)
+    samp_new = dataset_new.get_properties(idx)
+    print(t + ' error', torch.sum(torch.abs(samp_new['density'] - samp_new['atom_density']) * samp_new['coord_weights'], dim=-1) /
+          torch.sum(samp_new['batch_atom_numbers'], dim=1))
+    print(t + ' intergral', torch.sum(torch.abs(samp_new['atom_density']) * samp_new['coord_weights'], dim=-1))
+    print(t + ' error new old', torch.sum(torch.abs(samp_new['atom_density'] - samp_old['atom_density']) * samp_new['coord_weights'], dim=-1) /
+          torch.sum(samp_new['batch_atom_numbers'], dim=1))
+
+    print('atom density shape', samp_new['atom_density'].shape)
+
+# print('spline df diff', torch.sum(torch.abs(denss['spline'] - denss['df_coeffs']) * samp['coord_weights'], dim=-1) /
+#       torch.sum(samp['batch_atom_numbers'], dim=1))
+# print('spline mo diff', torch.sum(torch.abs(denss['spline'] - denss['mo_coeffs']) * samp['coord_weights'], dim=-1) /
+#       torch.sum(samp['batch_atom_numbers'], dim=1))
+# print('mo df diff', torch.sum(torch.abs(denss['mo_coeffs'] - denss['df_coeffs']) * samp['coord_weights'], dim=-1) /
+#       torch.sum(samp['batch_atom_numbers'], dim=1))
+
+
+
+# %%
+# compare outcomes of new and minimal free atom density data
+#idx = 4
+import time
+
+idx = [1, 2, 3, 4, 5]
+denss = {}
+datasets_ad = {}
+for t in ['spline', 'df_coeffs', 'mo_coeffs']:
+# for t in ['mo_coeffs']:
+    dataset_min = AtomsDensityData(np_path=args.np_dataset_test,
+                                   density_path=args.dens_dataset_test,
+                                   orbitals_path=args.orbitals_file,
+                                   density_n_samp=10000000000000000000000,
+                                   required_properties=required_properties,
+                                   center_positions=True,
+                                   radial_coeffs_file=args.radial_coeffs_file,
+                                   dtype=args.dtype,
+                                   grid_fn=grid_fn,
+                                   pyscf_grid=args.pyscf_grid,
+                                   sampling_fn=sampling_fn,
+                                   grid_extent=grid_extent,
+                                   grid_origin=grid_origin,
+                                   cutoff=args.cutoff,
+                                   df_loss_weights=args.df_loss_weights,
+                                   projected_density=args.projected_density,
+                                   radii_adjust=args.radii_adjust,
+                                   calc_data=True,
+                                   atom_dens_path='datasets/free_atom_densities_augccpvdz_augccpvqzjkfit_pyscf_minimized.npy',
+                                   atom_dens_type=t,
+                                   split_atom_dens=True,
+                                   )
+    
+    dataset_new = AtomsDensityData(np_path=args.np_dataset_test,
+                                   density_path=args.dens_dataset_test,
+                                   orbitals_path=args.orbitals_file,
+                                   density_n_samp=10000000000000000000000,
+                                   required_properties=required_properties,
+                                   center_positions=True,
+                                   radial_coeffs_file=args.radial_coeffs_file,
+                                   dtype=args.dtype,
+                                   grid_fn=grid_fn,
+                                   pyscf_grid=args.pyscf_grid,
+                                   sampling_fn=sampling_fn,
+                                   grid_extent=grid_extent,
+                                   grid_origin=grid_origin,
+                                   cutoff=args.cutoff,
+                                   df_loss_weights=args.df_loss_weights,
+                                   projected_density=args.projected_density,
+                                   radii_adjust=args.radii_adjust,
+                                   calc_data=True,
+                                   atom_dens_path='datasets/free_atom_densities_augccpvdz_augccpvqzjkfit_pyscf.npy',
+                                   atom_dens_type=t,
+                                   split_atom_dens=True,
+                                   )
+
+    start = time.time()
+    samp_min = dataset_min.get_properties(idx)
+    print('samp min time', time.time() - start)
+    start = time.time()
+    samp_new = dataset_new.get_properties(idx)
+    print('samp new time', time.time() - start)
+    print(t + ' error', torch.sum(torch.abs(samp_min['density'] - samp_min['atom_density']) * samp_min['coord_weights'], dim=-1) /
+          torch.sum(samp_min['batch_atom_numbers'], dim=1))
+    print(t + ' intergral', torch.sum(torch.abs(samp_min['atom_density']) * samp_min['coord_weights'], dim=-1))
+    print(t + ' error min old', torch.sum(torch.abs(samp_min['atom_density'] - samp_new['atom_density']) * samp_min['coord_weights'], dim=-1) /
+          torch.sum(samp_min['batch_atom_numbers'], dim=1))
+    print(t + 'split dens integral', torch.sum(samp_min['atom_density_split'] * samp_min['coord_weights'].unsqueeze(1), dim=-1))
+
+    print('atom density shape', samp_new['atom_density'].shape)
+
+# %%
+atom_dens = dataset_new.atom_dens
+print('atom_dens types', atom_dens[1].keys())
+atom_dens_min = dataset_min.atom_dens
+
+for i in range(6, samp_min['batch_atom_numbers'].shape[1]):
+    z = samp_min['batch_atom_numbers'][0, i]
+    print("full vs min free atom density for", z)
+
+    pos = samp_min['batch_positions'][:, [i]]
+    anum = samp_min['batch_atom_numbers'][:, [i]]
+
+    coords = samp_min['coords']
+    samp_dens, _ = orbitals.sample_atom_density(pos, anum, coords, 'mo_coeffs', atom_dens)
+    samp_dens_min, _ = orbitals.sample_atom_density(pos, anum, coords, 'mo_coeffs', atom_dens_min)
+
+    print('samp dens integral', torch.sum(samp_dens * samp_min['coord_weights'], dim=-1))
+    print('min dens integral', torch.sum(samp_dens_min * samp_min['coord_weights'], dim=-1))
+    print('samp dens diff', torch.sum(torch.abs(samp_dens - samp_dens_min) * samp_min['coord_weights'], dim=-1) /
+        torch.sum(samp_min['batch_atom_numbers'], dim=1))
