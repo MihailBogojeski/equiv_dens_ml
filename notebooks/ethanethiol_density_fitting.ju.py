@@ -22,9 +22,10 @@ import equiv_dens.utils.base as utils
 
 from functools import partial
 
+# %%
 # %load_ext autoreload
 # %autoreload 2
-# %cd /home/mihail/Documents/workspace/equiv_dens
+# %cd ..
 
 # %%
 data = np.load('datasets/ethanethiol_pyscf_augccpvdz_dft_test.npy', allow_pickle=True)

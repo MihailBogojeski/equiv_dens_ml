@@ -1,7 +1,7 @@
 --restart=None
 --load_from=None
 --activation=swish
---args_file_name=h2o_small_all_001
+--args_file_name=h2o_small_all_001_hm_dm
 --order
 1
 3
@@ -30,12 +30,13 @@
 --max_steps=50
 --save_dir=
 --np_dataset=datasets/h2o_small_train_augccpvdz.npy
---dens_dataset=datasets/h2o_small_train_augccpvdz_df_augccpvqzjkfit.npy
+--dens_dataset=datasets/h2o_small_train_dft_augccpvdz_df_hm_dm_oe_calc.npy
 --np_dataset_valid=datasets/h2o_small_valid_augccpvdz.npy
---dens_dataset_valid=datasets/h2o_small_valid_augccpvdz_df_augccpvqzjkfit.npy
+--dens_dataset_valid=datasets/h2o_small_valid_dft_augccpvdz_df_hm_dm_oe_calc.npy
 --np_dataset_test=datasets/h2o_small_test_augccpvdz.npy
---dens_dataset_test=datasets/h2o_small_test_augccpvdz_df_augccpvqzjkfit.npy
+--dens_dataset_test=datasets/h2o_small_test_dft_augccpvdz_df_hm_dm_oe_calc.npy
 --orbitals_file=datasets/augccpvqzjkfit_orbital_basis_df.npy
+--calc_basis_file=datasets/augccpvdz_orbital_basis.npy
 --radial_coeffs_file=datasets/augccpvqzjkfit_radial_coeffs_libcint_df.npy
 --atom_dens_path=datasets/free_atom_densities_augccpvdz_augccpvqzjkfit.npy
 --pseudo_pot_path=pseudo_potentials
@@ -58,7 +59,7 @@
 --beta1=0.9
 --beta2=0.99
 --momentum=0.0
---df_weight=0.0
+--df_weight=1.0
 --density_weight=1.0
 --density_weight_decay=1.0
 --density_weight_min=1

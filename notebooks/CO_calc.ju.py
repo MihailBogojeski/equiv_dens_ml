@@ -10,10 +10,11 @@ from pyscf.scf import hf
 import scipy
 import equiv_dens.utils.base as utils
 hf.MUTE_CHKFILE = True
+
+# %%
 # %load_ext autoreload
 # %autoreload 2
-# %cd /home/mihail/Documents/workspace/equiv_dens/
-
+# %cd ..
 # %%
 # load data
 basis = 'augccpvdz'

@@ -120,6 +120,8 @@ def parse_command_line_arguments(arg_file=None):
                                   help="Use a non-mixing interaction as a final representation layer.")
     args_hyperparams.add_argument("--nonmixing_interaction_residual", metavar='True|False', type=str2bool, default=True,
                                   help="Whether the final nonmixing layer is residual or not.")
+    args_hyperparams.add_argument("--density_coeffs", metavar='True|False', type=str2bool, default=True,
+                                  help="Use density coefficients as part of representation.")
     hyperparam_args = [act.dest for act in args_hyperparams._group_actions]
 
     # arguments for training
@@ -133,6 +135,7 @@ def parse_command_line_arguments(arg_file=None):
     args_training.add_argument("--dens_dataset_valid", metavar='STR', type=str, help="filepath to density validation dataset")
     args_training.add_argument("--pseudo_pot_path", metavar='STR', type=str, help="filepath to pseudo potentials")
     args_training.add_argument("--orbitals_file", metavar='STR', type=str, help="filepath to orbital basis")
+    args_training.add_argument("--calc_basis_file", metavar='STR', type=str, help="filepath to calculation basis")
     args_training.add_argument("--radial_coeffs_file", metavar='STR', type=str, default=None,
                                help="filepath to initial radial coefficients")
     args_training.add_argument("--L0_coeffs_file", metavar='STR', type=str, default=None,
@@ -346,7 +349,7 @@ def parse_command_line_arguments(arg_file=None):
     args_training.add_argument('--atom_dens_path', metavar='STR', type=str,
                                help="Path to free atom densities file.")
     args_training.add_argument('--atom_dens_type', metavar='STR', type=str,
-                               default='df_coeffs', choices=['spline', 'df_coeffs', 'mo_coeffs'],
+                               default='spline', choices=['spline', 'df_coeffs', 'mo_coeffs'],
                                help="Type of functions to expand the free atom densities.")
     args_training.add_argument("--density_from_df", metavar='True|False', type=str2bool, default=False,
                                choices=[True, False], help="Set density coeffs to DF coeffs instead of predicting them")
