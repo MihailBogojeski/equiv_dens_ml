@@ -126,8 +126,20 @@ class AtomsDensityData(Dataset):
         self.orbital_basis_num = orbitals.get_num_basis(self.orbital_basis, all_atom_numbers)
         self.orbital_basis_size = orbitals.get_basis_size(self.orbital_basis_num)
 
+        self.atoms["shifted_positions"] = self.atoms["positions"] - grid_origin
+        calc_results = []
+        if self.density_path is not None:
+            calc_results = np.load(density_path, allow_pickle=True)
+
         if calc_basis_path is not None:
             self.calc_basis = np.load(calc_basis_path, allow_pickle=True).item()
+            self.calc_basis_num = orbitals.get_num_basis(self.calc_basis, all_atom_numbers)
+            self.calc_basis_size = orbitals.get_basis_size(self.calc_basis_num)
+        elif self.density_path is not None:
+            mol_dict = calc_results[0][0]
+            mol = gto.Mole(**mol_dict)
+            mol.build()
+            self.calc_basis = orbitals.get_basis_from_mol(mol)[0]
             self.calc_basis_num = orbitals.get_num_basis(self.calc_basis, all_atom_numbers)
             self.calc_basis_size = orbitals.get_basis_size(self.calc_basis_num)
         else:
@@ -135,10 +147,6 @@ class AtomsDensityData(Dataset):
             self.calc_basis_num = None
             self.calc_basis_size = None
 
-        self.atoms["shifted_positions"] = self.atoms["positions"] - grid_origin
-        calc_results = []
-        if self.density_path is not None:
-            calc_results = np.load(density_path, allow_pickle=True)
         self.mols = []
         self.coeffs = []
         self.calc_dict = []
@@ -159,11 +167,9 @@ class AtomsDensityData(Dataset):
                 }
                 calc_prop_dict = {}
                 mol = gto.Mole(**mol_dict)
-
                 for calc_prop in calc_props:
                     if calc_prop in calc_dict and calc_prop in required_properties:
                         if 'coeff' in calc_prop:
-                            print(calc_prop, 'shape', calc_dict[calc_prop].shape)
                             calc_prop_dict[calc_prop] = orbitals.split_ao_coeffs(
                                 mol_dict['atom'],
                                 calc_dict[calc_prop],
@@ -184,7 +190,6 @@ class AtomsDensityData(Dataset):
                 if "df_coeff" in calc_dict:
                     if "df_coeffs" not in self.density_fitting.keys():
                         self.density_fitting["auxbasis"] = calc_dict["auxbasis"]
-                        print('df_coeff shape', calc_dict['df_coeff'].shape)
                         df_coeffs_split = orbitals.split_ao_coeffs(
                             mol_dict["atom"],
                             calc_dict["df_coeff"],
@@ -390,6 +395,7 @@ class AtomsDensityData(Dataset):
             elif pname in ['hamiltonian_matrix', 'density_matrix']:
                 atom_props[pname] = [self.calc_dict[i][pname] for i in idx]
             elif pname == 'mo_coeff':
+                print('adding mo coeff')
                 atom_props[pname] = [self.calc_dict[i][pname] for i in idx]
                 mol_props['mo_occ'] = [self.coeffs[i]['mo_occ'] for i in idx]
                 mol_props['mo_occ'] = np.stack(mol_props['mo_occ'], axis=0)
@@ -404,6 +410,7 @@ class AtomsDensityData(Dataset):
             ao_basis_size=self.calc_basis_size,
         )
         props.update(mol_props)
+        print('props keys', props.keys())
         # atom_numbers = torch.from_numpy(atom_numbers).type(self.dtype)
         if "positions" not in props.keys():
             print("idx", idx)
@@ -477,6 +484,9 @@ class AtomsDensityData(Dataset):
                         if self.density_grad:
                             properties["atom_density_grad"] = properties["atom_density"][..., 1:]
                             properties["atom_density"] = properties["atom_density"][..., 0]
+            elif pname == 'mo_coeff':
+                properties[pname] = torch.from_numpy(props[pname]).type(self.dtype)
+                properties['mo_occ'] = torch.from_numpy(props['mo_occ']).type(self.dtype)
             else:
                 properties[pname] = torch.from_numpy(props[pname]).type(self.dtype)
         if self.timing:

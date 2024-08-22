@@ -5,11 +5,12 @@ import torch
 import scipy as sp
 from pyscf.dft import numint
 from pyscf.lib import param
-from pyscf import df, lib, dft
+from pyscf import df, lib, dft, gto
 import pyscf.gto.mole
 from pyscf.scf import hf
 import scipy
 from ase.data import chemical_symbols
+import warnings
 
 # import time
 from equiv_dens.utils.hirshfeld_analysis import eval_spline_density
@@ -17,6 +18,7 @@ from equiv_dens.utils.hirshfeld_analysis import eval_spline_density
 hf.MUTE_CHKFILE = True
 
 pyscf_gto_factor = 2 * np.sqrt(np.pi)
+
 
 def combine_pyscf_basis(pyscf_basis, order_max):
     radial_spec = {}
@@ -823,6 +825,16 @@ def atom_basis_descriptors(auxmol):
 
 
 def ml_basis_to_pyscf_basis(pred, atom_types, index=0):
+    """
+    Convert a ML density basis representation into a PySCF-compatible density fitting basis
+
+    Args:
+        pred (dict): Contains the predicted density basis representation
+        atom_types (list): List of atom types
+        index (int): Index of the batch element
+    returns:
+        basis_dict (dict): Dictionary containing the ML basis written in a PySCF-compatible formet
+    """
     basis_dict = {}
     for i in range(len(pred["radial_scale"])):
         at_symb = atom_types[i]
@@ -852,6 +864,16 @@ def ml_basis_to_pyscf_basis(pred, atom_types, index=0):
 
 
 def ml_basis_to_auxmol(pred, index=0):
+    """
+    Convert a ML density basis representation into a PySCF-compatible density fitting basis saved in a Mole object 
+
+    Args:
+        pred (dict): Contains the predicted density basis representation
+        index (int): Index of the batch element
+    returns:
+        auxmol (Mole): PySCF Mole object containing converted DF basis
+    """
+
     anum = pred["batch_atom_numbers"][index]
     atom_types = []
 
@@ -887,6 +909,18 @@ def ml_basis_to_auxmol(pred, index=0):
 
 
 def ml_basis_to_df_coeffs(pred, basis, mo_coeff=None, mo_occ=None):
+    """
+    Convert a predicted ML density basis representation into DF basis and calculate optimal basis coefficients
+
+    Args:
+        pred (dict): Contains the predicted density basis representation
+        basis (str): Pyscf basis set definition of the original AO basis
+        mo_coeff (torch.Tensor): Converged molecular orbital coefficients of molecule in basis
+        mo_occ (torch.Tensor): Occupancy of molecular orbitals
+    Returns:
+        df_bases (torch.Tensor): Array of optimal basis coefficients for the ML basis
+        auxmol_exts (list of gto.Mole): List of Mole objects with built with the corresponding ML density fitting basis
+    """
     nbatch = pred["batch_positions"].shape[0]
     df_bases = []
     auxmol_exts = []
@@ -906,6 +940,7 @@ def ml_basis_to_df_coeffs(pred, basis, mo_coeff=None, mo_occ=None):
             mf.chkfile = False
             mf.xc = "pbe"
             mf.kernel()
+            print('mo_coeff', mf.mo_coeff)
             dm1 = hf.make_rdm1(mf.mo_coeff, mf.mo_occ)
         else:
             dm1 = hf.make_rdm1(mo_coeff[b], mo_occ[b])
@@ -1403,3 +1438,23 @@ def get_basis_size(ao_basis):
         for orb in ao_basis[key]:
             orbital_basis_size[key] += ((2 * orb[2]) + 1)
     return orbital_basis_size
+
+
+# from M-OFDFT
+def build_1c1e_helper_mol(mol):
+    # Build a helper mol with an invalid basis.
+    # That is, the helper mol will have only 1 AO for each atom,
+    # which is an S orbital with exp=0.
+    old_config = pyscf.gto.mole.NORMALIZE_GTO
+    pyscf.gto.mole.NORMALIZE_GTO = False
+    with warnings.catch_warnings():
+        warnings.filterwarnings('ignore', '.*divide by zero.*')
+        helper_mol = gto.M(atom=mol.atom, basis={'default': [[0, (0.0, 1.0)]]})
+    pyscf.gto.mole.NORMALIZE_GTO = old_config
+    # helper_mol will have a coeff of 0.0, which need the following fix.
+    for bas_id in range(helper_mol.nbas):
+        nprim = helper_mol.bas_nprim(bas_id)
+        nctr = helper_mol.bas_nctr(bas_id)
+        ptr = helper_mol._bas[bas_id, pyscf.gto.mole.PTR_COEFF]
+        helper_mol._env[ptr:ptr + nprim * nctr] = pyscf_gto_factor
+    return helper_mol
