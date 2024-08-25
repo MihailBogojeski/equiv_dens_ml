@@ -67,6 +67,18 @@ def parse_command_line_arguments(arg_file=None):
                                   help="number of residual blocks for refining interaction feature vectors post interaction")
     args_hyperparams.add_argument("--num_residual_output", metavar='INT', type=int, default=1,
                                   help="number of residual blocks for refining output feature vectors")
+    args_hyperparams.add_argument("--num_residual_pc",      metavar='INT',        type=int,      default=1,
+                                  help="number of residual blocks for refining atomic feature vectors before constructing pair features (central atoms)")
+    args_hyperparams.add_argument("--num_residual_pn",      metavar='INT',        type=int,      default=1,
+                                  help="number of residual blocks for refining atomic feature vectors before constructing pair features (neighboring atoms)")
+    args_hyperparams.add_argument("--num_residual_ii",      metavar='INT',        type=int,      default=1,
+                                  help="number of residual blocks for predicting diagonal blocks (shared)")
+    args_hyperparams.add_argument("--num_residual_ij",      metavar='INT',        type=int,      default=1,
+                                  help="number of residual blocks for predicting off-diagonal blocks (shared)")
+    args_hyperparams.add_argument("--num_residual_ao_ii", metavar='INT',        type=int,      default=1,
+                                  help="number of residual blocks for predicting diagonal blocks (atomic orbital matrix)")
+    args_hyperparams.add_argument("--num_residual_ao_ij", metavar='INT',        type=int,      default=1,
+                                  help="number of residual blocks for predicting off-diagonal blocks (atomic orbital matrix)")
     args_hyperparams.add_argument("--num_energy_output", metavar='INT', type=int, default=2,
                                   help="number of layers for the simple energy output network.")
     args_hyperparams.add_argument("--num_neighbours", metavar='INT', type=int, default=1,
@@ -122,6 +134,8 @@ def parse_command_line_arguments(arg_file=None):
                                   help="Whether the final nonmixing layer is residual or not.")
     args_hyperparams.add_argument("--density_coeffs", metavar='True|False', type=str2bool, default=True,
                                   help="Use density coefficients as part of representation.")
+    args_hyperparams.add_argument("--ao_matrix_from_pair_features", metavar='True|False', type=str2bool, default=False,
+                                  help="Predict atomic orbital matrix from pair features instead of atom features.")
     hyperparam_args = [act.dest for act in args_hyperparams._group_actions]
 
     # arguments for training
@@ -193,6 +207,10 @@ def parse_command_line_arguments(arg_file=None):
                                help="weight of the energy in the loss function")
     args_training.add_argument("--forces_weight", metavar='FLOAT', type=float, default=0.0,
                                help="weight of the forces in the loss function")
+    args_training.add_argument("--hamiltonian_matrix_weight", metavar='FLOAT', type=float, default=1.0,
+                               help="weight of the full hamiltonian in the loss function")
+    args_training.add_argument("--density_matrix_weight", metavar='FLOAT', type=float, default=1.0,
+                               help="weight of the density matrix in the loss function")
     args_training.add_argument("--energy_min_weight", metavar='FLOAT', type=float, default=0.0,
                                help="weight of the energy minimization loss")
     args_training.add_argument("--density_loss_comp", metavar='STR', type=str, default=['mae'], nargs='+',
