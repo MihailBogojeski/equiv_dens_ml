@@ -200,6 +200,10 @@ def get_required_properties_from_args(args):
         required_properties.append('energy')
     if args.forces_weight > 0:
         required_properties.append('forces')
+    if args.hamiltonian_matrix_weight > 0:
+        required_properties.append('hamiltonian_matrix')
+    if args.density_matrix_weight > 0:
+        required_properties.append('density_matrix')
 
     return required_properties
 
@@ -439,6 +443,8 @@ def init_error_dict(args, test=False):
     loss_weights['energy'] = args.energy_weight
     loss_weights['forces'] = args.forces_weight
     loss_weights['energy_min'] = args.energy_min_weight
+    loss_weights['hamiltonian_matrix'] = args.hamiltonian_matrix_weight
+    loss_weights['density_matrix'] = args.density_matrix_weight
     if not test:
         weights_decay = {}
         weights_decay['density'] = args.density_weight_decay
