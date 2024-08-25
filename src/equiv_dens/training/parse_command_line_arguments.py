@@ -367,12 +367,14 @@ def parse_command_line_arguments(arg_file=None):
     args_training.add_argument('--atom_dens_path', metavar='STR', type=str,
                                help="Path to free atom densities file.")
     args_training.add_argument('--atom_dens_type', metavar='STR', type=str,
-                               default='df_coeffs', choices=['spline', 'df_coeffs', 'mo_coeffs'],
+                               default='spline', choices=['spline', 'df_coeffs', 'mo_coeffs'],
                                help="Type of functions to expand the free atom densities.")
     args_training.add_argument("--density_from_df", metavar='True|False', type=str2bool, default=False,
                                choices=[True, False], help="Set density coeffs to DF coeffs instead of predicting them")
     args_training.add_argument("--density_from_free_atoms", metavar='True|False', type=str2bool, default=False,
                                choices=[True, False], help="Set density coeffs to free atom coeffs instead of predicting them")
+    args_training.add_argument("--compile", metavar='True|False', type=str2bool, default=False,
+                               choices=[True, False], help="Compile the model for higher efficiency.")
     # arguments for simulations
     args_simulation = parser.add_argument_group("simulation hyperparameters")
     args_simulation.add_argument("--temperature", metavar='INT', type=int, default=300,
@@ -467,6 +469,8 @@ def parse_command_line_arguments(arg_file=None):
             args.energy_model = None
         if args.start_idx[0] == -1:
             args.start_idx = None
+        if args.atom_dens_path == 'None':
+            args.atom_dens_path = None
 
         args.energy_unit_in = args.energy_unit_in.split('/')[0]
         args.energy_unit_out = args.energy_unit_out.split('/')[0]

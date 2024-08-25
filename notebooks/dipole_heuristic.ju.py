@@ -21,9 +21,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 from equiv_dens.training import model_loader
 
+# %%
 # %load_ext autoreload
 # %autoreload 2
-# %cd /home/mihail/Documents/workspace/equiv_dens/
+# %cd ..
 
 # %%
 main_args = Namespace()

@@ -17,6 +17,10 @@ from equiv_dens.utils.grids import CubicalGrid
 from equiv_dens.density_functionals.LDA import LDAFunctional
 
 import numpy as np
+import torch._dynamo
+
+torch._dynamo.config.suppress_errors = True
+torch.set_float32_matmul_precision('high')
 
 
 def load_model(args, dataset, train=False):
@@ -98,6 +102,7 @@ def load_model(args, dataset, train=False):
         density_coeffs_network = DensityCoeffsNetwork
         density_expansion = DensityExpansion
 
+        
         if args.density_coeffs:
             dens_model = density_coeffs_network(
                 orbital_basis=dataset.orbital_basis_num,
@@ -346,5 +351,8 @@ def load_model(args, dataset, train=False):
 
         if args.use_gpu and args.multiple_gpus and torch.cuda.device_count() > 1:
             model = torch.nn.DataParallel(model)
+
+    if args.compile:
+        model = torch.compile(model)
 
     return model

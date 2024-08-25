@@ -1,8 +1,4 @@
 # %%
-# %load_ext autoreload
-# %autoreload 2
-# %cd /home/mihail/Documents/workspace/equiv_dens/
-
 import os
 from pyscf.dft import numint
 from pyscf.lib import param
@@ -23,6 +19,10 @@ import numpy as np
 from equiv_dens.training import model_loader
 import time
 
+# %%
+# %load_ext autoreload
+# %autoreload 2
+# %cd ..
 # %%
 main_args = Namespace()
 

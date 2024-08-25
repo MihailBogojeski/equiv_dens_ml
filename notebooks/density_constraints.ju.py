@@ -24,9 +24,10 @@ import equiv_dens.utils.orbitals as orbitals
 
 from functools import partial
 
+# %%
 # %load_ext autoreload
 # %autoreload 2
-# %cd /home/mihail/Documents/workspace/equiv_dens/
+# %cd ..
 
 # %%
 args, hyperparam_args = parse_command_line_arguments(arg_file='args/ethanethiol_all_006_test.txt')

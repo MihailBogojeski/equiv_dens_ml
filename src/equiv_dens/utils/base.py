@@ -236,7 +236,7 @@ def symbols_to_numbers(symbols):
     return numbers
 
 
-def numbers_to_symbols(numbers, join=True):
+def numbers_to_symbols(numbers, join=False):
     symbols = []
     for n in numbers:
         symbols.append(ase.data.chemical_symbols[n])
@@ -284,17 +284,22 @@ def npy_to_ase(arr, atom_list):
     return mols
 
 
-def npy_to_pyscf(arr, atom_list, basis):
+def npy_to_xyz(npy_data, filename):
+    mols = npy_to_ase(npy_data['positions'], npy_data['atom_numbers'])
+    ase.io.write(filename, mols, parallel=False)
+
+
+def npy_to_pyscf(pos, atom_list, basis):
     if atom_list.ndim == 1:
         atom_list = atom_list[None, :]
-    if arr.ndim == 2:
-        arr = arr[None, :]
-    if atom_list.shape[0] != arr.shape[0]:
-        atom_list = np.tile(atom_list, (arr.shape[0], 1))
+    if pos.ndim == 2:
+        pos = pos[None, :]
+    if atom_list.shape[0] != pos.shape[0]:
+        atom_list = np.tile(atom_list, (pos.shape[0], 1))
     mols = []
-    for i in range(arr.shape[0]):
+    for i in range(pos.shape[0]):
         atom = [(int(atom_list[i, j]),
-                arr[i, j]) for j in range(arr.shape[1]) if atom_list[i, j] != 0]
+                pos[i, j]) for j in range(pos.shape[1]) if atom_list[i, j] != 0]
         # mol = gto.M(atom=atom, basis=basis)
         if (np.sum(atom_list[i, :]) % 2 == 1):
             mol = gto.M(atom=atom, spin=1, basis=basis)
@@ -333,6 +338,8 @@ def positions_from_xyz(filename, convert_to_bohr=True):
         pos = angstrom_to_bohr(pos)
 
     return pos
+
+
 
 
 def get_molecule_dists(target, neighbours, charges=None):
@@ -718,6 +725,28 @@ def batch_compressed_atoms(atoms, relevant_keys):
             atoms[key] = batch_props[key]
 
     return atoms
+
+
+def remap_pair_idxs_for_padding(n_atoms, batch_idx_pos, idx_i, idx_j):
+    """
+    Remap indices of atom pairs so that the index matches each atoms' position in the batched view.
+
+    Args:
+        n_atoms (torch.Tensor): number of atoms in the batched view (with padding)
+        batch_idx_pos (torch.Tensor): index of the position of each atom flattend batch view
+        idx_i (torch.Tensor): indices of the first atoms of each pair in the compressed view
+        idx_j (torch.Tensor): indices of the second atoms of each pair in the compressed view
+
+    Returns:
+        idx_i_batch (torch.Tensor): indices of the first atoms of each pair in the batched view
+        idx_j_batch (torch.Tensor): indices of the second atoms of each pair in the batched viewk
+    """
+    idx_i_batch = batch_idx_pos[idx_i]
+    idx_j_batch = batch_idx_pos[idx_j]
+    idx_i_batch = (idx_i_batch % n_atoms).to(batch_idx_pos)
+    idx_j_batch = (idx_j_batch % n_atoms).to(batch_idx_pos)
+
+    return idx_i_batch, idx_j_batch
 
 
 def get_atom_num_first_positions(atom_numbers):

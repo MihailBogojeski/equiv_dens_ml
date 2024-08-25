@@ -18,6 +18,32 @@ hf.MUTE_CHKFILE = True
 
 pyscf_gto_factor = 2 * np.sqrt(np.pi)
 
+def combine_pyscf_basis(pyscf_basis, order_max):
+    radial_spec = {}
+    spherical_spec = {}
+    radial_counts = {}
+    for z in pyscf_basis.keys():
+        radial_L_count = [0] * (order_max + 2)
+        spherical_L_count = [0] * (order_max + 2)
+        radial_spec[z] = []
+        spherical_spec[z] = []
+        radial_counts[z] = [[] for _ in range(order_max + 2)]
+        for j in range(len(pyscf_basis[z])):
+            orb = pyscf_basis[z][j]
+            L = orb[0]
+            radial_L_count[L] += len(orb) - 1
+            spherical_L_count[L] += len(orb[1]) - 1
+            radial_counts[z][L].append(len(orb) - 1)
+        for L, c in enumerate(radial_L_count):
+            if c == 0:
+                continue
+            radial_spec[z].append((z, c, L))
+        for L, c in enumerate(spherical_L_count):
+            if c == 0:
+                continue
+            spherical_spec[z].append((z, c, L))
+    return spherical_spec, radial_spec, radial_counts
+
 
 def combine_orbital_basis(orbital_basis, order_max):
     radial_spec = {}
@@ -801,7 +827,7 @@ def ml_basis_to_pyscf_basis(pred, atom_types, index=0):
     for i in range(len(pred["radial_scale"])):
         at_symb = atom_types[i]
         for key in pred["radial_scale"][i].keys():
-            z, L = key
+            _, L = key
             radial_widths = (
                 pred["radial_width"][i][key][index].squeeze().numpy(force=True)
             )
@@ -987,7 +1013,7 @@ def sample_single_atom_density_spline(position, atom_number,
     return dens_spline * anum_nz
 
 
-def sample_single_atom_density_mo(position, atom_number, coords, basis, mo_coeffs, density_grad=False):
+def sample_single_atom_density_mo(position, atom_number, coords, mo_coeffs, density_grad=False):
     """
     Sample the free atom density of a single atom on a given coordinate grid using a molecular orbital basis.
 
@@ -1003,6 +1029,7 @@ def sample_single_atom_density_mo(position, atom_number, coords, basis, mo_coeff
         dens = torch.zeros((coords.shape[0], coords.shape[1], coords.shape[2] + 1))
     else:
         dens = torch.zeros((coords.shape[0], coords.shape[1]))
+    basis = mo_coeffs['mo_basis']
     coeffs = [
         {"mo_coeff": mo_coeffs["mo_coeff"], "mo_occ": mo_coeffs["mo_occ"]}
     ] * coords.shape[0]
@@ -1041,7 +1068,6 @@ def sample_atom_density(
     positions,
     atom_numbers,
     coords,
-    basis,
     atom_dens_type,
     atom_dens_dict,
     individual_dens=False,
@@ -1072,7 +1098,6 @@ def sample_atom_density(
                 positions[:, [i]],
                 atom_numbers[:, [i]],
                 coords,
-                basis,
                 atom_dens_dict[anum],
                 density_grad=density_grad,
             )
@@ -1164,7 +1189,6 @@ def model_input_from_atoms(
                 positions=positions,
                 atom_numbers=anums,
                 coords=sample_coords,
-                basis=basis,
                 atom_dens_type=atom_dens_type,
                 atom_dens_dict=free_atom_densities,
                 individual_dens=split_atom_densities,

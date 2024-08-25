@@ -26,9 +26,10 @@ from functools import partial
 from pyscf.gto.mole import nao_nr
 hf.MUTE_CHKFILE = True
 
+# %%
 # %load_ext autoreload
 # %autoreload 2
-# %cd /home/mihail/Documents/workspace/equiv_dens
+# %cd .. 
 # %%
 
 mol = gto.M(atom='H 0 0 0; H 0 0 3; C 0 0 1; O 0 0 2', basis='ccpvdz')
