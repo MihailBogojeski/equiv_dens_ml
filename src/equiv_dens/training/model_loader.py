@@ -9,6 +9,7 @@ from equiv_dens.nn.property_output.energy import SphericalHarmonicsEnergyNetwork
 from equiv_dens.nn.property_output.density import DensityCoeffsNetwork, DFDensityCoeffs,\
     FreeAtomDensityCoeffs, DensityExpansion
 from equiv_dens.nn.property_output.dipole_moment import DipoleMomentCalc
+from equiv_dens.nn.property_output import AOMatrixFromAtomFeatures
 from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
 from equiv_dens.utils.scaling import UnitConversion, VarianceScaling
 import equiv_dens.utils.base as utils
@@ -231,6 +232,23 @@ def load_model(args, dataset, train=False):
                                    store_energy=(args.energy_model is None))
         functional_en_model = nn.Sequential(expansion_model, functional)
 
+    if args.hamiltonian_matrix_weight > 0:
+        print('Building hamiltonian matrix model')
+        hm_model = AOMatrixFromAtomFeatures(
+            orbital_basis=dataset.calc_basis_num,
+            order=args.order[-1],
+            num_features=args.num_features,
+            num_basis_functions=args.num_basis_functions,
+            num_residual_pc=args.num_residual_pc,
+            num_residual_pn=args.num_residual_pn,
+            num_residual_ii=args.num_residual_ii,
+            num_residual_ij=args.num_residual_ij,
+            basis_functions=args.basis_functions,
+            cutoff=args.cutoff,
+            activation=args.activation,
+            output_property_name="hamiltonian_matrix"
+        )
+
     if args.density_coeffs:
         density_model = nn.Sequential(repr_model, dens_model)
     else:
@@ -255,6 +273,9 @@ def load_model(args, dataset, train=False):
     if args.dipole_moment_weight:
         property_models['dipole_moment'] = DipoleMomentCalc()
         calculate_forces_dict['dipole_moment'] = False
+    if args.hamiltonian_matrix_weight > 0:
+        property_models['hamiltonian_matrix'] = hm_model
+        calculate_forces_dict['hamiltonian_matrix'] = False
 
     model = DFTNetwork(density_model, property_models,
                        calculate_forces_dict=calculate_forces_dict,
