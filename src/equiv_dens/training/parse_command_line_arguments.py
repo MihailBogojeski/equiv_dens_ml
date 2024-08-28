@@ -357,6 +357,8 @@ def parse_command_line_arguments(arg_file=None):
                                choices=[True, False], help="Set density coeffs to free atom coeffs instead of predicting them")
     args_training.add_argument("--compile", metavar='True|False', type=str2bool, default=False,
                                choices=[True, False], help="Compile the model for higher efficiency.")
+    args_training.add_argument("--cutoff_dens_coords", metavar='True|False', type=str2bool, default=False,
+                               help="cutoff density grid coordinates for each atom based on the grid extent for that atom")
     # arguments for simulations
     args_simulation = parser.add_argument_group("simulation hyperparameters")
     args_simulation.add_argument("--temperature", metavar='INT', type=int, default=300,

@@ -272,6 +272,25 @@ def cubical_sampling(grid_spec, n_samp, _, pos):
         rand_idx = np.random.choice(np.arange(flat_coords.shape[1]), size=n_samp, replace=False)
         return flat_coords[:, rand_idx, :], torch.ones((flat_coords.shape[0], n_samp, )) * grid_spec[1]
 
+def spherical_grid_atom_cutoff(coords, pos, atom_numbers, grid_spec):
+    """
+    Cut off the extent of the spherical grid for each atom based on the maximum extent of that atom's atomic grid.
+    Args:
+        coords (n_mols, n_grid, 3): Array containing grid coordinates
+        pos: (n_mols, n_atoms, 3): Array containing atomic coordinates
+        atom_numbers: (n_mols, n_atoms): Array containing atomic numbers
+        grid_spec: (dict): Dictionary containing atomic grid specifications
+    Returns:
+        cutoff_coords (n_mols, n_atoms, n_grid, 3): Boolean array used to mask out the coordinates outside of the cutoff
+    """
+    pos_dists = torch.norm(pos.unsqueeze(2) - coords.unsqueeze(1), dim=-1)
+    atom_numbers = torch.amax(atom_numbers, axis=0).type(torch.long)
+    grid_dist = torch.zeros(size=(1, len(atom_numbers), 1)).to(pos_dists)
+    for i in range(atom_numbers.shape[0]):
+        t = utils.numbers_to_symbols([atom_numbers[i]])[0]
+        grid_dist[0, i] = torch.max(torch.norm(grid_spec[t][0], dim=-1))
+    cutoff_coords = pos_dists <= grid_dist
+    return cutoff_coords
 
 # def dftpy_grid(lattice, gap):
 #     nr = np.zeros(3, dtype='int32')
