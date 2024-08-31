@@ -410,7 +410,6 @@ class AtomsDensityData(Dataset):
             ao_basis_size=self.calc_basis_size,
         )
         props.update(mol_props)
-        print('props keys', props.keys())
         # atom_numbers = torch.from_numpy(atom_numbers).type(self.dtype)
         if "positions" not in props.keys():
             print("idx", idx)
@@ -460,6 +459,7 @@ class AtomsDensityData(Dataset):
                     if self.timing:
                         print("density time:", time.time() - density_start)
                     if self.atom_dens is not None:
+                        free_at_start = time.time()
                         if self.split_atom_dens:
                             properties["atom_density_split"] = self.sample_atom_density(
                                 positions,
@@ -484,6 +484,8 @@ class AtomsDensityData(Dataset):
                         if self.density_grad:
                             properties["atom_density_grad"] = properties["atom_density"][..., 1:]
                             properties["atom_density"] = properties["atom_density"][..., 0]
+                        if self.timing:
+                            print('free atoms density time', time.time() - free_at_start)
             elif pname == 'mo_coeff':
                 properties[pname] = torch.from_numpy(props[pname]).type(self.dtype)
                 properties['mo_occ'] = torch.from_numpy(props['mo_occ']).type(self.dtype)
