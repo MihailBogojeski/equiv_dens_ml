@@ -359,6 +359,8 @@ def parse_command_line_arguments(arg_file=None):
                                choices=[True, False], help="Compile the model for higher efficiency.")
     args_training.add_argument("--rotate_grid", metavar='True|False', type=str2bool, default=True,
                                choices=[True, False], help="Rotate density grid during training.")
+    args_training.add_argument("--cutoff_dens_coords", metavar='True|False', type=str2bool, default=False,
+                               help="cutoff density grid coordinates for each atom based on the grid extent for that atom")
     # arguments for simulations
     args_simulation = parser.add_argument_group("simulation hyperparameters")
     args_simulation.add_argument("--temperature", metavar='INT', type=int, default=300,
