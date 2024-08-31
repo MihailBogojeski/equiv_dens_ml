@@ -122,7 +122,8 @@ def load_model(args, dataset, train=False):
                 scale_sph_order=args.scale_sph_order,
                 normalize=args.normalize,
                 parity=args.parity_dens,
-                linear_out=args.remove_atom_density
+                remove_atom_density=args.remove_atom_density,
+                linear_out=args.remove_atom_density,
             )
 
         if args.density_weight + args.dipole_moment_weight > 0:
@@ -155,6 +156,8 @@ def load_model(args, dataset, train=False):
                     normalize=args.normalize,
                     parity=args.parity_dens,
                     core_basis_ratio=args.core_density_basis,
+                    remove_atom_density=args.remove_atom_density,
+                    linear_out=args.remove_atom_density,
                 )
         else:
             expansion_model = None

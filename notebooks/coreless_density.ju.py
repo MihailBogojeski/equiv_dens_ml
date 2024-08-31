@@ -696,6 +696,7 @@ for t in ['spline', 'df_coeffs', 'mo_coeffs']:
                                    atom_dens_path='datasets/free_atom_densities_augccpvdz_augccpvqzjkfit_pyscf_minimized.npy',
                                    atom_dens_type=t,
                                    split_atom_dens=True,
+                                   timing=True
                                    )
 
     dataset_new = AtomsDensityData(np_path=args.np_dataset_test,
@@ -719,6 +720,7 @@ for t in ['spline', 'df_coeffs', 'mo_coeffs']:
                                    atom_dens_path='datasets/free_atom_densities_augccpvdz_augccpvqzjkfit_pyscf.npy',
                                    atom_dens_type=t,
                                    split_atom_dens=True,
+                                   timing=True
                                    )
 
     start = time.time()

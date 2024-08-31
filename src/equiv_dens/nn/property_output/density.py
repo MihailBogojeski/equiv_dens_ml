@@ -15,18 +15,20 @@ import time
 
 
 class CoeffsIntegralConstraint(nn.Module):
-    def __init__(self, integral_scale=False):
+    def __init__(self, integral_scale=False, remove_atom_density=False):
         super().__init__()
         if integral_scale:
             self.register_parameter('integral_scale', nn.Parameter(torch.ones(size=(1,))))
         else:
             self.register_buffer('integral_scale', torch.ones(size=(1,)))
+        self.remove_atom_density = remove_atom_density
 
     def forward(self, atoms):
         n_electrons = get_n_electrons(atoms['batch_atom_numbers'])
         L0_idxs = []
         L0_coeffs = []
         L0_width = []
+        L0_scale = []
         for i, atom_sph in enumerate(atoms['spherical_coeffs']):
             for key in atom_sph:
                 (z, L) = key
@@ -37,21 +39,35 @@ class CoeffsIntegralConstraint(nn.Module):
                 sph_coeff = atoms['spherical_coeffs'][i][key]
                 if L == 0:
                     L0_coeff = sph_coeff * scale
+                    L0_scale.append(scale)
                     L0_idxs.append((i, key))
                     L0_coeffs.append(L0_coeff)
                     L0_width.append(width)
         L0_coeffs_comb = torch.cat([coeff.view((coeff.shape[0], -1)) for coeff in L0_coeffs], dim=1)
         L0_widths_comb = torch.cat([width.view((width.shape[0], -1)) for width in L0_width], dim=1)
-        norms = 1 / gto_norm(0, L0_widths_comb)
-        coeffs_sum = torch.sum(L0_coeffs_comb * norms / pyscf_gto_factor, dim=1, keepdim=True)
-        scale_factor = n_electrons / coeffs_sum
-        scale_factor = scale_factor.reshape(*scale_factor.shape, 1, 1)
-        L0_coeffs_comb = L0_coeffs_comb * torch.clamp(self.integral_scale, 0.5, 1.5)
+        L0_scales_comb = torch.cat([scale.view((scale.shape[0], -1)) for scale in L0_scale], dim=1)
+        norms = 1 / gto_norm(0, L0_widths_comb) / pyscf_gto_factor
         coeffs_pointer = 0
-        for j, (i, key) in enumerate(L0_idxs):
-            L0_coeff_len = L0_coeffs[j].shape[-1]
-            atoms['spherical_coeffs'][i][key] = atoms['spherical_coeffs'][i][key] * scale_factor
-            coeffs_pointer += L0_coeff_len
+        if self.remove_atom_density:
+            return atoms
+            v = L0_coeffs_comb / L0_scales_comb
+            w = torch.zeros_like(L0_coeffs_comb)
+            w = L0_scales_comb * norms
+            w_dot_w = torch.einsum('bi,bi->b', w, w)
+            v = v - (torch.einsum('bi,bi->b', v, w) / w_dot_w)[:, None] * w
+            for j, (i, key) in enumerate(L0_idxs):
+                L0_coeff_len = L0_coeffs[j].shape[-1]
+                atoms['spherical_coeffs'][i][key] = v[:, None, None, coeffs_pointer:coeffs_pointer + L0_coeff_len]
+                coeffs_pointer += L0_coeff_len
+        else:
+            coeffs_sum = torch.sum(L0_coeffs_comb * norms, dim=1, keepdim=True)
+            scale_factor = n_electrons / coeffs_sum
+            scale_factor = scale_factor.reshape(*scale_factor.shape, 1, 1)
+            L0_coeffs_comb = L0_coeffs_comb * torch.clamp(self.integral_scale, 0.5, 1.5)
+            for j, (i, key) in enumerate(L0_idxs):
+                L0_coeff_len = L0_coeffs[j].shape[-1]
+                atoms['spherical_coeffs'][i][key] = atoms['spherical_coeffs'][i][key] * scale_factor
+                coeffs_pointer += L0_coeff_len
         return atoms
 
 
@@ -81,6 +97,7 @@ class DensityCoeffsNetwork(nn.Module):
                  scale_sph_order=True,
                  normalize=0,
                  parity=False,
+                 remove_atom_density=False,
                  core_basis_ratio=0,
                  linear_out=False,
                  nonmixing=False,
@@ -97,7 +114,7 @@ class DensityCoeffsNetwork(nn.Module):
         self.num_features = num_features
         self.positive_coeffs = positive_coeffs
         if integral_constraint == 'coeffs_in_coeffs_net':
-            self.integral_constraint = CoeffsIntegralConstraint(integral_scale)
+            self.integral_constraint = CoeffsIntegralConstraint(integral_scale, remove_atom_density)
         else:
             self.integral_constraint = None
         self.verbose = verbose
@@ -170,6 +187,7 @@ class DensityCoeffsNetwork(nn.Module):
             self.output_zero_init = False
             mix_orders = True
 
+        print('max sph counts', max(self.sph_counts))
         self.spherical_output = SphericalLinear(self.order, self.num_features,
                                                 self.orbitals_max_order,
                                                 max(self.sph_counts), self.clebsch_gordan,
