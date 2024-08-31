@@ -87,7 +87,7 @@ def init_grid_vars(args, test=False):
     Returns:
         grid_vars: Dictionary containing data variables.
     """
-    if test:
+    if test or not args.rotate_grid:
         rotate = False
     else:
         rotate = True

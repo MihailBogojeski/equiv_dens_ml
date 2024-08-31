@@ -285,7 +285,7 @@ def parse_command_line_arguments(arg_file=None):
                                choices=[True, False], help="Normalize the coefficients using softmax.")
     args_training.add_argument("--percentage_error", metavar='True|False', type=str2bool, default=True,
                                choices=[True, False], help="Measure error as a percentage of the density integral.")
-    args_training.add_argument("--pyscf_grid", metavar='True|False', type=str2bool, default=False,
+    args_training.add_argument("--pyscf_grid", metavar='True|False', type=str2bool, default=True,
                                choices=[True, False], help="Use pyscf for density grid generation.")
     args_training.add_argument("--cube_grid", metavar='True|False', type=str2bool, default=False,
                                choices=[True, False], help="Use cubical densty grid for training.")
@@ -357,6 +357,8 @@ def parse_command_line_arguments(arg_file=None):
                                choices=[True, False], help="Set density coeffs to free atom coeffs instead of predicting them")
     args_training.add_argument("--compile", metavar='True|False', type=str2bool, default=False,
                                choices=[True, False], help="Compile the model for higher efficiency.")
+    args_training.add_argument("--rotate_grid", metavar='True|False', type=str2bool, default=True,
+                               choices=[True, False], help="Rotate density grid during training.")
     # arguments for simulations
     args_simulation = parser.add_argument_group("simulation hyperparameters")
     args_simulation.add_argument("--temperature", metavar='INT', type=int, default=300,
