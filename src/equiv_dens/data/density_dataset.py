@@ -71,6 +71,7 @@ class AtomsDensityData(Dataset):
         split_atom_dens=False,
         density_grad=False,
         calc_basis_path=None,
+        all_atom_numbers=None,
     ):
         self.density_path = density_path
         self.np_path = np_path
@@ -119,9 +120,9 @@ class AtomsDensityData(Dataset):
             self.atom_dens = np.load(atom_dens_path, allow_pickle=True).item()
         else:
             self.atom_dens = None
-
-        all_atom_numbers = np.unique(self.atoms["atom_numbers"].flatten())
-        all_atom_numbers = all_atom_numbers[all_atom_numbers > 0]
+        if all_atom_numbers is None:
+            all_atom_numbers = np.unique(self.atoms["atom_numbers"].flatten())
+            all_atom_numbers = all_atom_numbers[all_atom_numbers > 0]
         self.orbital_basis = np.load(orbitals_path, allow_pickle=True).item()
         self.orbital_basis_num = orbitals.get_num_basis(self.orbital_basis, all_atom_numbers)
         self.orbital_basis_size = orbitals.get_basis_size(self.orbital_basis_num)

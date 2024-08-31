@@ -23,7 +23,6 @@ import equiv_dens.utils.base as utils
 import equiv_dens.utils.orbitals as orbitals
 
 from functools import partial
-
 # %%
 # %load_ext autoreload
 # %autoreload 2
