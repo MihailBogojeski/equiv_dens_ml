@@ -613,7 +613,7 @@ class AtomsDensityData(Dataset):
         # print('atom numbers', atom_numbers)
         # print('props', atom_props)
         atom_numbers, props = utils.compress_batch_atoms(
-            atom_numbers, atom_props, basis_size=self.orbital_basis_size
+            atom_numbers, atom_props, df_basis_size=self.orbital_basis_size
         )
         props.update(mol_props)
         # atom_numbers = torch.from_numpy(atom_numbers).type(self.dtype)
