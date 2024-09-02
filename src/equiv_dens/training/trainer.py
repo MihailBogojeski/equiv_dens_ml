@@ -634,6 +634,8 @@ class Trainer:
             # self.summary.add_scalar('gradient/norm', self.gradient_norm, self.step)
             wandb_uncommited_log({'gradient_norm': self.gradient_norm})
 
+        wandb_uncommited_log({'learning rate': self.optimizers[0].param_groups[0]['lr']})
+
         # write optional summaries for model parameters
         if self.args.write_parameter_summaries:
             for name, param in self._module.named_parameters():
