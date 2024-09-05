@@ -101,7 +101,7 @@ def load_model(args, dataset, train=False):
         density_coeffs_network = DensityCoeffsNetwork
         density_expansion = DensityExpansion
 
-        
+
         if args.density_coeffs:
             dens_model = density_coeffs_network(
                 orbital_basis=dataset.orbital_basis_num,
@@ -123,6 +123,7 @@ def load_model(args, dataset, train=False):
                 normalize=args.normalize,
                 parity=args.parity_dens,
                 remove_atom_density=args.remove_atom_density,
+                nonmixing=args.nonmixing_interaction,
                 linear_out=args.remove_atom_density,
             )
 

@@ -1,4 +1,8 @@
 # %%
+# %load_ext autoreload
+# %autoreload 2
+# %cd ..
+# %%
 import ase
 import numpy as np
 import pyscf
@@ -32,9 +36,7 @@ from vdw import to_mbd
 
 hf.MUTE_CHKFILE = True
 # %%
-# %load_ext autoreload
-# %autoreload 2
-# %%
+# evaluate MBD energies for s66x8 data
 geomdir = 'datasets/s66x8'
 out_file = 'datasets/s66x8_d4.npy'
 data = np.load('datasets/s66x8.npz', allow_pickle=True)
@@ -95,6 +97,57 @@ for i in range(data.shape[0]):
     energy = MBDGeom(pos).mbd_energy_species(utils.numbers_to_symbols(nums), volume_ratio[0], 0.83)
     print('MBD energy', utils.hartree_to_kcal(energy))
 # %%
+# make dataset out of s66x8 data
+geomdir = 'datasets/s66x8'
+out_file = 'datasets/s66x8_d4.npy'
+data = np.load('datasets/s66x8.npz', allow_pickle=True)
+print(data[1][0])
+new_data = []
+fnames = []
+
+for i in range(data.shape[0]):
+    fname = data[i][0]['atom'].split('/')[-1]
+    basis = 'augccpvdz'
+    mol = gto.M(atom=os.path.join(geomdir, fname), basis=basis)
+    pos = mol.atom_coords()
+    nums = mol.atom_charges()
+    print('fname', fname)
+    fnames.append(fname)
+    atoms = [(nums[i], utils.bohr_to_angstrom(pos[i, :])) for i in range(len(nums))]
+    new_mol = gto.M(atom=atoms, basis=basis)
+    disp = d4disp.DFTD4Dispersion(mol, xc='pbe')
+    dkr = disp.kernel()
+    print('D4 energy', utils.hartree_to_kcal(dkr[0]))
+    disp = d4disp.DFTD4Dispersion(new_mol, xc='pbe')
+    dkr = disp.kernel()
+    print('D4 energy', utils.hartree_to_kcal(dkr[0]))
+    new_mol_dict = new_mol.pack()
+    new_mol_dict['filename'] = fname
+    new_mol_dict['basis'] = basis 
+    new_data.append([new_mol_dict, data[i][1]])
+
+fname_inds = np.argsort(fnames)
+print([fnames[i] for i in fname_inds])
+new_data = [new_data[i] for i in fname_inds]
+
+new_data_npy = utils.calc_dict_to_npy(new_data, compress_atoms=True, convert_forces=False)
+
+np.save('datasets/s66x8_pyscf_augccpvdz_base.npy', new_data_npy, allow_pickle=True)
+np.save('datasets/s66x8_pyscf_augccpvdz_calc.npy', new_data, allow_pickle=True)
+# %%
+for i in range(len(new_data)):
+    basis = new_data[i][0]['basis']
+    fname = new_data[i][0]['filename']
+    new_mol = gto.M(atom=new_data[i][0]['atom'], basis=basis)
+    mol = gto.M(atom=os.path.join(geomdir, fname), basis=basis)
+    print('fname', fname)
+    disp = d4disp.DFTD4Dispersion(mol, xc='pbe')
+    dkr = disp.kernel()
+    print('D4 energy', utils.hartree_to_kcal(dkr[0]))
+    disp = d4disp.DFTD4Dispersion(new_mol, xc='pbe')
+    dkr = disp.kernel()
+    print('D4 energy', utils.hartree_to_kcal(dkr[0]))
+# %%
 i = 14
 print('i', i)
 fname = data[i][0]['atom'].split('/')[-1]
@@ -110,7 +163,6 @@ print('D4 energy', dkr[0])
 mf = to_mbd(dft.RKS(mol, xc="PBE"), variant="rsscs").run()
 print(mf.e_vdw)  # -0.001245831
 # %%
-# print('D4 gradient', dkr[1])
 grid_spec = gen_grid.gen_atomic_grids(mol, radi_method=radi.treutler, level=1)
 coords, weights = gen_grid.get_partition(mol, grid_spec)
 ao = numint.eval_ao(mol, coords, deriv=0)
