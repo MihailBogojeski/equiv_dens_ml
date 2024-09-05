@@ -124,6 +124,7 @@ def load_model(args, dataset, train=False):
                 parity=args.parity_dens,
                 remove_atom_density=args.remove_atom_density,
                 nonmixing=args.nonmixing_interaction,
+                nonmixing_bias=args.nonmixing_interaction_residual,
                 linear_out=args.remove_atom_density,
             )
 
