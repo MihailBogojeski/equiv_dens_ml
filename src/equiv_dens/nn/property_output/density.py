@@ -187,7 +187,6 @@ class DensityCoeffsNetwork(nn.Module):
             self.output_zero_init = False
             mix_orders = True
 
-        print('max sph counts', max(self.sph_counts))
         self.spherical_output = SphericalLinear(self.order, self.num_features,
                                                 self.orbitals_max_order,
                                                 max(self.sph_counts), self.clebsch_gordan,
