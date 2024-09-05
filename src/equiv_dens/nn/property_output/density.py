@@ -101,6 +101,7 @@ class DensityCoeffsNetwork(nn.Module):
                  core_basis_ratio=0,
                  linear_out=False,
                  nonmixing=False,
+                 nonmixing_bias=True,
                  ):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
         super().__init__()
 
@@ -179,7 +180,7 @@ class DensityCoeffsNetwork(nn.Module):
             self.output_zero_init = True
             mix_orders = True
         elif self.nonmixing:
-            self.output_bias = False
+            self.output_bias = nonmixing_bias 
             self.output_zero_init = False
             mix_orders = False
         else:
