@@ -302,9 +302,9 @@ def npy_to_pyscf(pos, atom_list, basis):
                 pos[i, j]) for j in range(pos.shape[1]) if atom_list[i, j] != 0]
         # mol = gto.M(atom=atom, basis=basis)
         if (np.sum(atom_list[i, :]) % 2 == 1):
-            mol = gto.M(atom=atom, spin=1, basis=basis)
+            mol = gto.Mole(atom=atom, spin=1, basis=basis)
         else:
-            mol = gto.M(atom=atom, basis=basis)
+            mol = gto.Mole(atom=atom, basis=basis)
         mols.append(mol)
     return mols
 
