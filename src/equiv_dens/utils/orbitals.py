@@ -11,6 +11,8 @@ from pyscf.scf import hf
 import scipy
 from ase.data import chemical_symbols
 import warnings
+import time
+import gc
 
 # import time
 from equiv_dens.utils.hirshfeld_analysis import eval_spline_density
@@ -772,6 +774,14 @@ def sample_density_base(mols, coords, coeffs, scale_coords=False, projected=Fals
         if not mol._built:
             mol.build()
         deriv = int(density_grad)
+        if len(mol.atom_charges()) == 0:
+            continue
+        # print('mol atom charges', mol.atom_charges())
+        # print('mol atom pos', mol.atom_coords())
+        # if isinstance(coords[i], torch.Tensor):
+        #     print('coords vals', torch.max(coords[i]), torch.min(coords[i]), torch.min(torch.abs(coords[i])))
+        # else:
+        #     print('coords vals', np.max(coords[i]), np.min(coords[i]), np.min(np.abs(coords[i])))
         ao = numint.eval_ao(mol, coords[i], deriv=deriv)
         if projected:
             rho = _expand_pyscf_projected_density(mol, ao, coeffs[i], density_grad=density_grad)
@@ -788,7 +798,9 @@ def _expand_pyscf_density(mol, ao, coeffs, density_grad=False):
         xctype = 'GGA'
     else:
         xctype = 'LDA'
-    if coeffs["mo_occ"].ndim > 1:
+    if len(mol.atom_charges()) == 0:
+        rho = np.zeros((ao.shape[0], ))
+    elif coeffs["mo_occ"].ndim > 1:
         rho = 0
         for j in range(coeffs["mo_occ"].shape[0]):
             rho += numint.eval_rho2(
@@ -1173,6 +1185,9 @@ def sample_single_atom_density_mo(position, atom_number, coords, mo_coeffs, dens
     atom = utils.npy_to_pyscf(
         position.detach().cpu().numpy(), atom_number.detach().cpu().numpy(), basis
     )
+    if not atom[0]._built:
+        for a in atom:
+            a.build()
     dens = sample_density_base(atom, coords, coeffs, scale_coords=True,
                                projected=False, density_grad=density_grad)
 
@@ -1195,6 +1210,9 @@ def sample_single_atom_density_df(position, atom_number, coords, basis, df_coeff
     atom = utils.npy_to_pyscf(
         position.detach().cpu().numpy(), atom_number.detach().cpu().numpy(), basis
     )
+    if not atom._built:
+        for a in atom:
+            a.build()
     dens = sample_density_base(
         atom, coords, df_coeffs, scale_coords=True, projected=True, density_grad=density_grad,
     )
@@ -1223,12 +1241,14 @@ def sample_atom_density(
         (density, atom_wise_density) (torch.Tensor, torch.Tensor): Tuple containing free atom
         density of the molecule, plus the individual density of each atom in the molecule
     """
+    gc.collect()  # To release circular referred objects
     if density_grad:
         dens = torch.zeros((coords.shape[0], coords.shape[1], coords.shape[2] + 1))
     else:
         dens = torch.zeros((coords.shape[0], coords.shape[1]))
     atom_densities = []
     for i in range(positions.shape[1]):
+        start = time.time()
         anum = int(torch.max(atom_numbers[:, i]))
         if atom_dens_type == "mo_coeffs":
             atom_dens = sample_single_atom_density_mo(

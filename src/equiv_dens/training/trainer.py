@@ -368,6 +368,7 @@ class Trainer:
 
         data = self._module.transform_input(data)
         # print('model embedding layer before', self._model.density_repr_model[0].embedding.embedding.element_embedding)
+        # print('batch size', data['batch_atom_numbers'].shape[0])
         predictions = self._module(data)
         # print('model embedding layer after pred', self._model.density_repr_model[0].embedding.embedding.element_embedding)
 
@@ -497,6 +498,7 @@ class Trainer:
                 print('valid load memory cached', torch.cuda.memory_cached() / 1024**2)
 
             data = self._module.transform_input(data)
+            # print('batch size', data['batch_atom_numbers'].shape[0])
             # print('post-conversion forces:', data['forces'])
             predictions = self._module(data)
             # print('predictions, sph repr', predictions['sph_repr_batch'][0][0])

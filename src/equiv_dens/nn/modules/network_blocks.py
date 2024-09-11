@@ -401,6 +401,7 @@ class NonmixingInteractionBlock(nn.Module):
         self.num_basis_functions = num_basis_functions
         self.num_residual_pre_vi = num_residual_pre_vi
         self.num_residual_pre_vj = num_residual_pre_vj
+        self.num_residual_post_v = num_residual_post_v
         self.num_neighbours = num_neighbours
         self.normalize = normalize
         self.residual = residual
