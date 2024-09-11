@@ -26,13 +26,16 @@ def str2bool(s):
 
 
 # %%
-def calc_density_errors(density, atoms, error_dict):
+def calc_density_errors(density, atoms, error_dict, dipole_moment=None):
     r_dens = torch.clamp(density, min=0)
     r_dens = r_dens / torch.sum(r_dens * atoms['coord_weights']) * torch.sum(atoms['atom_numbers'])
 
     tmp_atoms = {key: atoms[key] for key in atoms}
     tmp_atoms['density'] = r_dens
-    dpm = orbitals.calc_dipole_moment(tmp_atoms, center_coordinates=True)['dipole_moment']
+    if dipole_moment:
+        dpm = dipole_moment
+    else:
+        dpm = orbitals.calc_dipole_moment(tmp_atoms, center_coordinates=True)['dipole_moment']
 
     df_error = torch.sum(torch.abs(atoms['density'] - r_dens) * atoms['coord_weights']) \
         / torch.sum(atoms['atom_numbers'])
@@ -475,6 +478,7 @@ parser.add_argument('--density_grad_error', action='store_true', default=False)
 parser.add_argument('--use_gpu', action='store_true', default=False)
 parser.add_argument('--num_samples', type=int, default=-1)
 parser.add_argument('--make_plots', action='store_true', default=False)
+parser.add_argument('--res_dpm', action='store_true', default=False)
 
 main_args = parser.parse_args()
 
@@ -579,7 +583,11 @@ if main_args.df_error:
             sample = dataset.get_properties([i])
             sample_df = dataset_df.get_properties([i])
             print('density integral', torch.sum(sample_df['density'] * sample['coord_weights']))
-            calc_density_errors(sample_df['density'], sample, df_losses)
+            if args.res_dpm:
+                dipole_moment = sample_df['dipole_moment']
+            else:
+                dipole_moment = None
+            calc_density_errors(sample_df['density'], sample, df_losses, dipole_moment=dipole_moment)
     else:
         df_losses = {'exc_mae': [], 'vw_mae': [], 'grad_norm_err': []}
         # print('i', i, 'mae', df_error, 'rmse', df2_error, 'dpm', dpm_error, 'mag', dpm_mag_error, 'ang', dpm_ang_error, 'lda', lda_error)
@@ -662,7 +670,11 @@ if main_args.ml_error:
             # print('sample positions', sample['positions'])
             # print('res dataset_positions', res_dataset['positions'][[i]])
             # print('density integral', torch.sum(res_dataset['density'][[i]] * sample['coord_weights']))
-            calc_density_errors(res_dataset['density'][[i]], sample, res_losses)
+            if args.res_dpm and 'dipole_moment' in res_dataset.keys():
+                dipole_moment = res_dataset['dipole_moment'][[i]]
+            else:
+                dipole_moment = None
+            calc_density_errors(res_dataset['density'][[i]], sample, res_losses, dipole_moment=dipole_moment)
     else:
         res_losses = {'exc_mae': [], 'vw_mae': [], 'grad_norm_err': []}
         if 'density_grad' in res_dataset.keys():

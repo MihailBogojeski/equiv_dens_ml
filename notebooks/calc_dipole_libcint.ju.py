@@ -56,13 +56,14 @@ main_args.save_file = 'ethanethiol_all_006'
 # main_args.save_file = 'ethanethiol_all_001_SH_even'
 # main_args.save_file = 'ethanethiol_df_coeffs_001'
 main_args.df_error = True
-main_args.use_gpu = False
+main_args.use_gpu = True
 main_args.num_samples = 100
 main_args.make_plots = True
 
 df_losses = None
 
 # %%
+# initializing args and dataset
 args, hyperparam_args = parse_command_line_arguments(arg_file=main_args.args_file)
 
 # print('type dtype', type(args.dtype))
@@ -130,7 +131,7 @@ args.verbose = 0
 args.use_gpu = main_args.use_gpu
 print('args use gpu', args.use_gpu)
 args.cube_grid = False
-args.radii_adjust = True
+args.radii_adjust = False
 args.expansion_constraint = None
 args.integral_constraint = False
 if args.cube_grid:
@@ -171,7 +172,7 @@ dataset = AtomsDensityData(np_path=args.np_dataset_test, density_path=args.dens_
                            radial_coeffs_file=args.radial_coeffs_file,
                            dtype=args.dtype,
                            grid_fn=grid_fn,
-                           pyscf_grid=args.pyscf_grid,
+                           pyscf_grid=True,
                            sampling_fn=sampling_fn,
                            grid_extent=grid_extent,
                            grid_origin=grid_origin,
@@ -184,6 +185,7 @@ dataset = AtomsDensityData(np_path=args.np_dataset_test, density_path=args.dens_
                            atom_dens_type='spline',
                            split_atom_dens=True,
                            density_grad=args.density_grad,
+                           dpm_intor=True,
                            )
 
 print('dataset length', len(dataset))
@@ -195,6 +197,7 @@ print('num samples', main_args.num_samples)
 print('args use gpu', args.use_gpu)
 
 # %%
+# testing model
 idx = [6]
 samp = dataset.get_properties(idx)
 if args.use_gpu:
@@ -210,19 +213,20 @@ df_coeffs_ml = orbitals.coeffs_dict_to_vector(res, dataset.orbital_basis_num, re
                                               radial_coeffs=False, convert_to_pyscf=True)['spherical_coeffs'].squeeze().detach()
 print('samp mo_coeff', samp['mo_coeff'])
 
-df_coeffs_opt, auxmol_opts = orbitals.ml_basis_to_df_coeffs(res, 'augccpvdz')
+df_coeffs_opt, auxmol_opts = orbitals.ml_basis_to_df_coeffs(res, 'augccpvdz', mo_coeff=samp['mo_coeff'], mo_occ=samp['mo_occ'])
 
 # %%
+# calculating density and dipole by numeric integral
 dpm_ml = orbitals.calc_dipole_moment(res)['dipole_moment']
 
-coords = samp['coords'][0] / param.BOHR
+coords = samp['coords'][0].numpy(force=True) / param.BOHR
 
 ao_opt = numint.eval_ao(auxmol_opts[0], coords, deriv=0)
 rho = np.einsum('ij,j->i', ao_opt, df_coeffs_opt[0])
-rho = torch.tensor(rho)
+rho = torch.tensor(rho).to(samp['coord_weights'])
 ao_ml = numint.eval_ao(auxmol_ml, coords, deriv=0)
-rho_ml = np.einsum('ij,j->i', ao_ml, df_coeffs_ml)
-rho_ml = torch.tensor(rho_ml)
+rho_ml = np.einsum('ij,j->i', ao_ml, df_coeffs_ml.numpy(force=True))
+rho_ml = torch.tensor(rho_ml).to(samp['coord_weights'])
 print('rho shape', rho.shape)
 
 print('rho integral', torch.sum(rho * samp['coord_weights'][0]))
@@ -234,6 +238,7 @@ print('rho ml error', torch.sum(torch.abs(rho_ml - samp['density'][0]) * samp['c
 print('res error', torch.sum(torch.abs(res['density'][0] - samp['density'][0]) * samp['coord_weights'][0]) / torch.sum(samp['atom_numbers'], dim=1))
 
 # %%
+# calculating dipole of ML-DF projection
 res_opt = {key: res[key] for key in res.keys()}
 res_opt['density'] = rho.unsqueeze(0)
 
@@ -245,6 +250,7 @@ print('dpm ml err', torch.norm(dpm_ml - samp['dipole_moment']))
 print('dpm opt err', torch.norm(dpm_opt - samp['dipole_moment']))
 
 # %%
+# calculating density matrix based on MO coeffs
 a_nums = auxmol_ml.atom_charges()
 a_coords = auxmol_ml.atom_coords('angstrom')
 
@@ -252,10 +258,11 @@ atom = [(a_nums[i], a_coords[i]) for i in range(len(a_nums))]
 
 mol = gto.M(atom=atom, basis='augccpvdz')
 
-dm1 = hf.make_rdm1(samp['mo_coeff'][0], samp['mo_occ'][0])
+dm1 = hf.make_rdm1(samp['mo_coeff'][0].numpy(force=True), samp['mo_occ'][0].numpy(force=True))
 print('mo_coeff', samp['mo_coeff'][0])
 
 # %%
+# calculating helper molecule and testing analytic nuclear integral
 helper_mol = orbitals.build_1c1e_helper_mol(auxmol_ml)
 int1e_nuc = gto.mole.intor_cross('int1e_nuc', helper_mol, auxmol_ml)
 intor_idx = [
@@ -266,13 +273,13 @@ int1e_nuc = int1e_nuc[intor_idx, range(auxmol_ml.nao)]
 print('int1e_nuc', int1e_nuc.shape)
 
 # %%
-print('aux nuc en', np.einsum('i,i', int1e_nuc, df_coeffs_ml) / 2)
+print('aux nuc en', np.einsum('i,i', int1e_nuc, df_coeffs_ml.numpy(force=True)) / 2)
 print('aux nuc en', np.einsum('i,i', int1e_nuc, df_coeffs_opt[0]) / 2)
 print('mol nuc en', np.einsum('ij,ji', dm1, mol.intor('int1e_nuc')))
 
 # %%
-with mol.with_common_orig((0, 0, 0)):
-    ao_dip = mol.intor_symmetric('int1e_r', comp=3)
+#  calculating dipole moment of true density analyticaly based on DM
+ao_dip = mol.intor_symmetric('int1e_r', comp=3)
 el_dip = np.einsum('xij,ji->x', ao_dip, dm1).real
 charges = mol.atom_charges()
 coords = mol.atom_coords()
@@ -283,12 +290,13 @@ print('mol_dpm', utils.bohr_to_angstrom(mol_dip))
 print('mol dpm diff', np.linalg.norm(utils.bohr_to_angstrom(mol_dip) - samp['dipole_moment'].numpy(force=True)))
 
 # %%
+# calculating analytical dipole moment of ML density coeffs
 int1e_r = gto.mole.intor_cross('int1e_r', helper_mol, auxmol_ml)
 print('int1e_r', int1e_r.shape)
 
 int1e_r = int1e_r[:, intor_idx, range(auxmol_ml.nao)]
 print('int1e_r', int1e_r.shape)
-ml_dip = utils.bohr_to_angstrom(nucl_dip - np.einsum('ji,i->j', int1e_r, df_coeffs_ml))
+ml_dip = utils.bohr_to_angstrom(nucl_dip - np.einsum('ji,i->j', int1e_r, df_coeffs_ml.numpy(force=True)))
 opt_dip = utils.bohr_to_angstrom(nucl_dip - np.einsum('ji,i->j', int1e_r, df_coeffs_opt[0]))
 print('aux dpm ml', ml_dip)
 print('aux dpm opt', opt_dip)
@@ -296,44 +304,96 @@ print('ml dpm diff', np.linalg.norm(ml_dip - samp['dipole_moment'].numpy(force=T
 print('opt dpm diff', np.linalg.norm(opt_dip - samp['dipole_moment'].numpy(force=True)))
 
 # %%
+# calculating analytical dipole moment of ML-DF projection
 int1e = gto.mole.intor_cross('int1e_ovlp', helper_mol, auxmol_ml)
 print('int1e', int1e.shape)
 
 int1e = int1e[intor_idx, range(auxmol_ml.nao)]
 
-ml_int = np.einsum('i,i', int1e, df_coeffs_ml)
+ml_int = np.einsum('i,i', int1e, df_coeffs_ml.numpy(force=True))
 opt_int = np.einsum('i,i', int1e, df_coeffs_opt[0])
 print('aux ml int', ml_int)
 print('aux opt int', opt_int)
 
 # %%
+# timing of the different dipole moment calculation methods
 print('dpm model timing')
 start = time.time()
 res_dens = model.property_models['density'](res)
 dpm_ml = orbitals.calc_dipole_moment(res_dens)['dipole_moment']
 print('ML dipole time', time.time() - start)
 start = time.time()
-auxmol_ml = orbitals.ml_basis_to_auxmol(res, 0)
-df_coeffs_ml = orbitals.coeffs_dict_to_vector(res, dataset.orbital_basis_num, res['batch_atom_numbers'],
-                                              radial_coeffs=False, convert_to_pyscf=True)['spherical_coeffs'].squeeze().detach()
-helper_mol = orbitals.build_1c1e_helper_mol(auxmol_ml)
-intor_idx = [
-    auxmol_ml.bas_atom(ibas)
-    for ibas in range(auxmol_ml.nbas) for _ in range(auxmol_ml.bas_angular(ibas) * 2 + 1)
-]
-int1e_r = gto.mole.intor_cross('int1e_r', helper_mol, auxmol_ml)
-# print('int1e_r', int1e_r.shape)
-int1e_r = int1e_r[:, intor_idx, range(auxmol_ml.nao)]
-# print('int1e_r', int1e_r.shape)
-charges = auxmol_ml.atom_charges()
-coords = auxmol_ml.atom_coords()
-nucl_dip = np.einsum('i,ix->x', charges, coords)
-ml_dip = utils.bohr_to_angstrom(nucl_dip - np.einsum('ji,i->j', int1e_r, df_coeffs_ml.numpy(force=True)))
+# auxmol_ml = orbitals.ml_basis_to_auxmol(res, 0)
+# df_coeffs_ml = orbitals.coeffs_dict_to_vector(res, dataset.orbital_basis_num, res['batch_atom_numbers'],
+#                                               radial_coeffs=False, convert_to_pyscf=True)['spherical_coeffs'].squeeze().detach()
+# helper_mol = orbitals.build_1c1e_helper_mol(auxmol_ml)
+# intor_idx = [
+#     auxmol_ml.bas_atom(ibas)
+#     for ibas in range(auxmol_ml.nbas) for _ in range(auxmol_ml.bas_angular(ibas) * 2 + 1)
+# ]
+# int1e_r = gto.mole.intor_cross('int1e_r', helper_mol, auxmol_ml)
+# # print('int1e_r', int1e_r.shape)
+# int1e_r = int1e_r[:, intor_idx, range(auxmol_ml.nao)]
+# print('int1e_r', int1e_r)
+# # print('int1e_r', int1e_r.shape)
+# charges = auxmol_ml.atom_charges()
+# coords = auxmol_ml.atom_coords()
+# nucl_dip = np.einsum('i,ix->x', charges, coords)
+# ml_dip = utils.bohr_to_angstrom(nucl_dip - np.einsum('ji,i->j', int1e_r, df_coeffs_ml.numpy(force=True)))
+# print('nucl_dip', nucl_dip)
+# print('ml_dip', ml_dip)
+dpm_ml_intor = orbitals.calc_dipole_moment_analytic(res, dataset.orbital_basis_num, 'ml_coeffs')['dipole_moment']
+dpm_ml_intor = dpm_ml_intor.numpy(force=True)
 print('ML analytic dipole time', time.time() - start)
-print('dmp ml net', dpm_ml)
-print('dmp ml pyscf', ml_dip)
+print('dmp ml int', dpm_ml)
+print('dmp ml intor', dpm_ml_intor)
+print('dmp int', samp['dipole_moment'])
+print('dpm intor', utils.bohr_to_angstrom(mol_dip))
+print('ml dpm samp diff', np.linalg.norm(dpm_ml.numpy(force=True) - samp['dipole_moment'].numpy(force=True)))
+print('ml dpm intor samp diff', np.linalg.norm(dpm_ml_intor - samp['dipole_moment'].numpy(force=True)))
+print('ml dpm mol diff', np.linalg.norm(dpm_ml.numpy(force=True) - utils.bohr_to_angstrom(mol_dip)))
+print('ml dpm intor mol diff', np.linalg.norm(dpm_ml_intor - utils.bohr_to_angstrom(mol_dip)))
+print('samp mol diff', np.linalg.norm(samp['dipole_moment'].numpy(force=True) - utils.bohr_to_angstrom(mol_dip)))
+# print('dmp ml pyscf', dpm_ml_intor)
+# %%
+dpm_intor_samp = orbitals.calc_dipole_moment_analytic(samp, 'augccpvdz', 'mo_coeffs')['dipole_moment']
+print('dpm_intor_samp', dpm_intor_samp)
+# %%
+
+dataset_df = AtomsDensityData(np_path=args.np_dataset_test, density_path=args.dens_dataset_test,
+                              orbitals_path=args.orbitals_file,
+                              density_n_samp=10000000000000000000000,
+                              required_properties=required_properties,
+                              center_positions=True,
+                              radial_coeffs_file=args.radial_coeffs_file,
+                              dtype=args.dtype,
+                              grid_fn=grid_fn,
+                              pyscf_grid=True,
+                              sampling_fn=sampling_fn,
+                              grid_extent=grid_extent,
+                              grid_origin=grid_origin,
+                              cutoff=args.cutoff,
+                              df_loss_weights=args.df_loss_weights,
+                              projected_density=True,
+                              radii_adjust=args.radii_adjust,
+                              calc_data=True,
+                              atom_dens_path='datasets/free_atom_densities_augccpvdz_augccpvqzjkfit_pyscf_minimized.npy',
+                              atom_dens_type='spline',
+                              split_atom_dens=True,
+                              density_grad=args.density_grad,
+                              dpm_intor=True,
+                              )
+samp_df = dataset_df.get_properties(idx)
+print('samp_df dpm int', samp_df['dipole_moment'])
+dpm_intor_samp_df = orbitals.calc_dipole_moment_analytic(samp_df, 'augccpvqzjkfit', 'df_coeffs')['dipole_moment']
+print('dpm_intor_samp_df', dpm_intor_samp_df)
+print('ml dpm samp diff', np.linalg.norm(samp_df['dipole_moment'].numpy(force=True) - samp['dipole_moment'].numpy(force=True)))
+print('ml dpm intor samp diff', np.linalg.norm(dpm_intor_samp_df.numpy(force=True) - samp['dipole_moment'].numpy(force=True)))
+print('ml dpm mol diff', np.linalg.norm(samp_df['dipole_moment'].numpy(force=True) - utils.bohr_to_angstrom(mol_dip)))
+print('ml dpm intor mol diff', np.linalg.norm(dpm_intor_samp_df.numpy(force=True) - utils.bohr_to_angstrom(mol_dip)))
 
 # %%
+# calculating analytic integrals for other energy components via the DM
 mf = dft.RKS(mol)
 mf.chkfile = False
 mf.xc = "pbe"
@@ -351,6 +411,7 @@ print('energy e nuc', np.einsum('ij,ji', dm, m_nuc))
 print('energy e kin + nuc', np.einsum('ij,ji', dm, m_kin) + np.einsum('ij,ji', dm, m_nuc))
 
 # %%
+# Testing out function to cut off far away integration grid coordinates for density
 from equiv_dens.utils import grids
 
 cutoff_coords = grids.spherical_grid_atom_cutoff(samp['coords'], samp['batch_positions'],
@@ -361,6 +422,7 @@ print('coords', samp['coords'])
 print('cutoff coords sum', torch.sum(cutoff_coords, dim=-1))
 
 # %%
+# testing out conversion from one density fitting basis to anohter
 print('samp_atom numbers', samp['batch_atom_numbers'])
 print(auxmol_ml.basis['H0'][0])
 print(dataset.atom_dens[1]['df_basis'])
@@ -396,6 +458,7 @@ print('rho_ml_base integral', torch.sum(rho_ml * samp['coord_weights'][0]))
 print('df coeffs', dataset.atom_dens[1]['df_coeffs'])
 print('df coeffs ml', coeffs_ml)
 print('df coeffs ml orig', df_coeffs_ml[:5])
+print('transformed density diff', torch.sum(torch.abs(rho_base - rho_ml) * samp['coord_weights'][0]))
 # print('ao ml', ao_h_ml)
 # print('ao base', ao_base)
 # %%
