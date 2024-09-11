@@ -23,6 +23,7 @@ from equiv_dens.utils.grids import (
     spherical_grid,
     spherical_radial_sampling,
     treutler_atomic_radii_adjust,
+    becke_scheme
 )
 import equiv_dens.utils.base as utils
 from equiv_dens.utils import orbitals
@@ -72,6 +73,7 @@ class AtomsDensityData(Dataset):
         density_grad=False,
         calc_basis_path=None,
         all_atom_numbers=None,
+        dpm_intor=False,
     ):
         self.density_path = density_path
         self.np_path = np_path
@@ -100,6 +102,7 @@ class AtomsDensityData(Dataset):
         self.atom_dens_type = atom_dens_type
         self.split_atom_dens = split_atom_dens
         self.density_grad = density_grad
+        self.dpm_intor = dpm_intor
         if "dipole_moment" in self.required_properties:
             if "density" not in self.required_properties:
                 self.required_properties.append("density")
@@ -561,7 +564,15 @@ class AtomsDensityData(Dataset):
             properties["forces"] = properties["forces"][:, properties["atom_mask"]]
 
         if self.calc_dpm:
-            properties = orbitals.calc_dipole_moment(properties)
+            if self.dpm_intor:
+                if self.projected_density:
+                    basis = self.density_fitting["auxbasis"]
+                    properties = orbitals.calc_dipole_moment_analytic(properties, basis, 'df_coeffs')
+                else:
+                    basis = self.mols[0].basis
+                    properties = orbitals.calc_dipole_moment_analytic(properties, basis, 'mo_coeffs')
+            else:
+                properties = orbitals.calc_dipole_moment(properties)
 
         for prop in self.fixed_properties.keys():
             properties[prop] = self.fixed_properties[prop]
@@ -673,7 +684,7 @@ class AtomsDensityData(Dataset):
                 }
             else:
                 rot_spec = self.grid_spec
-            coords, weights = gen_grid.get_partition(mol, rot_spec)
+            coords, weights = gen_grid.get_partition(mol, rot_spec, becke_scheme=becke_scheme)
             coords = torch.tensor(coords)
             weights = torch.tensor(weights)
             # print('coords shape', coords.shape)

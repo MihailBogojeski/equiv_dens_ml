@@ -409,6 +409,8 @@ def parse_command_line_arguments(arg_file=None):
                            help="Filename for saved test output.")
     args_misc.add_argument('--no_compare', metavar='True|False', type=str2bool, default=False,
                            choices=[True, False], help="Don't compare accuracy of test samples, just compute predictions.")
+    args_misc.add_argument('--dpm_intor', metavar='True|False', type=str2bool, default=False,
+                           choices=[True, False], help="Calculate dipole moments using analytic integrals.")
 
     # actually parse command line arguments
     if arg_file is None and len(sys.argv) == 1:  # no arguments were specified, print help message

@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
-from equiv_dens.utils.orbitals import get_n_electrons 
+from equiv_dens.utils import orbitals
+from equiv_dens.utils import base as utils 
+from pyscf import gto
 
 
 class DipoleMomentCalc(nn.Module):
@@ -12,7 +14,7 @@ class DipoleMomentCalc(nn.Module):
         density = atoms['density']
         positive_dens = (density >= 0).to(density)
         density = density * positive_dens
-        n_electrons = get_n_electrons(atoms['batch_atom_numbers'])
+        n_electrons = orbitals.get_n_electrons(atoms['batch_atom_numbers'])
         scaling_factor = n_electrons / torch.sum(density * atoms['coord_weights'], dim=1, keepdim=True)
         density = density * scaling_factor
         if center_coordinates:
@@ -35,4 +37,39 @@ class DipoleMomentCalc(nn.Module):
         # print('negative_dipole_moment', negative_dipole_moment)
 
         atoms['dipole_moment'] = positive_dipole_moment - negative_dipole_moment
+        return atoms
+
+
+class DipoleMomentIntorCalc(nn.Module):
+
+    def __init__(self, orbital_basis):
+        super().__init__()
+        self.orbital_basis = orbital_basis_num
+
+    def forward(self, atoms):
+        df_coeffs_ml = orbitals.coeffs_dict_to_vector(atoms, self.orbital_basis, atoms['batch_atom_numbers'],
+                                                      radial_coeffs=False, convert_to_pyscf=True)['spherical_coeffs'].squeeze().detach()
+        charges = atoms['batch_atom_numbers']
+        coords = atoms['batch_positions']
+
+        nucl_dip = torch.sum(charges.unsqueeze(-1) * coords, dim=1)
+        batch_dens_dip = []
+        print('nuc dip', nucl_dip)
+        for i in range(atoms['batch_atom_numbers'].shape[0]):
+            auxmol_ml = orbitals.ml_basis_to_auxmol(atoms, i)
+            helper_mol = orbitals.build_1c1e_helper_mol(auxmol_ml)
+            intor_idx = [
+                auxmol_ml.bas_atom(ibas)
+                for ibas in range(auxmol_ml.nbas) for _ in range(auxmol_ml.bas_angular(ibas) * 2 + 1)
+            ]
+            int1e_r = gto.mole.intor_cross('int1e_r', helper_mol, auxmol_ml)
+            int1e_r = int1e_r[:, intor_idx, range(auxmol_ml.nao)]
+            int1e_r = utils.bohr_to_angstrom(torch.from_numpy(int1e_r).to(nucl_dip))
+            # ml_dip = utils.bohr_to_angstrom(nucl_dip - torch.einsum('ji,i->j', int1e_r, df_coeffs_ml))
+            el_dip = torch.einsum('ji,i->j', int1e_r, df_coeffs_ml)
+            batch_dens_dip.append(el_dip)
+        dens_dip = torch.stack(batch_dens_dip, dim=0)
+
+        atoms['dipole_moment'] = nucl_dip - dens_dip
+
         return atoms

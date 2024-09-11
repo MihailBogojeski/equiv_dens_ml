@@ -8,7 +8,7 @@ from equiv_dens.nn.property_output.energy import SphericalHarmonicsEnergyNetwork
     SphericalLinearEnergyNetwork, RepresentationEnergyNetwork
 from equiv_dens.nn.property_output.density import DensityCoeffsNetwork, DFDensityCoeffs,\
     FreeAtomDensityCoeffs, DensityExpansion
-from equiv_dens.nn.property_output.dipole_moment import DipoleMomentCalc
+from equiv_dens.nn.property_output.dipole_moment import DipoleMomentCalc, DipoleMomentIntorCalc
 from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
 from equiv_dens.utils.scaling import UnitConversion, VarianceScaling
 import equiv_dens.utils.base as utils
@@ -263,7 +263,10 @@ def load_model(args, dataset, train=False):
         property_models['energy'] = en_model
         calculate_forces_dict['energy'] = calculate_forces
     if args.dipole_moment_weight:
-        property_models['dipole_moment'] = DipoleMomentCalc()
+        if args.dpm_intor:
+            property_models['dipole_moment'] = DipoleMomentIntorCalc(orbital_basis=dataset.orbital_basis_num)
+        else:
+            property_models['dipole_moment'] = DipoleMomentCalc()
         calculate_forces_dict['dipole_moment'] = False
 
     model = DFTNetwork(density_model, property_models,
