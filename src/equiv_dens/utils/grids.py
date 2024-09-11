@@ -109,6 +109,7 @@ def gen_grid_partition(positions, coords, becke_scheme, f_radii_adjust=None):
     natm = positions.shape[1]
     nbatch = positions.shape[0]
     atm_dist, _ = utils.calculate_distances_and_directions(positions)
+    # print('atom distances', atm_dist)
     # print('atm dist shape', atm_dist.shape)
     dc = coords[:, None] - positions[:, :, None]
     # print('dc shape', dc.shape)
@@ -141,8 +142,12 @@ def spherical_radial_sampling(grid_spec, n_samp, atom_numbers, positions,
         pos = positions[[i]]
         mask = atom_numbers[i] > 0
         pos_nz = pos[:, mask, :]
+        atm_dist, _ = utils.calculate_distances_and_directions(positions)
+        print('atom_numbers', atom_numbers.squeeze())
+        print('atom distances', utils.angstrom_to_bohr(atm_dist.squeeze()))
         pos_idx = -1
         for j, z in enumerate(atom_numbers_max):
+            print('i', j)
             start_jz = time.time()
             if z <= 0:
                 continue
@@ -155,7 +160,11 @@ def spherical_radial_sampling(grid_spec, n_samp, atom_numbers, positions,
             t = utils.numbers_to_symbols([z])[0]
             # print('rot_mat type', rot_mat.type())
             # print('grid spec type', grid_spec[t][0].type())
+            # print('atom coords', pos[:, [j], :])
+            # print('atom num', z)
+            # print('grid coords', grid_spec[t][0][:3])
             coords = pos[:, [j], :] + (grid_spec[t][0].unsqueeze(0) @ rot_mat)
+            # print('grid + atom_coords', coords[:3])
             weights = grid_spec[t][1] * (atom_numbers[i][j] > 0)
             pbecke = gen_grid_partition(pos_nz, coords, becke_scheme, radii_adjust)
             weights = weights * pbecke[:, pos_idx] * (1.0 / pbecke.sum(1))
