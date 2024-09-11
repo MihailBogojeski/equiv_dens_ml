@@ -436,6 +436,7 @@ class AtomsDensityData(Dataset):
                     properties["coords"], properties["coord_weights"] = (
                         self.get_pyscf_coords(idx)
                     )
+                    properties['coords'] += pos_shift
                 else:
                     properties["coords"], properties["coord_weights"] = self.get_coords(
                         positions, atom_numbers
