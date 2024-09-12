@@ -659,7 +659,7 @@ def intor_dipole_moment_mo(
     batch_dens_dip = []
     mols = utils.npy_to_pyscf(atoms['batch_positions'].numpy(force=True),
                               atoms['batch_atom_numbers'].numpy(force=True),
-                              basis)
+                              basis, build=True)
     for i in range(atoms['batch_atom_numbers'].shape[0]):
         mol = mols[i]
         dm1 = hf.make_rdm1(atoms['mo_coeff'][i].numpy(force=True), atoms['mo_occ'][i].numpy(force=True))
@@ -686,7 +686,7 @@ def intor_dipole_moment_df(
     batch_dens_dip = []
     mols = utils.npy_to_pyscf(atoms['batch_positions'].numpy(force=True),
                               atoms['batch_atom_numbers'].numpy(force=True),
-                              basis)
+                              basis, build=True)
     for i in range(atoms['batch_atom_numbers'].shape[0]):
         auxmol = mols[i] 
         helper_mol = build_1c1e_helper_mol(auxmol)
@@ -1352,8 +1352,8 @@ def model_input_from_atoms(
             )
             if split_atom_densities:
                 inputs["atom_density_split"] = split_dens
-        inputs["coords"] = sample_coords
-        inputs["coord_weights"] = coord_weights
+        inputs["coords"] = sample_coords.type(dtype)
+        inputs["coord_weights"] = coord_weights.type(dtype)
 
     inputs["positions"] = positions.type(dtype)
     inputs["atom_numbers_first_positions"] = utils.get_atom_num_first_positions(
@@ -1383,7 +1383,7 @@ def model_input_from_atoms(
     inputs["batch_atom_numbers"] = inputs["atom_numbers"] * 1
     inputs["batch_atom_mask"] = (inputs["atom_mask"] * 1).type(torch.bool)
     inputs["batch_positions"] = inputs["positions"] * 1
-    inputs["positions"] = positions.view(1, -1, *inputs["positions"].shape[2:])
+    inputs["positions"] = positions.view(1, -1, *inputs["positions"].shape[2:]).to(dtype)
     inputs["atom_numbers"] = inputs["batch_atom_numbers"].flatten()
     inputs["atom_mask"] = inputs["batch_atom_mask"].flatten()
     batch_nz = inputs["atom_mask"].to(inputs["positions"])

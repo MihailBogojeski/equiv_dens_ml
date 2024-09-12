@@ -44,7 +44,7 @@ class DipoleMomentIntorCalc(nn.Module):
 
     def __init__(self, orbital_basis):
         super().__init__()
-        self.orbital_basis = orbital_basis_num
+        self.orbital_basis = orbital_basis
 
     def forward(self, atoms):
         df_coeffs_ml = orbitals.coeffs_dict_to_vector(atoms, self.orbital_basis, atoms['batch_atom_numbers'],
@@ -52,9 +52,10 @@ class DipoleMomentIntorCalc(nn.Module):
         charges = atoms['batch_atom_numbers']
         coords = atoms['batch_positions']
 
+        print('coords ', coords)
         nucl_dip = torch.sum(charges.unsqueeze(-1) * coords, dim=1)
+        print('nuc_dip ', nucl_dip)
         batch_dens_dip = []
-        print('nuc dip', nucl_dip)
         for i in range(atoms['batch_atom_numbers'].shape[0]):
             auxmol_ml = orbitals.ml_basis_to_auxmol(atoms, i)
             helper_mol = orbitals.build_1c1e_helper_mol(auxmol_ml)
@@ -66,10 +67,12 @@ class DipoleMomentIntorCalc(nn.Module):
             int1e_r = int1e_r[:, intor_idx, range(auxmol_ml.nao)]
             int1e_r = utils.bohr_to_angstrom(torch.from_numpy(int1e_r).to(nucl_dip))
             # ml_dip = utils.bohr_to_angstrom(nucl_dip - torch.einsum('ji,i->j', int1e_r, df_coeffs_ml))
-            el_dip = torch.einsum('ji,i->j', int1e_r, df_coeffs_ml)
+            el_dip = torch.einsum('ji,i->j', int1e_r, df_coeffs_ml[i])
+            print('el_dip ', el_dip)
             batch_dens_dip.append(el_dip)
         dens_dip = torch.stack(batch_dens_dip, dim=0)
 
         atoms['dipole_moment'] = nucl_dip - dens_dip
+        print('dpm', atoms['dipole_moment'])
 
         return atoms

@@ -106,6 +106,11 @@ class AtomsDensityData(Dataset):
         if "dipole_moment" in self.required_properties:
             if "density" not in self.required_properties:
                 self.required_properties.append("density")
+            if self.dpm_intor:
+                if self.projected_density and 'df_coeffs' not in self.required_properties:
+                    self.required_properties.append('df_coeffs')
+                elif 'mo_coeff' not in self.required_properties:
+                    self.required_properties.append('mo_coeff')
             self.required_properties.remove("dipole_moment")
             self.calc_dpm = True
         else:
@@ -172,7 +177,7 @@ class AtomsDensityData(Dataset):
                 calc_prop_dict = {}
                 mol = gto.Mole(**mol_dict)
                 for calc_prop in calc_props:
-                    if calc_prop in calc_dict and calc_prop in required_properties:
+                    if calc_prop in calc_dict and calc_prop in self.required_properties:
                         if 'coeff' in calc_prop:
                             calc_prop_dict[calc_prop] = orbitals.split_ao_coeffs(
                                 mol_dict['atom'],
@@ -384,6 +389,7 @@ class AtomsDensityData(Dataset):
             idx = [idx]
 
         # extract properties
+        print('required properties in get', self.required_properties)
         props_start = time.time()
         atom_numbers = self.atoms["atom_numbers"][idx]
         atom_props = {"positions": self.atoms["positions"][idx]}
@@ -399,7 +405,6 @@ class AtomsDensityData(Dataset):
             elif pname in ['hamiltonian_matrix', 'density_matrix']:
                 atom_props[pname] = [self.calc_dict[i][pname] for i in idx]
             elif pname == 'mo_coeff':
-                print('adding mo coeff')
                 atom_props[pname] = [self.calc_dict[i][pname] for i in idx]
                 mol_props['mo_occ'] = [self.coeffs[i]['mo_occ'] for i in idx]
                 mol_props['mo_occ'] = np.stack(mol_props['mo_occ'], axis=0)
@@ -489,6 +494,12 @@ class AtomsDensityData(Dataset):
                         if self.density_grad:
                             properties["atom_density_grad"] = properties["atom_density"][..., 1:]
                             properties["atom_density"] = properties["atom_density"][..., 0]
+                        if self.dpm_intor and 'coeffs' in self.atom_dens_type:
+                            properties['atom_density_basis'], properties['atom_density_coeffs'] = self.join_atom_coeffs(
+                                positions,
+                                torch.LongTensor(atom_numbers),
+                                )
+                        properties['atom_df_coeffs']
                         if self.timing:
                             print('free atoms density time', time.time() - free_at_start)
             elif pname == 'mo_coeff':

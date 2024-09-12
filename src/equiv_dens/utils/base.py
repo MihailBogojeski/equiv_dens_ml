@@ -289,7 +289,7 @@ def npy_to_xyz(npy_data, filename):
     ase.io.write(filename, mols, parallel=False)
 
 
-def npy_to_pyscf(pos, atom_list, basis):
+def npy_to_pyscf(pos, atom_list, basis, build=False):
     if atom_list.ndim == 1:
         atom_list = atom_list[None, :]
     if pos.ndim == 2:
@@ -305,6 +305,8 @@ def npy_to_pyscf(pos, atom_list, basis):
             mol = gto.Mole(atom=atom, spin=1, basis=basis)
         else:
             mol = gto.Mole(atom=atom, basis=basis)
+        if build:
+            mol.build()
         mols.append(mol)
     return mols
 
@@ -340,6 +342,11 @@ def positions_from_xyz(filename, convert_to_bohr=True):
     return pos
 
 
+def xyz_to_npy(filename):
+    mols = ase.io.iread(filename)
+    props = ase_to_npy2(mols)
+
+    return props 
 
 
 def get_molecule_dists(target, neighbours, charges=None):
