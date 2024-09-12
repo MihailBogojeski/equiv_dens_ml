@@ -694,7 +694,7 @@ class AtomsDensityData(Dataset):
                 }
             else:
                 rot_spec = self.grid_spec
-            coords, weights = gen_grid.get_partition(mol, rot_spec, becke_scheme=becke_scheme)
+            coords, weights = gen_grid.get_partition(mol, rot_spec)
             coords = torch.tensor(coords)
             weights = torch.tensor(weights)
             # print('coords shape', coords.shape)
