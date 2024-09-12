@@ -494,12 +494,11 @@ class AtomsDensityData(Dataset):
                         if self.density_grad:
                             properties["atom_density_grad"] = properties["atom_density"][..., 1:]
                             properties["atom_density"] = properties["atom_density"][..., 0]
-                        if self.dpm_intor and 'coeffs' in self.atom_dens_type:
-                            properties['atom_density_basis'], properties['atom_density_coeffs'] = self.join_atom_coeffs(
-                                positions,
-                                torch.LongTensor(atom_numbers),
-                                )
-                        properties['atom_df_coeffs']
+                        # if self.dpm_intor and 'coeffs' in self.atom_dens_type:
+                        #     properties['atom_density_basis'], properties['atom_density_coeffs'] = self.join_atom_coeffs(
+                        #         positions,
+                        #         torch.LongTensor(atom_numbers),
+                        #         )
                         if self.timing:
                             print('free atoms density time', time.time() - free_at_start)
             elif pname == 'mo_coeff':

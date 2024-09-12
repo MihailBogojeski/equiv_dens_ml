@@ -35,6 +35,7 @@ main_args = parser.parse_args()
 args, hyperparam_args = parse_command_line_arguments(arg_file=main_args.args_file)
 
 args, hyperparam_args, test_vars = train_utils.init_training_vars(args, hyperparam_args)
+args.dipole_moment_weight = 1
 checkpoint = test_vars['checkpoint']
 args_dict = vars(args)
 
@@ -52,8 +53,13 @@ grid_vars = train_utils.init_grid_vars(args, test=True)
 print('grid vars', grid_vars)
 
 required_properties = ['energy', 'forces', 'coords']
+args.dens_dataset = None
 
-dataset = AtomsDensityData(np_path=args.np_dataset, density_path=None,
+required_properties = ['energy', 'forces', 'df_coeffs', 'density', 'dipole_moment']
+args.np_dataset = "datasets/ethanethiol_md_traj_every1000_dft_augccpvdz.npy"
+args.dens_dataset = "datasets/ethanethiol_md_traj_every1000_dft_augccpvdz_df_augccpvqzjkfit.npy"
+
+dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_dataset,
                            orbitals_path=args.orbitals_file,
                            density_n_samp=10000000000000,
                            required_properties=required_properties,
@@ -98,6 +104,7 @@ for file in files:
             max_pos = data_npy['positions'].shape[0]
         else:
             max_pos = data_pos + main_args.batch_size
+        samp = dataset.get_properties(np.arange(data_pos, max_pos))
         batch_npy = {'positions': data_npy['positions'][data_pos:max_pos],
                      'atom_numbers': data_npy['atom_numbers'][data_pos:max_pos]}
         data = orbitals.model_input_from_atoms(batch_npy, use_gpu=args.use_gpu,
@@ -110,14 +117,10 @@ for file in files:
                                                dtype=args.dtype,
                                                free_atom_densities=dataset.atom_dens,
                                                )
-        for key in data.keys():
-            print('key', key)
-            if isinstance(data[key], torch.Tensor):
-                print('type', data[key].type())
-            else:
-                print('type', type(data[key]))
         res = model(data)
         print('res density integral', torch.sum(res['density'] * res['coord_weights'], dim=1))
         print('num electrons', orbitals.get_n_electrons(res['atom_numbers']))
         print('dipole_moment', res['dipole_moment'])
+        print('samp density integral', torch.sum(samp['density'] * samp['coord_weights'], dim=1))
+        print('samp dipole_moment', samp['dipole_moment'])
         data_pos += main_args.batch_size
