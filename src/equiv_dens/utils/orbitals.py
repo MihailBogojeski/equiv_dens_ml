@@ -1291,7 +1291,6 @@ def sample_atom_density(
 
 def model_input_from_atoms(
     atoms,
-    use_gpu=False,
     density_expansion=False,
     pyscf_grid=True,
     grid_spec=None,
@@ -1317,9 +1316,6 @@ def model_input_from_atoms(
     if atoms["atom_numbers"].shape[0] != positions.shape[0]:
         atom_types = np.tile(atoms["atom_numbers"], (positions.shape[0], 1))
     atom_types = torch.tensor(atoms["atom_numbers"])
-    if use_gpu:
-        positions = positions.cuda()
-        atom_types = atom_types.cuda()
     natoms = atom_types.shape[-1]
     positions = positions.view(-1, natoms, 3)
     atom_types = atom_types.view(-1, natoms)
