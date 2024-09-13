@@ -36,10 +36,12 @@ args, hyperparam_args = parse_command_line_arguments(arg_file=main_args.args_fil
 print('args use gpu', args.use_gpu)
 
 args.timing = True
-args.energy_weight=0
-args.forces_weight=0
-args, hyperparam_args, test_vars = train_utils.init_training_vars(args, hyperparam_args)
+args.energy_weight = 0
+args.forces_weight = 0
+args.density_weight = 0
 args.dipole_moment_weight = 1
+args.dpm_intor = main_args.dpm_intor
+args, hyperparam_args, test_vars = train_utils.init_training_vars(args, hyperparam_args)
 checkpoint = test_vars['checkpoint']
 args_dict = vars(args)
 
@@ -55,20 +57,20 @@ print("loading atoms from" + args.np_dataset + "...")
 grid_vars = train_utils.init_grid_vars(args, test=True)
 print('grid vars', grid_vars)
 
-required_properties = ['energy', 'forces', 'coords']
+required_properties = ['dipole_moment']
 args.dens_dataset = None
 
-required_properties = ['energy', 'forces', 'density', 'dipole_moment']
+required_properties = ['dipole_moment']
 # args.np_dataset = "datasets/ethanethiol_md_traj_every1000_dft_augccpvdz.npy"
 # args.dens_dataset = "datasets/ethanethiol_md_traj_every1000_dft_augccpvdz_df_augccpvqzjkfit.npy"
-args.np_dataset = '/home/ml-dft/equiv_dens/datasets/8mer_all-every20_pyscf_d4_augccpvdz_npy.npy'
-args.dens_dataset = '/home/ml-dft/equiv_dens/datasets/8mer_all-every20_pyscf_d4_augccpvdz.npy'
+# args.np_dataset = '/home/ml-dft/equiv_dens/datasets/8mer_all-every20_pyscf_d4_augccpvdz_npy.npy'
+# args.dens_dataset = '/home/ml-dft/equiv_dens/datasets/8mer_all-every20_pyscf_d4_augccpvdz.npy'
 print('pyscf grid', args.pyscf_grid)
 dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_dataset,
                            orbitals_path=args.orbitals_file,
                            density_n_samp=10000000000000,
                            required_properties=required_properties,
-                           center_positions=False,
+                           center_positions=True,
                            radial_coeffs_file=args.radial_coeffs_file,
                            L0_coeffs_file=args.L0_coeffs_file,
                            dtype=args.dtype,
@@ -86,6 +88,7 @@ dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_datas
                            atom_dens_type=args.atom_dens_type,
                            projected_density=False,
                            density_grad=False,
+                           dpm_intor=args.dpm_intor,
                            )
 
 model = load_model(args, dataset, train=False)
@@ -110,7 +113,7 @@ else:
     files = [main_args.target]
 
 for file in files:
-    fname = file.split('/')[-1] 
+    fname = file.split('/')[-1]
     if args.dpm_intor:
         suffix = '_dpm_intor.npy'
     else:
@@ -128,7 +131,7 @@ for file in files:
     data_npy['dipole_moment'] = None 
     print('data len', data_npy['positions'].shape)
 
-
+    # dpm_errors = None 
     while data_pos < data_npy['positions'].shape[0]:
         if data_pos + main_args.batch_size > data_npy['positions'].shape[0]:
             max_pos = data_npy['positions'].shape[0]
@@ -138,7 +141,7 @@ for file in files:
                      'atom_numbers': data_npy['atom_numbers'][data_pos:max_pos]}
         start = time.time()
         data = orbitals.model_input_from_atoms(batch_npy,
-                                               density_expansion=True,
+                                               density_expansion=(not args.dpm_intor),
                                                pyscf_grid=True,
                                                grid_spec=dataset.grid_spec,
                                                atom_dens_type=args.atom_dens_type,
@@ -153,22 +156,36 @@ for file in files:
         if args.timing:
             print('data from npy time', time.time() - start)
         res = model(data)
-        print('res density integral', torch.sum(res['density'] * res['coord_weights'], dim=1))
+        # print('res density integral', torch.sum(res['density'] * res['coord_weights'], dim=1))
         print('num electrons', orbitals.get_n_electrons(res['atom_numbers']))
         print('dipole_moment', res['dipole_moment'])
         np_dpm = utils.internal_to_debye(res['dipole_moment'].numpy(force=True))
-        print('dipole_moment np', np_dpm)
+        # print('dipole_moment np', np_dpm)
 
         if data_npy['dipole_moment'] is None:
-            data_npy['dipole_moment'] = np_dpm 
+            data_npy['dipole_moment'] = np_dpm
         else:
             data_npy['dipole_moment'] = np.concatenate([data_npy['dipole_moment'],
                                                         np_dpm],
                                                        axis=0)
 
-    
+        # samp = dataset.get_properties(np.arange(data_pos, max_pos))
+        # for key in samp.keys():
+        #     if isinstance(samp[key], torch.Tensor) and args.use_gpu:
+        #         samp[key] = samp[key].cuda()
+        # print('samp dipole_moment', samp['dipole_moment'])
+        # dpm_err = utils.internal_to_debye(torch.norm(samp['dipole_moment'] - res['dipole_moment'], dim=-1)).numpy(force=True)
+        # print('dpm_errors', dpm_err)
+        # if dpm_errors is None:
+        #     dpm_errors = dpm_err
+        # else:
+        #     dpm_errors = np.concatenate([dpm_errors, dpm_err], axis=0)
+
         data_pos += main_args.batch_size
         allocated_memory = torch.cuda.memory_allocated()
         print(f"Memory allocated: {allocated_memory / (1024**2):.2f} MB")
         res = None
     np.save(os.path.join('results', fname), data_npy, allow_pickle=True)
+
+    # np.save(os.path.join('results', 'dpm_errors_' + fname), dpm_errors, allow_pickle=True)
+    # print('mean dpm error', np.mean(dpm_errors))
