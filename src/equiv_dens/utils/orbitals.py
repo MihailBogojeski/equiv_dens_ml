@@ -311,6 +311,7 @@ def convert_coeffs_to_pyscf(coeffs):
                 )
     return new_coeffs
 
+
 def coeffs_dict_to_vector(
     coeffs,
     orbital_basis,
@@ -330,7 +331,7 @@ def coeffs_dict_to_vector(
         # coeff_weights = coeffs['coeff_weights']
 
     if convert_to_pyscf:
-        coeffs = convert_coeffs_to_pyscf(coeffs) 
+        coeffs = convert_coeffs_to_pyscf(coeffs)
 
     all_coeffs = {key: None for key in relevant_keys}
     # all_sph = None
@@ -622,14 +623,14 @@ def intor_dipole_moment_ml(
     orbital_basis_num,
 ):
     df_coeffs_ml = coeffs_dict_to_vector(atoms, orbital_basis_num, atoms['batch_atom_numbers'],
-                                         radial_coeffs=False, convert_to_pyscf=True)['spherical_coeffs'].squeeze().detach()
+                                         radial_coeffs=False, convert_to_pyscf=True)['spherical_coeffs'].detach()
     charges = atoms['batch_atom_numbers']
     coords = atoms['batch_positions']
 
     nucl_dip = torch.sum(charges.unsqueeze(-1) * coords, dim=1)
     batch_dens_dip = []
     for i in range(atoms['batch_atom_numbers'].shape[0]):
-        auxmol_ml = ml_basis_to_auxmol(atoms, i)
+        auxmol_ml = ml_basis_to_auxmol(atoms, i, skip_zero=False)
         helper_mol = build_1c1e_helper_mol(auxmol_ml)
         intor_idx = [
             auxmol_ml.bas_atom(ibas)
@@ -639,7 +640,7 @@ def intor_dipole_moment_ml(
         int1e_r = int1e_r[:, intor_idx, range(auxmol_ml.nao)]
         int1e_r = utils.bohr_to_angstrom(torch.from_numpy(int1e_r).to(nucl_dip))
         # ml_dip = utils.bohr_to_angstrom(nucl_dip - torch.einsum('ji,i->j', int1e_r, df_coeffs_ml))
-        el_dip = torch.einsum('ji,i->j', int1e_r, df_coeffs_ml)
+        el_dip = torch.einsum('ji,i->j', int1e_r, df_coeffs_ml[i])
         batch_dens_dip.append(el_dip)
     dens_dip = torch.stack(batch_dens_dip, dim=0)
 
@@ -659,7 +660,7 @@ def intor_dipole_moment_mo(
     batch_dens_dip = []
     mols = utils.npy_to_pyscf(atoms['batch_positions'].numpy(force=True),
                               atoms['batch_atom_numbers'].numpy(force=True),
-                              basis, build=True)
+                              basis, build=True, skip_zero=False)
     for i in range(atoms['batch_atom_numbers'].shape[0]):
         mol = mols[i]
         dm1 = hf.make_rdm1(atoms['mo_coeff'][i].numpy(force=True), atoms['mo_occ'][i].numpy(force=True))
@@ -977,7 +978,7 @@ def ml_basis_to_pyscf_basis(pred, atom_types, index=0):
     return basis_dict
 
 
-def ml_basis_to_auxmol(pred, index=0):
+def ml_basis_to_auxmol(pred, index=0, skip_zero=True):
     """
     Convert a ML density basis representation into a PySCF-compatible density fitting basis saved in a Mole object 
 
@@ -988,7 +989,10 @@ def ml_basis_to_auxmol(pred, index=0):
         auxmol (Mole): PySCF Mole object containing converted DF basis
     """
 
-    anum = pred["batch_atom_numbers"][index]
+    if skip_zero:
+        anum = pred["batch_atom_numbers"][index]
+    else:
+        anum = torch.max(pred["batch_atom_numbers"], dim=0)[0]
     atom_types = []
 
     num_dict = {}
@@ -1007,7 +1011,7 @@ def ml_basis_to_auxmol(pred, index=0):
     pos_list = [
         pred["batch_positions"][index, i].numpy(force=True)
         for i in range(anum.shape[0])
-        if anum[i] != 0
+        if (anum[i] != 0 or not skip_zero)
     ]
     atom = list(zip(atom_types, pos_list))
 
@@ -1041,10 +1045,11 @@ def ml_basis_to_df_coeffs(pred, basis, mo_coeff=None, mo_occ=None):
     for b in range(nbatch):
         atom = [
             (
-                int(pred["batch_atom_numbers"][b, i].detach().cpu().numpy()),
-                pred["batch_positions"][b, i].detach().cpu().numpy(),
+                int(pred["batch_atom_numbers"][b, i].numpy(force=True)),
+                pred["batch_positions"][b, i].numpy(force=True),
             )
             for i in range(pred["batch_positions"].shape[1])
+            if int(pred["batch_atom_numbers"][b, i].numpy(force=True)) != 0
         ]
 
         mol = pyscf.gto.M(atom=atom, basis=basis)
@@ -1054,7 +1059,6 @@ def ml_basis_to_df_coeffs(pred, basis, mo_coeff=None, mo_occ=None):
             mf.chkfile = False
             mf.xc = "pbe"
             mf.kernel()
-            print('mo_coeff', mf.mo_coeff)
             dm1 = hf.make_rdm1(mf.mo_coeff, mf.mo_occ)
         else:
             dm1 = hf.make_rdm1(mo_coeff[b].numpy(force=True), mo_occ[b].numpy(force=True))
@@ -1210,7 +1214,7 @@ def sample_single_atom_density_df(position, atom_number, coords, basis, df_coeff
     atom = utils.npy_to_pyscf(
         position.detach().cpu().numpy(), atom_number.detach().cpu().numpy(), basis
     )
-    if not atom._built:
+    if not atom[0]._built:
         for a in atom:
             a.build()
     dens = sample_density_base(

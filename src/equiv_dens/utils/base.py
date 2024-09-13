@@ -289,7 +289,7 @@ def npy_to_xyz(npy_data, filename):
     ase.io.write(filename, mols, parallel=False)
 
 
-def npy_to_pyscf(pos, atom_list, basis, build=False):
+def npy_to_pyscf(pos, atom_list, basis, build=False, skip_zero=True):
     if atom_list.ndim == 1:
         atom_list = atom_list[None, :]
     if pos.ndim == 2:
@@ -297,6 +297,9 @@ def npy_to_pyscf(pos, atom_list, basis, build=False):
     if atom_list.shape[0] != pos.shape[0]:
         atom_list = np.tile(atom_list, (pos.shape[0], 1))
     mols = []
+    if not skip_zero:
+        max_anum = np.max(atom_list, axis=0)
+        atom_list = np.tile(max_anum, (atom_list.shape[0], 1))
     for i in range(pos.shape[0]):
         atom = [(int(atom_list[i, j]),
                 pos[i, j]) for j in range(pos.shape[1]) if atom_list[i, j] != 0]
@@ -596,6 +599,10 @@ def compress_batch_atoms(numbers, props_dict, df_basis_size=None, ao_basis_size=
         common_numbers += [key] * atom_num_count[key]
     batch_nums = []
     batch_props = {}
+    num_ao = 0
+    if ao_basis_size is not None:
+        for num in common_numbers:
+            num_ao += ao_basis_size[num]
     for i in range(len(numbers)):
         props = {key: props_dict[key][i] for key in props_dict.keys()}
         nums = np.array(numbers[i])
@@ -607,13 +614,16 @@ def compress_batch_atoms(numbers, props_dict, df_basis_size=None, ao_basis_size=
             else:
                 basis_size = ao_basis_size
             if isinstance(props[key], np.ndarray):
-                new_props[key] = np.zeros((len(common_numbers), props[key].shape[1]))
+                new_props[key] = np.zeros((len(common_numbers), *props[key].shape[1:]))
             elif basis_size is not None:
                 new_props[key] = []
                 if isinstance(props[key][0][1], np.ndarray):
                     # add atom centered orbital property
                     for z in common_numbers:
-                        new_props[key].append(np.zeros((basis_size[z], )))
+                        if props[key][0][1].ndim == 1:
+                            new_props[key].append(np.zeros((basis_size[z], )))
+                        if props[key][0][1].ndim == 2:
+                            new_props[key].append(np.zeros((basis_size[z], num_ao)))
                 else:
                     # add operator matrix property
                     for z1 in common_numbers:
@@ -627,22 +637,23 @@ def compress_batch_atoms(numbers, props_dict, df_basis_size=None, ao_basis_size=
         last_idx = 0
         for z in atom_num_count.keys():
             idx = np.where(nums == z)[0]
-            # print('z', z)
-            # print('z idx', idx)
             new_nums[last_idx:last_idx + len(idx)] = nums[idx]
             for key in new_props.keys():
-                # print('prop key', key)
                 if isinstance(new_props[key], np.ndarray):
-                    # print('numpy array add props')
                     new_props[key][last_idx:last_idx + len(idx)] = props[key][idx]
                 else:
                     charges = np.array([prop[0] for prop in props[key]])
                     idx_alt = np.where(charges == z)[0]
                     if isinstance(props[key][0][1], np.ndarray):
-                        # print('df coeffs add props')
-                        new_props[key][last_idx:last_idx + len(idx_alt)] = [props[key][j][1] for j in idx_alt]
+                        # splice atom centered orbital property
+                        if props[key][0][1].ndim == 1:
+                            new_props[key][last_idx:last_idx + len(idx_alt)] = [props[key][j][1] for j in idx_alt]
+                        else:
+                            paddings = [((0, 0), (0, num_ao - props[key][j][1].shape[1])) for j in idx_alt]
+                            padded_props = [np.pad(props[key][j][1], paddings[i]) for i, j in enumerate(idx_alt)]
+                            new_props[key][last_idx:last_idx + len(idx_alt)] = padded_props
                     else:
-                        # print('df coeffs add props')
+                        # splice operator matrix property
                         last_idx2 = 0
                         for z2 in atom_num_count.keys():
                             idx_alt2 = np.where(charges == z2)[0]
@@ -658,8 +669,10 @@ def compress_batch_atoms(numbers, props_dict, df_basis_size=None, ao_basis_size=
         for key in new_props.keys():
             if not isinstance(new_props[key], np.ndarray):
                 if isinstance(props[key][0][1], np.ndarray):
+                    # concatenate atom centered orbital property
                     new_props[key] = np.concatenate(new_props[key])
                 else:
+                    # concatenate operator matrix property
                     new_props[key] = [np.concatenate(new_props[key][i], axis=1) for i in range(len(new_props[key]))]
                     new_props[key] = np.concatenate(new_props[key], axis=0)
             if key in batch_props.keys():
