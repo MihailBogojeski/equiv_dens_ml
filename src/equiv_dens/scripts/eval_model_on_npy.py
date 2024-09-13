@@ -110,9 +110,6 @@ else:
     files = [main_args.target]
 
 for file in files:
-    data_npy = np.load(file, allow_pickle=True).item()
-    data_pos = 0
-    data_npy['dipole_moment'] = None 
     fname = file.split('/')[-1] 
     if args.dpm_intor:
         suffix = '_dpm_intor.npy'
@@ -121,6 +118,14 @@ for file in files:
 
     fname = fname[:-4] + suffix
     print('fname', fname)
+    print('filetype', file[-3:])
+    out_exists = os.path.exists(os.path.join('results', fname))
+    if 'npy' != file[-3:] or out_exists:
+        print('skipping file')
+        continue 
+    data_npy = np.load(file, allow_pickle=True).item()
+    data_pos = 0
+    data_npy['dipole_moment'] = None 
     print('data len', data_npy['positions'].shape)
 
 
