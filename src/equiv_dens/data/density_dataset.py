@@ -104,13 +104,13 @@ class AtomsDensityData(Dataset):
         self.density_grad = density_grad
         self.dpm_intor = dpm_intor
         if "dipole_moment" in self.required_properties:
-            if "density" not in self.required_properties:
-                self.required_properties.append("density")
             if self.dpm_intor:
                 if self.projected_density and 'df_coeffs' not in self.required_properties:
                     self.required_properties.append('df_coeffs')
                 elif 'mo_coeff' not in self.required_properties:
                     self.required_properties.append('mo_coeff')
+            elif "density" not in self.required_properties:
+                self.required_properties.append("density")
             self.required_properties.remove("dipole_moment")
             self.calc_dpm = True
         else:
@@ -406,8 +406,11 @@ class AtomsDensityData(Dataset):
                 atom_props[pname] = [self.calc_dict[i][pname] for i in idx]
             elif pname == 'mo_coeff':
                 atom_props[pname] = [self.calc_dict[i][pname] for i in idx]
-                mol_props['mo_occ'] = [self.coeffs[i]['mo_occ'] for i in idx]
-                mol_props['mo_occ'] = np.stack(mol_props['mo_occ'], axis=0)
+                mol_props['mo_occ'] = [torch.tensor(self.coeffs[i]['mo_occ']) for i in idx]
+                mol_props['mo_occ'] = nn.utils.rnn.pad_sequence(mol_props['mo_occ'],
+                                                                batch_first=True,
+                                                                padding_value=0)
+                mol_props['mo_occ'] = mol_props['mo_occ'].numpy(force=True)
             elif pname == 'mo_energies':
                 mol_props[pname] = [self.calc_dict[i][pname] for i in idx]
                 mol_props[pname] = np.stack(mol_props[pname], axis=0)
@@ -427,7 +430,7 @@ class AtomsDensityData(Dataset):
         positions = torch.from_numpy(props["positions"]).type(self.dtype)
         if self.centered_positions:
             # print('atom center', positions.mean(axis=0))
-            pos_shift = -(torch.mean(positions, dim=1, keepdim=True))
+            pos_shift = -utils.center_of_mass(positions, torch.tensor(atom_numbers).to(positions))
         else:
             pos_shift = 0
         positions += pos_shift
@@ -494,11 +497,6 @@ class AtomsDensityData(Dataset):
                         if self.density_grad:
                             properties["atom_density_grad"] = properties["atom_density"][..., 1:]
                             properties["atom_density"] = properties["atom_density"][..., 0]
-                        # if self.dpm_intor and 'coeffs' in self.atom_dens_type:
-                        #     properties['atom_density_basis'], properties['atom_density_coeffs'] = self.join_atom_coeffs(
-                        #         positions,
-                        #         torch.LongTensor(atom_numbers),
-                        #         )
                         if self.timing:
                             print('free atoms density time', time.time() - free_at_start)
             elif pname == 'mo_coeff':
@@ -701,8 +699,8 @@ class AtomsDensityData(Dataset):
             # print('weights shape', weights)
             # print('density n samp', self.density_n_samp)
             if self.density_n_samp > coords.shape[0]:
-                coords = torch.tensor(coords).to(self.dtype)
-                weights = torch.tensor(weights).to(self.dtype)
+                coords = torch.clone(coords)
+                weights = torch.clone(weights)
             else:
                 rand_idx = np.random.choice(
                     np.arange(coords.shape[0]), size=self.density_n_samp, replace=False

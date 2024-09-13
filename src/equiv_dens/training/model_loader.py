@@ -26,8 +26,8 @@ def load_model(args, dataset, train=False):
     use_gpu = args.use_gpu and torch.cuda.is_available()
     z_vals = dataset.atoms['atom_numbers']
     clebsch_gordan = ClebschGordanMatrix()
-    print('args energy_unit_in', args.energy_unit_in)
-    print('args energy_unit_out', args.energy_unit_out)
+    # print('args energy_unit_in', args.energy_unit_in)
+    # print('args energy_unit_out', args.energy_unit_out)
     conversions_in = UnitConversion(
         en_conversion_func=getattr(utils, args.energy_unit_in + '_to_kcal'),
         dist_conversion_func=getattr(utils, args.distance_unit_in + '_to_angstrom'))
@@ -37,8 +37,8 @@ def load_model(args, dataset, train=False):
     force_scaling = VarianceScaling()
     if args.output_scaling and 'forces' in dataset.required_properties:
         force_scaling = VarianceScaling(conversions_in.en_conversion_func(dataset.forces)/conversions_in.dist_conversion_func(1))
-    print('conversions in', conversions_in.en_conversion_func)
-    print('conversions out', conversions_out.en_conversion_func)
+    # print('conversions in', conversions_in.en_conversion_func)
+    # print('conversions out', conversions_out.en_conversion_func)
 
     if args.density_from_df or args.density_from_free_atoms:
         repr_model = nn.Identity()
@@ -128,7 +128,7 @@ def load_model(args, dataset, train=False):
                 linear_out=args.remove_atom_density,
             )
 
-        if args.density_weight + args.dipole_moment_weight > 0:
+        if args.density_weight > 0 or (args.dipole_moment_weight > 0 and not args.dpm_intor):
             expansion_model = density_expansion(dataset.orbital_basis_num,
                                                 expansion_constraint=args.expansion_constraint,
                                                 integral_constraint=args.integral_constraint,
@@ -176,7 +176,6 @@ def load_model(args, dataset, train=False):
     if args.energy_weight + args.forces_weight > 0:
         if args.energy_model == 'spherical':
             en_class = SphericalHarmonicsEnergyNetwork
-            print('building spherical harmonic energy model')
             en_model = en_class(
                 orbital_basis=dataset.orbital_basis_num,
                 order=args.order_en,
@@ -203,7 +202,6 @@ def load_model(args, dataset, train=False):
                 parity=args.parity_en,
             )
         elif args.energy_model == 'spherical_linear':
-            print('building spherical linear energy model')
             en_model = SphericalLinearEnergyNetwork(
                 orbital_basis=dataset.orbital_basis_num,
                 order=args.order_en,
@@ -221,7 +219,6 @@ def load_model(args, dataset, train=False):
                 parity=args.parity_en,
             )
         elif args.energy_model == 'representation':
-            print('building representation energy model')
             en_model = RepresentationEnergyNetwork(
                 order=args.order_en,
                 num_features=args.num_energy_features,
@@ -248,9 +245,7 @@ def load_model(args, dataset, train=False):
 
     property_models = {}
     calculate_forces_dict = {}
-    print('density_weight', args.density_weight)
-    print('dipole_moment_weight', args.dipole_moment_weight)
-    if args.density_weight + args.dipole_moment_weight > 0:
+    if args.density_weight > 0 or (args.dipole_moment_weight > 0 and not args.dpm_intor):
         if args.core_density_basis > 0:
             property_models['core_density'] = core_coeffs_model
             calculate_forces_dict['core_density'] = False
@@ -299,7 +294,6 @@ def load_model(args, dataset, train=False):
             model_dict = torch.load(os.path.join(args.load_from, 'best_' + load_code + '.pth'), map_location='cpu')
             for key in model_dict.keys():
                 if 'property_models.density' in key:
-                    print('key', key)
                     state_dict[key] = model_dict[key]
         missing, unexpected = model.load_state_dict(state_dict, strict=False)
         if len(unexpected) > 0:

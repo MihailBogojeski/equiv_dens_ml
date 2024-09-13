@@ -99,9 +99,10 @@ def spline_radial(x, y, k=7):
 
 def eval_spline_density(spl, coords, density_grad=False):
     x_in = torch.norm(coords, dim=-1) / param.BOHR
-    y_out = spl(np.log(x_in))
+    y_out = spl(np.log(x_in.numpy(force=True)))
 
     y_out[y_out < 0] = 0
+    y_out[np.isnan(y_out)] = 0
     y_out = torch.from_numpy(y_out)
 
     if density_grad:
