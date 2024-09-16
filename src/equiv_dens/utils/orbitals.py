@@ -627,7 +627,11 @@ def intor_dipole_moment_ml(
     charges = atoms['batch_atom_numbers']
     coords = atoms['batch_positions']
 
-    nucl_dip = torch.sum(charges.unsqueeze(-1) * coords, dim=1)
+    # if 'atom_density' in atoms.keys():
+    #     nucl_dip = 0 
+    # else:
+    #     nucl_dip = torch.sum(charges.unsqueeze(-1) * coords, dim=1)
+    nucl_dip = 0
     batch_dens_dip = []
     for i in range(atoms['batch_atom_numbers'].shape[0]):
         auxmol_ml = ml_basis_to_auxmol(atoms, i, skip_zero=False)
