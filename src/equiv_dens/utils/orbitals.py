@@ -288,6 +288,7 @@ def coeffs_dict_to_tensors(coeffs, radial_coeffs=True):
 
     return all_sph, all_scale, all_width
 
+
 def convert_coeffs_to_pyscf(coeffs):
     new_coeffs = {key: coeffs[key] for key in coeffs.keys()}
     new_coeffs["spherical_coeffs"] = []
@@ -605,6 +606,36 @@ def split_ao_matrix(atom, matrix, basis_size):
         curr_idx1 += basis_size[an1]
 
     return ao_matrix_split
+
+
+def calculate_1e_intor(mol, intor, coeffs, coeffs_type, dm=None):
+    intor_val = None
+    if coeffs_type == 'df_coeffs':
+        # direct integral on density fitting coefficients
+        helper_mol = build_1c1e_helper_mol(mol)
+        intor_idx = [
+            mol.bas_atom(ibas)
+            for ibas in range(mol.nbas) for _ in range(mol.bas_angular(ibas) * 2 + 1)
+        ]
+        int1e = gto.mole.intor_cross(intor, helper_mol, mol)
+        int1e = int1e[:, intor_idx, range(mol.nao)]
+        intor_val = torch.einsum('ji,i->j', int1e, coeffs)
+    elif coeffs_type == 'mo_coeffs':
+        # integral over molecular orbitals
+        if dm is None:
+            dm1 = hf.make_rdm1(mo_coeff=coeffs['mo_coeff'], mo_occ=coeffs['mo_occ'])
+        int1e = mol.intor(intor)
+        if intor == 'int1e_rrr':
+            int1e = int1e.reshape(3, 3, 3, mol.nao, mol.nao)
+            int1e = int1e.trace().sum(axis=0)
+            int1e = int1e[::-1, :]
+            intor_val = np.einsum('ij,ji', int1e, dm1).real
+        else:
+            intor_val = np.einsum('xij,ji->x', int1e, dm1).real
+    else:
+        raise NotImplementedError
+
+    return intor_val
 
 
 def calc_dipole_moment_analytic(atoms, basis, coeffs_type):
@@ -1119,7 +1150,46 @@ def get_density_charges(atoms, removed_free_atom=False):
     return charges
 
 
-def get_atomic_dipoles(atoms, expansion_model):
+def free_atom_volumes(atom_dens_dict, atom_dens_type='mo_coeff',
+                      grid_spec=None, to_bohr=False):
+    """
+    Calculate the free atom volumes given a dictionary of atomic denisities.
+
+    Args:
+        atom_dens_dict (dict): dictionary containing the atomic densities
+        atom_dens_type (str): Type of representation for the atomic densities
+    Returns:
+        free_atom_volumes (dict): dictionary containing the free atom volumes
+    """
+
+    free_atom_volumes = {}
+
+    for z in atom_dens_dict.keys():
+        if atom_dens_type == 'mo_coeffs':
+            basis = atom_dens_dict[z]['mo_basis']
+            mol = gto.M(atom=[[z, [0, 0, 0]]], basis=basis, spin=(z % 2))
+            intor_v = calculate_1e_intor(mol, 'int1e_rrr', atom_dens_dict[z], coeffs_type=atom_dens_type)
+            free_atom_volumes[z] = intor_v
+        elif atom_dens_type == 'spline':
+            symbol = utils.numbers_to_symbols([z])[0]
+            if symbol not in grid_spec.keys():
+                continue
+            coords = grid_spec[symbol][0]
+            if to_bohr:
+                coords = utils.angstrom_to_bohr(coords)
+            weights = grid_spec[symbol][1]
+            spline_basis = atom_dens_dict[z]["spline_interp"]
+            dens_spline = eval_spline_density(spline_basis, utils.bohr_to_angstrom(coords), density_grad=False)
+            vol = torch.sum((dens_spline * weights) *
+                            torch.norm(coords, dim=-1)**3)
+            free_atom_volumes[z] = vol
+        else:
+            raise NotImplementedError
+
+    return free_atom_volumes
+
+
+def get_atomic_dipoles(atoms, expansion_model, to_bohr=True):
     """
     Calculate the atomic dipoles of an atomic system.
 
@@ -1139,6 +1209,8 @@ def get_atomic_dipoles(atoms, expansion_model):
         )
         dipoles[:, i] = -dpm1
 
+    if to_bohr:
+        dipoles = utils.angstrom_to_bohr(dipoles)
     return dipoles
 
 
