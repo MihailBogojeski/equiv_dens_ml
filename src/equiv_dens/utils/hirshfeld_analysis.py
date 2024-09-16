@@ -241,10 +241,44 @@ def hirshfeld_partitioning(density, free_atom_densities, atom_positions, atom_nu
                           torch.norm(coords.unsqueeze(1) - atom_positions.unsqueeze(2), dim=-1)**3, dim=-1)
     r3_volume_free = torch.sum((free_atom_densities * coord_weights.unsqueeze(1)) *
                                torch.norm(coords.unsqueeze(1) - atom_positions.unsqueeze(2), dim=-1)**3, dim=-1)
-    # print('volume free', r3_volume_free)
-    # print('volume eff', r3_volume)
+    print('volume free', r3_volume_free)
+    print('volume eff', r3_volume)
+    print('atom_numbers', atom_numbers)
     volume_ratio = r3_volume / r3_volume_free
     #
     # print('r3_volume', r3_volume)
     # print('r3_volume_free', r3_volume_free)
     return wA, atomic_charges, dipoles, volume_ratio
+
+
+def volume_ratios_from_expansion(atoms, expansion_model, free_atom_volumes, to_bohr=True,
+                                 removed_free_atom=False):
+    atoms_c = {**atoms}
+    volumes = torch.zeros_like(atoms["batch_atom_numbers"]).to(torch.float32)
+    volume_ratios = torch.zeros_like(atoms["batch_atom_numbers"]).to(torch.float32)
+    if to_bohr:
+        coords = utils.angstrom_to_bohr(atoms["coords"])
+        pos = utils.angstrom_to_bohr(atoms['batch_positions'])
+    else:
+        coords = atoms["coords"]
+        pos = atoms['batch_positions']
+    for i in range(len(atoms["spherical_coeffs"])):
+        z = torch.max(atoms['batch_atom_numbers'][:, i]).item()
+        dens = expansion_model(atoms_c, eval_atoms=[i])["density"]
+        if removed_free_atom:
+            dens += atoms['atom_density_split'][:, i]
+        vol1 = torch.sum((dens * atoms['coord_weights']) *
+                         torch.norm(coords - pos[:, [i]], dim=-1)**3, dim=-1)
+        volumes[:, i] = vol1
+        volume_ratios[:, i] = vol1 / free_atom_volumes[z]
+
+    return volume_ratios, volumes
+    # r3_volume = torch.sum((dens_eff * coord_weights.unsqueeze(1)) *
+    #                       torch.norm(coords.unsqueeze(1) - atom_positions.unsqueeze(2), dim=-1)**3, dim=-1)
+    # print('volume eff', r3_volume)
+    # print('atom_numbers', atoms['batch_atom_numbers'])
+    # volume_ratio = r3_volume / r3_volume_free
+    # #
+    # # print('r3_volume', r3_volume)
+    # # print('r3_volume_free', r3_volume_free)
+    # return wA, atomic_charges, dipoles, volume_ratio
