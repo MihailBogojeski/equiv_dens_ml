@@ -64,7 +64,7 @@ def prepare_transform(atom_numbers, convention, to_internal=False):
     else:
         base = conv
     atom_numbers, _ = torch.max(atom_numbers, dim=0)
-    print('atom_numbers', atom_numbers)
+    # print('atom_numbers', atom_numbers)
     orbitals = []
     orbitals_order = []
     for i in range(len(atom_numbers)):
@@ -147,7 +147,7 @@ def convert_ao_matrix(ao_matrix, atom_numbers,
     transform_indices, transform_signs =\
         prepare_transform(atom_numbers, convention, to_internal)
 
-    print('ao_matrix shape', ao_matrix.shape)
+    # print('ao_matrix shape', ao_matrix.shape)
     ao_matrix_new = ao_matrix[:, transform_indices, :]
     ao_matrix_new = ao_matrix_new[:, :, transform_indices]
     ao_matrix_new = ao_matrix_new * transform_signs.unsqueeze(-1)
