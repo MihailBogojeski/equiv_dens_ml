@@ -454,6 +454,8 @@ def init_error_dict(args, test=False):
         weights_decay['energy'] = args.energy_weight_decay
         weights_decay['forces'] = args.forces_weight_decay
         weights_decay['energy_min'] = args.energy_min_weight_decay
+        weights_decay['hamiltonian_matrix'] = args.hamiltonian_matrix_weight_decay
+        weights_decay['density_matrix'] = args.density_matrix_weight_decay
         weights_min = {}
         weights_min['density'] = args.density_weight_min
         weights_min['density_grad'] = args.density_grad_weight_min
@@ -462,6 +464,8 @@ def init_error_dict(args, test=False):
         weights_min['energy'] = args.energy_weight_min
         weights_min['forces'] = args.forces_weight_min
         weights_min['energy_min'] = args.energy_min_weight_min
+        weights_min['hamiltonian_matrix'] = args.hamiltonian_matrix_weight_min
+        weights_min['density_matrix'] = args.density_matrix_weight_min
 
     loss_comp = {}
     loss_comp['dipole_moment'] = args.dipole_moment_loss_comp
@@ -469,6 +473,8 @@ def init_error_dict(args, test=False):
     loss_comp['energy'] = args.energy_loss_comp
     loss_comp['forces'] = args.forces_loss_comp
     loss_comp['density_grad'] = args.density_grad_loss_comp
+    loss_comp['hamiltonian_matrix'] = args.hamiltonian_matrix_loss_comp
+    loss_comp['density_matrix'] = args.density_matrix_loss_comp
 
     loss_comp_weights = {}
     loss_comp_weights['df_coeffs'] = {loss_comp: loss_weight
@@ -488,6 +494,14 @@ def init_error_dict(args, test=False):
                                          for loss_comp, loss_weight
                                          in zip(args.density_grad_loss_comp,
                                                 args.density_grad_loss_comp_weights)}
+    loss_comp_weights['hamiltonian_matrix'] = {loss_comp: loss_weight
+                                         for loss_comp, loss_weight
+                                         in zip(args.hamiltonian_matrix_loss_comp,
+                                                args.hamiltonian_matrix_loss_comp_weights)}
+    loss_comp_weights['density_matrix'] = {loss_comp: loss_weight
+                                         for loss_comp, loss_weight
+                                         in zip(args.density_matrix_loss_comp,
+                                                args.density_matrix_loss_comp_weights)}
     if not test:
         loss_comp['density'] = args.density_loss_comp
         loss_comp_weights['density'] = {loss_comp: loss_weight

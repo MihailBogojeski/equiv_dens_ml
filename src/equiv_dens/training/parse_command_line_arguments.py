@@ -207,9 +207,9 @@ def parse_command_line_arguments(arg_file=None):
                                help="weight of the energy in the loss function")
     args_training.add_argument("--forces_weight", metavar='FLOAT', type=float, default=0.0,
                                help="weight of the forces in the loss function")
-    args_training.add_argument("--hamiltonian_matrix_weight", metavar='FLOAT', type=float, default=1.0,
+    args_training.add_argument("--hamiltonian_matrix_weight", metavar='FLOAT', type=float, default=0.0,
                                help="weight of the full hamiltonian in the loss function")
-    args_training.add_argument("--density_matrix_weight", metavar='FLOAT', type=float, default=1.0,
+    args_training.add_argument("--density_matrix_weight", metavar='FLOAT', type=float, default=0.0,
                                help="weight of the density matrix in the loss function")
     args_training.add_argument("--energy_min_weight", metavar='FLOAT', type=float, default=0.0,
                                help="weight of the energy minimization loss")
@@ -229,6 +229,10 @@ def parse_command_line_arguments(arg_file=None):
                                choices=['mae', 'rmse'], help="composition of the energy loss")
     args_training.add_argument("--forces_loss_comp", metavar='STR', type=str, default=['mae'], nargs='+',
                                choices=['mae', 'rmse'], help="composition of the forces loss")
+    args_training.add_argument("--hamiltonian_matrix_loss_comp", metavar='STR', type=str, default=['mae'], nargs='+',
+                               choices=['mae', 'rmse'], help="composition of the hamiltonian matrix loss")
+    args_training.add_argument("--density_matrix_loss_comp", metavar='STR', type=str, default=['mae'], nargs='+',
+                               choices=['mae', 'rmse'], help="composition of the density matrix loss")
     args_training.add_argument("--density_loss_comp_weights", metavar='FLOAT', type=float, default=[1.0], nargs='+',
                                help="weights of the composition of the density loss")
     args_training.add_argument("--density_grad_loss_comp_weights", metavar='FLOAT', type=float, default=[1.0], nargs='+',
@@ -241,6 +245,10 @@ def parse_command_line_arguments(arg_file=None):
                                help="weights of the composition of the energy loss")
     args_training.add_argument("--forces_loss_comp_weights", metavar='FLOAT', type=float, default=[1.0], nargs='+',
                                help="weights of the composition of the forces loss")
+    args_training.add_argument("--hamiltonian_matrix_loss_comp_weights", metavar='FLOAT', type=float, default=[1.0], nargs='+',
+                               help="weights of the composition of the hamiltonian matrix loss")
+    args_training.add_argument("--density_matrix_loss_comp_weights", metavar='FLOAT', type=float, default=[1.0], nargs='+',
+                               help="weights of the composition of the density matrix loss")
     args_training.add_argument("--density_weight_min", metavar='FLOAT', type=float, default=0.0,
                                help="minimum weight of the density in the loss function")
     args_training.add_argument("--density_grad_weight_min", metavar='FLOAT', type=float, default=0.0,
@@ -255,6 +263,10 @@ def parse_command_line_arguments(arg_file=None):
                                help="minimum weight of the forces in the loss function")
     args_training.add_argument("--energy_min_weight_min", metavar='FLOAT', type=float, default=0.0,
                                help="minimum weight of the energy minimization loss")
+    args_training.add_argument("--hamiltonian_matrix_weight_min", metavar='FLOAT', type=float, default=0.0,
+                               help="minimum weight of the hamiltonian matrix loss")
+    args_training.add_argument("--density_matrix_weight_min", metavar='FLOAT', type=float, default=0.0,
+                               help="minimum weight of the density matrix loss")
     args_training.add_argument("--density_weight_decay", metavar='FLOAT', type=float, default=1.0,
                                help="decay of the weight of the density in the loss function")
     args_training.add_argument("--density_grad_weight_decay", metavar='FLOAT', type=float, default=1.0,
@@ -269,6 +281,10 @@ def parse_command_line_arguments(arg_file=None):
                                help="decay of the weight of the forces in the loss function")
     args_training.add_argument("--energy_min_weight_decay", metavar='FLOAT', type=float, default=1.0,
                                help="decay of the weight of the energy minimization loss")
+    args_training.add_argument("--hamiltonian_matrix_weight_decay", metavar='FLOAT', type=float, default=1.0,
+                               help="decay of the weight of the hamiltonian matrix loss")
+    args_training.add_argument("--density_matrix_weight_decay", metavar='FLOAT', type=float, default=1.0,
+                               help="decay of the weight of the density matrix loss")
     args_training.add_argument("--max_energy_error", metavar='FLOAT', type=float, default=0.1,
                                help="for better stability at beginning of training: maximum allowed MAE " +
                                "in energy (higher errors are clamped)")
