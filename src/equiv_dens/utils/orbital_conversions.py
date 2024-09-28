@@ -150,8 +150,8 @@ def convert_ao_matrix(ao_matrix, atom_numbers,
     # print('ao_matrix shape', ao_matrix.shape)
     ao_matrix_new = ao_matrix[:, transform_indices, :]
     ao_matrix_new = ao_matrix_new[:, :, transform_indices]
-    ao_matrix_new = ao_matrix_new * transform_signs.unsqueeze(-1)
-    ao_matrix_new = ao_matrix_new * transform_signs.unsqueeze(1)
+    ao_matrix_new = ao_matrix_new * transform_signs.unsqueeze(-1).to(ao_matrix_new)
+    ao_matrix_new = ao_matrix_new * transform_signs.unsqueeze(1).to(ao_matrix_new)
     # print('ao_matrix old', ao_matrix[0, 0, :])
     # print('ao_matrix new', ao_matrix_new[0, 0, :])
 

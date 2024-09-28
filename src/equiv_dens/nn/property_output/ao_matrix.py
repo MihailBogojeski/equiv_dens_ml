@@ -123,7 +123,7 @@ class AOMatrixFromAtomFeatures(nn.Module):
         for n_i, orb_i in enumerate(orbitals_i):
             z_i, _, l_i = orb_i
             for n_j, orb_j in enumerate(orbitals_j):
-                z_j, _, l_j = orb_j 
+                z_j, _, l_j = orb_j
                 for L in range(abs(l_i-l_j), l_i+l_j+1):
                     key = (z_i, z_j, n_i, n_j, L)
                     if key not in irreps.keys():
@@ -158,7 +158,7 @@ class AOMatrixFromAtomFeatures(nn.Module):
                 n_j = 2*l_j+1
                 for L in range(abs(l_i-l_j), l_i+l_j+1):
 
-                    #compute inverse spherical tensor product             
+                    #compute inverse spherical tensor product
                     cg_matrix, _ = self.clebsch_gordan(l_i, l_j, L)  # holds coefficients up to(!) order l_i,l_j,L -> get only coefficients for order l_i,l_j,L
                     cg = cg_matrix[
                         l_i ** 2:(l_i + 1) ** 2,
@@ -177,11 +177,11 @@ class AOMatrixFromAtomFeatures(nn.Module):
             start_i += n_i
         return block
 
-    
+
     def forward(self, atoms):
         """
         Computes the Hamiltonian/Density matrix.
-        
+
         inputs:
             fs: spherical harmonics representation of shape [batch_size, num_atoms, 3]
         outputs:
@@ -192,7 +192,7 @@ class AOMatrixFromAtomFeatures(nn.Module):
         dij = atoms['distances']
         fs = atoms['sph_repr']  # equivariant spherical harmonics atomic representation
         rbf = self.radial_basis_functions(dij).unsqueeze_(-2) #unsqueeze for broadcasting
-        
+
         fpc = self.residual_pc(fs) #central pair features
         fpn = self.residual_pn(fs) #neighbor pair features
 
@@ -227,8 +227,8 @@ class AOMatrixFromAtomFeatures(nn.Module):
                 if ((i1 == i2) and (not j1 == j2)):
                     idx_pi.append(ni)
                     idx_pj.append(nj)
-        idx_pi = torch.tensor(idx_pi, dtype=torch.int64)
-        idx_pj = torch.tensor(idx_pj, dtype=torch.int64)
+        idx_pi = torch.tensor(idx_pi, dtype=torch.int64, device=R.device)
+        idx_pj = torch.tensor(idx_pj, dtype=torch.int64, device=R.device)
 
         #compute pair features for ordinary interactions
         fij = self.mix_ij(fi, fj, rbf) #mix pairs
@@ -246,13 +246,13 @@ class AOMatrixFromAtomFeatures(nn.Module):
         max_atom_numbers = torch.max(atoms['batch_atom_numbers'], dim=0)[0]
         num_orbitals_per_atom = {z.item(): sum((2*l+1) for _, _, l in self.orbital_basis[z.item()]) for z in torch.unique(max_atom_numbers)}
         num_orbitals = sum(num_orbitals_per_atom[z.item()] for z in max_atom_numbers)
-        matrix = torch.zeros((batch_size, num_orbitals, num_orbitals))
+        matrix = torch.zeros((batch_size, num_orbitals, num_orbitals), device=R.device)
 
         idx_i_batch, idx_j_batch = remap_pair_idxs_for_padding(n_atoms=num_atoms_in_batch,
                                                                batch_idx_pos=atoms['batch_idx_pos'],
                                                                idx_i=atoms['idx_i'],
                                                                idx_j=atoms['idx_j'])
-        
+
         # ao offset for each atom in batch
         ao_offsets = {0: 0}
         for i in range(1, num_atoms_in_batch):
@@ -282,7 +282,7 @@ class AOMatrixFromAtomFeatures(nn.Module):
                         for L in range(abs(l_i - l_j), l_i+l_j+1):
                             ij = self.irreps_ij[(z_i, z_j, n_i, n_j, L)]
                             irreps.append(fij[L].narrow(-3, idx, 1).narrow(-1, ij, 1).squeeze(-3).squeeze(-1))
-                        
+
                 mblock = self.matrix_block(row=self.orbital_basis[z_i],
                                             col=self.orbital_basis[z_j],
                                             irreps=irreps,
@@ -290,15 +290,15 @@ class AOMatrixFromAtomFeatures(nn.Module):
                                             j_gt_i=j>i,
                                             device=R.device,
                                             dtype=R.dtype)
-                
+
                 row_offset, col_offset = ao_offsets[i.item()], ao_offsets[j.item()]
-                
+
                 row_end = row_offset + mblock.shape[-2]
                 col_end = col_offset + mblock.shape[-1]
                 matrix[s, row_offset:row_end, col_offset:col_end] = mblock
 
                 idx += 1
-        
+
             # diagonal matrix blocks
             for i in range(len(s_batch_pos)):
                 pos_in_batch = s_batch_pos[i]
@@ -315,7 +315,7 @@ class AOMatrixFromAtomFeatures(nn.Module):
                         for L in range(abs(l_i - l_j), l_i + l_j + 1):
                             ii = self.irreps_ii[(z_i, z_j, n_i, n_j, L)]
                             irreps.append(fii[L].narrow(-3, pos_in_fii, 1).narrow(-1, ii, 1).squeeze(-3).squeeze(-1))
-                
+
                 mblock = self.matrix_block(row=self.orbital_basis[z_i],
                                             col=self.orbital_basis[z_j],
                                             irreps=irreps,
@@ -323,23 +323,23 @@ class AOMatrixFromAtomFeatures(nn.Module):
                                             j_gt_i=j>i,
                                             device=R.device,
                                             dtype=R.dtype)
-                
+
                 row_offset, col_offset = ao_offsets[pos_in_batch.item()], ao_offsets[pos_in_batch.item()]
 
                 row_end = row_offset + mblock.shape[-2]
                 col_end = col_offset + mblock.shape[-1]
                 matrix[s, row_offset:row_end, col_offset:col_end] = mblock
 
-        matrix = matrix + matrix.transpose(-2,-1) #symmetrize  
-        
+        matrix = matrix + matrix.transpose(-2,-1) #symmetrize
+
         matrix = convert_ao_matrix(ao_matrix=matrix,
                                    atom_numbers=atoms['batch_atom_numbers'],
                                    convention='pyscf_augccpvdz')
 
-        atoms[self.output_property_name] = matrix   
+        atoms[self.output_property_name] = matrix
 
         return atoms
-    
+
 
 class AOMatrixFromPairFeatures(nn.Module):
 
