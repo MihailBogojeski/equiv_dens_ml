@@ -423,7 +423,7 @@ class AtomsDensityData(Dataset):
         for pname in self.required_properties:
             # fallback for properties stored directly
             # in the row
-            if pname == "coords" or "density" in pname:
+            if pname == "coords" or ("density" in pname and "matrix" not in pname):
                 coords_start = time.time()
                 if self.pyscf_grid:
                     properties["coords"], properties["coord_weights"] = (
