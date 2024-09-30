@@ -254,6 +254,23 @@ def load_model(args, dataset, train=False):
             output_property_name="hamiltonian_matrix"
         )
 
+    if args.density_matrix_weight > 0:
+        print('Building density matrix model')
+        dm_model = AOMatrixFromAtomFeatures(
+            orbital_basis=dataset.calc_basis_num,
+            order=args.order[-1],
+            num_features=args.num_features,
+            num_basis_functions=args.num_basis_functions,
+            num_residual_pc=args.num_residual_pc,
+            num_residual_pn=args.num_residual_pn,
+            num_residual_ii=args.num_residual_ii,
+            num_residual_ij=args.num_residual_ij,
+            basis_functions=args.basis_functions,
+            cutoff=args.cutoff,
+            activation=args.activation,
+            output_property_name="density_matrix"
+        )
+
     if args.density_coeffs:
         density_model = nn.Sequential(repr_model, dens_model)
     else:
@@ -281,6 +298,9 @@ def load_model(args, dataset, train=False):
     if args.hamiltonian_matrix_weight > 0:
         property_models['hamiltonian_matrix'] = hm_model
         calculate_forces_dict['hamiltonian_matrix'] = False
+    if args.density_matrix_weight > 0:
+        property_models['density_matrix'] = dm_model
+        calculate_forces_dict['density_matrix'] = False
 
     model = DFTNetwork(density_model, property_models,
                        calculate_forces_dict=calculate_forces_dict,
