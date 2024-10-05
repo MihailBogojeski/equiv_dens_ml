@@ -135,7 +135,7 @@ def parse_command_line_arguments(arg_file=None):
     args_hyperparams.add_argument("--density_coeffs", metavar='True|False', type=str2bool, default=True,
                                   help="Use density coefficients as part of representation.")
     args_hyperparams.add_argument("--ao_matrix_from_pair_features", metavar='True|False', type=str2bool, default=False,
-                                  help="Predict atomic orbital matrix from pair features instead of atom features.")
+                                  help="Predict atomic orbital matrix from pair features instead of spherical harmonic representation.")
     hyperparam_args = [act.dest for act in args_hyperparams._group_actions]
 
     # arguments for training

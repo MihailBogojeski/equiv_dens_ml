@@ -76,8 +76,8 @@
 --forces_weight=0.0
 --forces_weight_decay=1.0
 --forces_weight_min=0.0
---hamiltonian_matrix_weight=1.0
---density_matrix_weight=0.0
+--hamiltonian_matrix_weight=0.0
+--density_matrix_weight=1.0
 --density_loss_comp
 mae
 --density_loss_comp_weights
