@@ -1,17 +1,19 @@
 import torch
 import torch.nn as nn
-from equiv_dens.nn.modules.clebsch_gordan import ClebschGordan
+from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
 from equiv_dens.nn.modules.embeddings import SphericalEmbedding
 from equiv_dens.nn.modules.radial_basis_functions import *
 from equiv_dens.nn.modules.network_blocks import *
+from equiv_dens.utils.orbitals import get_max_order
 
-class AtomicPairFeatures(nn.Module):
+
+class PairFeatures(nn.Module):
     """
     Computes pair features (self-interaction and pair-interaction) from atomic features.
     """
 
     def __init__(self,
-            orbitals             = None, #orbitals of atoms, used to get number of atoms
+            orbital_basis        = None, #orbitals of atoms, used to get number of atoms
             order                = 1,  #maximum order of spherical harmonics features
             num_features         = 32, #dimensionality of the feature space
             num_basis_functions  = 32, #number of basis functions for featurizing distances
@@ -22,16 +24,19 @@ class AtomicPairFeatures(nn.Module):
             basis_functions      = 'exp-bernstein', #type of radial basis functions (exp-gaussian/exp-bernstein/gaussian/bernstein)
             cutoff               = 15.0, #cutoff distance (default is 15 Bohr)
             activation           = 'swish', #type of activation function used (swish/ssp)
-            output_property_name = 'ao_matrix', # key of atoms dict, e.g. atoms['hamiltonian_matrix']
             load_from            = None, #if this is given the network is loaded from the specified .pth file and all other arguments are ignored
             #Zmax                 = 87 #maximum nuclear charge (+1, i.e. 87 for up to Rn) for embeddings, can be kept at default 
     ):
-        super(AtomicPairFeatures, self).__init__()
-        
+        super().__init__()
+
         self.create_graph = True  #can be set to False if the NN is only used for inference
 
         #store hyperparameter values
-        self.orbitals = orbitals
+        max_order_per_atom = get_max_order(orbital_basis, per_atom=True)
+
+        order_max = max(max_order_per_atom.values())
+
+        self.orbital_basis = orbital_basis
         self.order = order
         self.num_features = num_features
         self.num_basis_functions = num_basis_functions
@@ -42,34 +47,20 @@ class AtomicPairFeatures(nn.Module):
         self.basis_functions = basis_functions
         self.cutoff = cutoff
         self.activation = activation
-        self.output_property_name = output_property_name
         #self.Zmax = Zmax
 
-        #generate index lists for computing pairwise distances
-        N = len(self.orbitals)
-        idx_i = torch.arange(N, dtype=torch.int64).view(-1,1).repeat(1,N).view(-1)
-        idx_j = torch.arange(N, dtype=torch.int64).view(1,-1).repeat(N,1).view(-1)
-        idx_i, idx_j = idx_i[idx_i != idx_j], idx_j[idx_i != idx_j] #exclude self-interactions
-        self.register_buffer('idx_i', idx_i)
-        self.register_buffer('idx_j', idx_j)
-
-        #generate index lists for asymmetrizing pair interactions
-        idx_pi = []
-        idx_pj = []
-        for ni, ij1 in enumerate(zip(idx_i, idx_j)):
-            i1 = ij1[0].item()
-            j1 = ij1[1].item()
-            for nj, ij2 in enumerate(zip(idx_i, idx_j)):
-                i2 = ij2[0].item()
-                j2 = ij2[1].item()
-                if ((i1 == i2) and (not j1 == j2)):
-                    idx_pi.append(ni)
-                    idx_pj.append(nj)
-        self.register_buffer('idx_pi', torch.tensor(idx_pi, dtype=torch.int64))
-        self.register_buffer('idx_pj', torch.tensor(idx_pj, dtype=torch.int64))
+        #error checking
+        if self.order < order_max:
+            print("An orbital with L={} was found, but the neural network was initialized with L={}".format(order_max, self.order))
+            print("The neural network MUST have at least the same order as all orbitals!")
+            quit()
+        if self.order < 2*order_max:
+            print("An orbital with L={} was found, but the neural network was initialized with L={}".format(order_max, self.order))
+            print("The neural network SHOULD have at least twice the order of the maximum order orbital for good results!")
+            #don't quit here, maybe someone wants to do it like this
 
         #declare modules and parameters
-        self.clebsch_gordan = ClebschGordan()
+        self.clebsch_gordan = ClebschGordanMatrix()
         if self.basis_functions == 'exp-gaussian':
             self.radial_basis_functions = ExponentialGaussianRadialBasisFunctions(self.num_basis_functions, self.cutoff)
         elif self.basis_functions == 'exp-bernstein':
@@ -80,7 +71,6 @@ class AtomicPairFeatures(nn.Module):
             self.radial_basis_functions = BernsteinRadialBasisFunctions(self.num_basis_functions, self.cutoff)
         else:
             print("basis function type:", self.basis_functions, "is not supported")
-
         self.mix_ij = PairMixing(self.order, self.order, self.order, self.num_basis_functions, self.num_features, self.clebsch_gordan)
         self.radial_ii = nn.ModuleList([nn.Linear(self.num_basis_functions, self.num_features, bias=False)
             for L in range(self.order+1)])
@@ -94,19 +84,20 @@ class AtomicPairFeatures(nn.Module):
 
     def forward(self, atoms):
 
+        R = atoms['positions']
         dij = atoms['distances']
-        fs = atoms['sph_repr']  # equivariant spherical harmonics representation
+        fs = atoms['sph_repr']  # equivariant spherical harmonics atomic representation
         rbf = self.radial_basis_functions(dij).unsqueeze_(-2) #unsqueeze for broadcasting
-        
+
         fpc = self.residual_pc(fs) #central pair features
         fpn = self.residual_pn(fs) #neighbor pair features
 
         #compute pair features for self-interactions
         fii = [1*x for x in fpc]
         for L in range(self.order+1): #add influence of neighbouring atoms to pairs
-            idx_j  = self.idx_j.view(*(1,)*len(fpn[L].shape[:-3]),-1,1,1).repeat(*fpn[L].shape[:-3], 1, *fpn[L].shape[-2:])
+            idx_j  = atoms['idx_j'].view(*(1,)*len(fpn[L].shape[:-3]),-1,1,1).repeat(*fpn[L].shape[:-3], 1, *fpn[L].shape[-2:])
             fpn_j  = self.radial_ii[L](rbf)*torch.gather(fpn[L], 1, idx_j)
-            fii[L] = fii[L].index_add(1, self.idx_i, fpn_j)
+            fii[L] = fii[L].index_add(1, atoms['idx_i'], fpn_j)
 
         #compute output features (irreducible representations) for self-interactions
         fii = self.residual_ii(fii)
@@ -115,18 +106,33 @@ class AtomicPairFeatures(nn.Module):
         fi = []
         fj = []
         for L in range(self.order+1):
-            i = self.idx_i.view(*(1,)*len(fpc[L].shape[:-3]),-1,1,1).repeat(*fpc[L].shape[:-3], 1, *fpc[L].shape[-2:])
-            j = self.idx_j.view(*(1,)*len(fpc[L].shape[:-3]),-1,1,1).repeat(*fpc[L].shape[:-3], 1, *fpc[L].shape[-2:])
+            i = atoms['idx_i'].view(*(1,)*len(fpc[L].shape[:-3]),-1,1,1).repeat(*fpc[L].shape[:-3], 1, *fpc[L].shape[-2:])
+            j = atoms['idx_j'].view(*(1,)*len(fpc[L].shape[:-3]),-1,1,1).repeat(*fpc[L].shape[:-3], 1, *fpc[L].shape[-2:])
             fi.append(torch.gather(fpc[L], 1, i))
             fj.append(torch.gather(fpc[L], 1, j))
+
+        #generate index lists for asymmetrizing pair interactions
+        idx_pi = []
+        idx_pj = []
+        for ni, ij1 in enumerate(zip(atoms['idx_i'], atoms['idx_j'])):
+            i1 = ij1[0].item()
+            j1 = ij1[1].item()
+            for nj, ij2 in enumerate(zip(atoms['idx_i'], atoms['idx_j'])):
+                i2 = ij2[0].item()
+                j2 = ij2[1].item()
+                if ((i1 == i2) and (not j1 == j2)):
+                    idx_pi.append(ni)
+                    idx_pj.append(nj)
+        idx_pi = torch.tensor(idx_pi, dtype=torch.int64, device=R.device)
+        idx_pj = torch.tensor(idx_pj, dtype=torch.int64, device=R.device)
 
         #compute pair features for ordinary interactions
         fij = self.mix_ij(fi, fj, rbf) #mix pairs
         for L in range(self.order+1): #add influence of neighbouring atoms to pairs
-            idx_j  = self.idx_j.view(*(1,)*len(fpn[L].shape[:-3]),-1,1,1).repeat(*fpn[L].shape[:-3], 1, *fpn[L].shape[-2:])
+            idx_j  = atoms['idx_j'].view(*(1,)*len(fpn[L].shape[:-3]),-1,1,1).repeat(*fpn[L].shape[:-3], 1, *fpn[L].shape[-2:])
             fpn_j  = self.radial_ij[L](rbf)*torch.gather(fpn[L], 1, idx_j)
-            idx_pj = self.idx_pj.view(*(1,)*len(fpn_j.shape[:-3]),-1,1,1).repeat(*fpn_j.shape[:-3], 1, *fpn_j.shape[-2:])
-            fij[L] = fij[L].index_add(1, self.idx_pi, torch.gather(fpn_j, 1, idx_pj))
+            idx_pj_L = idx_pj.view(*(1,)*len(fpn_j.shape[:-3]),-1,1,1).repeat(*fpn_j.shape[:-3], 1, *fpn_j.shape[-2:])
+            fij[L] = fij[L].index_add(1, idx_pi, torch.gather(fpn_j, 1, idx_pj_L))
 
         #compute output features (irreducible representations) for pair-interactions
         fij = self.residual_ij(fij)
