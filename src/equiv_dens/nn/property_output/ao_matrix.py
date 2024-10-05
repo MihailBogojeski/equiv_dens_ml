@@ -36,9 +36,7 @@ class AOMatrixFromAtomFeatures(nn.Module):
         self.create_graph = True  #can be set to False if the NN is only used for inference
 
         #store hyperparameter values
-        max_order_per_atom = get_max_order(orbital_basis, per_atom=True)
-
-        order_max = max(max_order_per_atom.values())
+        order_max = get_max_order(orbital_basis)
 
         self.orbital_basis = orbital_basis
         self.order = order
@@ -342,6 +340,10 @@ class AOMatrixFromAtomFeatures(nn.Module):
 
 
 class AOMatrixFromPairFeatures(nn.Module):
+    """
+    Neural network for computing atomic orbital matrices like the hamiltonian and the density matrix
+    from atom pair features in a blockwise rotationally equivariant way
+    """
 
     # TODO use sequential with (repr, matrix output)
     def __init__(self,
@@ -358,35 +360,24 @@ class AOMatrixFromPairFeatures(nn.Module):
             load_from            = None, #if this is given the network is loaded from the specified .pth file and all other arguments are ignored
             #Zmax                 = 87 #maximum nuclear charge (+1, i.e. 87 for up to Rn) for embeddings, can be kept at default 
     ):
-        super(AOMatrixFromPairFeatures, self).__init__()
+        super().__init__()
 
         self.create_graph = True  #can be set to False if the NN is only used for inference
 
         #store hyperparameter values
+        order_max = get_max_order(orbital_basis)
+
         self.orbital_basis = orbital_basis
         self.order = order
         self.num_features = num_features
         self.num_basis_functions = num_basis_functions
-        self.num_residual_ao_ii  = num_residual_ao_ii
-        self.num_residual_ao_ij  = num_residual_ao_ij
+        self.num_residual_ao_ii = num_residual_ao_ii
+        self.num_residual_ao_ij = num_residual_ao_ij
         self.basis_functions = basis_functions
         self.cutoff = cutoff
         self.activation = activation
         self.output_property_name = output_property_name
         #self.Zmax = Zmax
-
-        #extract nuclear charges from orbitals, determine maximum order, and
-        #build the occupation mask (for extracting occupied orbitals in energy prediction)
-        Zl = []
-        order_max = 0
-        self.Norb = 0
-        for i in range(len(self.orbital_basis)):
-            Zl.append(self.orbital_basis[i][0][0])
-            for z, l in self.orbital_basis[i]:
-                self.Norb += 2*l+1
-                assert z == Zl[i] #check that Z is the same for all orbitals
-                if l > order_max:
-                    order_max = l
 
         #error checking
         if self.order < order_max:
@@ -398,19 +389,34 @@ class AOMatrixFromPairFeatures(nn.Module):
             print("The neural network SHOULD have at least twice the order of the maximum order orbital for good results!")
             #don't quit here, maybe someone wants to do it like this
 
-
         #declare modules and parameters
         self.clebsch_gordan = ClebschGordanMatrix()
+        if self.basis_functions == 'exp-gaussian':
+            self.radial_basis_functions = ExponentialGaussianRadialBasisFunctions(self.num_basis_functions, self.cutoff)
+        elif self.basis_functions == 'exp-bernstein':
+            self.radial_basis_functions = ExponentialBernsteinRadialBasisFunctions(self.num_basis_functions, self.cutoff)
+        elif self.basis_functions == 'gaussian':
+            self.radial_basis_functions = GaussianRadialBasisFunctions(self.num_basis_functions, self.cutoff)
+        elif self.basis_functions == 'bernstein':
+            self.radial_basis_functions = BernsteinRadialBasisFunctions(self.num_basis_functions, self.cutoff)
+        else:
+            print("basis function type:", self.basis_functions, "is not supported")
+        self.mix_ij = PairMixing(self.order, self.order, self.order, self.num_basis_functions, self.num_features, self.clebsch_gordan)
+        self.radial_ii = nn.ModuleList([nn.Linear(self.num_basis_functions, self.num_features, bias=False)
+            for L in range(self.order+1)])
+        self.radial_ij = nn.ModuleList([nn.Linear(self.num_basis_functions, self.num_features, bias=False)
+            for L in range(self.order+1)])
         self.residual_ao_ii = ResidualStack(self.num_residual_ao_ii, self.order, self.num_features, self.clebsch_gordan, True, self.activation)
         self.residual_ao_ij = ResidualStack(self.num_residual_ao_ij, self.order, self.num_features, self.clebsch_gordan, True, self.activation)
+
         if self.activation == 'swish':
             self.activation_ao_ii = Swish(self.num_features)
             self.activation_ao_ij = Swish(self.num_features)
-        elif activation == 'ssp':
+        elif self.activation == 'ssp':
             self.activation_ao_ii = ShiftedSoftplus(self.num_features)
             self.activation_ao_ij = ShiftedSoftplus(self.num_features)
         else:
-            # print("Unsupported activation function:", self.activation)
+            print("Unsupported activation function:", activation)
             quit()
 
         #determine minimum number of output features based on orbitals
@@ -419,23 +425,20 @@ class AOMatrixFromPairFeatures(nn.Module):
         #diagonal blocks
         number_L = [0 for L in range(2*order_max+1)] #keeps track of how many irreps of each order there are already
         self.irreps_ii = {}
-        for i in range(len(self.orbital_basis)):
+        for z in self.orbital_basis.keys():
             self.irreps_ii, number_L = self.compute_matrix_irreps(
-                self.orbital_basis[i], self.orbital_basis[i], self.irreps_ii, number_L)
+                self.orbital_basis[z], self.orbital_basis[z], self.irreps_ii, number_L)
         self.output_ii = SphericalLinear(self.order, self.num_features, 2*order_max, max(number_L), self.clebsch_gordan, zero_init=True)
-        #print('ii', number_L)
 
         #off-diagonal blocks
         number_L = [0 for L in range(2*order_max+1)] #keeps track of how many irreps of each order there are already
         self.irreps_ij = {}
-        for i in range(len(self.orbital_basis)):
-            for j in range(len(self.orbital_basis)):
-                if i == j:
-                    continue
+        for z1 in self.orbital_basis.keys():
+            for z2 in self.orbital_basis.keys():
                 self.irreps_ij, number_L = self.compute_matrix_irreps(
-                    self.orbital_basis[i], self.orbital_basis[j], self.irreps_ij, number_L)
+                    self.orbital_basis[z1], self.orbital_basis[z2], self.irreps_ij, number_L)
         self.output_ij = SphericalLinear(self.order, self.num_features, 2*order_max, max(number_L), self.clebsch_gordan, zero_init=True)
-        #print('ij', number_L)
+
 
 
     def compute_matrix_irreps(self, orbitals_i, orbitals_j, irreps, number_L):
@@ -444,8 +447,8 @@ class AOMatrixFromPairFeatures(nn.Module):
         of each order are necessary for constructing the corresponding off-diagonal block of the matrix
 
         inputs:
-            orbitals_i: Tuple or list of tuples with integer entries (Z, L) that define the orbitals of atom i
-            orbitals_j: Tuple or list of tuples with integer entries (Z, L) that define the orbitals of atom j
+            orbitals_i: Tuple or list of tuples with integer entries (Z, _, L) that define the orbitals of atom i
+            orbitals_j: Tuple or list of tuples with integer entries (Z, _, L) that define the orbitals of atom j
             irreps: Dictionary that stores the feature indices for collecting irreducible representations
             number_L: List of length L+1 with integer entries that stores how many irreducible representations of 
                     each order are already in use
@@ -454,9 +457,9 @@ class AOMatrixFromPairFeatures(nn.Module):
             number_L: Updated input list
         """
         for n_i, orb_i in enumerate(orbitals_i):
-            z_i, l_i = orb_i
+            z_i, _, l_i = orb_i
             for n_j, orb_j in enumerate(orbitals_j):
-                z_j, l_j = orb_j 
+                z_j, _, l_j = orb_j
                 for L in range(abs(l_i-l_j), l_i+l_j+1):
                     key = (z_i, z_j, n_i, n_j, L)
                     if key not in irreps.keys():
@@ -471,27 +474,34 @@ class AOMatrixFromPairFeatures(nn.Module):
         from the input irreducible representations
 
         inputs:
-            row: Tuple or list of tuples with integer entries (Z, L) that define the orbitals in the row
-            col: Tuple or list of tuples with integer entries (Z, L) that define the orbitals in the column
+            row: Tuple or list of tuples with integer entries (Z, _, L) that define the orbitals in the row
+            col: Tuple or list of tuples with integer entries (Z, _, L) that define the orbitals in the column
             irreps: list of irreducible representations of shape [batch_size, 2*L+1]
             batch_size: how many matrices are in this batch (needed to initialize matrix subblock)
         outputs:
             block: batch of matrix blocks of shape [batch_size, nrow, ncol] (nrow/ncol depends on row/col inputs)
         """
-        nrow = sum((2*l+1) for _, l in row) #number of rows in the block
-        ncol = sum((2*l+1) for _, l in col) #number of columns in the block
+        nrow = sum((2*l+1) for _, _, l in row) #number of rows in the block
+        ncol = sum((2*l+1) for _, _, l in col) #number of columns in the block
         block = torch.zeros(batch_size, nrow, ncol, device=device, dtype=dtype)
 
         idx = 0 #index for accessing the correct irreps
         start_i = 0
-        for _, l_i in row:
+        for _, _, l_i in row:
             n_i = 2*l_i+1
             start_j = 0
-            for _, l_j in col:
+            for _, _, l_j in col:
                 n_j = 2*l_j+1
                 for L in range(abs(l_i-l_j), l_i+l_j+1):
-                    #compute inverse spherical tensor product             
-                    cg = math.sqrt(2*L+1)*self.clebsch_gordan(l_i, l_j, L).unsqueeze(0)
+
+                    #compute inverse spherical tensor product
+                    cg_matrix, _ = self.clebsch_gordan(l_i, l_j, L)  # holds coefficients up to(!) order l_i,l_j,L -> get only coefficients for order l_i,l_j,L
+                    cg = cg_matrix[
+                        l_i ** 2:(l_i + 1) ** 2,
+                        l_j ** 2:(l_j + 1) ** 2,
+                        L ** 2:(L + 1) ** 2,
+                    ]
+                    cg = math.sqrt(2*L+1)*cg.unsqueeze(0)
                     product = (cg*irreps[idx].unsqueeze(-2).unsqueeze(-2)).sum(-1)
 
                     #add product to appropriate part of the block
@@ -505,55 +515,113 @@ class AOMatrixFromPairFeatures(nn.Module):
 
     
     def forward(self, atoms):
+
+        R = atoms['positions']
         fii, fij = atoms['pair_features']
 
         # additional layer to refine pair features for specific output matrix
-        fii    = self.residual_ao_ij(fii)
-        fii[0] = self.activation_ao_ij(fii[0])
-        fii    = self.output_ij(fii)
+        fii    = self.residual_ao_ii(fii)
+        fii[0] = self.activation_ao_ii(fii[0])
+        fii    = self.output_ii(fii)
 
         fij    = self.residual_ao_ij(fij)
         fij[0] = self.activation_ao_ij(fij[0])
         fij    = self.output_ij(fij)
 
-        #construct batch of matrices of shape [batch_size, num_orbitals, num_orbitals]
-        idx = 0 #initialize interaction index to 0 (gets incremented)
-        batch_size = fii[0].size(0)
-        matrix_rows = []
+        batch_size = atoms['batch_positions'].shape[0]
+        num_atoms_in_batch = atoms['batch_positions'].shape[1]
+        max_atom_numbers = torch.max(atoms['batch_atom_numbers'], dim=0)[0]
+        num_orbitals_per_atom = {z.item(): sum((2*l+1) for _, _, l in self.orbital_basis[z.item()]) for z in torch.unique(max_atom_numbers)}
+        num_orbitals = sum(num_orbitals_per_atom[z.item()] for z in max_atom_numbers)
+        matrix = torch.zeros((batch_size, num_orbitals, num_orbitals), device=R.device)
 
-        for i in range(len(self.orbital_basis)): #loop over rows
-            current_row = []
-            for j in range(len(self.orbital_basis)): #loop over columns
-                #collect irreps from output features (their shape after squeezing is [batch_size, 2*L+1])
-                #features have shape [batch_size,num_atoms/num_interactions,2*L+1,num_features]
-                #dimension -3 corresponds to atom/interaction indices
-                #dimension -1 corresponds to the feature dimension
-                #irreps have shape [batch_size, 2*L+1] (after squeezing)
+        idx_i_batch, idx_j_batch = remap_pair_idxs_for_padding(n_atoms=num_atoms_in_batch,
+                                                               batch_idx_pos=atoms['batch_idx_pos'],
+                                                               idx_i=atoms['idx_i'],
+                                                               idx_j=atoms['idx_j'])
+
+        # ao offset for each atom in batch
+        ao_offsets = {0: 0}
+        for i in range(1, num_atoms_in_batch):
+            z_previous = atoms['batch_atom_numbers'][0][i-1].item()
+            ao_offsets[i] = ao_offsets[i-1] + num_orbitals_per_atom[z_previous]
+
+        idx = 0
+        for s in range(batch_size):
+            s_atom_numbers = atoms['batch_atom_numbers'][s]
+            s_idx_i = idx_i_batch[atoms['neighbor_batch_idx'] == s]
+            s_idx_j = idx_j_batch[atoms['neighbor_batch_idx'] == s]
+            s_batch_idx = atoms['atom_batch_idx'][0] == s
+            s_batch_idx_in_fii = torch.where(s_batch_idx)[0]  # idx for fii
+            s_batch_pos = atoms['batch_idx_pos'][s_batch_idx] - (s * num_atoms_in_batch)
+
+            # off-diagonal matrix blocks
+            for i, j in zip(s_idx_i, s_idx_j):
+
                 irreps = []
-                if i == j: #diagonal block
-                    for n_i, orb_i in enumerate(self.orbital_basis[i]):
-                        z_i, l_i = orb_i
-                        for n_j, orb_j in enumerate(self.orbital_basis[j]):
-                            z_j, l_j = orb_j
-                            for L in range(abs(l_i-l_j), l_i+l_j+1):
-                                #self.irreps_ii is a dictionary that stores the index ii of the irrep
-                                ii = self.irreps_ii[(z_i, z_j, n_i, n_j, L)]
-                                irreps.append(fii[L].narrow(-3,i,1).narrow(-1,ii,1).squeeze(-3).squeeze(-1))
-                else: #off-diagonal block
-                    for n_i, orb_i in enumerate(self.orbital_basis[i]):
-                        z_i, l_i = orb_i
-                        for n_j, orb_j in enumerate(self.orbital_basis[j]):
-                            z_j, l_j = orb_j
-                            for L in range(abs(l_i-l_j), l_i+l_j+1):
-                                #self.irreps_ij is a dictionary that stores the index ij of the irrep
-                                ij = self.irreps_ij[(z_i, z_j, n_i, n_j, L)]
-                                irreps.append(fij[L].narrow(-3,idx,1).narrow(-1,ij,1).squeeze(-3).squeeze(-1))
-                    idx += 1 #increment interaction index
-                current_row.append(self.matrix_block(self.orbital_basis[i], self.orbital_basis[j], irreps, batch_size, j>i, device=R.device, dtype=R.dtype))
-            matrix_rows.append(torch.cat(current_row, -1))
 
-        matrix = torch.cat(matrix_rows,-2)
+                for n_i, orb_i in enumerate(self.orbital_basis[s_atom_numbers[i].item()]):
+                    z_i, _, l_i = orb_i
+
+                    for n_j, orb_j in enumerate(self.orbital_basis[s_atom_numbers[j].item()]):
+                        z_j, _, l_j = orb_j
+
+                        for L in range(abs(l_i - l_j), l_i+l_j+1):
+                            ij = self.irreps_ij[(z_i, z_j, n_i, n_j, L)]
+                            irreps.append(fij[L].narrow(-3, idx, 1).narrow(-1, ij, 1).squeeze(-3).squeeze(-1))
+
+                mblock = self.matrix_block(row=self.orbital_basis[z_i],
+                                            col=self.orbital_basis[z_j],
+                                            irreps=irreps,
+                                            batch_size=1,
+                                            j_gt_i=j>i,
+                                            device=R.device,
+                                            dtype=R.dtype)
+
+                row_offset, col_offset = ao_offsets[i.item()], ao_offsets[j.item()]
+
+                row_end = row_offset + mblock.shape[-2]
+                col_end = col_offset + mblock.shape[-1]
+                matrix[s, row_offset:row_end, col_offset:col_end] = mblock
+
+                idx += 1
+
+            # diagonal matrix blocks
+            for i in range(len(s_batch_pos)):
+                pos_in_batch = s_batch_pos[i]
+                pos_in_fii = s_batch_idx_in_fii[i]
+
+                irreps = []
+
+                for n_i , orb_i in enumerate(self.orbital_basis[s_atom_numbers[i].item()]):
+                    z_i, _, l_i = orb_i
+
+                    for n_j , orb_j in enumerate(self.orbital_basis[s_atom_numbers[i].item()]):
+                        z_j, _, l_j = orb_j
+
+                        for L in range(abs(l_i - l_j), l_i + l_j + 1):
+                            ii = self.irreps_ii[(z_i, z_j, n_i, n_j, L)]
+                            irreps.append(fii[L].narrow(-3, pos_in_fii, 1).narrow(-1, ii, 1).squeeze(-3).squeeze(-1))
+
+                mblock = self.matrix_block(row=self.orbital_basis[z_i],
+                                            col=self.orbital_basis[z_j],
+                                            irreps=irreps,
+                                            batch_size=1,
+                                            j_gt_i=j>i,
+                                            device=R.device,
+                                            dtype=R.dtype)
+
+                row_offset, col_offset = ao_offsets[pos_in_batch.item()], ao_offsets[pos_in_batch.item()]
+
+                row_end = row_offset + mblock.shape[-2]
+                col_end = col_offset + mblock.shape[-1]
+                matrix[s, row_offset:row_end, col_offset:col_end] = mblock
+
         matrix = matrix + matrix.transpose(-2,-1) #symmetrize
+
+        matrix = convert_ao_matrix(ao_matrix=matrix,
+                                   atom_numbers=atoms['batch_atom_numbers'],
+                                   convention='pyscf_augccpvdz')
 
         atoms[self.output_property_name] = matrix
 
