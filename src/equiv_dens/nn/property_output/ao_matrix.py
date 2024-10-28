@@ -548,8 +548,8 @@ class AOMatrixFromPairFeatures(nn.Module):
 
         idx_i_batch, idx_j_batch = remap_pair_idxs_for_padding(n_atoms=num_atoms_in_batch,
                                                                batch_idx_pos=atoms['batch_idx_pos'],
-                                                               idx_i=atoms['idx_i'],
-                                                               idx_j=atoms['idx_j'])
+                                                               idx_i=atoms['idx_i_noise'],
+                                                               idx_j=atoms['idx_j_noise'])
 
         # ao offset for each atom in batch
         ao_offsets = {0: 0}
@@ -560,8 +560,8 @@ class AOMatrixFromPairFeatures(nn.Module):
         idx = 0
         for s in range(batch_size):
             s_atom_numbers = atoms['batch_atom_numbers'][s]
-            s_idx_i = idx_i_batch[atoms['neighbor_batch_idx'] == s]
-            s_idx_j = idx_j_batch[atoms['neighbor_batch_idx'] == s]
+            s_idx_i = idx_i_batch[atoms['neighbor_noise_batch_idx'] == s]
+            s_idx_j = idx_j_batch[atoms['neighbor_noise_batch_idx'] == s]
             s_batch_idx = atoms['atom_batch_idx'][0] == s
             s_batch_idx_in_fii = torch.where(s_batch_idx)[0]  # idx for fii
             s_batch_pos = atoms['batch_idx_pos'][s_batch_idx] - (s * num_atoms_in_batch)
