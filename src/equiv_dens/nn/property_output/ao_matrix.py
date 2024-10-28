@@ -246,10 +246,30 @@ class AOMatrixFromAtomFeatures(nn.Module):
         num_orbitals = sum(num_orbitals_per_atom[z.item()] for z in max_atom_numbers)
         matrix = torch.zeros((batch_size, num_orbitals, num_orbitals), device=R.device)
 
+        # TODO do not use the same neighbor list as used for building representation and features
+        # use idx_i/j_noise and neighbor_noise_batch_idx instead (usually smaller cutoff)
+        # print(f"cutoff: {self.cutoff}")
+        # print(f"idx_i: {atoms['idx_i']}")
+        # print(f"idx_j: {atoms['idx_j']}")
+        # print(f"neighbor_batch_idx: {atoms['neighbor_batch_idx']}")
+        # print()
+        # print(f"noise_cutoff not an output module argument")
+        # print(f"idx_i_noise: {atoms['idx_i_noise']}")
+        # print(f"idx_j_noise: {atoms['idx_j_noise']}")
+        # print(f"neighbor_noise_batch_idx: {atoms['neighbor_noise_batch_idx']}")
+
+        # 0: H
+        # 1: H
+        # 2: O
+
         idx_i_batch, idx_j_batch = remap_pair_idxs_for_padding(n_atoms=num_atoms_in_batch,
                                                                batch_idx_pos=atoms['batch_idx_pos'],
-                                                               idx_i=atoms['idx_i'],
-                                                               idx_j=atoms['idx_j'])
+                                                               idx_i=atoms['idx_i_noise'],
+                                                               idx_j=atoms['idx_j_noise'])
+        
+        # print(f"idx_i_batch: {idx_i_batch}")
+        # print(f"idx_j_batch: {idx_j_batch}")
+
 
         # ao offset for each atom in batch
         ao_offsets = {0: 0}
@@ -260,14 +280,16 @@ class AOMatrixFromAtomFeatures(nn.Module):
         idx = 0
         for s in range(batch_size):
             s_atom_numbers = atoms['batch_atom_numbers'][s]
-            s_idx_i = idx_i_batch[atoms['neighbor_batch_idx'] == s]
-            s_idx_j = idx_j_batch[atoms['neighbor_batch_idx'] == s]
+            s_idx_i = idx_i_batch[atoms['neighbor_noise_batch_idx'] == s]
+            s_idx_j = idx_j_batch[atoms['neighbor_noise_batch_idx'] == s]
             s_batch_idx = atoms['atom_batch_idx'][0] == s
             s_batch_idx_in_fii = torch.where(s_batch_idx)[0]  # idx for fii
             s_batch_pos = atoms['batch_idx_pos'][s_batch_idx] - (s * num_atoms_in_batch)
 
             # off-diagonal matrix blocks
             for i, j in zip(s_idx_i, s_idx_j):
+
+                # print(f"off-diagonal: {i, j}")
 
                 irreps = []
 
@@ -301,6 +323,8 @@ class AOMatrixFromAtomFeatures(nn.Module):
             for i in range(len(s_batch_pos)):
                 pos_in_batch = s_batch_pos[i]
                 pos_in_fii = s_batch_idx_in_fii[i]
+
+                # print(f"diagonal: {i}")
 
                 irreps = []
 
@@ -345,7 +369,6 @@ class AOMatrixFromPairFeatures(nn.Module):
     from atom pair features in a blockwise rotationally equivariant way
     """
 
-    # TODO use sequential with (repr, matrix output)
     def __init__(self,
             orbital_basis        = None, #orbitals of atoms, defines layout and shape of output matrix
             order                = 1,  #maximum order of spherical harmonics features
@@ -354,7 +377,6 @@ class AOMatrixFromPairFeatures(nn.Module):
             num_residual_ao_ii  = 1, #number of residual blocks applied to output atomic features for predicting irreps of diagonal blocks (output matrix)
             num_residual_ao_ij  = 1, #number of residual blocks applied to pair features for predicting irreps of off-diagonal blocks (output matrix)
             basis_functions      = 'exp-bernstein', #type of radial basis functions (exp-gaussian/exp-bernstein/gaussian/bernstein)
-            cutoff               = 15.0, #cutoff distance (default is 15 Bohr)
             activation           = 'swish', #type of activation function used (swish/ssp)
             output_property_name = 'ao_matrix', # output property key of atoms dict, e.g. atoms['hamiltonian_matrix']
             load_from            = None, #if this is given the network is loaded from the specified .pth file and all other arguments are ignored
@@ -374,7 +396,6 @@ class AOMatrixFromPairFeatures(nn.Module):
         self.num_residual_ao_ii = num_residual_ao_ii
         self.num_residual_ao_ij = num_residual_ao_ij
         self.basis_functions = basis_functions
-        self.cutoff = cutoff
         self.activation = activation
         self.output_property_name = output_property_name
         #self.Zmax = Zmax
@@ -391,16 +412,6 @@ class AOMatrixFromPairFeatures(nn.Module):
 
         #declare modules and parameters
         self.clebsch_gordan = ClebschGordanMatrix()
-        if self.basis_functions == 'exp-gaussian':
-            self.radial_basis_functions = ExponentialGaussianRadialBasisFunctions(self.num_basis_functions, self.cutoff)
-        elif self.basis_functions == 'exp-bernstein':
-            self.radial_basis_functions = ExponentialBernsteinRadialBasisFunctions(self.num_basis_functions, self.cutoff)
-        elif self.basis_functions == 'gaussian':
-            self.radial_basis_functions = GaussianRadialBasisFunctions(self.num_basis_functions, self.cutoff)
-        elif self.basis_functions == 'bernstein':
-            self.radial_basis_functions = BernsteinRadialBasisFunctions(self.num_basis_functions, self.cutoff)
-        else:
-            print("basis function type:", self.basis_functions, "is not supported")
         self.mix_ij = PairMixing(self.order, self.order, self.order, self.num_basis_functions, self.num_features, self.clebsch_gordan)
         self.radial_ii = nn.ModuleList([nn.Linear(self.num_basis_functions, self.num_features, bias=False)
             for L in range(self.order+1)])
