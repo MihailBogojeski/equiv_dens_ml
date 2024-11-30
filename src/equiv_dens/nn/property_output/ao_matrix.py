@@ -247,16 +247,16 @@ class AOMatrixFromAtomFeatures(nn.Module):
         matrix = torch.zeros((batch_size, num_orbitals, num_orbitals), device=R.device)
 
         # TODO do not use the same neighbor list as used for building representation and features
-        # use idx_i/j_noise and neighbor_noise_batch_idx instead (usually smaller cutoff)
+        # use idx_i/j_ao_matrix and neighbor_ao_matrix_batch_idx instead (usually smaller cutoff)
         # print(f"cutoff: {self.cutoff}")
         # print(f"idx_i: {atoms['idx_i']}")
         # print(f"idx_j: {atoms['idx_j']}")
         # print(f"neighbor_batch_idx: {atoms['neighbor_batch_idx']}")
         # print()
-        # print(f"noise_cutoff not an output module argument")
-        # print(f"idx_i_noise: {atoms['idx_i_noise']}")
-        # print(f"idx_j_noise: {atoms['idx_j_noise']}")
-        # print(f"neighbor_noise_batch_idx: {atoms['neighbor_noise_batch_idx']}")
+        # print(f"ao_matrix_cutoff not an output module argument")
+        # print(f"idx_i_ao_matrix: {atoms['idx_i_ao_matrix']}")
+        # print(f"idx_j_ao_matrix: {atoms['idx_j_ao_matrix']}")
+        # print(f"neighbor_ao_matrix_batch_idx: {atoms['neighbor_ao_matrix_batch_idx']}")
 
         # 0: H
         # 1: H
@@ -264,8 +264,8 @@ class AOMatrixFromAtomFeatures(nn.Module):
 
         idx_i_batch, idx_j_batch = remap_pair_idxs_for_padding(n_atoms=num_atoms_in_batch,
                                                                batch_idx_pos=atoms['batch_idx_pos'],
-                                                               idx_i=atoms['idx_i_noise'],
-                                                               idx_j=atoms['idx_j_noise'])
+                                                               idx_i=atoms['idx_i_ao_matrix'],
+                                                               idx_j=atoms['idx_j_ao_matrix'])
         
         # print(f"idx_i_batch: {idx_i_batch}")
         # print(f"idx_j_batch: {idx_j_batch}")
@@ -280,8 +280,8 @@ class AOMatrixFromAtomFeatures(nn.Module):
         idx = 0
         for s in range(batch_size):
             s_atom_numbers = atoms['batch_atom_numbers'][s]
-            s_idx_i = idx_i_batch[atoms['neighbor_noise_batch_idx'] == s]
-            s_idx_j = idx_j_batch[atoms['neighbor_noise_batch_idx'] == s]
+            s_idx_i = idx_i_batch[atoms['neighbor_ao_matrix_batch_idx'] == s]
+            s_idx_j = idx_j_batch[atoms['neighbor_ao_matrix_batch_idx'] == s]
             s_batch_idx = atoms['atom_batch_idx'][0] == s
             s_batch_idx_in_fii = torch.where(s_batch_idx)[0]  # idx for fii
             s_batch_pos = atoms['batch_idx_pos'][s_batch_idx] - (s * num_atoms_in_batch)
@@ -548,8 +548,8 @@ class AOMatrixFromPairFeatures(nn.Module):
 
         idx_i_batch, idx_j_batch = remap_pair_idxs_for_padding(n_atoms=num_atoms_in_batch,
                                                                batch_idx_pos=atoms['batch_idx_pos'],
-                                                               idx_i=atoms['idx_i_noise'],
-                                                               idx_j=atoms['idx_j_noise'])
+                                                               idx_i=atoms['idx_i_ao_matrix'],
+                                                               idx_j=atoms['idx_j_ao_matrix'])
 
         # ao offset for each atom in batch
         ao_offsets = {0: 0}
@@ -560,8 +560,8 @@ class AOMatrixFromPairFeatures(nn.Module):
         idx = 0
         for s in range(batch_size):
             s_atom_numbers = atoms['batch_atom_numbers'][s]
-            s_idx_i = idx_i_batch[atoms['neighbor_noise_batch_idx'] == s]
-            s_idx_j = idx_j_batch[atoms['neighbor_noise_batch_idx'] == s]
+            s_idx_i = idx_i_batch[atoms['neighbor_ao_matrix_batch_idx'] == s]
+            s_idx_j = idx_j_batch[atoms['neighbor_ao_matrix_batch_idx'] == s]
             s_batch_idx = atoms['atom_batch_idx'][0] == s
             s_batch_idx_in_fii = torch.where(s_batch_idx)[0]  # idx for fii
             s_batch_pos = atoms['batch_idx_pos'][s_batch_idx] - (s * num_atoms_in_batch)

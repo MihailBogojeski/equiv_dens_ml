@@ -64,7 +64,7 @@ class AtomsDensityData(Dataset):
         radii_adjust=True,
         projected_density=False,
         cutoff=7.937658158457616,  # cutoff distance for neighborhood selection
-        noise_cutoff=7.937658158457616,  # cutoff distance for ao matrix construction
+        ao_matrix_cutoff=7.937658158457616,  # cutoff distance for ao matrix construction
         df_loss_weights=False,
         calc_data=False,
         atom_dens_path=None,
@@ -96,7 +96,7 @@ class AtomsDensityData(Dataset):
         self.timing = timing
         self.projected_density = projected_density
         self.cutoff = cutoff
-        self.noise_cutoff = noise_cutoff
+        self.ao_matrix_cutoff = ao_matrix_cutoff
         self.calc_data = calc_data
         self.atom_dens_type = atom_dens_type
         self.split_atom_dens = split_atom_dens
@@ -496,12 +496,12 @@ class AtomsDensityData(Dataset):
         properties["_idx"] = torch.LongTensor(np.array(idx, dtype=int))
         neighbor_start = time.time()
         # print(f"cutoff: {self.cutoff}")
-        # print(f"noise_cutoff: {self.noise_cutoff}")
+        # print(f"ao_matrix_cutoff: {self.ao_matrix_cutoff}")
         nl = utils.TorchNeighborList(self.cutoff)
         idx_is, idx_js, _ = nl.get_neighbors(properties)
 
-        nl_noise = utils.TorchNeighborList(self.noise_cutoff)
-        idx_is_noise, idx_js_noise, _ = nl_noise.get_neighbors(properties)
+        nl_ao_matrix = utils.TorchNeighborList(self.ao_matrix_cutoff)
+        idx_is_ao_matrix, idx_js_ao_matrix, _ = nl_ao_matrix.get_neighbors(properties)
 
         neighbor_batch_idx = []
         prev_max = 0
@@ -512,14 +512,14 @@ class AtomsDensityData(Dataset):
             prev_max += n_atoms
             neighbor_batch_idx.append(torch.ones_like(idx_is[i]) * i)
 
-        neighbor_noise_batch_idx = []
+        neighbor_ao_matrix_batch_idx = []
         prev_max = 0
-        for i in range(len(idx_is_noise)):
+        for i in range(len(idx_is_ao_matrix)):
             n_atoms = torch.sum(properties["atom_mask"][i])
-            idx_is_noise[i] += prev_max
-            idx_js_noise[i] += prev_max
+            idx_is_ao_matrix[i] += prev_max
+            idx_js_ao_matrix[i] += prev_max
             prev_max += n_atoms
-            neighbor_noise_batch_idx.append(torch.ones_like(idx_is_noise[i]) * i)
+            neighbor_ao_matrix_batch_idx.append(torch.ones_like(idx_is_ao_matrix[i]) * i)
 
         atom_batch_idx = np.zeros_like(atom_numbers)
         for i in range(len(atom_numbers)):
@@ -531,16 +531,16 @@ class AtomsDensityData(Dataset):
         final_start = time.time()
         idx_is = torch.cat(idx_is, dim=0)
         idx_js = torch.cat(idx_js, dim=0)
-        idx_is_noise = torch.cat(idx_is_noise, dim=0)
-        idx_js_noise = torch.cat(idx_js_noise, dim=0)
+        idx_is_ao_matrix = torch.cat(idx_is_ao_matrix, dim=0)
+        idx_js_ao_matrix = torch.cat(idx_js_ao_matrix, dim=0)
         neighbor_batch_idx = torch.cat(neighbor_batch_idx, dim=0)
-        neighbor_noise_batch_idx = torch.cat(neighbor_noise_batch_idx, dim=0)
+        neighbor_ao_matrix_batch_idx = torch.cat(neighbor_ao_matrix_batch_idx, dim=0)
         properties["idx_i"] = idx_is
         properties["idx_j"] = idx_js
-        properties["idx_i_noise"] = idx_is_noise
-        properties["idx_j_noise"] = idx_js_noise
+        properties["idx_i_ao_matrix"] = idx_is_ao_matrix
+        properties["idx_j_ao_matrix"] = idx_js_ao_matrix
         properties["neighbor_batch_idx"] = neighbor_batch_idx
-        properties["neighbor_noise_batch_idx"] = neighbor_noise_batch_idx
+        properties["neighbor_ao_matrix_batch_idx"] = neighbor_ao_matrix_batch_idx
         properties["batch_atom_numbers"] = properties["atom_numbers"] * 1
         properties["batch_atom_mask"] = (properties["atom_mask"] * 1).type(torch.bool)
         properties["batch_positions"] = properties["positions"] * 1

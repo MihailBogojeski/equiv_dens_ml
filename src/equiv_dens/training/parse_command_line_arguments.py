@@ -88,7 +88,7 @@ def parse_command_line_arguments(arg_file=None):
                                   help="which type of basis functions to use")
     args_hyperparams.add_argument("--cutoff", metavar='FLOAT', type=float, default=7.937658158457616,
                                   help="cutoff radius for interactions (default corresponds to 15 Bohr)")
-    args_hyperparams.add_argument("--noise_cutoff", metavar='FLOAT', type=float, default=7.937658158457616,
+    args_hyperparams.add_argument("--ao_matrix_cutoff", metavar='FLOAT', type=float, default=7.937658158457616,
                                   help="cutoff radius for ao matrix construction (default corresponds to 15 Bohr)")
     args_hyperparams.add_argument("--orthonormal_basis", metavar='True|False', type=str2bool, default=False,
                                   choices=[True, False],
