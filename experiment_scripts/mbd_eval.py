@@ -246,10 +246,10 @@ for i in range(50):
     print('dpm error', dpm_err[i])
     density_err.append(dens_err.numpy(force=True))
     wA, atomic_charges, dipoles, volume_ratio = hirshfeld_analysis.hirshfeld_partitioning(samp['density'],
-                                                                                        samp['atom_density_split'],
-                                                                                        samp['batch_positions'], samp['batch_atom_numbers'],
-                                                                                        samp['coords'], samp['coord_weights'],
-                                                                                        to_bohr=True)
+                                                                                          samp['atom_density_split'],
+                                                                                          samp['batch_positions'], samp['batch_atom_numbers'],
+                                                                                          samp['coords'], samp['coord_weights'],
+                                                                                          to_bohr=True)
     pos = utils.angstrom_to_bohr(samp['batch_positions'][0].numpy(force=True))
     nums = samp['batch_atom_numbers'][0].numpy(force=True)
     # print('v ratio', volume_ratio[0])

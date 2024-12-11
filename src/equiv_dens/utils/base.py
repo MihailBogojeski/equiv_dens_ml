@@ -289,7 +289,10 @@ def npy_to_xyz(npy_data, filename):
     ase.io.write(filename, mols, parallel=False)
 
 
-def npy_to_pyscf(pos, atom_list, basis, build=False, skip_zero=True):
+def npy_to_pyscf(pos, atom_list, basis, build=False, skip_zero=True, ml_basis=False):
+    if ml_basis:
+        old_normalize = pyscf.gto.mole.NORMALIZE_GTO
+        pyscf.gto.mole.NORMALIZE_GTO = False
     if atom_list.ndim == 1:
         atom_list = atom_list[None, :]
     if pos.ndim == 2:
@@ -301,16 +304,26 @@ def npy_to_pyscf(pos, atom_list, basis, build=False, skip_zero=True):
         max_anum = np.max(atom_list, axis=0)
         atom_list = np.tile(max_anum, (atom_list.shape[0], 1))
     for i in range(pos.shape[0]):
-        atom = [(int(atom_list[i, j]),
+        if ml_basis:
+            atom_types, _ = create_ghost_atom_types(atom_list[i])
+        else:
+            atom_types = atom_list[i].astype(int)
+        if isinstance(basis, list):
+            basis_curr = basis[i]
+        else:
+            basis_curr = basis
+        atom = [(atom_types[j],
                 pos[i, j]) for j in range(pos.shape[1]) if atom_list[i, j] != 0]
         # mol = gto.M(atom=atom, basis=basis)
         if (np.sum(atom_list[i, :]) % 2 == 1):
-            mol = gto.Mole(atom=atom, spin=1, basis=basis)
+            mol = gto.Mole(atom=atom, spin=1, basis=basis_curr)
         else:
-            mol = gto.Mole(atom=atom, basis=basis)
+            mol = gto.Mole(atom=atom, basis=basis_curr)
         if build:
             mol.build()
         mols.append(mol)
+    if ml_basis:
+        pyscf.gto.mole.NORMALIZE_GTO = old_normalize
     return mols
 
 
@@ -906,7 +919,7 @@ def get_pyscf_coords(grid_spec, density_n_samp, atom_numbers, positions):
         atom_numbers = atom_numbers.unsqueeze(0)
         pos = pos.unsqueeze(0)
     for i in range(atom_numbers.shape[0]):
-        atom = [(atom_numbers[i, j], pos[i, j]) for j in range(atom_numbers.shape[1])]
+        atom = [(atom_numbers[i, j], pos[i, j]) for j in range(atom_numbers.shape[1]) if atom_numbers[i, j] > 0]
         mol = gto.Mole(atom=atom)
         if not mol._built:
             mol.build()
@@ -928,6 +941,7 @@ def get_pyscf_coords(grid_spec, density_n_samp, atom_numbers, positions):
     pad_weights = nn.utils.rnn.pad_sequence(all_weights, batch_first=True, padding_value=0)
     return pad_coords, pad_weights
 
+
 def center_of_mass(positions, atom_numbers, keepdim=True):
     """
     Compute the center of mass of a set of atoms.
@@ -941,3 +955,25 @@ def center_of_mass(positions, atom_numbers, keepdim=True):
     """
     return torch.sum(positions * atom_numbers.unsqueeze(-1), dim=1, keepdim=keepdim)\
         / torch.sum(atom_numbers.unsqueeze(-1), dim=1, keepdim=keepdim)
+
+
+def create_ghost_atom_types(atom_numbers):
+    atom_types = []
+    atom_nums = []
+
+    num_dict = {}
+
+    for an in atom_numbers:
+        if an == 0:
+            continue
+        an = an.item()
+        symb = numbers_to_symbols([an])[0]
+        atom_nums.append(an)
+        if an in num_dict:
+            atom_types.append(symb + str(num_dict[an]))
+            num_dict[an] += 1
+        else:
+            atom_types.append(symb + str(0))
+            num_dict[an] = 1
+
+    return atom_types, atom_nums
