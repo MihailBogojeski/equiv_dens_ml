@@ -8,7 +8,7 @@ file = sys.argv[1]
 every = int(sys.argv[2])
 
 data = HDF5Loader(file, load_properties=False)
-positions = data.properties['_positions'].squeeze(1)[::every] * 10
+positions = data.properties['_positions'][::every] * 10
 atom_numbers = data.properties['_atomic_numbers']
 print('positions.shape', positions.shape)
 print('atom_numbers.shape', atom_numbers.shape)
