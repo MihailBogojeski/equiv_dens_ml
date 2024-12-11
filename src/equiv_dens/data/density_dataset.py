@@ -145,8 +145,10 @@ class AtomsDensityData(Dataset):
             self.calc_basis_num = orbitals.get_num_basis(self.calc_basis, all_atom_numbers)
             self.calc_basis_size = orbitals.get_basis_size(self.calc_basis_num)
         elif self.density_path is not None:
-            mol_dict = calc_results[0][0]
-            mol = gto.Mole(**mol_dict)
+            atom = [[num, [num, 0, 0]] for num in all_atom_numbers]
+            print('atom', atom)
+            basis = calc_results[0][0]['basis']
+            mol = gto.Mole(atom=atom, basis=basis, spin=np.sum(all_atom_numbers) % 2)
             mol.build()
             self.calc_basis = orbitals.get_basis_from_mol(mol)[0]
             self.calc_basis_num = orbitals.get_num_basis(self.calc_basis, all_atom_numbers)
@@ -389,7 +391,7 @@ class AtomsDensityData(Dataset):
             idx = [idx]
 
         # extract properties
-        print('required properties in get', self.required_properties)
+        # print('required properties in get', self.required_properties)
         props_start = time.time()
         atom_numbers = self.atoms["atom_numbers"][idx]
         atom_props = {"positions": self.atoms["positions"][idx]}
@@ -415,7 +417,7 @@ class AtomsDensityData(Dataset):
                 mol_props[pname] = [self.calc_dict[i][pname] for i in idx]
                 mol_props[pname] = np.stack(mol_props[pname], axis=0)
         # print('atom numbers', atom_numbers)
-        # print('props', atom_props)
+        print('props', atom_props.keys())
         atom_numbers, props = utils.compress_batch_atoms(
             atom_numbers, atom_props,
             df_basis_size=self.orbital_basis_size,
