@@ -125,18 +125,21 @@ for file in files:
     out_exists = os.path.exists(os.path.join('results', fname))
     if 'npy' != file[-3:] or out_exists:
         print('skipping file')
-        continue 
+        continue
     data_npy = np.load(file, allow_pickle=True).item()
+    if data_npy['atom_numbers'].ndim == 1:
+        data_npy['atom_numbers'] = np.tile(data_npy['atom_numbers'][None, :],
+                                           (data_npy['positions'].shape[0], 1))
     data_pos = 0
-    data_npy['dipole_moment'] = None 
+    data_npy['dipole_moment'] = None
     print('data len', data_npy['positions'].shape)
 
-    # dpm_errors = None 
     while data_pos < data_npy['positions'].shape[0]:
         if data_pos + main_args.batch_size > data_npy['positions'].shape[0]:
             max_pos = data_npy['positions'].shape[0]
         else:
             max_pos = data_pos + main_args.batch_size
+
         batch_npy = {'positions': data_npy['positions'][data_pos:max_pos],
                      'atom_numbers': data_npy['atom_numbers'][data_pos:max_pos]}
         start = time.time()
@@ -165,9 +168,7 @@ for file in files:
         if data_npy['dipole_moment'] is None:
             data_npy['dipole_moment'] = np_dpm
         else:
-            data_npy['dipole_moment'] = np.concatenate([data_npy['dipole_moment'],
-                                                        np_dpm],
-                                                       axis=0)
+            data_npy['dipole_moment'] = np.concatenate([data_npy['dipole_moment'], np_dpm], axis=0)
 
         # samp = dataset.get_properties(np.arange(data_pos, max_pos))
         # for key in samp.keys():
