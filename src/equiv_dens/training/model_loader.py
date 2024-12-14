@@ -273,7 +273,6 @@ def load_model(args, dataset, train=False):
                 num_residual_ao_ii=args.num_residual_ao_ii,
                 num_residual_ao_ij=args.num_residual_ao_ij,
                 basis_functions=args.basis_functions,
-                cutoff=args.cutoff,
                 activation=args.activation,
                 output_property_name="hamiltonian_matrix"
             )
@@ -288,7 +287,6 @@ def load_model(args, dataset, train=False):
                 num_residual_ao_ii=args.num_residual_ao_ii,
                 num_residual_ao_ij=args.num_residual_ao_ij,
                 basis_functions=args.basis_functions,
-                cutoff=args.cutoff,
                 activation=args.activation,
                 output_property_name="density_matrix"
             )
