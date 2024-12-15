@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from .activations import Swish, ShiftedSoftplus
+from .activations import Swish, ShiftedSoftplus, NormGate
 from .spherical_harmonic_layers import PairMixing, PairInteraction, SphericalLinear
 import numpy as np
 
@@ -776,6 +776,64 @@ class ResidualBlock(nn.Module):
                 scale = np.sqrt(1/2)
             ys[L] = ys[L] * scale + xs[L] * scale
         # print('ys post residual norm:', [float(torch.mean(ys[L]**2)) for L in range(len(ys))])
+        return ys
+    
+
+class SimplifiedResidualBlock(nn.Module):
+
+    def __init__(self,
+                 order,
+                 num_features,
+                 clebsch_gordan=None,
+                 mix_orders=True,
+                 activation="swish",
+                 normalize=0,
+                 order_out=None,
+                 parity=False,
+                 bias=True):
+        super(SimplifiedResidualBlock, self).__init__()
+        self.order = order
+        self.num_features = num_features
+        self.normalize = normalize
+        self.mix_orders = mix_orders
+        if order_out is None:
+            self.order_out = self.order
+        else:
+            self.order_out = order_out
+        if self.mix_orders:
+            assert clebsch_gordan is not None
+        if activation == "swish":
+            self.activation_pre = Swish(self.num_features)
+        elif activation == "ssp":
+            self.activation_pre = ShiftedSoftplus(self.num_features)
+        else:
+            raise ValueError("Unsupported activation function:", activation)
+        
+        self.normgate = NormGate(self.num_features, self.order, mlp_activation=activation)
+
+        self.linear = SphericalLinear(
+            order_in=self.order,
+            num_in=self.num_features,
+            order_out=self.order_out,
+            num_out=self.num_features,
+            clebsch_gordan=clebsch_gordan,
+            mix_orders=self.mix_orders,
+            normalize=normalize,
+            parity=parity,
+            bias=bias,
+        )
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        pass
+
+    def forward(self, xs):
+        ys = self.normgate(xs)
+
+        ys[0] = self.activation_pre(ys[0])
+        ys = self.linear(ys)
+
+        ys = [ys[i] + xs[i] for i in range(len(xs))]  # residual connection
         return ys
 
 
