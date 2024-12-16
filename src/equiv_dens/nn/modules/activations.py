@@ -65,16 +65,16 @@ class NormGate(nn.Module):
         self.max_order = max_order
         
         if mlp_activation == "swish":
-            self.mlp_activation = Swish((self.max_order + 1) * self.num_features)
+            self.mlp_activation = Swish(self.num_features)
         elif mlp_activation == "ssp":
-            self.mlp_activation = ShiftedSoftplus((self.max_order + 1) * self.num_features)
+            self.mlp_activation = ShiftedSoftplus(self.num_features)
         else:
             raise ValueError(f"Unsupported activation function: {mlp_activation}")
 
         self.mlp = nn.Sequential(
-            nn.Linear((self.max_order + 1) * self.num_features, (self.max_order + 1) * self.num_features),
+            nn.Linear((self.max_order + 1) * self.num_features, self.num_features),
             self.mlp_activation,
-            nn.Linear((self.max_order + 1) * self.num_features, (self.max_order + 1) * self.num_features))
+            nn.Linear(self.num_features, (self.max_order + 1) * self.num_features))
 
     def forward(self, x):
 
