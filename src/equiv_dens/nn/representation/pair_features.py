@@ -81,6 +81,9 @@ class PairFeatures(nn.Module):
         self.residual_ii = ResidualStack(self.num_residual_ii, self.order, self.num_features, self.clebsch_gordan, True, self.activation)
         self.residual_ij = ResidualStack(self.num_residual_ij, self.order, self.num_features, self.clebsch_gordan, True, self.activation)
 
+        # self.normgate = NormGate(self.num_features, self.order, self.activation)
+        # self.simple_residual = SimplifiedResidualBlock(self.order, self.num_features, self.clebsch_gordan, True, self.activation)
+        # self.diagonal_pair = DiagonalPair(self.order, self.num_features, self.num_basis_functions, self.clebsch_gordan, True, self.activation)
 
     def forward(self, atoms):
 
@@ -92,15 +95,13 @@ class PairFeatures(nn.Module):
         fpc = self.residual_pc(fs) #central pair features
         fpn = self.residual_pn(fs) #neighbor pair features
 
-        #compute pair features for self-interactions
-        fii = [1*x for x in fpc]
-        for L in range(self.order+1): #add influence of neighbouring atoms to pairs
-            idx_j  = atoms['idx_j'].view(*(1,)*len(fpn[L].shape[:-3]),-1,1,1).repeat(*fpn[L].shape[:-3], 1, *fpn[L].shape[-2:])
-            fpn_j  = self.radial_ii[L](rbf)*torch.gather(fpn[L], 1, idx_j)
-            fii[L] = fii[L].index_add(1, atoms['idx_i'], fpn_j)
 
-        #compute output features (irreducible representations) for self-interactions
-        fii = self.residual_ii(fii)
+        # #compute pair features for self-interactions
+        # fii = [1*x for x in fpc]
+        # for L in range(self.order+1): #add influence of neighbouring atoms to pairs
+        #     idx_j  = atoms['idx_j'].view(*(1,)*len(fpn[L].shape[:-3]),-1,1,1).repeat(*fpn[L].shape[:-3], 1, *fpn[L].shape[-2:])
+        #     fpn_j  = self.radial_ii[L](rbf)*torch.gather(fpn[L], 1, idx_j)
+        #     fii[L] = fii[L].index_add(1, atoms['idx_i'], fpn_j)
 
         #gather atomic pairs
         fi = []
@@ -110,6 +111,15 @@ class PairFeatures(nn.Module):
             j = atoms['idx_j'].view(*(1,)*len(fpc[L].shape[:-3]),-1,1,1).repeat(*fpc[L].shape[:-3], 1, *fpc[L].shape[-2:])
             fi.append(torch.gather(fpc[L], 1, i))
             fj.append(torch.gather(fpc[L], 1, j))
+
+        # print("before diagonal_pair")
+        # print("\n".join(f"fi[{l}]: {fi[l].shape}" for l in range(len(fi))))
+        fii = self.diagonal_pair(fi, rbf)
+        # print("after diagonal_pair")
+        # print("\n".join(f"fii[{l}]: {fii[l].shape}" for l in range(len(fii))))
+
+        #compute output features (irreducible representations) for self-interactions
+        # fii = self.residual_ii(fii)
 
         #generate index lists for asymmetrizing pair interactions
         idx_pi = []
@@ -140,3 +150,87 @@ class PairFeatures(nn.Module):
         atoms['pair_features'] = fii, fij
 
         return atoms
+    
+
+class DiagonalPair(nn.Module):
+
+    def __init__(self,
+                 order,
+                 num_features,
+                 num_basis_functions,
+                 clebsch_gordan=None,
+                 mix_order=True,
+                 activation='swish',
+                 normalize=0,
+                 order_out=None,
+                 parity=False,
+                 bias=True):
+        super().__init__()
+
+        self.order = order
+        self.num_features = num_features
+        self.num_basis_functions = num_basis_functions
+        self.clebsch_gordan = clebsch_gordan
+        self.noramlize = normalize
+        self.mix_orders = mix_order
+
+        if order_out is None:
+            self.order_out = self.order
+        else:
+            self.order_out = order_out
+
+        if self.mix_orders:
+            assert clebsch_gordan is not None
+
+        if activation == "swish":
+            self.activation_pre = Swish(self.num_features)
+        elif activation == "ssp":
+            self.activation_pre = ShiftedSoftplus(self.num_features)
+        else:
+            raise ValueError("Unsupported activation function:", activation)
+        
+        self.simple_residual_l = SimplifiedResidualBlock(order=self.order,
+                                                         num_features=self.num_features,
+                                                         clebsch_gordan=self.clebsch_gordan, 
+                                                         mix_orders=True,
+                                                         activation=activation,
+                                                         normalize=normalize,
+                                                         order_out=self.order_out,
+                                                         parity=parity,
+                                                         bias=bias)
+        self.simple_residual_r = SimplifiedResidualBlock(order=self.order,
+                                                         num_features=self.num_features,
+                                                         clebsch_gordan=self.clebsch_gordan, 
+                                                         mix_orders=True,
+                                                         activation=activation,
+                                                         normalize=normalize,
+                                                         order_out=self.order_out,
+                                                         parity=parity,
+                                                         bias=bias)
+        
+        self.mix_lr = PairMixing(self.order, self.order, self.order, self.num_basis_functions, self.num_features, self.clebsch_gordan)
+
+        self.simple_residual_out = SimplifiedResidualBlock(order=self.order,
+                                                         num_features=self.num_features,
+                                                         clebsch_gordan=self.clebsch_gordan, 
+                                                         mix_orders=True,
+                                                         activation=activation,
+                                                         normalize=normalize,
+                                                         order_out=self.order_out,
+                                                         parity=parity,
+                                                         bias=bias)
+
+    def forward(self, x, rbf):
+        xl = self.simple_residual_l(x)
+        xr = self.simple_residual_r(x)
+
+        # print("\n".join(f"xl[{l}]: {xl[l].shape}" for l in range(len(xl))))
+        # print("\n".join(f"xr[{l}]: {xr[l].shape}" for l in range(len(xr))))
+        
+        fii = self.mix_lr(xl, xr, rbf)
+
+        fii = [fii[i] + x[i] for i in range(len(x))]  # residual connection
+
+        fii = self.simple_residual_out(fii)
+
+        return fii
