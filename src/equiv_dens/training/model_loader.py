@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 from equiv_dens.nn.dft_network import DFTNetwork
 from equiv_dens.nn.representation.spherical_harmonic import EquivariantSphericalHarmonics
-from equiv_dens.nn.representation.pair_features import PairFeatures
+from equiv_dens.nn.representation.pair_features import PairFeatures, PairFeaturesV2
 from equiv_dens.nn.property_output.energy import SphericalHarmonicsEnergyNetwork,\
     SphericalLinearEnergyNetwork, RepresentationEnergyNetwork
 from equiv_dens.nn.property_output.density import DensityCoeffsNetwork, DFDensityCoeffs,\
@@ -71,34 +71,65 @@ def load_model(args, dataset, train=False):
                                                 )
     # core density expansion not applicable here
     else:
-        repr_class = EquivariantSphericalHarmonics
+        if args.use_V2_model:
+            print("use V2 representation model (same as V1 for now)")
+            repr_class = EquivariantSphericalHarmonics
 
-        repr_model = repr_class(
-            orbital_basis=dataset.orbital_basis_num,
-            order=args.order,
-            num_features=args.num_features,
-            num_basis_functions=args.num_basis_functions,
-            num_modules=args.num_modules,
-            num_residual_pre_x=args.num_residual_pre_x,
-            num_residual_post_x=args.num_residual_post_x,
-            num_residual_pre_vi=args.num_residual_pre_vi,
-            num_residual_pre_vj=args.num_residual_pre_vj,
-            num_residual_post_v=args.num_residual_post_v,
-            num_residual_output=args.num_residual_output,
-            num_radial_components=args.num_radial_components,
-            num_neighbours=args.num_neighbours,
-            basis_functions=args.basis_functions,
-            cutoff=args.cutoff,
-            activation=args.activation,
-            clebsch_gordan=clebsch_gordan,
-            verbose=args.verbose,
-            timing=args.timing,
-            memory=args.memory,
-            normalize=args.normalize,
-            parity=args.parity_dens,
-            nonmixing_interaction=args.nonmixing_interaction,
-            nonmixing_interaction_residual=args.nonmixing_interaction_residual,
-        )
+            repr_model = repr_class(
+                orbital_basis=dataset.orbital_basis_num,
+                order=args.order,
+                num_features=args.num_features,
+                num_basis_functions=args.num_basis_functions,
+                num_modules=args.num_modules,
+                num_residual_pre_x=args.num_residual_pre_x,
+                num_residual_post_x=args.num_residual_post_x,
+                num_residual_pre_vi=args.num_residual_pre_vi,
+                num_residual_pre_vj=args.num_residual_pre_vj,
+                num_residual_post_v=args.num_residual_post_v,
+                num_residual_output=args.num_residual_output,
+                num_radial_components=args.num_radial_components,
+                num_neighbours=args.num_neighbours,
+                basis_functions=args.basis_functions,
+                cutoff=args.cutoff,
+                activation=args.activation,
+                clebsch_gordan=clebsch_gordan,
+                verbose=args.verbose,
+                timing=args.timing,
+                memory=args.memory,
+                normalize=args.normalize,
+                parity=args.parity_dens,
+                nonmixing_interaction=args.nonmixing_interaction,
+                nonmixing_interaction_residual=args.nonmixing_interaction_residual,
+            )
+        else:
+            repr_class = EquivariantSphericalHarmonics
+
+            repr_model = repr_class(
+                orbital_basis=dataset.orbital_basis_num,
+                order=args.order,
+                num_features=args.num_features,
+                num_basis_functions=args.num_basis_functions,
+                num_modules=args.num_modules,
+                num_residual_pre_x=args.num_residual_pre_x,
+                num_residual_post_x=args.num_residual_post_x,
+                num_residual_pre_vi=args.num_residual_pre_vi,
+                num_residual_pre_vj=args.num_residual_pre_vj,
+                num_residual_post_v=args.num_residual_post_v,
+                num_residual_output=args.num_residual_output,
+                num_radial_components=args.num_radial_components,
+                num_neighbours=args.num_neighbours,
+                basis_functions=args.basis_functions,
+                cutoff=args.cutoff,
+                activation=args.activation,
+                clebsch_gordan=clebsch_gordan,
+                verbose=args.verbose,
+                timing=args.timing,
+                memory=args.memory,
+                normalize=args.normalize,
+                parity=args.parity_dens,
+                nonmixing_interaction=args.nonmixing_interaction,
+                nonmixing_interaction_residual=args.nonmixing_interaction_residual,
+            )
 
         density_coeffs_network = DensityCoeffsNetwork
         density_expansion = DensityExpansion
@@ -248,20 +279,40 @@ def load_model(args, dataset, train=False):
     print(f"density matrix loss comp weights: {args.density_matrix_loss_comp_weights}")
     if args.ao_matrix_from_pair_features:
 
-        print('Building pair features module')
-        pair_features = PairFeatures(
-            orbital_basis=dataset.calc_basis_num,
-            order=args.order[-1],
-            num_features=args.num_features,
-            num_basis_functions=args.num_basis_functions,
-            num_residual_pc=args.num_residual_pc,
-            num_residual_pn=args.num_residual_pn,
-            num_residual_ii=args.num_residual_ii,
-            num_residual_ij=args.num_residual_ij,
-            basis_functions=args.basis_functions,
-            cutoff=args.cutoff,
-            activation=args.activation
-        )
+        if args.use_V2_model:
+            print("use V2 pair features model")
+            pair_features = PairFeaturesV2(
+                orbital_basis=dataset.calc_basis_num,
+                order=args.order[-1],
+                num_features=args.num_features,
+                num_basis_functions=args.num_basis_functions,
+                num_residual_pc=args.num_residual_pc,
+                num_residual_pn=args.num_residual_pn,
+                num_residual_ii=args.num_residual_ii,
+                num_residual_ij=args.num_residual_ij,
+                basis_functions=args.basis_functions,
+                cutoff=args.cutoff,
+                activation=args.activation,
+                num_hidden_att_mlp=args.num_hidden_att_mlp,
+                num_hidden_rbf_mlp=args.num_hidden_rbf_mlp,
+                num_hidden_normgate_mlp=args.num_hidden_normgate_mlp
+            )
+
+        else:
+            print('Building pair features module')
+            pair_features = PairFeatures(
+                orbital_basis=dataset.calc_basis_num,
+                order=args.order[-1],
+                num_features=args.num_features,
+                num_basis_functions=args.num_basis_functions,
+                num_residual_pc=args.num_residual_pc,
+                num_residual_pn=args.num_residual_pn,
+                num_residual_ii=args.num_residual_ii,
+                num_residual_ij=args.num_residual_ij,
+                basis_functions=args.basis_functions,
+                cutoff=args.cutoff,
+                activation=args.activation
+            )
 
         if args.hamiltonian_matrix_weight > 0:
             print('Building hamiltonian matrix model from pair features')
@@ -291,39 +342,45 @@ def load_model(args, dataset, train=False):
                 output_property_name="density_matrix"
             )
     else:
-        if args.hamiltonian_matrix_weight > 0:
-            print('Building hamiltonian matrix model')
-            hm_model = AOMatrixFromAtomFeatures(
-                orbital_basis=dataset.calc_basis_num,
-                order=args.order[-1],
-                num_features=args.num_features,
-                num_basis_functions=args.num_basis_functions,
-                num_residual_pc=args.num_residual_pc,
-                num_residual_pn=args.num_residual_pn,
-                num_residual_ii=args.num_residual_ii,
-                num_residual_ij=args.num_residual_ij,
-                basis_functions=args.basis_functions,
-                cutoff=args.cutoff,
-                activation=args.activation,
-                output_property_name="hamiltonian_matrix"
-            )
+        if args.use_V2_model:
+            if args.hamiltonian_matrix_weight > 0:
+                print("Building V2 hamiltonian matrix model")
+            if args.density_matrix_weight > 0:
+                print("Building V2 density matrix model")
+        else:
+            if args.hamiltonian_matrix_weight > 0:
+                print('Building hamiltonian matrix model')
+                hm_model = AOMatrixFromAtomFeatures(
+                    orbital_basis=dataset.calc_basis_num,
+                    order=args.order[-1],
+                    num_features=args.num_features,
+                    num_basis_functions=args.num_basis_functions,
+                    num_residual_pc=args.num_residual_pc,
+                    num_residual_pn=args.num_residual_pn,
+                    num_residual_ii=args.num_residual_ii,
+                    num_residual_ij=args.num_residual_ij,
+                    basis_functions=args.basis_functions,
+                    cutoff=args.cutoff,
+                    activation=args.activation,
+                    output_property_name="hamiltonian_matrix"
+                )
 
-        if args.density_matrix_weight > 0:
-            print('Building density matrix model')
-            dm_model = AOMatrixFromAtomFeatures(
-                orbital_basis=dataset.calc_basis_num,
-                order=args.order[-1],
-                num_features=args.num_features,
-                num_basis_functions=args.num_basis_functions,
-                num_residual_pc=args.num_residual_pc,
-                num_residual_pn=args.num_residual_pn,
-                num_residual_ii=args.num_residual_ii,
-                num_residual_ij=args.num_residual_ij,
-                basis_functions=args.basis_functions,
-                cutoff=args.cutoff,
-                activation=args.activation,
-                output_property_name="density_matrix"
-            )
+            if args.density_matrix_weight > 0:
+                print('Building density matrix model')
+                dm_model = AOMatrixFromAtomFeatures(
+                    orbital_basis=dataset.calc_basis_num,
+                    order=args.order[-1],
+                    num_features=args.num_features,
+                    num_basis_functions=args.num_basis_functions,
+                    num_residual_pc=args.num_residual_pc,
+                    num_residual_pn=args.num_residual_pn,
+                    num_residual_ii=args.num_residual_ii,
+                    num_residual_ij=args.num_residual_ij,
+                    basis_functions=args.basis_functions,
+                    cutoff=args.cutoff,
+                    activation=args.activation,
+                    output_property_name="density_matrix"
+                )
 
     if args.density_coeffs:
         density_model = nn.Sequential(repr_model, dens_model)
