@@ -255,7 +255,7 @@ class SelfMixing(nn.Module):
 
 
 class PairMixing(nn.Module):
-    """Mixes pairs of atomic features in a distance dependent way and outputs pair features."""
+    """Mixes pairs of atomic features in an optionally distance dependent way and outputs pair features."""
 
     def __init__(
         self,
@@ -267,6 +267,7 @@ class PairMixing(nn.Module):
         clebsch_gordan,
         normalize=0,
         parity=False,
+        distance_dependent=True,
     ):
         """
         Initialize the PairMixing object.
@@ -280,6 +281,7 @@ class PairMixing(nn.Module):
             clebsch_gordan (torch.Tensor): Clebsch-Gordan coefficients
             normalize (int): whether to normalize the output features
             parity (bool): whether to preserve parity of spherical features
+            distance_dependent (bool): whether to use distance dependent coefficients. Set to False for mixing atomic features of the same atom as in `DiagonalPair`.
         """
         super().__init__()
         self.order_in1 = order_in1
@@ -290,6 +292,7 @@ class PairMixing(nn.Module):
         self.clebsch_gordan = clebsch_gordan
         self.normalize = normalize
         self.parity = parity
+        self.distance_dependent = distance_dependent
         # distance - dependent coefficients for mixing
         for l1 in range(self.order_in1 + 1):
             for l2 in range(self.order_in2 + 1):
@@ -297,12 +300,20 @@ class PairMixing(nn.Module):
                     if l1 + l2 % 2 != L % 2 and self.parity:
                         continue
                     name = "coeff_{}_{}_{}".format(l1, l2, L)
-                    self.add_module(
-                        name,
-                        nn.Linear(
-                            self.num_basis_functions, self.num_features, bias=False
-                        ),
-                    )
+                    if self.distance_dependent:
+                        self.add_module(
+                            name,
+                            nn.Linear(
+                                self.num_basis_functions, self.num_features, bias=False
+                            ),
+                        )
+                    else:
+                        self.add_module(
+                            name,
+                            nn.Linear(
+                                self.num_features, self.num_features, bias=False
+                            ),
+                        )
         self.L_count = [0 for L in range(self.order_out + 1)]
         self.reset_parameters()
 
@@ -391,13 +402,22 @@ class PairMixing(nn.Module):
                     # print('coeff norm', float(torch.mean((self.coeff(l1, l2, L)(rbf) * np.sqrt(self.num_features/self.num_basis_functions)) ** 2)))
                     # print('num basis functions', self.num_basis_functions)
                     # print('num features', self.num_features)
-                    if self.normalize:
-                        norm_factor = np.sqrt(L + 1) * np.sqrt(self.num_features / self.num_basis_functions)
+                    if self.distance_dependent:
+                        if self.normalize:
+                            norm_factor = np.sqrt(L + 1) * np.sqrt(self.num_features / self.num_basis_functions)
+                        else:
+                            norm_factor = 1
+
+                        if rbf.shape[-2] == 1:
+                            rbf = rbf.repeat(1, 1, len(ys), 1)
+
+                        ys[L] = ys[L] + self.coeff(l1, l2, L)(rbf[:, :, [L], :]) * (norm_factor) * (
+                            (cg * tp).sum(-3).sum(-3) / np.sqrt(self.L_count[L])
+                        )
+                        # TODO no normalize, no sqrt also for distant dependent path?
                     else:
-                        norm_factor = 1
-                    ys[L] = ys[L] + self.coeff(l1, l2, L)(rbf) * (norm_factor) * (
-                        (cg * tp).sum(-3).sum(-3) / np.sqrt(self.L_count[L])
-                    )
+                        ys[L] = ys[L] + self.coeff(l1, l2, L)((cg * tp).sum(-3).sum(-3))
+
         # print('ys pairmix norm', [float(torch.mean(ys[L] ** 2)) for L in range(len(ys))])
         return ys
 

@@ -271,7 +271,7 @@ class PairFeaturesV2(nn.Module):
 
         # print("before diagonal_pair")
         # print("\n".join(f"fi[{l}]: {fi[l].shape}" for l in range(len(fi))))
-        fii = self.diagonal_pair(fi, rbf)
+        fii = self.diagonal_pair(fi)
         # print("after diagonal_pair")
         # print("\n".join(f"fii[{l}]: {fii[l].shape}" for l in range(len(fii))))
 
@@ -367,7 +367,7 @@ class DiagonalPair(nn.Module):
                                                          parity=parity,
                                                          bias=bias)
         
-        self.mix_lr = PairMixing(self.order, self.order, self.order, self.num_basis_functions, self.num_features, self.clebsch_gordan)
+        self.mix_lr = PairMixing(self.order, self.order, self.order, self.num_basis_functions, self.num_features, self.clebsch_gordan, distance_dependent=False)
 
         self.simple_residual_out = SimplifiedResidualBlock(order=self.order,
                                                          num_features=self.num_features,
@@ -379,7 +379,7 @@ class DiagonalPair(nn.Module):
                                                          parity=parity,
                                                          bias=bias)
 
-    def forward(self, x, rbf):
+    def forward(self, x):
 
         xl = self.simple_residual_l(x)
         xr = self.simple_residual_r(x)
@@ -387,7 +387,7 @@ class DiagonalPair(nn.Module):
         # print("\n".join(f"xl[{l}]: {xl[l].shape}" for l in range(len(xl))))
         # print("\n".join(f"xr[{l}]: {xr[l].shape}" for l in range(len(xr))))
         
-        fii = self.mix_lr(xl, xr, rbf) # TODO Mmake rbf optional in pairmix (diagonal pair must not need dij/rbf)
+        fii = self.mix_lr(xl, xr, None)
 
         fii = [fii[l] + x[l] for l in range(len(x))]  # residual connection
 
@@ -507,8 +507,7 @@ class OffDiagonalPair(nn.Module):
         print(f"filter: {filter.shape}")
 
         # tensor product x_i, x_j, filter
-        fij = self.pairmix(x_i, x_j, rbf)
-        fij = [fij[l] * filter[:, :, [l]] for l in range(len(fij))]
+        fij = self.pairmix(x_i, x_j, filter)
         print("\n".join(f"fij[{l}]: {fij[l].shape}" for l in range(len(fij))))
 
         fij = self.simple_residual_out(fij)
