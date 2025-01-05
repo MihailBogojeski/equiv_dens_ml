@@ -834,17 +834,32 @@ class SimplifiedResidualBlock(nn.Module):
         pass
 
     def forward(self, xs):
-        ys = self.normgate(xs)
+        ys = [1 * x for x in xs]
+        ys = self.normgate(ys)
 
         ys[0] = self.activation_pre(ys[0])
         ys = self.linear(ys)  # TODO mixing off, CG none
-        # TODO
+        # TODO experiment configs
         # ohne mixing, bottleneck normgate
         # mit mxing, bottleneck normgate
         # ohne mixing, full size normgate
         # (mit mixing, full size normgate)
 
-        ys = [ys[i] + xs[i] for i in range(len(xs))]  # residual connection
+        if self.normalize > 1:
+            for L in range(len(ys)):
+                ys[L] = layer_norm(ys[L], dims=(-2, -1))
+
+        if len(ys) > len(xs):
+            for L in range(len(xs), len(ys)):
+                xs.append(torch.zeros_like(ys[L]))
+
+        for L in range(self.order_out + 1):
+            if not self.normalize or torch.mean(xs[L]**2) == 0 or torch.mean(ys[L]**2) == 0:
+                scale = 1
+            else:
+                scale = np.sqrt(1/2)
+            ys[L] = ys[L] * scale + xs[L] * scale
+
         return ys
 
 

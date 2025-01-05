@@ -86,7 +86,7 @@ class NormGate(nn.Module):
 
         # dimensions for reshaping mlp output
         bs, n_atoms, _, num_features = x[0].shape
-        degrees = len(x)
+        n_orders = len(x)
 
         norms = [torch.norm(x[i], dim=-2, keepdim=True) for i in range(1, len(x))]
         norms = [x[0]] + norms
@@ -99,7 +99,7 @@ class NormGate(nn.Module):
         mlp_norms = self.mlp(norms)
         # print("mlp_norms", mlp_norms.shape)
 
-        mlp_norms = mlp_norms.view(bs, n_atoms, degrees, num_features)
+        mlp_norms = mlp_norms.view(bs, n_atoms, n_orders, num_features)
         # print("mlp_norms (reshaped)", mlp_norms.shape)
 
         # print(f"x[0]: {x[0].shape}")
