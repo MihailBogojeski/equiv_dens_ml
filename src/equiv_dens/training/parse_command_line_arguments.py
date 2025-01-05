@@ -36,6 +36,8 @@ def parse_command_line_arguments(arg_file=None):
 
     # arguments for neural network architecture hyperparameters
     args_hyperparams = parser.add_argument_group("neural network architecture hyperparameters")
+    args_hyperparams.add_argument("--use_V2_model", metavar='True|False', type=str2bool, default=False,
+                                  choices=[True, False], help="Use the more efficient model architecture inspired by QHNet.")
     args_hyperparams.add_argument("--activation", metavar='STR', type=str, default='swish',
                                   choices=['ssp', 'swish'], help="which activation function to use (shifted softplus (ssp) or swish))")
     args_hyperparams.add_argument("--order", metavar='INT', type=int, default=[2], nargs='+', help="angular order of the feature vectors")
@@ -51,6 +53,12 @@ def parse_command_line_arguments(arg_file=None):
                                   help="number of radial basis components used for the density radial functions")
     args_hyperparams.add_argument("--num_energy_features", metavar='INT', type=int, default=None,
                                   help="dimensionality of energy feature vectors")
+    args_hyperparams.add_argument("--num_hidden_att_mlp", metavar='INT', type=int, default=128,
+                                  help="number of hidden units in the attentive scores MLP")
+    args_hyperparams.add_argument("--num_hidden_rbf_mlp", metavar='INT', type=int, default=128,
+                                  help="number of hidden units in the rbf transforming MLP")
+    args_hyperparams.add_argument("--num_hidden_normgate_mlp", metavar='INT', type=int, default=128,
+                                  help="number of hidden units in the normgate MLP")
     args_hyperparams.add_argument("--num_modules", metavar='INT', type=int, default=3,
                                   help="number of modules used in the neural network (interaction iterations)")
     args_hyperparams.add_argument("--num_en_modules", metavar='INT', type=int, default=None,
