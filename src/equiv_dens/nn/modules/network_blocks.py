@@ -790,12 +790,15 @@ class SimplifiedResidualBlock(nn.Module):
                  normalize=0,
                  order_out=None,
                  parity=False,
-                 bias=True):
+                 bias=True,
+                 num_hidden_normgate_mlp=128):
         super(SimplifiedResidualBlock, self).__init__()
         self.order = order
         self.num_features = num_features
         self.normalize = normalize
         self.mix_orders = mix_orders
+        self.num_hidden_normgate_mlp = num_hidden_normgate_mlp
+
         if order_out is None:
             self.order_out = self.order
         else:
@@ -809,7 +812,10 @@ class SimplifiedResidualBlock(nn.Module):
         else:
             raise ValueError("Unsupported activation function:", activation)
         
-        self.normgate = NormGate(self.num_features, self.order, mlp_activation=activation)
+        self.normgate = NormGate(num_features=self.num_features,
+                                 max_order=self.order,
+                                 mlp_activation=activation,
+                                 mlp_hidden_size=self.num_hidden_normgate_mlp,)
 
         self.linear = SphericalLinear(
             order_in=self.order,
@@ -831,7 +837,12 @@ class SimplifiedResidualBlock(nn.Module):
         ys = self.normgate(xs)
 
         ys[0] = self.activation_pre(ys[0])
-        ys = self.linear(ys)
+        ys = self.linear(ys)  # TODO mixing off, CG none
+        # TODO
+        # ohne mixing, bottleneck normgate
+        # mit mxing, bottleneck normgate
+        # ohne mixing, full size normgate
+        # (mit mixing, full size normgate)
 
         ys = [ys[i] + xs[i] for i in range(len(xs))]  # residual connection
         return ys
