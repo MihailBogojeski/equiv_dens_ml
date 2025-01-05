@@ -58,7 +58,11 @@ class NormGate(nn.Module):
     QHNet's NormGate (https://arxiv.org/abs/2306.04922)
     """
 
-    def __init__(self, num_features, max_order, mlp_activation="swish"):
+    def __init__(self,
+                 num_features,
+                 max_order,
+                 mlp_activation="swish",
+                 mlp_hidden_size=128):
         super(NormGate, self).__init__()
 
         self.num_features = num_features
@@ -70,12 +74,14 @@ class NormGate(nn.Module):
             self.mlp_activation = ShiftedSoftplus(self.num_features)
         else:
             raise ValueError(f"Unsupported activation function: {mlp_activation}")
+        
+        self.mlp_hidden_size = mlp_hidden_size
 
         self.mlp = nn.Sequential(
-            nn.Linear((self.max_order + 1) * self.num_features, self.num_features),
+            nn.Linear((self.max_order + 1) * self.num_features, self.mlp_hidden_size),
             self.mlp_activation,
-            nn.Linear(self.num_features, (self.max_order + 1) * self.num_features))
-
+            nn.Linear(self.mlp_hidden_size, (self.max_order + 1) * self.num_features))
+        
     def forward(self, x):
 
         # dimensions for reshaping mlp output
