@@ -827,6 +827,7 @@ class SimplifiedResidualBlock(nn.Module):
             normalize=normalize,
             parity=parity,
             bias=bias,
+            use_V2=True
         )
         self.reset_parameters()
 

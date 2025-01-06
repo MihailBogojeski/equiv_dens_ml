@@ -577,7 +577,6 @@ class AttentiveScores(nn.Module):
             bias=bias,
         )
 
-        # TODO chcek difference of qhnet self interaction and linear
         self.mlp = nn.Sequential(
             nn.Linear((self.order + 2) * self.num_features, self.num_hidden_att_mlp),
             self.activation,
