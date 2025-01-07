@@ -3,7 +3,7 @@ import os
 import torch
 import torch.nn as nn
 from equiv_dens.nn.dft_network import DFTNetwork
-from equiv_dens.nn.representation.spherical_harmonic import EquivariantSphericalHarmonics
+from equiv_dens.nn.representation.spherical_harmonic import EquivariantSphericalHarmonics, EquivariantSphericalHarmonicsV2
 from equiv_dens.nn.representation.pair_features import PairFeatures, PairFeaturesV2
 from equiv_dens.nn.property_output.energy import SphericalHarmonicsEnergyNetwork,\
     SphericalLinearEnergyNetwork, RepresentationEnergyNetwork
@@ -72,21 +72,18 @@ def load_model(args, dataset, train=False):
     # core density expansion not applicable here
     else:
         if args.use_V2_model:
-            print("use V2 representation model (same as V1 for now)")
-            repr_class = EquivariantSphericalHarmonics
+            print("use V2 representation model")
+            repr_class = EquivariantSphericalHarmonicsV2
 
             repr_model = repr_class(
                 orbital_basis=dataset.orbital_basis_num,
                 order=args.order,
                 num_features=args.num_features,
+                num_hidden_att_mlp=args.num_hidden_att_mlp,
+                num_hidden_rbf_mlp=args.num_hidden_rbf_mlp,
+                num_hidden_normgate_mlp=args.num_hidden_normgate_mlp,
                 num_basis_functions=args.num_basis_functions,
                 num_modules=args.num_modules,
-                num_residual_pre_x=args.num_residual_pre_x,
-                num_residual_post_x=args.num_residual_post_x,
-                num_residual_pre_vi=args.num_residual_pre_vi,
-                num_residual_pre_vj=args.num_residual_pre_vj,
-                num_residual_post_v=args.num_residual_post_v,
-                num_residual_output=args.num_residual_output,
                 num_radial_components=args.num_radial_components,
                 num_neighbours=args.num_neighbours,
                 basis_functions=args.basis_functions,
@@ -98,8 +95,6 @@ def load_model(args, dataset, train=False):
                 memory=args.memory,
                 normalize=args.normalize,
                 parity=args.parity_dens,
-                nonmixing_interaction=args.nonmixing_interaction,
-                nonmixing_interaction_residual=args.nonmixing_interaction_residual,
             )
         else:
             repr_class = EquivariantSphericalHarmonics

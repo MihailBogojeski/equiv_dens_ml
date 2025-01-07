@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from .activations import Swish, ShiftedSoftplus, NormGate
-from .spherical_harmonic_layers import PairMixing, PairInteraction, SphericalLinear
+from .spherical_harmonic_layers import PairMixing, PairInteraction, SphericalLinear, SelfMixingV2
 import numpy as np
 
 class ModularBlock(nn.Module):
@@ -624,6 +624,249 @@ class NonmixingInteractionBlock(nn.Module):
             return [x + v for x, v in zip(xs, vs)]
         else:
             return vs
+        
+
+class QHNetNodewiseInteraction(nn.Module):
+
+    def __init__(self,
+                 order,
+                 num_features,
+                 num_basis_functions,
+                 clebsch_gordan=None,
+                 mix_orders=True,
+                 activation='swish',
+                 normalize=0,
+                 order_out=None,
+                 parity=False,
+                 bias=True,
+                 num_hidden_att_mlp=128,
+                 num_hidden_rbf_mlp=128,
+                 num_hidden_normgate_mlp=128):   
+        super(QHNetNodewiseInteraction, self).__init__()
+
+        self.order = order
+        self.num_features = num_features
+        self.num_basis_functions = num_basis_functions
+        self.clebsch_gordan = clebsch_gordan
+        self.normalize = normalize
+        self.mix_orders = mix_orders
+        self.num_hidden_att_mlp = num_hidden_att_mlp
+        self.num_hidden_rbf_mlp = num_hidden_rbf_mlp
+        self.num_hidden_normgate_mlp = num_hidden_normgate_mlp
+
+        if order_out is None:
+            self.order_out = self.order
+        else:
+            self.order_out = order_out
+
+        if self.mix_orders:
+            assert clebsch_gordan is not None
+
+        if activation == "swish":
+            self.activation_rbf_mlp = Swish(self.num_features)
+        elif activation == "ssp":
+            self.activation_rbf_mlp = ShiftedSoftplus(self.num_features)
+        else:
+            raise ValueError("Unsupported activation function:", activation)
+        
+        self.att_scores = AttentiveScores(order=self.order,
+                                          num_features=self.num_features,
+                                          clebsch_gordan=self.clebsch_gordan,
+                                          mix_order=self.mix_orders,
+                                          activation=activation,
+                                          normalize=self.normalize,
+                                          order_out=self.order_out,
+                                          parity=parity,
+                                          bias=bias,
+                                          num_hidden_att_mlp=self.num_hidden_att_mlp)
+        
+        self.rbf_mlp = nn.Sequential(
+            nn.Linear(self.num_features, self.num_hidden_rbf_mlp),
+            self.activation_rbf_mlp,
+            nn.Linear(self.num_hidden_rbf_mlp, self.num_features))
+        
+        self.simple_residual_i = SimplifiedResidualBlock(order=self.order,
+                                                         num_features=self.num_features,
+                                                         clebsch_gordan=self.clebsch_gordan, 
+                                                         mix_orders=self.mix_orders,
+                                                         activation=activation,
+                                                         normalize=self.normalize,
+                                                         order_out=self.order_out,
+                                                         parity=parity,
+                                                         bias=bias,
+                                                         num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
+        
+        self.simple_residual_j = SimplifiedResidualBlock(order=self.order,
+                                                         num_features=self.num_features,
+                                                         clebsch_gordan=self.clebsch_gordan, 
+                                                         mix_orders=self.mix_orders,
+                                                         activation=activation,
+                                                         normalize=self.normalize,
+                                                         order_out=self.order_out,
+                                                         parity=parity,
+                                                         bias=bias,
+                                                         num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
+        
+        self.pairmix = PairMixing(self.order, self.order, self.order, self.num_basis_functions, self.num_features, self.clebsch_gordan, distance_dependent=False)
+
+        self.linear_out = SphericalLinear(
+            order_in=self.order,
+            num_in=self.num_features,
+            order_out=self.order_out,
+            num_out=self.num_features,
+            clebsch_gordan=self.clebsch_gordan,
+            mix_orders=self.mix_orders,
+            normalize=self.normalize,
+            parity=parity,
+            bias=bias,
+            use_V2=True
+        )
+
+    def forward(self, xs, rbf, sph, idx_i, idx_j):
+
+        # print(f"idx_i: {idx_i}")
+        # print(f"idx_j: {idx_j}")
+
+        # atomic pairs
+        xi = []
+        xj = []
+        for L in range(self.order+1):
+            i = idx_i.view(*(1,)*len(xs[L].shape[:-3]),-1,1,1).repeat(*xs[L].shape[:-3], 1, *xs[L].shape[-2:])
+            j = idx_j.view(*(1,)*len(xs[L].shape[:-3]),-1,1,1).repeat(*xs[L].shape[:-3], 1, *xs[L].shape[-2:])
+            xi.append(torch.gather(xs[L], 1, i))
+            xj.append(torch.gather(xs[L], 1, j))
+
+        # print("before attentive scores")
+        # print("\n".join(f"xi[{l}]: {xi[l].shape}" for l in range(len(xi)))) 
+        
+        aij = self.att_scores(xi, xj)
+        rbf_mlp = self.rbf_mlp(rbf)
+        filter = aij * rbf_mlp
+        # print(f"aij: {aij.shape}")
+        # print(f"rbf_mlp: {rbf_mlp.shape}")
+        # print(f"filter: {filter.shape}")
+
+        x_i = self.simple_residual_i(xs)
+        x_j = self.simple_residual_j(xj)
+
+        # print("\n".join(f"x_i[{l}]: {x_i[l].shape}" for l in range(len(x_i))))
+        # print("\n".join(f"x_j[{l}]: {x_j[l].shape}" for l in range(len(x_j))))
+        # print("\n".join(f"sph[{l}]: {sph[l].shape}" for l in range(len(sph))))
+
+        Fc = [filter[:, :, [l], :] * sph[l] for l in range(len(sph))]
+        # print("\n".join(f"Fc[{l}]: {Fc[l].shape}" for l in range(len(Fc))))
+
+        mij = self.pairmix(x_j, Fc, None)
+        # print("\n".join(f"mij[{l}]: {mij[l].shape}" for l in range(len(mij))))
+
+        # sum over j + residual connection
+        fi = [torch.zeros_like(x) for x in xs]
+        # print("fi before index add")
+        # print("\n".join(f"fi[{l}]: {fi[l].shape}" for l in range(len(fi))))
+        for L in range(len(xs)):
+            fi[L] = x_i[L].index_add(
+                1, idx_i, mij[L]
+            )
+        # print("fi after index add")
+        # print("\n".join(f"fi[{l}]: {fi[l].shape}" for l in range(len(fi))))
+
+        fi = self.linear_out(fi)
+
+        return fi
+        
+
+class AttentiveScores(nn.Module):
+
+    def __init__(self,
+                 order,
+                 num_features,
+                 clebsch_gordan=None,
+                 mix_order=True,
+                 activation='swish',
+                 normalize=0,
+                 order_out=None,
+                 parity=False,
+                 bias=True,
+                 num_hidden_att_mlp=128):
+        super().__init__()
+
+        self.order = order
+        self.num_features = num_features
+        self.clebsch_gordan = clebsch_gordan
+        self.normalize = normalize
+        self.mix_orders = mix_order
+        self.num_hidden_att_mlp = num_hidden_att_mlp
+
+        if order_out is None:
+            self.order_out = self.order
+        else:
+            self.order_out = order_out
+
+        if self.mix_orders:
+            assert clebsch_gordan is not None
+
+        if activation == "swish":
+            self.activation = Swish(self.num_features)
+        elif activation == "ssp":
+            self.activation = ShiftedSoftplus(self.num_features)
+        else:
+            raise ValueError("Unsupported activation function:", activation)
+
+
+        self.linear_i = SphericalLinear(
+            order_in=self.order,
+            num_in=self.num_features,
+            order_out=self.order_out,
+            num_out=self.num_features,
+            clebsch_gordan=clebsch_gordan,
+            mix_orders=self.mix_orders,
+            normalize=self.normalize,
+            parity=parity,
+            bias=bias,
+        )
+
+        self.linear_j = SphericalLinear(
+            order_in=self.order,
+            num_in=self.num_features,
+            order_out=self.order_out,
+            num_out=self.num_features,
+            clebsch_gordan=clebsch_gordan,
+            mix_orders=self.mix_orders,
+            normalize=self.normalize,
+            parity=parity,
+            bias=bias,
+        )
+
+        self.mlp = nn.Sequential(
+            nn.Linear((self.order + 2) * self.num_features, self.num_hidden_att_mlp),
+            self.activation,
+            nn.Linear(self.num_hidden_att_mlp, (self.order + 1) * self.num_features))
+
+    def forward(self, xi, xj):
+
+        bs, n_atoms, _, num_features = xi[0].shape
+
+        xil = self.linear_i(xi)
+        xjl = self.linear_j(xj)
+
+        # print("\n".join(f"xil[{l}]: {xil[l].shape}" for l in range(len(xil))))
+        # print("\n".join(f"xjl[{l}]: {xjl[l].shape}" for l in range(len(xjl))))
+
+        Iij = [torch.sum(xil[L] * xjl[L], dim=-2, keepdim=True) for L in range(1, len(xil))]  # (1, 30, 1/1/1/..., 128)
+        # print("\n".join(f"Iij[{l}]: {Iij[l].shape}" for l in range(len(Iij))))
+        
+        Iij = torch.cat((*Iij, xi[0], xj[0]), dim=-2)  # (1, 30, 7, 128)
+        # print(f"Iij cat: {Iij.shape}")
+
+        Iij = Iij.view(bs, n_atoms, -1)
+        aij = self.mlp(Iij)
+        aij = aij.view(bs, n_atoms, -1, num_features)  # (1, 30, 6, 128)
+
+        # print(f"aij: {aij.shape}")
+
+        # return aij
+
+        return aij
 
 
 class ResidualStack(nn.Module):

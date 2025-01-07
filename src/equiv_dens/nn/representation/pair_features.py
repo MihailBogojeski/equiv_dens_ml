@@ -245,8 +245,8 @@ class PairFeaturesV2(nn.Module):
         fs = atoms['sph_repr']  # equivariant spherical harmonics atomic representation
         rbf = self.radial_basis_functions(dij).unsqueeze_(-2) #unsqueeze for broadcasting
 
-        print("\n".join(f"fs[{l}]: {fs[l].shape}" for l in range(len(fs))))
-        print(f"rbf: {rbf.shape}")
+        # print("\n".join(f"fs[{l}]: {fs[l].shape}" for l in range(len(fs))))
+        # print(f"rbf: {rbf.shape}")
 
         fpc = self.residual_pc(fs) #central pair features
         # fpn = self.residual_pn(fs) #neighbor pair features
@@ -267,7 +267,7 @@ class PairFeaturesV2(nn.Module):
             fi.append(torch.gather(fpc[L], 1, i))
             fj.append(torch.gather(fpc[L], 1, j))
 
-        print("\n".join(f"fi[{l}]: {fi[l].shape}" for l in range(len(fi))))
+        # print("\n".join(f"fi[{l}]: {fi[l].shape}" for l in range(len(fi))))
 
         # print("before diagonal_pair")
         # print("\n".join(f"fi[{l}]: {fi[l].shape}" for l in range(len(fi))))
@@ -495,115 +495,21 @@ class OffDiagonalPair(nn.Module):
         x_i = self.simple_residual_i(xi)
         x_j = self.simple_residual_j(xj)
 
-        print("\n".join(f"x_i[{l}]: {x_i[l].shape}" for l in range(len(x_i))))
-        print("\n".join(f"x_j[{l}]: {x_j[l].shape}" for l in range(len(x_j))))
+        # print("\n".join(f"x_i[{l}]: {x_i[l].shape}" for l in range(len(x_i))))
+        # print("\n".join(f"x_j[{l}]: {x_j[l].shape}" for l in range(len(x_j))))
 
         aij = self.att_scores(xi, xj)  # (1, 30, 6, 128)
-        print(f"aij: {aij.shape}")
+        # print(f"aij: {aij.shape}")
         rbf_mlp = self.rbf_mlp(rbf)  # (1, 30, 1, 128)
-        print(f"rbf_mlp: {rbf_mlp.shape}")
+        # print(f"rbf_mlp: {rbf_mlp.shape}")
 
         filter = aij * rbf_mlp
-        print(f"filter: {filter.shape}")
+        # print(f"filter: {filter.shape}")
 
         # tensor product x_i, x_j, filter
         fij = self.pairmix(x_i, x_j, filter)
-        print("\n".join(f"fij[{l}]: {fij[l].shape}" for l in range(len(fij))))
+        # print("\n".join(f"fij[{l}]: {fij[l].shape}" for l in range(len(fij))))
 
         fij = self.simple_residual_out(fij)
 
         return fij
-    
-
-class AttentiveScores(nn.Module):
-
-    def __init__(self,
-                 order,
-                 num_features,
-                 clebsch_gordan=None,
-                 mix_order=True,
-                 activation='swish',
-                 normalize=0,
-                 order_out=None,
-                 parity=False,
-                 bias=True,
-                 num_hidden_att_mlp=128):
-        super().__init__()
-
-        self.order = order
-        self.num_features = num_features
-        self.clebsch_gordan = clebsch_gordan
-        self.normalize = normalize
-        self.mix_orders = mix_order
-        self.num_hidden_att_mlp = num_hidden_att_mlp
-
-        if order_out is None:
-            self.order_out = self.order
-        else:
-            self.order_out = order_out
-
-        if self.mix_orders:
-            assert clebsch_gordan is not None
-
-        if activation == "swish":
-            self.activation = Swish(self.num_features)
-        elif activation == "ssp":
-            self.activation = ShiftedSoftplus(self.num_features)
-        else:
-            raise ValueError("Unsupported activation function:", activation)
-
-
-        self.linear_i = SphericalLinear(
-            order_in=self.order,
-            num_in=self.num_features,
-            order_out=self.order_out,
-            num_out=self.num_features,
-            clebsch_gordan=clebsch_gordan,
-            mix_orders=self.mix_orders,
-            normalize=self.normalize,
-            parity=parity,
-            bias=bias,
-        )
-
-        self.linear_j = SphericalLinear(
-            order_in=self.order,
-            num_in=self.num_features,
-            order_out=self.order_out,
-            num_out=self.num_features,
-            clebsch_gordan=clebsch_gordan,
-            mix_orders=self.mix_orders,
-            normalize=self.normalize,
-            parity=parity,
-            bias=bias,
-        )
-
-        self.mlp = nn.Sequential(
-            nn.Linear((self.order + 2) * self.num_features, self.num_hidden_att_mlp),
-            self.activation,
-            nn.Linear(self.num_hidden_att_mlp, (self.order + 1) * self.num_features))
-
-    def forward(self, xi, xj):
-
-        bs, n_atoms, _, num_features = xi[0].shape
-
-        xil = self.linear_i(xi)
-        xjl = self.linear_j(xj)
-
-        # print("\n".join(f"xil[{l}]: {xil[l].shape}" for l in range(len(xil))))
-        # print("\n".join(f"xjl[{l}]: {xjl[l].shape}" for l in range(len(xjl))))
-
-        Iij = [torch.sum(xil[L] * xjl[L], dim=-2, keepdim=True) for L in range(1, len(xil))]  # (1, 30, 1/1/1/..., 128)
-        # print("\n".join(f"Iij[{l}]: {Iij[l].shape}" for l in range(len(Iij))))
-        
-        Iij = torch.cat((*Iij, xi[0], xj[0]), dim=-2)  # (1, 30, 7, 128)
-        # print(f"Iij cat: {Iij.shape}")
-
-        Iij = Iij.view(bs, n_atoms, -1)
-        aij = self.mlp(Iij)
-        aij = aij.view(bs, n_atoms, -1, num_features)  # (1, 30, 6, 128)
-
-        # print(f"aij: {aij.shape}")
-
-        # return aij
-
-        return aij
