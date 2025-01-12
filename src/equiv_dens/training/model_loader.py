@@ -10,7 +10,7 @@ from equiv_dens.nn.property_output.energy import SphericalHarmonicsEnergyNetwork
 from equiv_dens.nn.property_output.density import DensityCoeffsNetwork, DFDensityCoeffs,\
     FreeAtomDensityCoeffs, DensityExpansion
 from equiv_dens.nn.property_output.dipole_moment import DipoleMomentCalc
-from equiv_dens.nn.property_output import AOMatrixFromAtomFeatures, AOMatrixFromPairFeatures
+from equiv_dens.nn.property_output import AOMatrixFromAtomFeatures, AOMatrixFromPairFeatures, AOMatrixFromPairFeaturesV2
 from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
 from equiv_dens.utils.scaling import UnitConversion, VarianceScaling
 import equiv_dens.utils.base as utils
@@ -311,7 +311,7 @@ def load_model(args, dataset, train=False):
 
         if args.hamiltonian_matrix_weight > 0:
             print('Building hamiltonian matrix model from pair features')
-            hm_model = AOMatrixFromPairFeatures(
+            hm_model = AOMatrixFromPairFeaturesV2(
                 orbital_basis=dataset.calc_basis_num,
                 order=args.order[-1],
                 num_features=args.num_features,
@@ -325,7 +325,7 @@ def load_model(args, dataset, train=False):
 
         if args.density_matrix_weight > 0:
             print('Building density matrix model from pair features')
-            dm_model = AOMatrixFromPairFeatures(
+            dm_model = AOMatrixFromPairFeaturesV2(
                 orbital_basis=dataset.calc_basis_num,
                 order=args.order[-1],
                 num_features=args.num_features,
@@ -340,8 +340,10 @@ def load_model(args, dataset, train=False):
         if args.use_V2_model:
             if args.hamiltonian_matrix_weight > 0:
                 print("Building V2 hamiltonian matrix model")
+                raise NotImplementedError("V2 model only available if construcitng hamiltonian matrix from pair features")
             if args.density_matrix_weight > 0:
                 print("Building V2 density matrix model")
+                raise NotImplementedError("V2 model only available if construcitng density matrix from pair features")
         else:
             if args.hamiltonian_matrix_weight > 0:
                 print('Building hamiltonian matrix model')
