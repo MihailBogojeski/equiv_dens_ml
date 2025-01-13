@@ -1,2 +1,2 @@
 from .density import DensityCoeffsNetwork, DensityExpansion
-from .ao_matrix import AOMatrixFromAtomFeatures, AOMatrixFromPairFeatures
+from .ao_matrix import AOMatrixFromAtomFeatures, AOMatrixFromPairFeatures, AOMatrixFromPairFeaturesV2
