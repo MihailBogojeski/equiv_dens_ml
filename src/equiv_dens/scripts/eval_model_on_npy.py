@@ -41,7 +41,8 @@ args.forces_weight = 0
 args.density_weight = 0
 args.dipole_moment_weight = 1
 args.dpm_intor = main_args.dpm_intor
-args.integral_constraint = 'coeffs_in_coeffs_net'
+if args.dpm_intor:
+    args.integral_constraint = 'coeffs_in_coeffs_net'
 # args.integral_constraint = None 
 args, hyperparam_args, test_vars = train_utils.init_training_vars(args, hyperparam_args)
 checkpoint = test_vars['checkpoint']
