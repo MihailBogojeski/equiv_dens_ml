@@ -60,46 +60,46 @@ class NormGate(nn.Module):
 
     def __init__(self,
                  num_features,
-                 max_order,
+                 order,
                  mlp_activation="swish",
                  mlp_hidden_size=128):
         super(NormGate, self).__init__()
 
         self.num_features = num_features
-        self.max_order = max_order
+        self.order = order
+        self.mlp_hidden_size = mlp_hidden_size
         
         if mlp_activation == "swish":
-            self.mlp_activation = Swish(self.num_features)
+            self.mlp_activation = Swish(self.mlp_hidden_size)
         elif mlp_activation == "ssp":
-            self.mlp_activation = ShiftedSoftplus(self.num_features)
+            self.mlp_activation = ShiftedSoftplus(self.mlp_hidden_size)
         else:
             raise ValueError(f"Unsupported activation function: {mlp_activation}")
-        
-        self.mlp_hidden_size = mlp_hidden_size
-
+        # print(f"normgate max order: {self.max_order}")
         self.mlp = nn.Sequential(
-            nn.Linear((self.max_order + 1) * self.num_features, self.mlp_hidden_size),
+            nn.Linear((self.order + 1) * self.num_features, self.mlp_hidden_size),
             self.mlp_activation,
-            nn.Linear(self.mlp_hidden_size, (self.max_order + 1) * self.num_features))
+            nn.Linear(self.mlp_hidden_size, (self.order + 1) * self.num_features))
         
     def forward(self, x):
 
         # dimensions for reshaping mlp output
         bs, n_atoms, _, num_features = x[0].shape
-        n_orders = len(x)
+        # n_orders = len(x)
 
-        norms = [torch.norm(x[i], dim=-2, keepdim=True) for i in range(1, len(x))]
-        norms = [x[0]] + norms
+        norms = [torch.norm(x[l], dim=-2, keepdim=True) for l in range(self.order + 1)]
         norms = torch.cat(norms, dim=-2)
         # print("norms", norms.shape)
 
         norms = norms.view(bs, n_atoms, -1)
         # print("norms (flattened)", norms.shape)
 
+        # print("normgate")
+        # print("norms", norms.shape)
         mlp_norms = self.mlp(norms)
         # print("mlp_norms", mlp_norms.shape)
 
-        mlp_norms = mlp_norms.view(bs, n_atoms, n_orders, num_features)
+        mlp_norms = mlp_norms.view(bs, n_atoms, self.order + 1, num_features)
         # print("mlp_norms (reshaped)", mlp_norms.shape)
 
         # print(f"x[0]: {x[0].shape}")
@@ -108,7 +108,15 @@ class NormGate(nn.Module):
         # print(f"mlp_norms: {mlp_norms.shape}")
 
         # l=0 mlp output is not multiplied with l=0 input
-        x_norm = [mlp_norms[:, :, [0]]] + [x[i] * mlp_norms[:, :, [i]] for i in range(1, len(x))]
+        x_norm = [mlp_norms[: , :, [0]]]
+        for L in range(1, self.order + 1):
+            x_norm.append(x[L] * mlp_norms[:, :, [L]])
+            
+        if len(x_norm) < len(x):
+            for L in range(len(x_norm), len(x)):
+                x_norm.append(torch.zeros_like(x[L]))
+
+        # x_norm = [mlp_norms[:, :, [0]]] + [x[i] * mlp_norms[:, :, [i]] for i in range(1, self.order + 1)]
 
         # print("x_norm", len(x_norm), x_norm[0].shape, x_norm[-1].shape)
 
