@@ -514,7 +514,6 @@ class AtomsDensityData(Dataset):
                 properties[pname] = torch.from_numpy(props[pname]).type(self.dtype)
 
         if self.atom_dens is not None and 'coeffs' in self.atom_dens_type:
-            print('joining coeffs')
             if self.all_atom_coeffs:
                 atom_dens_types = ['mo_coeffs', 'df_coeffs']
             else:
