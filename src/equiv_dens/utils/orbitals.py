@@ -22,7 +22,6 @@ hf.MUTE_CHKFILE = True
 
 pyscf_gto_factor = 2 * np.sqrt(np.pi)
 
-
 def combine_pyscf_basis(pyscf_basis, order_max):
     radial_spec = {}
     spherical_spec = {}
@@ -601,7 +600,7 @@ def split_ao_matrix(atom, matrix, basis_size):
         row = []
         for an2 in atom_numbers:
             row.append((an2, matrix[curr_idx1 : curr_idx1 + basis_size[an1],
-                                                       curr_idx2 : curr_idx2 + basis_size[an2]]))
+                                    curr_idx2 : curr_idx2 + basis_size[an2]]))
             curr_idx2 += basis_size[an2]
         ao_matrix_split.append((an1, row))
         curr_idx1 += basis_size[an1]
@@ -609,19 +608,27 @@ def split_ao_matrix(atom, matrix, basis_size):
     return ao_matrix_split
 
 
-def calculate_1e_intor_ml(atoms, orbital_basis_num, intor):
+def calculate_1e_intor_ml(atoms, orbital_basis_num, intor, return_mat=False):
     df_coeffs_ml = coeffs_dict_to_vector(atoms, orbital_basis_num, atoms['batch_atom_numbers'],
                                          radial_coeffs=False, convert_to_pyscf=True)['spherical_coeffs'].detach()
     intor_res = []
+    intor_mats = []
     for i in range(atoms['batch_atom_numbers'].shape[0]):
         auxmol_ml = ml_basis_to_auxmol(atoms, i, skip_zero=False)
-        int_res = calculate_1e_intor(auxmol_ml, intor, df_coeffs_ml[i], 'df_coeffs')
+        if return_mat:
+            int_res, int1e = calculate_1e_intor(auxmol_ml, intor, df_coeffs_ml[i], 'df_coeffs', return_mat=True)
+            intor_mats.append(int1e)
+        else:
+            int_res = calculate_1e_intor(auxmol_ml, intor, df_coeffs_ml[i], 'df_coeffs', return_mat=False)
         intor_res.append(int_res)
 
-    return intor_res
+    if return_mat:
+        return intor_res, intor_mats
+    else:
+        return intor_res
 
 
-def calculate_1e_intor(mol, intor, coeffs, coeffs_type, dm=None):
+def calculate_1e_intor(mol, intor, coeffs, coeffs_type, dm=None, return_mat=False):
     intor_val = None
     if coeffs_type == 'df_coeffs':
         # direct integral on density fitting coefficients
@@ -652,8 +659,10 @@ def calculate_1e_intor(mol, intor, coeffs, coeffs_type, dm=None):
             intor_val = np.einsum('xij,ji->x', int1e, dm1).real
     else:
         raise NotImplementedError
-
-    return intor_val
+    if return_mat:
+        return intor_val, int1e
+    else:
+        return intor_val
 
 
 def calculate_int2c2e(mol, coeffs, mol_2=None, coeffs_2=None):
@@ -683,6 +692,7 @@ def calc_dipole_moment_analytic(atoms, basis, coeffs_type):
 def intor_dipole_moment_ml(
     atoms,
     orbital_basis_num,
+    return_mat=True
 ):
     df_coeffs_ml = coeffs_dict_to_vector(atoms, orbital_basis_num, atoms['batch_atom_numbers'],
                                          radial_coeffs=False, convert_to_pyscf=True)['spherical_coeffs'].detach()
@@ -691,6 +701,7 @@ def intor_dipole_moment_ml(
 
     nucl_dip = torch.sum(charges.unsqueeze(-1) * coords, dim=1)
     batch_dens_dip = []
+    batch_dip_intor = []
     for i in range(atoms['batch_atom_numbers'].shape[0]):
         auxmol_ml = ml_basis_to_auxmol(atoms, i, skip_zero=False)
         helper_mol = build_1c1e_helper_mol(auxmol_ml)
@@ -704,9 +715,13 @@ def intor_dipole_moment_ml(
         # ml_dip = utils.bohr_to_angstrom(nucl_dip - torch.einsum('ji,i->j', int1e_r, df_coeffs_ml))
         el_dip = torch.einsum('ji,i->j', int1e_r, df_coeffs_ml[i])
         batch_dens_dip.append(el_dip)
+        if return_mat:
+            batch_dip_intor.append(int1e_r)
     dens_dip = torch.stack(batch_dens_dip, dim=0)
-
     atoms['dipole_moment'] = nucl_dip - dens_dip
+    if return_mat:
+        intor_dip = torch.stack(batch_dip_intor, dim=0)
+        atoms['dipole_intor'] = intor_dip
 
     return atoms
 
@@ -714,18 +729,25 @@ def intor_dipole_moment_ml(
 def intor_dipole_moment_mo(
     atoms,
     basis,
+    free_atom_density=False,
 ):
     charges = atoms['batch_atom_numbers']
     coords = atoms['batch_positions']
 
-    nucl_dip = torch.sum(charges.unsqueeze(-1) * coords, dim=1)
+    if free_atom_density:
+        mo_coeff = 'atom_mo_coeffs'
+        mo_occ = 'atom_mo_coeffs_occ'
+    else:
+        mo_coeff = 'mo_coeff'
+        mo_occ = 'mo_occ'
+
     batch_dens_dip = []
     mols = utils.npy_to_pyscf(atoms['batch_positions'].numpy(force=True),
                               atoms['batch_atom_numbers'].numpy(force=True),
                               basis, build=True, skip_zero=False)
     for i in range(atoms['batch_atom_numbers'].shape[0]):
         mol = mols[i]
-        dm1 = hf.make_rdm1(atoms['mo_coeff'][i].numpy(force=True), atoms['mo_occ'][i].numpy(force=True))
+        dm1 = hf.make_rdm1(atoms[mo_coeff][i].numpy(force=True), atoms[mo_occ][i].numpy(force=True))
         ao_dip = mol.intor_symmetric('int1e_r', comp=3)
         el_dip = np.einsum('xij,ji->x', ao_dip, dm1).real
         el_dip = utils.bohr_to_angstrom(el_dip)
@@ -733,7 +755,11 @@ def intor_dipole_moment_mo(
 
     dens_dip = torch.stack(batch_dens_dip, dim=0)
 
-    atoms['dipole_moment'] = nucl_dip - dens_dip
+    if free_atom_density:
+        atoms['atom_dipole_moment'] = dens_dip
+    else:
+        nucl_dip = torch.sum(charges.unsqueeze(-1) * coords, dim=1)
+        atoms['dipole_moment'] = nucl_dip - dens_dip
 
     return atoms
 
@@ -741,11 +767,16 @@ def intor_dipole_moment_mo(
 def intor_dipole_moment_df(
     atoms,
     basis,
+    free_atom_density=False,
 ):
     charges = atoms['batch_atom_numbers']
     coords = atoms['batch_positions']
 
-    nucl_dip = torch.sum(charges.unsqueeze(-1) * coords, dim=1)
+    if free_atom_density:
+        df_coeff = 'atom_df_coeffs'
+    else:
+        df_coeff = 'df_coeffs'
+
     batch_dens_dip = []
     mols = utils.npy_to_pyscf(atoms['batch_positions'].numpy(force=True),
                               atoms['batch_atom_numbers'].numpy(force=True),
@@ -761,14 +792,29 @@ def intor_dipole_moment_df(
         int1e_r = int1e_r[:, intor_idx, range(auxmol.nao)]
         int1e_r = utils.bohr_to_angstrom(torch.from_numpy(int1e_r).to(nucl_dip))
         # ml_dip = utils.bohr_to_angstrom(nucl_dip - torch.einsum('ji,i->j', int1e_r, df_coeffs_ml))
-        el_dip = torch.einsum('ji,i->j', int1e_r, atoms['df_coeffs'][i])
+        el_dip = torch.einsum('ji,i->j', int1e_r, atoms[df_coeff][i])
         batch_dens_dip.append(el_dip)
 
     dens_dip = torch.stack(batch_dens_dip, dim=0)
 
-    atoms['dipole_moment'] = nucl_dip - dens_dip
+    if free_atom_density:
+        atoms['atom_dipole_moment'] = dens_dip
+    else:
+        nucl_dip = torch.sum(charges.unsqueeze(-1) * coords, dim=1)
+        atoms['dipole_moment'] = nucl_dip - dens_dip
 
     return atoms
+
+
+def intor_dipole_moment_free_atom(atoms):
+    if 'atom_mo_coeffs' in atoms.keys():
+        return intor_dipole_moment_mo(atoms, atoms['atom_mo_coeffs_basis'],
+                                      free_atom_density=True)
+    elif 'atom_df_coeffs' in atoms.keys():
+        return intor_dipole_moment_df(atoms, atoms['atom_df_coeffs_basis'],
+                                      free_atom_density=True)
+    else:
+        raise ValueError('No free atom MO or DF coefficients found!')
 
 
 def calc_dipole_moment(

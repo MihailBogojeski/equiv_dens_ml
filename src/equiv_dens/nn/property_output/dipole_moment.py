@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from equiv_dens.utils import orbitals
-from equiv_dens.utils import base as utils 
+from equiv_dens.utils import base as utils
 from pyscf import gto
 
 
@@ -42,9 +42,10 @@ class DipoleMomentCalc(nn.Module):
 
 class DipoleMomentIntorCalc(nn.Module):
 
-    def __init__(self, orbital_basis):
+    def __init__(self, orbital_basis, remove_atom_density=False):
         super().__init__()
         self.orbital_basis = orbital_basis
+        self.remove_atom_density = remove_atom_density
 
     def forward(self, atoms):
         df_coeffs_ml = orbitals.coeffs_dict_to_vector(atoms, self.orbital_basis, atoms['batch_atom_numbers'],
@@ -67,7 +68,12 @@ class DipoleMomentIntorCalc(nn.Module):
             # ml_dip = utils.bohr_to_angstrom(nucl_dip - torch.einsum('ji,i->j', int1e_r, df_coeffs_ml))
             el_dip = torch.einsum('ji,i->j', int1e_r, df_coeffs_ml[i])
             batch_dens_dip.append(el_dip)
+
         dens_dip = torch.stack(batch_dens_dip, dim=0)
+
+        if self.remove_atom_density:
+            atoms = orbitals.intor_dipole_moment_free_atom(atoms)
+            dens_dip += atoms['atom_dipole_moment']
 
         atoms['dipole_moment'] = nucl_dip - dens_dip
 

@@ -241,14 +241,14 @@ def hirshfeld_partitioning(density, free_atom_densities, atom_positions, atom_nu
                           torch.norm(coords.unsqueeze(1) - atom_positions.unsqueeze(2), dim=-1)**3, dim=-1)
     r3_volume_free = torch.sum((free_atom_densities * coord_weights.unsqueeze(1)) *
                                torch.norm(coords.unsqueeze(1) - atom_positions.unsqueeze(2), dim=-1)**3, dim=-1)
-    print('volume free', r3_volume_free)
-    print('volume eff', r3_volume)
-    print('atom_numbers', atom_numbers)
+    # print('volume free', r3_volume_free)
+    # print('volume eff', r3_volume)
+    # print('atom_numbers', atom_numbers)
     volume_ratio = r3_volume / r3_volume_free
     #
     # print('r3_volume', r3_volume)
     # print('r3_volume_free', r3_volume_free)
-    return wA, atomic_charges, dipoles, volume_ratio
+    return wA, atomic_charges, dipoles, volume_ratio, r3_volume, r3_volume_free
 
 
 def volume_ratios_from_expansion(atoms, expansion_model, free_atom_volumes, to_bohr=True,

@@ -49,7 +49,8 @@ class CoeffsIntegralConstraint(nn.Module):
         norms = 1 / gto_norm(0, L0_widths_comb) / pyscf_gto_factor
         coeffs_pointer = 0
         if self.remove_atom_density:
-            v = L0_coeffs_comb / L0_scales_comb
+            v = torch.where(L0_scales_comb != 0, L0_coeffs_comb / L0_scales_comb, torch.tensor(0.0))
+
             w = torch.zeros_like(L0_coeffs_comb)
             w = L0_scales_comb * norms
             w_dot_w = torch.einsum('bi,bi->b', w, w)
