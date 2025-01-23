@@ -587,9 +587,8 @@ class PairMixing(nn.Module):
                         ys[L] = ys[L] + self.coeff(l1, l2, L)(rbf[:, :, [L], :]) * (norm_factor) * (
                             (cg * tp).sum(-3).sum(-3) / np.sqrt(self.L_count[L])
                         )
-                        # TODO no normalize, no sqrt also for distant dependent path?
                     else:
-                        ys[L] = ys[L] + self.coeff(l1, l2, L)((cg * tp).sum(-3).sum(-3))
+                        ys[L] = ys[L] + self.coeff(l1, l2, L)((cg * tp).sum(-3).sum(-3) / np.sqrt(self.L_count[L]))
 
         # print('ys pairmix norm', [float(torch.mean(ys[L] ** 2)) for L in range(len(ys))])
         return ys
