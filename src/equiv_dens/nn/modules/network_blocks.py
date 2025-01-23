@@ -634,6 +634,8 @@ class QHNetNodewiseInteraction(nn.Module):
                  num_basis_functions,
                  clebsch_gordan=None,
                  mix_orders=True,
+                 mixing_order=None,
+                 input_order=None,
                  activation='swish',
                  normalize=0,
                  order_out=None,
@@ -650,6 +652,8 @@ class QHNetNodewiseInteraction(nn.Module):
         self.clebsch_gordan = clebsch_gordan
         self.normalize = normalize
         self.mix_orders = mix_orders
+        self.mixing_order = mixing_order
+        self.input_order = input_order
         self.num_hidden_att_mlp = num_hidden_att_mlp
         self.num_hidden_rbf_mlp = num_hidden_rbf_mlp
         self.num_hidden_normgate_mlp = num_hidden_normgate_mlp
@@ -662,6 +666,11 @@ class QHNetNodewiseInteraction(nn.Module):
         if self.mix_orders:
             assert clebsch_gordan is not None
 
+        if self.mixing_order is None:
+            self.mixing_order = self.order
+        if self.input_order is None:
+            self.input_order = self.order
+
         if activation == "swish":
             self.activation_rbf_mlp = Swish(self.num_features)
         elif activation == "ssp":
@@ -669,13 +678,12 @@ class QHNetNodewiseInteraction(nn.Module):
         else:
             raise ValueError("Unsupported activation function:", activation)
         
-        self.att_scores = AttentiveScores(order=self.order,
+        self.att_scores = AttentiveScores(order=min(2*self.input_order, self.order),
                                           num_features=self.num_features,
                                           clebsch_gordan=self.clebsch_gordan,
                                           mix_order=self.mix_orders,
                                           activation=activation,
                                           normalize=self.normalize,
-                                          order_out=self.order_out,
                                           parity=parity,
                                           bias=bias,
                                           num_hidden_att_mlp=self.num_hidden_att_mlp)
@@ -685,32 +693,42 @@ class QHNetNodewiseInteraction(nn.Module):
             self.activation_rbf_mlp,
             nn.Linear(self.num_hidden_rbf_mlp, self.num_features))
         
-        self.simple_residual_i = SimplifiedResidualBlock(order=self.order,
+        # print(f"nodewise interaction order: {self.order}")
+        # print(f"nodewise interaction input_order: {self.input_order}")
+        self.simple_residual_i = SimplifiedResidualBlock(order=min(2*self.input_order, self.order),
                                                          num_features=self.num_features,
                                                          clebsch_gordan=self.clebsch_gordan, 
                                                          mix_orders=self.mix_orders,
                                                          activation=activation,
                                                          normalize=self.normalize,
-                                                         order_out=self.order_out,
+                                                         order_out=self.mixing_order,
                                                          parity=parity,
                                                          bias=bias,
                                                          num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
         
-        self.simple_residual_j = SimplifiedResidualBlock(order=self.order,
+        self.simple_residual_j = SimplifiedResidualBlock(order=min(2*self.input_order, self.order),
                                                          num_features=self.num_features,
                                                          clebsch_gordan=self.clebsch_gordan, 
                                                          mix_orders=self.mix_orders,
                                                          activation=activation,
                                                          normalize=self.normalize,
-                                                         order_out=self.order_out,
+                                                         order_out=self.mixing_order,
                                                          parity=parity,
                                                          bias=bias,
                                                          num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
         
-        self.pairmix = PairMixing(self.order, self.order, self.order, self.num_basis_functions, self.num_features, self.clebsch_gordan, distance_dependent=False)
+        self.pairmix = PairMixing(order_in1=self.mixing_order,
+                                  order_in2=min(2*self.input_order, self.order),
+                                  order_out=self.mixing_order,
+                                  num_basis_functions=self.num_basis_functions,
+                                  num_features=self.num_features,
+                                  clebsch_gordan=self.clebsch_gordan,
+                                  normalize=0,
+                                  parity=False,
+                                  distance_dependent=False)
 
         self.linear_out = SphericalLinear(
-            order_in=self.order,
+            order_in=self.mixing_order,
             num_in=self.num_features,
             order_out=self.order_out,
             num_out=self.num_features,
@@ -746,6 +764,7 @@ class QHNetNodewiseInteraction(nn.Module):
         # print(f"rbf_mlp: {rbf_mlp.shape}")
         # print(f"filter: {filter.shape}")
 
+        # print("\n".join(f"x_i[{l}]: {xi[l].shape}" for l in range(len(xi))))
         x_i = self.simple_residual_i(xs)
         x_j = self.simple_residual_j(xj)
 
@@ -753,26 +772,30 @@ class QHNetNodewiseInteraction(nn.Module):
         # print("\n".join(f"x_j[{l}]: {x_j[l].shape}" for l in range(len(x_j))))
         # print("\n".join(f"sph[{l}]: {sph[l].shape}" for l in range(len(sph))))
 
-        Fc = [filter[:, :, [l], :] * sph[l] for l in range(len(sph))]
+        Fc = [filter[:, :, [l], :] * sph[l] for l in range(filter.shape[-2])]
         # print("\n".join(f"Fc[{l}]: {Fc[l].shape}" for l in range(len(Fc))))
 
         mij = self.pairmix(x_j, Fc, None)
         # print("\n".join(f"mij[{l}]: {mij[l].shape}" for l in range(len(mij))))
 
         # sum over j + residual connection
-        fi = [torch.zeros_like(x) for x in xs]
+        fs = [torch.zeros_like(x) for x in xs]
+
+        # print(f"len fs: {len(fs)}")
+        # print(f"len x_i: {len(x_i)}")
+        # print(f"len mij: {len(mij)}")
         # print("fi before index add")
         # print("\n".join(f"fi[{l}]: {fi[l].shape}" for l in range(len(fi))))
-        for L in range(len(xs)):
-            fi[L] = x_i[L].index_add(
+        for L in range(len(x_i)):
+            fs[L] = x_i[L].index_add(
                 1, idx_i, mij[L]
             )
         # print("fi after index add")
         # print("\n".join(f"fi[{l}]: {fi[l].shape}" for l in range(len(fi))))
 
-        fi = self.linear_out(fi)
+        fs = self.linear_out(fs)
 
-        return fi
+        return fs
         
 
 class AttentiveScores(nn.Module):
@@ -885,26 +908,49 @@ class ResidualStack(nn.Module):
         normalize=0,
         parity=False,
         bias=True,
+        use_V2=False,
+        num_hidden_normgate_mlp=128
     ):
         super(ResidualStack, self).__init__()
         self.num_blocks = num_blocks
         self.order = order
         self.num_features = num_features
-        self.stack = nn.ModuleList(
-            [
-                ResidualBlock(
-                    order=self.order,
-                    num_features=self.num_features,
-                    clebsch_gordan=clebsch_gordan,
-                    mix_orders=mix_orders,
-                    activation=activation,
-                    normalize=normalize,
-                    parity=parity,
-                    bias=bias,
-                )
-                for i in range(self.num_blocks)
-            ]
-        )
+        self.use_V2 = use_V2
+        self.num_hidden_normgate_mlp = num_hidden_normgate_mlp
+
+        if self.use_V2:
+            self.stack = nn.ModuleList(
+                [
+                    SimplifiedResidualBlock(
+                        order=self.order,
+                        num_features=self.num_features,
+                        clebsch_gordan=clebsch_gordan,
+                        mix_orders=mix_orders,
+                        activation=activation,
+                        normalize=normalize,
+                        parity=parity,
+                        bias=bias,
+                        num_hidden_normgate_mlp=self.num_hidden_normgate_mlp
+                    )
+                    for i in range(self.num_blocks)
+                ]
+            )
+        else:
+            self.stack = nn.ModuleList(
+                [
+                    ResidualBlock(
+                        order=self.order,
+                        num_features=self.num_features,
+                        clebsch_gordan=clebsch_gordan,
+                        mix_orders=mix_orders,
+                        activation=activation,
+                        normalize=normalize,
+                        parity=parity,
+                        bias=bias,
+                    )
+                    for i in range(self.num_blocks)
+                ]
+            )
 
     def forward(self, xs):
         if self.num_blocks > 0:
@@ -1055,8 +1101,10 @@ class SimplifiedResidualBlock(nn.Module):
         else:
             raise ValueError("Unsupported activation function:", activation)
         
+        # print(f"simple resi order: {self.order}")
+        # print(f"simple resi order_out: {self.order_out}")
         self.normgate = NormGate(num_features=self.num_features,
-                                 max_order=self.order,
+                                 order=self.order,
                                  mlp_activation=activation,
                                  mlp_hidden_size=self.num_hidden_normgate_mlp,)
 
@@ -1079,6 +1127,8 @@ class SimplifiedResidualBlock(nn.Module):
 
     def forward(self, xs):
         ys = [1 * x for x in xs]
+        # print("simple residual block")
+        # print("\n".join(f"ys[{l}]: {ys[l].shape}" for l in range(len(ys))))
         ys = self.normgate(ys)
 
         ys[0] = self.activation_pre(ys[0])
