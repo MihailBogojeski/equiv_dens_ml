@@ -532,7 +532,6 @@ class AOMatrixFromPairFeatures(nn.Module):
         fii, fij = atoms['pair_features']
 
         # additional layer to refine pair features for specific output matrix
-        # TODO use simpified residual to refine features?
         fii    = self.residual_ao_ii(fii)
         fii[0] = self.activation_ao_ii(fii[0])
         fii    = self.output_ii(fii)
@@ -656,6 +655,7 @@ class AOMatrixFromPairFeaturesV2(nn.Module):
             num_residual_ao_ij  = 1, #number of residual blocks applied to pair features for predicting irreps of off-diagonal blocks (output matrix)
             basis_functions      = 'exp-bernstein', #type of radial basis functions (exp-gaussian/exp-bernstein/gaussian/bernstein)
             activation           = 'swish', #type of activation function used (swish/ssp)
+            num_hidden_normgate_mlp = 128, #number of hidden features in the normgate MLP
             output_property_name = 'ao_matrix', # output property key of atoms dict, e.g. atoms['hamiltonian_matrix']
             load_from            = None, #if this is given the network is loaded from the specified .pth file and all other arguments are ignored
             #Zmax                 = 87 #maximum nuclear charge (+1, i.e. 87 for up to Rn) for embeddings, can be kept at default 
@@ -675,6 +675,7 @@ class AOMatrixFromPairFeaturesV2(nn.Module):
         self.num_residual_ao_ij = num_residual_ao_ij
         self.basis_functions = basis_functions
         self.activation = activation
+        self.num_hidden_normgate_mlp = num_hidden_normgate_mlp
         self.output_property_name = output_property_name
         #self.Zmax = Zmax
 
@@ -695,8 +696,8 @@ class AOMatrixFromPairFeaturesV2(nn.Module):
             for L in range(self.order+1)])
         self.radial_ij = nn.ModuleList([nn.Linear(self.num_basis_functions, self.num_features, bias=False)
             for L in range(self.order+1)])
-        self.residual_ao_ii = ResidualStack(self.num_residual_ao_ii, self.order, self.num_features, self.clebsch_gordan, True, self.activation)
-        self.residual_ao_ij = ResidualStack(self.num_residual_ao_ij, self.order, self.num_features, self.clebsch_gordan, True, self.activation)
+        self.residual_ao_ii = ResidualStack(self.num_residual_ao_ii, self.order, self.num_features, self.clebsch_gordan, True, self.activation, use_V2=True, num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
+        self.residual_ao_ij = ResidualStack(self.num_residual_ao_ij, self.order, self.num_features, self.clebsch_gordan, True, self.activation, use_V2=True, num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
 
         if self.activation == 'swish':
             self.activation_ao_ii = Swish(self.num_features)
@@ -717,7 +718,7 @@ class AOMatrixFromPairFeaturesV2(nn.Module):
         for z in self.orbital_basis.keys():
             self.irreps_ii, number_L = self.compute_matrix_irreps(
                 self.orbital_basis[z], self.orbital_basis[z], self.irreps_ii, number_L)
-        self.output_ii = SphericalLinear(self.order, self.num_features, 2*order_max, max(number_L), self.clebsch_gordan, zero_init=True)
+        self.output_ii = SphericalLinear(self.order, self.num_features, 2*order_max, max(number_L), self.clebsch_gordan, zero_init=True, use_V2=True)
 
         #off-diagonal blocks
         number_L = [0 for L in range(2*order_max+1)] #keeps track of how many irreps of each order there are already
@@ -728,7 +729,7 @@ class AOMatrixFromPairFeaturesV2(nn.Module):
                     self.orbital_basis[z1], self.orbital_basis[z2], self.irreps_ij, number_L)
                 
         # print(f"init output ij sphlineasr with self.order={self.order}, order_max={order_max}")
-        self.output_ij = SphericalLinear(self.order, self.num_features, 2*order_max, max(number_L), self.clebsch_gordan, zero_init=True)
+        self.output_ij = SphericalLinear(self.order, self.num_features, 2*order_max, max(number_L), self.clebsch_gordan, zero_init=True, use_V2=True)
 
 
 
@@ -811,7 +812,6 @@ class AOMatrixFromPairFeaturesV2(nn.Module):
         fii, fij = atoms['pair_features']
 
         # additional layer to refine pair features for specific output matrix
-        # TODO use simpified residual to refine features?
         fii    = self.residual_ao_ii(fii)
         fii[0] = self.activation_ao_ii(fii[0])
         fii    = self.output_ii(fii)
@@ -830,7 +830,6 @@ class AOMatrixFromPairFeaturesV2(nn.Module):
 
         # time.sleep(10)
 
-        # TODO ao_matrix_cutoff only for density matrix or all matrices?
         idx_i_batch, idx_j_batch = remap_pair_idxs_for_padding(n_atoms=num_atoms_in_batch,
                                                                batch_idx_pos=atoms['batch_idx_pos'],
                                                                idx_i=atoms['idx_i_ao_matrix'],
