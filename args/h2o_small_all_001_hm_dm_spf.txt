@@ -1,5 +1,6 @@
 --restart=None
 --load_from=None
+--use_V2_model=True
 --activation=swish
 --args_file_name=h2o_small_all_001_hm_dm_spf
 --order
@@ -12,6 +13,9 @@
 3
 --num_features=128
 --num_energy_features=128
+--num_hidden_att_mlp=128
+--num_hidden_rbf_mlp=128
+--num_hidden_normgate_mlp=128
 --num_basis_functions=128
 --num_radial_components=4
 --num_modules=3
@@ -30,6 +34,7 @@
 --num_residual_ao_ij=2
 --num_neighbours=2
 --cutoff=15.0
+--ao_matrix_cutoff=15.0
 --basis_functions=exp-bernstein
 --density_subsamples=5000
 --orthonormal_basis=False
@@ -77,7 +82,7 @@
 --forces_weight_decay=1.0
 --forces_weight_min=0.0
 --hamiltonian_matrix_weight=1.0
---density_matrix_weight=1.0
+--density_matrix_weight=0.0
 --density_loss_comp
 mae
 --density_loss_comp_weights
@@ -99,7 +104,7 @@ rmse
 --ema_decay=0.999
 --ema_start_epoch=2000
 --weight_decay=0.0
---use_gpu=True
+--use_gpu=False
 --write_parameter_summaries=False
 --validation_interval=1000
 --summary_interval=10
