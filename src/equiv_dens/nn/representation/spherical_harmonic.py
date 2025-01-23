@@ -3,7 +3,7 @@ import torch.nn as nn
 from equiv_dens.nn.modules.radial_basis_functions import BernsteinRadialBasisFunctions, GaussianRadialBasisFunctions,\
     ExponentialBernsteinRadialBasisFunctions, ExponentialGaussianRadialBasisFunctions
 from equiv_dens.nn.modules.embeddings import SphericalEmbedding
-from equiv_dens.nn.modules.network_blocks import ModularBlock, ResidualBlock, NonmixingInteractionBlock, QHNetNodewiseInteraction
+from equiv_dens.nn.modules.network_blocks import ModularBlock, ResidualBlock, NonmixingInteractionBlock, QHNetNodewiseInteraction, SimplifiedResidualBlock
 from equiv_dens.nn.modules.spherical_harmonic_layers import SphericalLinear
 from equiv_dens.utils.spherical_harmonics import spherical_harmonics
 from equiv_dens.utils.base import calculate_distances_and_directions
@@ -359,7 +359,7 @@ class EquivariantSphericalHarmonicsV2(nn.Module):
                  clebsch_gordan=None,  # instance of the clebsch gordan matrix
                  # whether to use a final nonmixing interaction
                 #  nonmixing_interaction=False,
-                 nonmixing_interaction_residual=True,
+                #  nonmixing_interaction_residual=True,
                  Zmax=87,
                  timing=False,
                  memory=False,
@@ -488,32 +488,44 @@ class EquivariantSphericalHarmonicsV2(nn.Module):
         #                              activation=self.activation, num_neighbours=self.num_neighbours,
         #                              normalize=normalize, parity=parity) for i in range(1, self.num_modules)])
         
-        modules = [QHNetNodewiseInteraction(order=self.order[-1],
+        # TODO keep diferrent order for each module
+        modules = [QHNetNodewiseInteraction(order=self.order[0],
                                             num_features=self.num_features,
                                             num_basis_functions=self.num_basis_functions,
                                             clebsch_gordan=self.clebsch_gordan,
-                                            mix_orders=True,
+                                            mix_orders=True, mixing_order=self.mixing_order[0],
+                                            input_order=0,
                                             activation=self.activation,
                                             normalize=self.normalize,
-                                            order_out=self.order[-1],
                                             parity=parity,
                                             bias=True,
                                             num_hidden_att_mlp=self.num_hidden_att_mlp,
                                             num_hidden_rbf_mlp=self.num_hidden_rbf_mlp,
-                                            num_hidden_normgate_mlp=self.num_hidden_normgate_mlp,
-                                            )]
+                                            num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)]
+        modules.extend([QHNetNodewiseInteraction(order=self.order[i],
+                                                 num_features=self.num_features,
+                                                 num_basis_functions=self.num_basis_functions,
+                                                 clebsch_gordan=self.clebsch_gordan,
+                                                 mix_orders=True, mixing_order=self.mixing_order[i],
+                                                 input_order=self.order[i - 1],
+                                                 activation=self.activation,
+                                                 normalize=self.normalize,
+                                                 parity=parity,
+                                                 bias=True,
+                                                 num_hidden_att_mlp=self.num_hidden_att_mlp,
+                                                 num_hidden_rbf_mlp=self.num_hidden_rbf_mlp,
+                                                 num_hidden_normgate_mlp=self.num_hidden_normgate_mlp) for i in range(1, self.num_modules)])
 
         self.module = nn.ModuleList(modules)
 
-        # TODO need order change? use simplified residual?
         self.order_change = [nn.Identity()]
         for i in range(1, self.num_modules):
             if self.order[i] != self.order[i - 1]:
-                self.order_change.append(ResidualBlock(order=self.order[i - 1], num_features=self.num_features,
+                self.order_change.append(SimplifiedResidualBlock(order=self.order[i - 1], num_features=self.num_features,
                                                        clebsch_gordan=self.clebsch_gordan,
                                                        activation=self.activation,
                                                        order_out=self.order[i], normalize=normalize,
-                                                       parity=parity))
+                                                       parity=parity, num_hidden_normgate_mlp=self.num_hidden_normgate_mlp))
             else:
                 self.order_change.append(nn.Identity())
         self.order_change = nn.ModuleList(self.order_change)
@@ -619,14 +631,19 @@ class EquivariantSphericalHarmonicsV2(nn.Module):
 
 
 
-        # TODO iterations through QHNet node-wise interaction blocks
         fs = [torch.zeros_like(x) for x in xs]  # output features
         # print("before reprersentation modules")
         # print("\n".join([f"fs[{i}].shape: {fs[i].shape}" for i in range(len(fs))]))
 
+        # print(f"initial order: {len(xs)-1}")
+        # print("------------------------------")
         for i, module in enumerate(self.module):
+            # print("module", i)
+            # print(f"before order change: {len(xs)-1}")
             xs = self.order_change[i](xs)
+            # print(f"after order change: {len(xs)-1}")
             xs = module(xs, rbf, sph, idx_i, idx_j)
+            # print(f"after module: {len(xs)-1}")
 
             for L in range(self.order[i] + 1):
                 if not self.normalize or torch.mean(fs[L]**2) == 0 or torch.mean(fs[L]**2) == 0:
