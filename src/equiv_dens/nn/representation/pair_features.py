@@ -217,10 +217,10 @@ class PairFeaturesV2(nn.Module):
             for L in range(self.order+1)])
         self.radial_ij = nn.ModuleList([nn.Linear(self.num_basis_functions, self.num_features, bias=False)
             for L in range(self.order+1)])
-        self.residual_pc = ResidualStack(self.num_residual_pc, self.order, self.num_features, self.clebsch_gordan, True, self.activation)
-        self.residual_pn = ResidualStack(self.num_residual_pn, self.order, self.num_features, self.clebsch_gordan, True, self.activation)
-        self.residual_ii = ResidualStack(self.num_residual_ii, self.order, self.num_features, self.clebsch_gordan, True, self.activation)
-        self.residual_ij = ResidualStack(self.num_residual_ij, self.order, self.num_features, self.clebsch_gordan, True, self.activation)
+        self.residual_pc = ResidualStack(self.num_residual_pc, self.order, self.num_features, self.clebsch_gordan, True, self.activation, use_V2=True, num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
+        # self.residual_pn = ResidualStack(self.num_residual_pn, self.order, self.num_features, self.clebsch_gordan, True, self.activation)
+        # self.residual_ii = ResidualStack(self.num_residual_ii, self.order, self.num_features, self.clebsch_gordan, True, self.activation)
+        # self.residual_ij = ResidualStack(self.num_residual_ij, self.order, self.num_features, self.clebsch_gordan, True, self.activation)
 
         self.diagonal_pair = DiagonalPair(self.order,
                                           self.num_features,
@@ -354,7 +354,7 @@ class DiagonalPair(nn.Module):
                                                          mix_orders=True,
                                                          activation=activation,
                                                          normalize=normalize,
-                                                         order_out=self.order_out,
+                                                        #  order_out=self.order_out,
                                                          parity=parity,
                                                          bias=bias)
         self.simple_residual_r = SimplifiedResidualBlock(order=self.order,
@@ -363,19 +363,19 @@ class DiagonalPair(nn.Module):
                                                          mix_orders=True,
                                                          activation=activation,
                                                          normalize=normalize,
-                                                         order_out=self.order_out,
+                                                        #  order_out=self.order_out,
                                                          parity=parity,
                                                          bias=bias)
         
-        self.mix_lr = PairMixing(self.order, self.order, self.order, self.num_basis_functions, self.num_features, self.clebsch_gordan, distance_dependent=False)
+        self.mix_lr = PairMixing(self.order, self.order, self.order_out, self.num_basis_functions, self.num_features, self.clebsch_gordan, distance_dependent=False)
 
-        self.simple_residual_out = SimplifiedResidualBlock(order=self.order,
+        self.simple_residual_out = SimplifiedResidualBlock(order=self.order_out,
                                                          num_features=self.num_features,
                                                          clebsch_gordan=self.clebsch_gordan, 
                                                          mix_orders=True,
                                                          activation=activation,
                                                          normalize=normalize,
-                                                         order_out=self.order_out,
+                                                        #  order_out=self.order_out,
                                                          parity=parity,
                                                          bias=bias)
 
@@ -445,7 +445,7 @@ class OffDiagonalPair(nn.Module):
                                                          mix_orders=self.mix_orders,
                                                          activation=activation,
                                                          normalize=self.normalize,
-                                                         order_out=self.order_out,
+                                                        #  order_out=self.order_out,
                                                          parity=parity,
                                                          bias=bias,
                                                          num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
@@ -456,7 +456,7 @@ class OffDiagonalPair(nn.Module):
                                                          mix_orders=self.mix_orders,
                                                          activation=activation,
                                                          normalize=self.normalize,
-                                                         order_out=self.order_out,
+                                                        #  order_out=self.order_out,
                                                          parity=parity,
                                                          bias=bias,
                                                          num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
@@ -467,7 +467,7 @@ class OffDiagonalPair(nn.Module):
                                           mix_order=self.mix_orders,
                                           activation=activation,
                                           normalize=self.normalize,
-                                          order_out=self.order_out,
+                                        #   order_out=self.order_out,
                                           parity=parity,
                                           bias=bias,
                                           num_hidden_att_mlp=self.num_hidden_att_mlp)
@@ -477,15 +477,15 @@ class OffDiagonalPair(nn.Module):
             self.activation_rbf_mlp,
             nn.Linear(self.num_hidden_rbf_mlp, self.num_features))
 
-        self.pairmix = PairMixing(self.order, self.order, self.order, self.num_basis_functions, self.num_features, self.clebsch_gordan)
+        self.pairmix = PairMixing(self.order, self.order, self.order_out, self.num_basis_functions, self.num_features, self.clebsch_gordan)
         
-        self.simple_residual_out = SimplifiedResidualBlock(order=self.order,
+        self.simple_residual_out = SimplifiedResidualBlock(order=self.order_out,
                                                            num_features=self.num_features,
                                                            clebsch_gordan=self.clebsch_gordan, 
                                                            mix_orders=self.mix_orders,
                                                            activation=activation,
                                                            normalize=self.normalize,
-                                                           order_out=self.order_out,
+                                                        #    order_out=self.order_out,
                                                            parity=parity,
                                                            bias=bias,
                                                            num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
