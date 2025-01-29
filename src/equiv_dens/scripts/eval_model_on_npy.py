@@ -178,11 +178,15 @@ for file in files:
         # print('dipole magnitude', torch.norm(res['dipole_moment'], dim=-1))
         np_dpm = utils.internal_to_debye(res['dipole_moment'].numpy(force=True))
         print('dipole_moment converted', np_dpm)
-        dipole_ref = [ref_file_lines[i].split(' ') for i in range(data_pos, max_pos)]
-        dipole_ref = np.array(dipole_ref).astype(float)
-        print('dipole ref', dipole_ref)
-        print('dipole error', np.linalg.norm(dipole_ref - np_dpm, axis=-1))
-        dpm_errors.append(np.linalg.norm(dipole_ref - np_dpm, axis=-1))
+        print('data pos', data_pos, 'max pos', max_pos)
+        try:
+            dipole_ref = [ref_file_lines[i].split(' ') for i in range(data_pos, max_pos)]
+            dipole_ref = np.array(dipole_ref).astype(float)
+            print('dipole ref', dipole_ref)
+            print('dipole error', np.linalg.norm(dipole_ref - np_dpm, axis=-1))
+            dpm_errors.append(np.linalg.norm(dipole_ref - np_dpm, axis=-1))
+        except Exception as e:
+            print(e.message)
 
         if data_npy['dipole_moment'] is None:
             data_npy['dipole_moment'] = np_dpm
