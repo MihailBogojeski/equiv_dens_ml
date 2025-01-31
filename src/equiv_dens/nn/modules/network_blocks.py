@@ -846,6 +846,7 @@ class AttentiveScores(nn.Module):
             normalize=self.normalize,
             parity=parity,
             bias=bias,
+            use_V2=True
         )
 
         self.linear_j = SphericalLinear(
@@ -858,6 +859,7 @@ class AttentiveScores(nn.Module):
             normalize=self.normalize,
             parity=parity,
             bias=bias,
+            use_V2=True
         )
 
         self.mlp = nn.Sequential(
@@ -875,7 +877,7 @@ class AttentiveScores(nn.Module):
         # print("\n".join(f"xil[{l}]: {xil[l].shape}" for l in range(len(xil))))
         # print("\n".join(f"xjl[{l}]: {xjl[l].shape}" for l in range(len(xjl))))
 
-        Iij = [torch.sum(xil[L] * xjl[L], dim=-2, keepdim=True) for L in range(1, len(xil))]  # (1, 30, 1/1/1/..., 128)
+        Iij = [torch.sum(xil[L] * xjl[L], dim=-2, keepdim=True) for L in range(1, self.order + 1)]  # (1, 30, 1/1/1/..., 128)
         # print("\n".join(f"Iij[{l}]: {Iij[l].shape}" for l in range(len(Iij))))
         
         Iij = torch.cat((*Iij, xi[0], xj[0]), dim=-2)  # (1, 30, 7, 128)
@@ -1094,12 +1096,12 @@ class SimplifiedResidualBlock(nn.Module):
             self.order_out = order_out
         if self.mix_orders:
             assert clebsch_gordan is not None
-        if activation == "swish":
-            self.activation_pre = Swish(self.num_features)
-        elif activation == "ssp":
-            self.activation_pre = ShiftedSoftplus(self.num_features)
-        else:
-            raise ValueError("Unsupported activation function:", activation)
+        # if activation == "swish":
+        #     self.activation_pre = Swish(self.num_features)
+        # elif activation == "ssp":
+        #     self.activation_pre = ShiftedSoftplus(self.num_features)
+        # else:
+        #     raise ValueError("Unsupported activation function:", activation)
         
         # print(f"simple resi order: {self.order}")
         # print(f"simple resi order_out: {self.order_out}")
@@ -1131,7 +1133,7 @@ class SimplifiedResidualBlock(nn.Module):
         # print("\n".join(f"ys[{l}]: {ys[l].shape}" for l in range(len(ys))))
         ys = self.normgate(ys)
 
-        ys[0] = self.activation_pre(ys[0])
+        # ys[0] = self.activation_pre(ys[0])
         ys = self.linear(ys)  # TODO mixing off, CG none
         # TODO experiment configs
         # ohne mixing, bottleneck normgate
