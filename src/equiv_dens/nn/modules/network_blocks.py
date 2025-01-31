@@ -672,9 +672,9 @@ class QHNetNodewiseInteraction(nn.Module):
             self.input_order = self.order
 
         if activation == "swish":
-            self.activation_rbf_mlp = Swish(self.num_features)
+            self.activation_rbf_mlp = Swish(self.num_hidden_rbf_mlp)
         elif activation == "ssp":
-            self.activation_rbf_mlp = ShiftedSoftplus(self.num_features)
+            self.activation_rbf_mlp = ShiftedSoftplus(self.num_hidden_rbf_mlp)
         else:
             raise ValueError("Unsupported activation function:", activation)
         
