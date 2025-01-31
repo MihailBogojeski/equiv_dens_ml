@@ -829,9 +829,9 @@ class AttentiveScores(nn.Module):
             assert clebsch_gordan is not None
 
         if activation == "swish":
-            self.activation = Swish(self.num_features)
+            self.activation = Swish(self.num_hidden_att_mlp)
         elif activation == "ssp":
-            self.activation = ShiftedSoftplus(self.num_features)
+            self.activation = ShiftedSoftplus(self.num_hidden_att_mlp)
         else:
             raise ValueError("Unsupported activation function:", activation)
 
