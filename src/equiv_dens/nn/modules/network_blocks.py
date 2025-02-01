@@ -745,14 +745,16 @@ class QHNetNodewiseInteraction(nn.Module):
         # print(f"idx_i: {idx_i}")
         # print(f"idx_j: {idx_j}")
 
+        ys = [1 * x for x in xs]
+
         # atomic pairs
         xi = []
         xj = []
         for L in range(self.order+1):
-            i = idx_i.view(*(1,)*len(xs[L].shape[:-3]),-1,1,1).repeat(*xs[L].shape[:-3], 1, *xs[L].shape[-2:])
-            j = idx_j.view(*(1,)*len(xs[L].shape[:-3]),-1,1,1).repeat(*xs[L].shape[:-3], 1, *xs[L].shape[-2:])
-            xi.append(torch.gather(xs[L], 1, i))
-            xj.append(torch.gather(xs[L], 1, j))
+            i = idx_i.view(*(1,)*len(ys[L].shape[:-3]),-1,1,1).repeat(*ys[L].shape[:-3], 1, *ys[L].shape[-2:])
+            j = idx_j.view(*(1,)*len(ys[L].shape[:-3]),-1,1,1).repeat(*ys[L].shape[:-3], 1, *ys[L].shape[-2:])
+            xi.append(torch.gather(ys[L], 1, i))
+            xj.append(torch.gather(ys[L], 1, j))
 
         # print("before attentive scores")
         # print("\n".join(f"xi[{l}]: {xi[l].shape}" for l in range(len(xi)))) 
@@ -765,7 +767,7 @@ class QHNetNodewiseInteraction(nn.Module):
         # print(f"filter: {filter.shape}")
 
         # print("\n".join(f"x_i[{l}]: {xi[l].shape}" for l in range(len(xi))))
-        x_i = self.simple_residual_i(xs)
+        x_i = self.simple_residual_i(ys)
         x_j = self.simple_residual_j(xj)
 
         # print("\n".join(f"x_i[{l}]: {x_i[l].shape}" for l in range(len(x_i))))
@@ -779,7 +781,7 @@ class QHNetNodewiseInteraction(nn.Module):
         # print("\n".join(f"mij[{l}]: {mij[l].shape}" for l in range(len(mij))))
 
         # sum over j + residual connection
-        fs = [torch.zeros_like(x) for x in xs]
+        fs = [torch.zeros_like(x) for x in ys]
 
         # print(f"len fs: {len(fs)}")
         # print(f"len x_i: {len(x_i)}")
@@ -1096,19 +1098,19 @@ class SimplifiedResidualBlock(nn.Module):
             self.order_out = order_out
         if self.mix_orders:
             assert clebsch_gordan is not None
-        # if activation == "swish":
-        #     self.activation_pre = Swish(self.num_features)
-        # elif activation == "ssp":
-        #     self.activation_pre = ShiftedSoftplus(self.num_features)
-        # else:
-        #     raise ValueError("Unsupported activation function:", activation)
+        if activation == "swish":
+            self.activation_pre = Swish(self.num_features)
+        elif activation == "ssp":
+            self.activation_pre = ShiftedSoftplus(self.num_features)
+        else:
+            raise ValueError("Unsupported activation function:", activation)
         
         # print(f"simple resi order: {self.order}")
         # print(f"simple resi order_out: {self.order_out}")
-        self.normgate = NormGate(num_features=self.num_features,
-                                 order=self.order,
-                                 mlp_activation=activation,
-                                 mlp_hidden_size=self.num_hidden_normgate_mlp,)
+        # self.normgate = NormGate(num_features=self.num_features,
+        #                          order=self.order,
+        #                          mlp_activation=activation,
+        #                          mlp_hidden_size=self.num_hidden_normgate_mlp,)
 
         self.linear = SphericalLinear(
             order_in=self.order,
@@ -1131,9 +1133,9 @@ class SimplifiedResidualBlock(nn.Module):
         ys = [1 * x for x in xs]
         # print("simple residual block")
         # print("\n".join(f"ys[{l}]: {ys[l].shape}" for l in range(len(ys))))
-        ys = self.normgate(ys)
+        # ys = self.normgate(ys)
 
-        # ys[0] = self.activation_pre(ys[0])
+        ys[0] = self.activation_pre(ys[0])
         ys = self.linear(ys)  # TODO mixing off, CG none
         # TODO experiment configs
         # ohne mixing, bottleneck normgate
