@@ -123,6 +123,7 @@ def load_model(args, dataset, train=False):
             #     nonmixing_interaction_residual=args.nonmixing_interaction_residual,
             # )
         else:
+            print("building spherical harmonic representation model")
             repr_class = EquivariantSphericalHarmonics
 
             repr_model = repr_class(
@@ -366,8 +367,19 @@ def load_model(args, dataset, train=False):
             )
 
             if args.hamiltonian_matrix_weight > 0:
-                print('Building hamiltonian matrix model from pair features')
-                hm_model = AOMatrixFromPairFeatures(
+                print('Building hamiltonian matrix model from V2 pair features')
+                # hm_model = AOMatrixFromPairFeatures(
+                #     orbital_basis=dataset.calc_basis_num,
+                #     order=args.order[-1],
+                #     num_features=args.num_features,
+                #     num_basis_functions=args.num_basis_functions,
+                #     num_residual_ao_ii=args.num_residual_ao_ii,
+                #     num_residual_ao_ij=args.num_residual_ao_ij,
+                #     basis_functions=args.basis_functions,
+                #     activation=args.activation,
+                #     output_property_name="hamiltonian_matrix"
+                # )
+                hm_model = AOMatrixFromPairFeaturesV2(
                     orbital_basis=dataset.calc_basis_num,
                     order=args.order[-1],
                     num_features=args.num_features,
@@ -376,6 +388,7 @@ def load_model(args, dataset, train=False):
                     num_residual_ao_ij=args.num_residual_ao_ij,
                     basis_functions=args.basis_functions,
                     activation=args.activation,
+                    num_hidden_normgate_mlp=args.num_hidden_normgate_mlp,
                     output_property_name="hamiltonian_matrix"
                 )
 
