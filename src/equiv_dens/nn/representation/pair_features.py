@@ -164,6 +164,8 @@ class PairFeaturesV2(nn.Module):
             num_hidden_normgate_mlp = 128, #hidden size of the MLP used in normgate
             load_from            = None, #if this is given the network is loaded from the specified .pth file and all other arguments are ignored
             #Zmax                 = 87 #maximum nuclear charge (+1, i.e. 87 for up to Rn) for embeddings, can be kept at default 
+            use_V1_diagonal_pair = False,
+            use_V1_off_diagonal_pair = False
     ):
         super().__init__()
 
@@ -188,6 +190,8 @@ class PairFeaturesV2(nn.Module):
         self.num_hidden_att_mlp = num_hidden_att_mlp
         self.num_hidden_rbf_mlp = num_hidden_rbf_mlp
         self.num_hidden_normgate_mlp = num_hidden_normgate_mlp
+        self.use_V1_diagonal_pair = use_V1_diagonal_pair
+        self.use_V1_off_diagonal_pair = use_V1_off_diagonal_pair
         #self.Zmax = Zmax
 
         #error checking
@@ -213,30 +217,41 @@ class PairFeaturesV2(nn.Module):
         else:
             print("basis function type:", self.basis_functions, "is not supported")
         self.mix_ij = PairMixing(self.order, self.order, self.order, self.num_basis_functions, self.num_features, self.clebsch_gordan)
-        # self.radial_ii = nn.ModuleList([nn.Linear(self.num_basis_functions, self.num_features, bias=False)
-        #     for L in range(self.order+1)])
-        # self.radial_ij = nn.ModuleList([nn.Linear(self.num_basis_functions, self.num_features, bias=False)
-        #     for L in range(self.order+1)])
+        
+        if use_V1_diagonal_pair:
+            self.radial_ii = nn.ModuleList([nn.Linear(self.num_basis_functions, self.num_features, bias=False)
+                for L in range(self.order+1)])
+        if use_V1_off_diagonal_pair:
+            self.radial_ij = nn.ModuleList([nn.Linear(self.num_basis_functions, self.num_features, bias=False)
+                for L in range(self.order+1)])
+            
         self.residual_pc = ResidualStack(self.num_residual_pc, self.order, self.num_features, self.clebsch_gordan, True, self.activation, use_V2=True, num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
-        # self.residual_pn = ResidualStack(self.num_residual_pn, self.order, self.num_features, self.clebsch_gordan, True, self.activation)
-        # self.residual_ii = ResidualStack(self.num_residual_ii, self.order, self.num_features, self.clebsch_gordan, True, self.activation)
-        # self.residual_ij = ResidualStack(self.num_residual_ij, self.order, self.num_features, self.clebsch_gordan, True, self.activation)
+        
+        if use_V1_diagonal_pair or use_V1_off_diagonal_pair:
+            self.residual_pn = ResidualStack(self.num_residual_pn, self.order, self.num_features, self.clebsch_gordan, True, self.activation, use_V2=True, num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
+        
+        if use_V1_diagonal_pair:
+            self.residual_ii = ResidualStack(self.num_residual_ii, self.order, self.num_features, self.clebsch_gordan, True, self.activation, use_V2=True, num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
+        if use_V1_off_diagonal_pair:
+            self.residual_ij = ResidualStack(self.num_residual_ij, self.order, self.num_features, self.clebsch_gordan, True, self.activation, use_V2=True, num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
 
-        self.diagonal_pair = DiagonalPair(self.order,
-                                          self.num_features,
-                                          self.num_basis_functions,
-                                          self.clebsch_gordan,
-                                          True,
-                                          self.activation)
-        self.off_diagonal_pair = OffDiagonalPair(self.order,
-                                                 self.num_features,
-                                                 self.num_basis_functions,
-                                                 self.clebsch_gordan,
-                                                 True,
-                                                 self.activation,
-                                                 num_hidden_att_mlp=self.num_hidden_att_mlp,
-                                                 num_hidden_rbf_mlp=self.num_hidden_rbf_mlp,
-                                                 num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
+        if not use_V1_diagonal_pair:
+            self.diagonal_pair = DiagonalPair(self.order,
+                                            self.num_features,
+                                            self.num_basis_functions,
+                                            self.clebsch_gordan,
+                                            True,
+                                            self.activation)
+        if not use_V1_off_diagonal_pair:
+            self.off_diagonal_pair = OffDiagonalPair(self.order,
+                                                    self.num_features,
+                                                    self.num_basis_functions,
+                                                    self.clebsch_gordan,
+                                                    True,
+                                                    self.activation,
+                                                    num_hidden_att_mlp=self.num_hidden_att_mlp,
+                                                    num_hidden_rbf_mlp=self.num_hidden_rbf_mlp,
+                                                    num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
 
     def forward(self, atoms):
 
@@ -249,14 +264,17 @@ class PairFeaturesV2(nn.Module):
         # print(f"rbf: {rbf.shape}")
 
         fpc = self.residual_pc(fs) #central pair features
-        # fpn = self.residual_pn(fs) #neighbor pair features
 
-        # #compute pair features for self-interactions
-        # fii = [1*x for x in fpc]
-        # for L in range(self.order+1): #add influence of neighbouring atoms to pairs
-        #     idx_j  = atoms['idx_j'].view(*(1,)*len(fpn[L].shape[:-3]),-1,1,1).repeat(*fpn[L].shape[:-3], 1, *fpn[L].shape[-2:])
-        #     fpn_j  = self.radial_ii[L](rbf)*torch.gather(fpn[L], 1, idx_j)
-        #     fii[L] = fii[L].index_add(1, atoms['idx_i'], fpn_j)
+        if self.use_V1_diagonal_pair or self.use_V1_off_diagonal_pair:
+            fpn = self.residual_pn(fs) #neighbor pair features
+
+        if self.use_V1_diagonal_pair:
+            #compute pair features for self-interactions
+            fii = [1*x for x in fpc]
+            for L in range(self.order+1): #add influence of neighbouring atoms to pairs
+                idx_j  = atoms['idx_j'].view(*(1,)*len(fpn[L].shape[:-3]),-1,1,1).repeat(*fpn[L].shape[:-3], 1, *fpn[L].shape[-2:])
+                fpn_j  = self.radial_ii[L](rbf)*torch.gather(fpn[L], 1, idx_j)
+                fii[L] = fii[L].index_add(1, atoms['idx_i'], fpn_j)
 
         #gather atomic pairs
         fi = []
@@ -271,40 +289,44 @@ class PairFeaturesV2(nn.Module):
 
         # print("before diagonal_pair")
         # print("\n".join(f"fi[{l}]: {fi[l].shape}" for l in range(len(fi))))
-        fii = self.diagonal_pair(fi)
+        if not self.use_V1_diagonal_pair:
+            fii = self.diagonal_pair(fi)
         # print("after diagonal_pair")
         # print("\n".join(f"fii[{l}]: {fii[l].shape}" for l in range(len(fii))))
 
-        #compute output features (irreducible representations) for self-interactions
-        # fii = self.residual_ii(fii)
+        if self.use_V1_diagonal_pair:
+            #compute output features (irreducible representations) for self-interactions
+            fii = self.residual_ii(fii)
 
-        #generate index lists for asymmetrizing pair interactions
-        # idx_pi = []
-        # idx_pj = []
-        # for ni, ij1 in enumerate(zip(atoms['idx_i'], atoms['idx_j'])):
-        #     i1 = ij1[0].item()
-        #     j1 = ij1[1].item()
-        #     for nj, ij2 in enumerate(zip(atoms['idx_i'], atoms['idx_j'])):
-        #         i2 = ij2[0].item()
-        #         j2 = ij2[1].item()
-        #         if ((i1 == i2) and (not j1 == j2)):
-        #             idx_pi.append(ni)
-        #             idx_pj.append(nj)
-        # idx_pi = torch.tensor(idx_pi, dtype=torch.int64, device=R.device)
-        # idx_pj = torch.tensor(idx_pj, dtype=torch.int64, device=R.device)
+        if self.use_V1_off_diagonal_pair:
+            #generate index lists for asymmetrizing pair interactions
+            idx_pi = []
+            idx_pj = []
+            for ni, ij1 in enumerate(zip(atoms['idx_i'], atoms['idx_j'])):
+                i1 = ij1[0].item()
+                j1 = ij1[1].item()
+                for nj, ij2 in enumerate(zip(atoms['idx_i'], atoms['idx_j'])):
+                    i2 = ij2[0].item()
+                    j2 = ij2[1].item()
+                    if ((i1 == i2) and (not j1 == j2)):
+                        idx_pi.append(ni)
+                        idx_pj.append(nj)
+            idx_pi = torch.tensor(idx_pi, dtype=torch.int64, device=R.device)
+            idx_pj = torch.tensor(idx_pj, dtype=torch.int64, device=R.device)
 
-        #compute pair features for ordinary interactions
-        # fij = self.mix_ij(fi, fj, rbf) #mix pairs
-        # for L in range(self.order+1): #add influence of neighbouring atoms to pairs
-        #     idx_j  = atoms['idx_j'].view(*(1,)*len(fpn[L].shape[:-3]),-1,1,1).repeat(*fpn[L].shape[:-3], 1, *fpn[L].shape[-2:])
-        #     fpn_j  = self.radial_ij[L](rbf)*torch.gather(fpn[L], 1, idx_j)
-        #     idx_pj_L = idx_pj.view(*(1,)*len(fpn_j.shape[:-3]),-1,1,1).repeat(*fpn_j.shape[:-3], 1, *fpn_j.shape[-2:])
-        #     fij[L] = fij[L].index_add(1, idx_pi, torch.gather(fpn_j, 1, idx_pj_L))
+            #compute pair features for ordinary interactions
+            fij = self.mix_ij(fi, fj, rbf) #mix pairs
+            for L in range(self.order+1): #add influence of neighbouring atoms to pairs
+                idx_j  = atoms['idx_j'].view(*(1,)*len(fpn[L].shape[:-3]),-1,1,1).repeat(*fpn[L].shape[:-3], 1, *fpn[L].shape[-2:])
+                fpn_j  = self.radial_ij[L](rbf)*torch.gather(fpn[L], 1, idx_j)
+                idx_pj_L = idx_pj.view(*(1,)*len(fpn_j.shape[:-3]),-1,1,1).repeat(*fpn_j.shape[:-3], 1, *fpn_j.shape[-2:])
+                fij[L] = fij[L].index_add(1, idx_pi, torch.gather(fpn_j, 1, idx_pj_L))
 
-        #compute output features (irreducible representations) for pair-interactions
-        # fij = self.residual_ij(fij)
+            #compute output features (irreducible representations) for pair-interactions
+            fij = self.residual_ij(fij)
 
-        fij = self.off_diagonal_pair(fi, fj, rbf)
+        if not self.use_V1_off_diagonal_pair:
+            fij = self.off_diagonal_pair(fi, fj, rbf)
 
         atoms['pair_features'] = fii, fij
 
@@ -389,7 +411,7 @@ class DiagonalPair(nn.Module):
         
         fii = self.mix_lr(xl, xr, None)
 
-        fii = [fii[l] + x[l] for l in range(len(x))]  # residual connection
+        fii = [fii[l] + x[l] for l in range(self.order)]  # residual connection
 
         fii = self.simple_residual_out(fii)
 
