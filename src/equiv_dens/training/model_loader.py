@@ -71,8 +71,8 @@ def load_model(args, dataset, train=False):
                                                 )
     # core density expansion not applicable here
     else:
-        if args.use_V2_model:
-            print("use V2 representation model")
+        if args.use_V2_representation:
+            print("Building V2 spherical harmonic representation model")
             repr_class = EquivariantSphericalHarmonicsV2
 
             repr_model = repr_class(
@@ -96,32 +96,6 @@ def load_model(args, dataset, train=False):
                 normalize=args.normalize,
                 parity=args.parity_dens,
             )
-            # repr_model = repr_class(
-            #     orbital_basis=dataset.orbital_basis_num,
-            #     order=args.order,
-            #     num_features=args.num_features,
-            #     num_basis_functions=args.num_basis_functions,
-            #     num_modules=args.num_modules,
-            #     num_residual_pre_x=args.num_residual_pre_x,
-            #     num_residual_post_x=args.num_residual_post_x,
-            #     num_residual_pre_vi=args.num_residual_pre_vi,
-            #     num_residual_pre_vj=args.num_residual_pre_vj,
-            #     num_residual_post_v=args.num_residual_post_v,
-            #     num_residual_output=args.num_residual_output,
-            #     num_radial_components=args.num_radial_components,
-            #     num_neighbours=args.num_neighbours,
-            #     basis_functions=args.basis_functions,
-            #     cutoff=args.cutoff,
-            #     activation=args.activation,
-            #     clebsch_gordan=clebsch_gordan,
-            #     verbose=args.verbose,
-            #     timing=args.timing,
-            #     memory=args.memory,
-            #     normalize=args.normalize,
-            #     parity=args.parity_dens,
-            #     nonmixing_interaction=args.nonmixing_interaction,
-            #     nonmixing_interaction_residual=args.nonmixing_interaction_residual,
-            # )
         else:
             print("building spherical harmonic representation model")
             repr_class = EquivariantSphericalHarmonics
@@ -301,9 +275,8 @@ def load_model(args, dataset, train=False):
     print(f"density matrix loss comp weights: {args.density_matrix_loss_comp_weights}")
     if args.ao_matrix_from_pair_features:
 
-        # if args.use_V2_model:
-        if True:
-            print("use V2 pair features model")
+        if args.use_V2_pair_features:
+            print("Building V2 pair features model")
             pair_features = PairFeaturesV2(
                 orbital_basis=dataset.calc_basis_num,
                 order=args.order[-1],
@@ -321,8 +294,25 @@ def load_model(args, dataset, train=False):
                 num_hidden_normgate_mlp=args.num_hidden_normgate_mlp
             )
 
+        else:
+            print('Building pair features model')
+            pair_features = PairFeatures(
+                orbital_basis=dataset.calc_basis_num,
+                order=args.order[-1],
+                num_features=args.num_features,
+                num_basis_functions=args.num_basis_functions,
+                num_residual_pc=args.num_residual_pc,
+                num_residual_pn=args.num_residual_pn,
+                num_residual_ii=args.num_residual_ii,
+                num_residual_ij=args.num_residual_ij,
+                basis_functions=args.basis_functions,
+                cutoff=args.cutoff,
+                activation=args.activation
+            )
+        
+        if args.use_V2_matrix_construction:
             if args.hamiltonian_matrix_weight > 0:
-                print('Building hamiltonian matrix model from V2 pair features')
+                print('Building V2 hamiltonian matrix model')
                 hm_model = AOMatrixFromPairFeaturesV2(
                     orbital_basis=dataset.calc_basis_num,
                     order=args.order[-1],
@@ -337,7 +327,7 @@ def load_model(args, dataset, train=False):
                 )
 
             if args.density_matrix_weight > 0:
-                print('Building density matrix model from V2 pair features')
+                print('Building V2 density matrix model')
                 dm_model = AOMatrixFromPairFeaturesV2(
                     orbital_basis=dataset.calc_basis_num,
                     order=args.order[-1],
@@ -350,50 +340,34 @@ def load_model(args, dataset, train=False):
                     num_hidden_normgate_mlp=args.num_hidden_normgate_mlp,
                     output_property_name="density_matrix"
                 )
+        else:
+            if args.hamiltonian_matrix_weight > 0:
+                print('Building hamiltonian matrix model')
+                hm_model = AOMatrixFromPairFeatures(
+                    orbital_basis=dataset.calc_basis_num,
+                    order=args.order[-1],
+                    num_features=args.num_features,
+                    num_basis_functions=args.num_basis_functions,
+                    num_residual_ao_ii=args.num_residual_ao_ii,
+                    num_residual_ao_ij=args.num_residual_ao_ij,
+                    basis_functions=args.basis_functions,
+                    activation=args.activation,
+                    output_property_name="hamiltonian_matrix"
+                )
 
-        # else:
-        #     print('Building pair features module')
-        #     pair_features = PairFeatures(
-        #         orbital_basis=dataset.calc_basis_num,
-        #         order=args.order[-1],
-        #         num_features=args.num_features,
-        #         num_basis_functions=args.num_basis_functions,
-        #         num_residual_pc=args.num_residual_pc,
-        #         num_residual_pn=args.num_residual_pn,
-        #         num_residual_ii=args.num_residual_ii,
-        #         num_residual_ij=args.num_residual_ij,
-        #         basis_functions=args.basis_functions,
-        #         cutoff=args.cutoff,
-        #         activation=args.activation
-        #     )
-
-        #     if args.hamiltonian_matrix_weight > 0:
-        #         print('Building hamiltonian matrix model from V2 pair features')
-        #         hm_model = AOMatrixFromPairFeatures(
-        #             orbital_basis=dataset.calc_basis_num,
-        #             order=args.order[-1],
-        #             num_features=args.num_features,
-        #             num_basis_functions=args.num_basis_functions,
-        #             num_residual_ao_ii=args.num_residual_ao_ii,
-        #             num_residual_ao_ij=args.num_residual_ao_ij,
-        #             basis_functions=args.basis_functions,
-        #             activation=args.activation,
-        #             output_property_name="hamiltonian_matrix"
-        #         )
-
-        #     if args.density_matrix_weight > 0:
-        #         print('Building density matrix model from pair features')
-        #         dm_model = AOMatrixFromPairFeatures(
-        #             orbital_basis=dataset.calc_basis_num,
-        #             order=args.order[-1],
-        #             num_features=args.num_features,
-        #             num_basis_functions=args.num_basis_functions,
-        #             num_residual_ao_ii=args.num_residual_ao_ii,
-        #             num_residual_ao_ij=args.num_residual_ao_ij,
-        #             basis_functions=args.basis_functions,
-        #             activation=args.activation,
-        #             output_property_name="density_matrix"
-        #         )
+            if args.density_matrix_weight > 0:
+                print('Building density matrix model')
+                dm_model = AOMatrixFromPairFeatures(
+                    orbital_basis=dataset.calc_basis_num,
+                    order=args.order[-1],
+                    num_features=args.num_features,
+                    num_basis_functions=args.num_basis_functions,
+                    num_residual_ao_ii=args.num_residual_ao_ii,
+                    num_residual_ao_ij=args.num_residual_ao_ij,
+                    basis_functions=args.basis_functions,
+                    activation=args.activation,
+                    output_property_name="density_matrix"
+                )
     else:
         if args.use_V2_model:
             if args.hamiltonian_matrix_weight > 0:

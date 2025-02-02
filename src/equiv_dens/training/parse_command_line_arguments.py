@@ -36,8 +36,12 @@ def parse_command_line_arguments(arg_file=None):
 
     # arguments for neural network architecture hyperparameters
     args_hyperparams = parser.add_argument_group("neural network architecture hyperparameters")
-    args_hyperparams.add_argument("--use_V2_model", metavar='True|False', type=str2bool, default=False,
+    args_hyperparams.add_argument("--use_V2_representation", metavar='True|False', type=str2bool, default=False,
                                   choices=[True, False], help="Use the more efficient model architecture inspired by QHNet.")
+    args_hyperparams.add_argument("--use_V2_pair_features", metavar='True|False', type=str2bool, default=False,
+                                  choices=[True, False], help="Use the more efficient model architecture inspired by QHNet.")
+    args_hyperparams.add_argument("--use_V2_matrix_construction", metavar='True|False', type=str2bool, default=False,
+                                  choices=[True, False], help="Use the more efficient ao matrix construction module.")
     args_hyperparams.add_argument("--activation", metavar='STR', type=str, default='swish',
                                   choices=['ssp', 'swish'], help="which activation function to use (shifted softplus (ssp) or swish))")
     args_hyperparams.add_argument("--order", metavar='INT', type=int, default=[2], nargs='+', help="angular order of the feature vectors")
