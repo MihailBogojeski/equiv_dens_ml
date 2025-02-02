@@ -301,7 +301,8 @@ def load_model(args, dataset, train=False):
     print(f"density matrix loss comp weights: {args.density_matrix_loss_comp_weights}")
     if args.ao_matrix_from_pair_features:
 
-        if args.use_V2_model:
+        # if args.use_V2_model:
+        if True:
             print("use V2 pair features model")
             pair_features = PairFeaturesV2(
                 orbital_basis=dataset.calc_basis_num,
@@ -350,61 +351,49 @@ def load_model(args, dataset, train=False):
                     output_property_name="density_matrix"
                 )
 
-        else:
-            print('Building pair features module')
-            pair_features = PairFeatures(
-                orbital_basis=dataset.calc_basis_num,
-                order=args.order[-1],
-                num_features=args.num_features,
-                num_basis_functions=args.num_basis_functions,
-                num_residual_pc=args.num_residual_pc,
-                num_residual_pn=args.num_residual_pn,
-                num_residual_ii=args.num_residual_ii,
-                num_residual_ij=args.num_residual_ij,
-                basis_functions=args.basis_functions,
-                cutoff=args.cutoff,
-                activation=args.activation
-            )
+        # else:
+        #     print('Building pair features module')
+        #     pair_features = PairFeatures(
+        #         orbital_basis=dataset.calc_basis_num,
+        #         order=args.order[-1],
+        #         num_features=args.num_features,
+        #         num_basis_functions=args.num_basis_functions,
+        #         num_residual_pc=args.num_residual_pc,
+        #         num_residual_pn=args.num_residual_pn,
+        #         num_residual_ii=args.num_residual_ii,
+        #         num_residual_ij=args.num_residual_ij,
+        #         basis_functions=args.basis_functions,
+        #         cutoff=args.cutoff,
+        #         activation=args.activation
+        #     )
 
-            if args.hamiltonian_matrix_weight > 0:
-                print('Building hamiltonian matrix model from V2 pair features')
-                # hm_model = AOMatrixFromPairFeatures(
-                #     orbital_basis=dataset.calc_basis_num,
-                #     order=args.order[-1],
-                #     num_features=args.num_features,
-                #     num_basis_functions=args.num_basis_functions,
-                #     num_residual_ao_ii=args.num_residual_ao_ii,
-                #     num_residual_ao_ij=args.num_residual_ao_ij,
-                #     basis_functions=args.basis_functions,
-                #     activation=args.activation,
-                #     output_property_name="hamiltonian_matrix"
-                # )
-                hm_model = AOMatrixFromPairFeaturesV2(
-                    orbital_basis=dataset.calc_basis_num,
-                    order=args.order[-1],
-                    num_features=args.num_features,
-                    num_basis_functions=args.num_basis_functions,
-                    num_residual_ao_ii=args.num_residual_ao_ii,
-                    num_residual_ao_ij=args.num_residual_ao_ij,
-                    basis_functions=args.basis_functions,
-                    activation=args.activation,
-                    num_hidden_normgate_mlp=args.num_hidden_normgate_mlp,
-                    output_property_name="hamiltonian_matrix"
-                )
+        #     if args.hamiltonian_matrix_weight > 0:
+        #         print('Building hamiltonian matrix model from V2 pair features')
+        #         hm_model = AOMatrixFromPairFeatures(
+        #             orbital_basis=dataset.calc_basis_num,
+        #             order=args.order[-1],
+        #             num_features=args.num_features,
+        #             num_basis_functions=args.num_basis_functions,
+        #             num_residual_ao_ii=args.num_residual_ao_ii,
+        #             num_residual_ao_ij=args.num_residual_ao_ij,
+        #             basis_functions=args.basis_functions,
+        #             activation=args.activation,
+        #             output_property_name="hamiltonian_matrix"
+        #         )
 
-            if args.density_matrix_weight > 0:
-                print('Building density matrix model from pair features')
-                dm_model = AOMatrixFromPairFeatures(
-                    orbital_basis=dataset.calc_basis_num,
-                    order=args.order[-1],
-                    num_features=args.num_features,
-                    num_basis_functions=args.num_basis_functions,
-                    num_residual_ao_ii=args.num_residual_ao_ii,
-                    num_residual_ao_ij=args.num_residual_ao_ij,
-                    basis_functions=args.basis_functions,
-                    activation=args.activation,
-                    output_property_name="density_matrix"
-                )
+        #     if args.density_matrix_weight > 0:
+        #         print('Building density matrix model from pair features')
+        #         dm_model = AOMatrixFromPairFeatures(
+        #             orbital_basis=dataset.calc_basis_num,
+        #             order=args.order[-1],
+        #             num_features=args.num_features,
+        #             num_basis_functions=args.num_basis_functions,
+        #             num_residual_ao_ii=args.num_residual_ao_ii,
+        #             num_residual_ao_ij=args.num_residual_ao_ij,
+        #             basis_functions=args.basis_functions,
+        #             activation=args.activation,
+        #             output_property_name="density_matrix"
+        #         )
     else:
         if args.use_V2_model:
             if args.hamiltonian_matrix_weight > 0:

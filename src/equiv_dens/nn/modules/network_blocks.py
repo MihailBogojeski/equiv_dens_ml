@@ -1098,19 +1098,19 @@ class SimplifiedResidualBlock(nn.Module):
             self.order_out = order_out
         if self.mix_orders:
             assert clebsch_gordan is not None
-        if activation == "swish":
-            self.activation_pre = Swish(self.num_features)
-        elif activation == "ssp":
-            self.activation_pre = ShiftedSoftplus(self.num_features)
-        else:
-            raise ValueError("Unsupported activation function:", activation)
+        # if activation == "swish":
+        #     self.activation_pre = Swish(self.num_features)
+        # elif activation == "ssp":
+        #     self.activation_pre = ShiftedSoftplus(self.num_features)
+        # else:
+        #     raise ValueError("Unsupported activation function:", activation)
         
         # print(f"simple resi order: {self.order}")
         # print(f"simple resi order_out: {self.order_out}")
-        # self.normgate = NormGate(num_features=self.num_features,
-        #                          order=self.order,
-        #                          mlp_activation=activation,
-        #                          mlp_hidden_size=self.num_hidden_normgate_mlp,)
+        self.normgate = NormGate(num_features=self.num_features,
+                                 order=self.order,
+                                 mlp_activation=activation,
+                                 mlp_hidden_size=self.num_hidden_normgate_mlp,)
 
         self.linear = SphericalLinear(
             order_in=self.order,
@@ -1133,9 +1133,9 @@ class SimplifiedResidualBlock(nn.Module):
         ys = [1 * x for x in xs]
         # print("simple residual block")
         # print("\n".join(f"ys[{l}]: {ys[l].shape}" for l in range(len(ys))))
-        # ys = self.normgate(ys)
+        ys = self.normgate(ys)
 
-        ys[0] = self.activation_pre(ys[0])
+        # ys[0] = self.activation_pre(ys[0])
         ys = self.linear(ys)  # TODO mixing off, CG none
         # TODO experiment configs
         # ohne mixing, bottleneck normgate
