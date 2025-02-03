@@ -42,6 +42,10 @@ def parse_command_line_arguments(arg_file=None):
                                   choices=[True, False], help="Use the more efficient model architecture inspired by QHNet.")
     args_hyperparams.add_argument("--use_V2_matrix_construction", metavar='True|False', type=str2bool, default=False,
                                   choices=[True, False], help="Use the more efficient ao matrix construction module.")
+    args_hyperparams.add_argument("--use_V1_diagonal_pair", metavar='True|False', type=str2bool, default=False,
+                                  choices=[True, False], help="Use V1 fii")
+    args_hyperparams.add_argument("--use_V1_off_diagonal_pair", metavar='True|False', type=str2bool, default=False,
+                                  choices=[True, False], help="Use V1 fij")
     args_hyperparams.add_argument("--fii_residual", metavar='True|False', type=str2bool, default=True,
                                   choices=[True, False], help="Use additional residual connection on V2 fii.")
     args_hyperparams.add_argument("--activation", metavar='STR', type=str, default='swish',
