@@ -280,6 +280,9 @@ class PairFeaturesV2(nn.Module):
             fi.append(torch.gather(fpc[L], 1, i))
             fj.append(torch.gather(fpc[L], 1, j))
 
+        print("fi shape")
+        print("\n".join(f"fi[{l}]: {fi[l].shape}" for l in range(len(fi))))
+
         if self.use_V1_diagonal_pair or self.use_V1_off_diagonal_pair:
             fpn = self.residual_pn(fs) #neighbor pair features
 
@@ -297,7 +300,13 @@ class PairFeaturesV2(nn.Module):
                 fii = self.diagonal_pair(fi)
                 fii = [fii[l] + old_fii[l] for l in range(len(fii))]
             else:
-                fii = self.diagonal_pair(fi)
+                fii = [1*x for x in fpc]
+                fii_tmp = self.diagonal_pair(fi)
+                for L in range(self.order+1):
+                    fii[L] = fii[L].index_add(1, atoms['idx_i'], fii_tmp[L])
+        
+        print("fii shape")
+        print("\n".join(f"fii[{l}]: {fii[l].shape}" for l in range(len(fii))))
 
         # print("\n".join(f"fi[{l}]: {fi[l].shape}" for l in range(len(fi))))
 
