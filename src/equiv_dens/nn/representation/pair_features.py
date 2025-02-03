@@ -165,7 +165,8 @@ class PairFeaturesV2(nn.Module):
             load_from            = None, #if this is given the network is loaded from the specified .pth file and all other arguments are ignored
             #Zmax                 = 87 #maximum nuclear charge (+1, i.e. 87 for up to Rn) for embeddings, can be kept at default 
             use_V1_diagonal_pair = False,
-            use_V1_off_diagonal_pair = False
+            use_V1_off_diagonal_pair = False,
+            fii_residual = False
     ):
         super().__init__()
 
@@ -191,7 +192,8 @@ class PairFeaturesV2(nn.Module):
         self.num_hidden_rbf_mlp = num_hidden_rbf_mlp
         self.num_hidden_normgate_mlp = num_hidden_normgate_mlp
         self.use_V1_diagonal_pair = use_V1_diagonal_pair
-        self.use_V1_off_diagonal_pair = use_V1_off_diagonal_pair
+        self.use_V1_off_diagonal_pair = use_V1_off_diagonal_pair,
+        self.fii_residual = fii_residual
         #self.Zmax = Zmax
 
         #error checking
@@ -216,7 +218,9 @@ class PairFeaturesV2(nn.Module):
             self.radial_basis_functions = BernsteinRadialBasisFunctions(self.num_basis_functions, self.cutoff)
         else:
             print("basis function type:", self.basis_functions, "is not supported")
-        self.mix_ij = PairMixing(self.order, self.order, self.order, self.num_basis_functions, self.num_features, self.clebsch_gordan)
+
+        if use_V1_off_diagonal_pair:
+            self.mix_ij = PairMixing(self.order, self.order, self.order, self.num_basis_functions, self.num_features, self.clebsch_gordan)
         
         if use_V1_diagonal_pair:
             self.radial_ii = nn.ModuleList([nn.Linear(self.num_basis_functions, self.num_features, bias=False)
@@ -241,7 +245,9 @@ class PairFeaturesV2(nn.Module):
                                             self.num_basis_functions,
                                             self.clebsch_gordan,
                                             True,
-                                            self.activation)
+                                            self.activation,
+                                            num_hidden_normgate_mlp=self.num_hidden_normgate_mlp,
+                                            fii_residual=self.fii_residual)
         if not use_V1_off_diagonal_pair:
             self.off_diagonal_pair = OffDiagonalPair(self.order,
                                                     self.num_features,
@@ -265,6 +271,15 @@ class PairFeaturesV2(nn.Module):
 
         fpc = self.residual_pc(fs) #central pair features
 
+        #gather atomic pairs
+        fi = []
+        fj = []
+        for L in range(self.order+1):
+            i = atoms['idx_i'].view(*(1,)*len(fpc[L].shape[:-3]),-1,1,1).repeat(*fpc[L].shape[:-3], 1, *fpc[L].shape[-2:])
+            j = atoms['idx_j'].view(*(1,)*len(fpc[L].shape[:-3]),-1,1,1).repeat(*fpc[L].shape[:-3], 1, *fpc[L].shape[-2:])
+            fi.append(torch.gather(fpc[L], 1, i))
+            fj.append(torch.gather(fpc[L], 1, j))
+
         if self.use_V1_diagonal_pair or self.use_V1_off_diagonal_pair:
             fpn = self.residual_pn(fs) #neighbor pair features
 
@@ -275,28 +290,22 @@ class PairFeaturesV2(nn.Module):
                 idx_j  = atoms['idx_j'].view(*(1,)*len(fpn[L].shape[:-3]),-1,1,1).repeat(*fpn[L].shape[:-3], 1, *fpn[L].shape[-2:])
                 fpn_j  = self.radial_ii[L](rbf)*torch.gather(fpn[L], 1, idx_j)
                 fii[L] = fii[L].index_add(1, atoms['idx_i'], fpn_j)
-
-        #gather atomic pairs
-        fi = []
-        fj = []
-        for L in range(self.order+1):
-            i = atoms['idx_i'].view(*(1,)*len(fpc[L].shape[:-3]),-1,1,1).repeat(*fpc[L].shape[:-3], 1, *fpc[L].shape[-2:])
-            j = atoms['idx_j'].view(*(1,)*len(fpc[L].shape[:-3]),-1,1,1).repeat(*fpc[L].shape[:-3], 1, *fpc[L].shape[-2:])
-            fi.append(torch.gather(fpc[L], 1, i))
-            fj.append(torch.gather(fpc[L], 1, j))
+            fii = self.residual_ii(fii)
+        else:
+            fii = self.diagonal_pair(fi)
 
         # print("\n".join(f"fi[{l}]: {fi[l].shape}" for l in range(len(fi))))
 
         # print("before diagonal_pair")
         # print("\n".join(f"fi[{l}]: {fi[l].shape}" for l in range(len(fi))))
-        if not self.use_V1_diagonal_pair:
-            fii = self.diagonal_pair(fi)
+        # if not self.use_V1_diagonal_pair:
+        #     fii = self.diagonal_pair(fi)
         # print("after diagonal_pair")
         # print("\n".join(f"fii[{l}]: {fii[l].shape}" for l in range(len(fii))))
 
-        if self.use_V1_diagonal_pair:
-            #compute output features (irreducible representations) for self-interactions
-            fii = self.residual_ii(fii)
+        # if self.use_V1_diagonal_pair:
+        #     #compute output features (irreducible representations) for self-interactions
+        #     fii = self.residual_ii(fii)
 
         if self.use_V1_off_diagonal_pair:
             #generate index lists for asymmetrizing pair interactions
@@ -325,7 +334,7 @@ class PairFeaturesV2(nn.Module):
             #compute output features (irreducible representations) for pair-interactions
             fij = self.residual_ij(fij)
 
-        if not self.use_V1_off_diagonal_pair:
+        else:
             fij = self.off_diagonal_pair(fi, fj, rbf)
 
         atoms['pair_features'] = fii, fij
@@ -345,7 +354,9 @@ class DiagonalPair(nn.Module):
                  normalize=0,
                  order_out=None,
                  parity=False,
-                 bias=True):
+                 bias=True,
+                 num_hidden_normgate_mlp=128,
+                 fii_residual=False):
         super().__init__()
 
         self.order = order
@@ -354,6 +365,8 @@ class DiagonalPair(nn.Module):
         self.clebsch_gordan = clebsch_gordan
         self.normalize = normalize
         self.mix_orders = mix_order
+        self.num_hidden_normgate_mlp = num_hidden_normgate_mlp
+        self.fii_residual = fii_residual
 
         if order_out is None:
             self.order_out = self.order
@@ -373,33 +386,36 @@ class DiagonalPair(nn.Module):
         self.simple_residual_l = SimplifiedResidualBlock(order=self.order,
                                                          num_features=self.num_features,
                                                          clebsch_gordan=self.clebsch_gordan, 
-                                                         mix_orders=True,
+                                                         mix_orders=self.mix_orders,
                                                          activation=activation,
                                                          normalize=normalize,
                                                         #  order_out=self.order_out,
                                                          parity=parity,
-                                                         bias=bias)
+                                                         bias=bias,
+                                                         num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
         self.simple_residual_r = SimplifiedResidualBlock(order=self.order,
                                                          num_features=self.num_features,
                                                          clebsch_gordan=self.clebsch_gordan, 
-                                                         mix_orders=True,
+                                                         mix_orders=self.mix_orders,
                                                          activation=activation,
                                                          normalize=normalize,
                                                         #  order_out=self.order_out,
                                                          parity=parity,
-                                                         bias=bias)
+                                                         bias=bias,
+                                                         num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
         
         self.mix_lr = PairMixing(self.order, self.order, self.order_out, self.num_basis_functions, self.num_features, self.clebsch_gordan, distance_dependent=False)
 
         self.simple_residual_out = SimplifiedResidualBlock(order=self.order_out,
                                                          num_features=self.num_features,
                                                          clebsch_gordan=self.clebsch_gordan, 
-                                                         mix_orders=True,
+                                                         mix_orders=self.mix_orders,
                                                          activation=activation,
                                                          normalize=normalize,
                                                         #  order_out=self.order_out,
                                                          parity=parity,
-                                                         bias=bias)
+                                                         bias=bias,
+                                                         num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
 
     def forward(self, x):
 
@@ -411,9 +427,12 @@ class DiagonalPair(nn.Module):
         
         fii = self.mix_lr(xl, xr, None)
 
-        fii = [fii[l] + x[l] for l in range(self.order)]  # residual connection
+        fii = [fii[l] + x[l] for l in range(self.order + 1)]  # residual connection
 
         fii = self.simple_residual_out(fii)
+
+        if self.fii_residual:
+            fii = [fii[l] + x[l] for l in range(self.order + 1)]
 
         return fii
     

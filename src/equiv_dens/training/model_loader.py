@@ -291,7 +291,10 @@ def load_model(args, dataset, train=False):
                 activation=args.activation,
                 num_hidden_att_mlp=args.num_hidden_att_mlp,
                 num_hidden_rbf_mlp=args.num_hidden_rbf_mlp,
-                num_hidden_normgate_mlp=args.num_hidden_normgate_mlp
+                num_hidden_normgate_mlp=args.num_hidden_normgate_mlp,
+                use_V1_diagonal_pair=args.use_V1_diagonal_pair,
+                use_V1_off_diagonal_pair=args.use_V1_off_diagonal_pair,
+                fii_residual=args.fii_residual,
             )
 
         else:
