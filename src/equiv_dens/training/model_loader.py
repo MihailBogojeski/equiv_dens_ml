@@ -282,18 +282,12 @@ def load_model(args, dataset, train=False):
                 order=args.order[-1],
                 num_features=args.num_features,
                 num_basis_functions=args.num_basis_functions,
-                num_residual_pc=args.num_residual_pc,
-                num_residual_pn=args.num_residual_pn,
-                num_residual_ii=args.num_residual_ii,
-                num_residual_ij=args.num_residual_ij,
                 basis_functions=args.basis_functions,
                 cutoff=args.cutoff,
                 activation=args.activation,
                 num_hidden_att_mlp=args.num_hidden_att_mlp,
                 num_hidden_rbf_mlp=args.num_hidden_rbf_mlp,
                 num_hidden_normgate_mlp=args.num_hidden_normgate_mlp,
-                use_V1_diagonal_pair=args.use_V1_diagonal_pair,
-                use_V1_off_diagonal_pair=args.use_V1_off_diagonal_pair,
                 fii_residual=args.fii_residual,
             )
 
