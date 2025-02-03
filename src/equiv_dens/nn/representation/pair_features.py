@@ -247,7 +247,7 @@ class PairFeaturesV2(nn.Module):
                                             True,
                                             self.activation,
                                             num_hidden_normgate_mlp=self.num_hidden_normgate_mlp,
-                                            fii_residual=self.fii_residual)
+                                            fii_residual=False)
         if not use_V1_off_diagonal_pair:
             self.off_diagonal_pair = OffDiagonalPair(self.order,
                                                     self.num_features,
@@ -292,7 +292,12 @@ class PairFeaturesV2(nn.Module):
                 fii[L] = fii[L].index_add(1, atoms['idx_i'], fpn_j)
             fii = self.residual_ii(fii)
         else:
-            fii = self.diagonal_pair(fi)
+            if "pair_features" in atoms and self.fii_residual:
+                old_fii, _ = atoms["pair_features"]
+                fii = self.diagonal_pair(fi)
+                fii = [fii[l] + old_fii[l] for l in range(len(fii))]
+            else:
+                fii = self.diagonal_pair(fi)
 
         # print("\n".join(f"fi[{l}]: {fi[l].shape}" for l in range(len(fi))))
 
