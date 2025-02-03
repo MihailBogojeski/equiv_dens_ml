@@ -192,7 +192,7 @@ class PairFeaturesV2(nn.Module):
         self.num_hidden_rbf_mlp = num_hidden_rbf_mlp
         self.num_hidden_normgate_mlp = num_hidden_normgate_mlp
         self.use_V1_diagonal_pair = use_V1_diagonal_pair
-        self.use_V1_off_diagonal_pair = use_V1_off_diagonal_pair,
+        self.use_V1_off_diagonal_pair = use_V1_off_diagonal_pair
         self.fii_residual = fii_residual
         #self.Zmax = Zmax
 
