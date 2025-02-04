@@ -853,16 +853,6 @@ class AOMatrixFromPairFeaturesV2(nn.Module):
         self.residual_ao_ii = ResidualStack(self.num_residual_ao_ii, self.order, self.num_features, self.clebsch_gordan, True, self.activation, use_V2=True, num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
         self.residual_ao_ij = ResidualStack(self.num_residual_ao_ij, self.order, self.num_features, self.clebsch_gordan, True, self.activation, use_V2=True, num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
 
-        if self.activation == 'swish':
-            self.activation_ao_ii = Swish(self.num_features)
-            self.activation_ao_ij = Swish(self.num_features)
-        elif self.activation == 'ssp':
-            self.activation_ao_ii = ShiftedSoftplus(self.num_features)
-            self.activation_ao_ij = ShiftedSoftplus(self.num_features)
-        else:
-            print("Unsupported activation function:", activation)
-            quit()
-
         #determine minimum number of output features based on orbitals
         #and generate dictionaries (irreps_ii/irreps_ij) that store indices 
         #for collecting the correct irreproducible representations from features
@@ -967,11 +957,9 @@ class AOMatrixFromPairFeaturesV2(nn.Module):
 
         # additional layer to refine pair features for specific output matrix
         fii    = self.residual_ao_ii(fii)
-        fii[0] = self.activation_ao_ii(fii[0])
         fii    = self.output_ii(fii)
 
         fij    = self.residual_ao_ij(fij)
-        fij[0] = self.activation_ao_ij(fij[0])
         fij    = self.output_ij(fij)
 
         batch_size = atoms['batch_positions'].shape[0]
