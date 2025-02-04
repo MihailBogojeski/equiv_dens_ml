@@ -164,7 +164,6 @@ class PairFeaturesV2(nn.Module):
             num_hidden_normgate_mlp = 128, #hidden size of the MLP used in normgate
             load_from            = None, #if this is given the network is loaded from the specified .pth file and all other arguments are ignored
             #Zmax                 = 87 #maximum nuclear charge (+1, i.e. 87 for up to Rn) for embeddings, can be kept at default 
-            fii_residual = False
     ):
         super().__init__()
 
@@ -186,6 +185,7 @@ class PairFeaturesV2(nn.Module):
         self.num_hidden_rbf_mlp = num_hidden_rbf_mlp
         self.num_hidden_normgate_mlp = num_hidden_normgate_mlp
         self.fii_residual = fii_residual
+        self.fij_residual = fij_residual
         #self.Zmax = Zmax
 
         #error checking
@@ -236,12 +236,7 @@ class PairFeaturesV2(nn.Module):
         fs = atoms['sph_repr']  # equivariant spherical harmonics atomic representation
         rbf = self.radial_basis_functions(dij).unsqueeze_(-2) #unsqueeze for broadcasting
 
-        if "pair_features" in atoms and self.fii_residual:
-            old_fii, _ = atoms["pair_features"]
-            fii = self.diagonal_pair(fs)
-            fii = [fii[l] + old_fii[l] for l in range(len(fii))]
-        else:
-            fii = self.diagonal_pair(fs)
+        fii = self.diagonal_pair(fs)
 
         #gather atomic pairs
         fi = []
