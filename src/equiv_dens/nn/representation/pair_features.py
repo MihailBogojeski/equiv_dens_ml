@@ -243,9 +243,6 @@ class PairFeaturesV2(nn.Module):
         else:
             fii = self.diagonal_pair(fs)
 
-        print("fii shape")
-        print("\n".join(f"fii[{l}]: {fii[l].shape}" for l in range(len(fii))))
-        
         #gather atomic pairs
         fi = []
         fj = []
