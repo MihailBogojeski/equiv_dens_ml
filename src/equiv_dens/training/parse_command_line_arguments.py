@@ -58,11 +58,11 @@ def parse_command_line_arguments(arg_file=None):
     args_hyperparams.add_argument("--num_energy_features", metavar='INT', type=int, default=None,
                                   help="dimensionality of energy feature vectors")
     args_hyperparams.add_argument("--num_hidden_att_mlp", metavar='INT', type=int, default=128,
-                                  help="number of hidden units in the attentive scores MLP")
+                                  help="number of hidden units in the attentive scores MLP (-1 for hidden = in)")
     args_hyperparams.add_argument("--num_hidden_rbf_mlp", metavar='INT', type=int, default=128,
-                                  help="number of hidden units in the rbf transforming MLP")
+                                  help="number of hidden units in the rbf transforming MLP (-1 for hidden = in)")
     args_hyperparams.add_argument("--num_hidden_normgate_mlp", metavar='INT', type=int, default=128,
-                                  help="number of hidden units in the normgate MLP")
+                                  help="number of hidden units in the normgate MLP (-1 for hidden = in)")
     args_hyperparams.add_argument("--num_modules", metavar='INT', type=int, default=3,
                                   help="number of modules used in the neural network (interaction iterations)")
     args_hyperparams.add_argument("--num_en_modules", metavar='INT', type=int, default=None,

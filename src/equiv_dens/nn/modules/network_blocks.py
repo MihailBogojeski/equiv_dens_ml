@@ -655,7 +655,7 @@ class QHNetNodewiseInteraction(nn.Module):
         self.mixing_order = mixing_order
         self.input_order = input_order
         self.num_hidden_att_mlp = num_hidden_att_mlp
-        self.num_hidden_rbf_mlp = num_hidden_rbf_mlp
+        self.num_hidden_rbf_mlp = num_hidden_rbf_mlp if num_hidden_rbf_mlp > 0 else num_features
         self.num_hidden_normgate_mlp = num_hidden_normgate_mlp
 
         if order_out is None:
@@ -820,7 +820,7 @@ class AttentiveScores(nn.Module):
         self.clebsch_gordan = clebsch_gordan
         self.normalize = normalize
         self.mix_orders = mix_order
-        self.num_hidden_att_mlp = num_hidden_att_mlp
+        self.num_hidden_att_mlp = num_hidden_att_mlp if num_hidden_att_mlp > 0 else (self.order + 2) * self.num_features 
 
         if order_out is None:
             self.order_out = self.order

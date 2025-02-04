@@ -67,7 +67,7 @@ class NormGate(nn.Module):
 
         self.num_features = num_features
         self.order = order
-        self.mlp_hidden_size = mlp_hidden_size
+        self.mlp_hidden_size = mlp_hidden_size if mlp_hidden_size > 0 else (self.order + 1) * self.num_features
         
         if mlp_activation == "swish":
             self.mlp_activation = Swish(self.mlp_hidden_size)

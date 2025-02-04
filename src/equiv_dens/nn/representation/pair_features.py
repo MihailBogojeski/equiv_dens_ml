@@ -184,8 +184,6 @@ class PairFeaturesV2(nn.Module):
         self.num_hidden_att_mlp = num_hidden_att_mlp
         self.num_hidden_rbf_mlp = num_hidden_rbf_mlp
         self.num_hidden_normgate_mlp = num_hidden_normgate_mlp
-        self.fii_residual = fii_residual
-        self.fij_residual = fij_residual
         #self.Zmax = Zmax
 
         #error checking
@@ -363,7 +361,7 @@ class OffDiagonalPair(nn.Module):
         self.normalize = normalize
         self.mix_orders = mix_order
         self.num_hidden_att_mlp = num_hidden_att_mlp
-        self.num_hidden_rbf_mlp = num_hidden_rbf_mlp
+        self.num_hidden_rbf_mlp = num_hidden_rbf_mlp if num_hidden_rbf_mlp > 0 else num_features
         self.num_hidden_normgate_mlp = num_hidden_normgate_mlp
 
         if order_out is None:
