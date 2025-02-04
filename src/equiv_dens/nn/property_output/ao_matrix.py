@@ -546,6 +546,9 @@ class AOMatrixFromPairFeatures(nn.Module):
         num_orbitals_per_atom = {z.item(): sum((2*l+1) for _, _, l in self.orbital_basis[z.item()]) for z in torch.unique(max_atom_numbers)}
         num_orbitals = sum(num_orbitals_per_atom[z.item()] for z in max_atom_numbers)
         matrix = torch.zeros((batch_size, num_orbitals, num_orbitals), device=R.device)
+        # matrix_old = torch.zeros((batch_size, num_orbitals, num_orbitals), device=R.device)
+
+        # time.sleep(10)
 
         idx_i_batch, idx_j_batch = remap_pair_idxs_for_padding(n_atoms=num_atoms_in_batch,
                                                                batch_idx_pos=atoms['batch_idx_pos'],
@@ -558,77 +561,228 @@ class AOMatrixFromPairFeatures(nn.Module):
             z_previous = atoms['batch_atom_numbers'][0][i-1].item()
             ao_offsets[i] = ao_offsets[i-1] + num_orbitals_per_atom[z_previous]
 
-        idx = 0
-        for s in range(batch_size):
-            s_atom_numbers = atoms['batch_atom_numbers'][s]
-            s_idx_i = idx_i_batch[atoms['neighbor_ao_matrix_batch_idx'] == s]
-            s_idx_j = idx_j_batch[atoms['neighbor_ao_matrix_batch_idx'] == s]
-            s_batch_idx = atoms['atom_batch_idx'][0] == s
-            s_batch_idx_in_fii = torch.where(s_batch_idx)[0]  # idx for fii
-            s_batch_pos = atoms['batch_idx_pos'][s_batch_idx] - (s * num_atoms_in_batch)
 
-            # off-diagonal matrix blocks
-            for i, j in zip(s_idx_i, s_idx_j):
+        # print(f"atom_numbers: {atoms['atom_numbers']}")
+        # print(f"batch_atom_numbers: {atoms['batch_atom_numbers']}")
+        # print(f"batch_atom_mask: {atoms['batch_atom_mask']}")
+        # print(f"max_atom_numbers: {max_atom_numbers}")
+        # print(f"idx_i_ao_matrix: {atoms['idx_i_ao_matrix']}")
+        # print(f"idx_j_ao_matrix: {atoms['idx_j_ao_matrix']}")
+        # print(f"idx_i_batch: {idx_i_batch}")
+        # print(f"idx_j_batch: {idx_j_batch}")
+        # print(f"neighbor_ao_matrix_batch_idx: {atoms['neighbor_ao_matrix_batch_idx']}")
+        # print(f"atom_batch_idx: {atoms['atom_batch_idx']}")
+        # print(f"orbital_basis: {self.orbital_basis}")
 
-                irreps = []
+        # print(f"batch_idx_pos: {atoms['batch_idx_pos']}")
+        # print(f"atoms keys: {atoms.keys()}")
 
-                for n_i, orb_i in enumerate(self.orbital_basis[s_atom_numbers[i].item()]):
-                    z_i, _, l_i = orb_i
 
-                    for n_j, orb_j in enumerate(self.orbital_basis[s_atom_numbers[j].item()]):
-                        z_j, _, l_j = orb_j
+        # TODO: off-diagonal matrix blocks V2
+        # [x] get list of unique interacting atom pairs [(i,j)..] from idx_i_batch and idx_j_batch (implicitly i!=j)
+        # [x] get indexes of unique interacting atom pairs (i, j) -> "atom i and j interact at indexes [idx_0, idx_1, idx_2, ...]"
+        # [x] get molecule indexes in which the unique interacting atom pairs are located from neighbor_ao_matrix_batch_idx
+        # [x] for each unique (i,j) pair, get fij, e.g. torch.gather(fij[L], dim=1, index=interaction_indexes[(i,j)])
+        #     [x] narrow dim=-1 according to ij (irreps count)
+        #     [x] construct matrix block (batch_size = len(interaction_indexes[(i,j)]))
+        #     [x] add matrix block to matrix via index_add (index=list of indexes the current atom pair interacts in)
 
-                        for L in range(abs(l_i - l_j), l_i+l_j+1):
-                            ij = self.irreps_ij[(z_i, z_j, n_i, n_j, L)]
-                            irreps.append(fij[L].narrow(-3, idx, 1).narrow(-1, ij, 1).squeeze(-3).squeeze(-1))
 
-                mblock = self.matrix_block(row=self.orbital_basis[z_i],
-                                            col=self.orbital_basis[z_j],
-                                            irreps=irreps,
-                                            batch_size=1,
-                                            j_gt_i=j>i,
-                                            device=R.device,
-                                            dtype=R.dtype)
 
-                row_offset, col_offset = ao_offsets[i.item()], ao_offsets[j.item()]
+        ############################
+        # batch_wise
+        ############################
+        # t0 = time.time()
 
-                row_end = row_offset + mblock.shape[-2]
-                col_end = col_offset + mblock.shape[-1]
-                matrix[s, row_offset:row_end, col_offset:col_end] = mblock
+        # off-diagonal matrix blocks
+        # get unique interacting atom pairs in batch
+        unique_atom_pairs_in_batch, atom_pair_index_in_batch_inv = torch.unique(torch.stack([idx_i_batch, idx_j_batch], dim=1), dim=0, return_inverse=True)
+        atom_pair_index_in_batch = [torch.nonzero(atom_pair_index_in_batch_inv == i, as_tuple=True)[0] for i in range(len(unique_atom_pairs_in_batch))]
+        atom_pair_molecule_index = [atoms['neighbor_ao_matrix_batch_idx'][atom_pair_index] for atom_pair_index in atom_pair_index_in_batch]
 
-                idx += 1
+        # print(f"unique_atom_pairs_in_batch: {unique_atom_pairs_in_batch}")
+        # print(f"atom_pair_index_in_batch: {atom_pair_index_in_batch}")
+        # print(f"atom_pair_molecule_index: {atom_pair_molecule_index}")
 
-            # diagonal matrix blocks
-            for i in range(len(s_batch_pos)):
-                pos_in_batch = s_batch_pos[i]
-                pos_in_fii = s_batch_idx_in_fii[i]
+        for interaction_idx, (i, j) in enumerate(unique_atom_pairs_in_batch):
+            i, j = i.item(), j.item()
 
-                irreps = []
+            irreps = []
 
-                for n_i , orb_i in enumerate(self.orbital_basis[s_atom_numbers[i].item()]):
-                    z_i, _, l_i = orb_i
+            for n_i, orb_i in enumerate(self.orbital_basis[max_atom_numbers[i].item()]):
+                z_i, _, l_i = orb_i
 
-                    for n_j , orb_j in enumerate(self.orbital_basis[s_atom_numbers[i].item()]):
-                        z_j, _, l_j = orb_j
+                for n_j, orb_j in enumerate(self.orbital_basis[max_atom_numbers[j].item()]):
+                    z_j, _, l_j = orb_j
 
-                        for L in range(abs(l_i - l_j), l_i + l_j + 1):
-                            ii = self.irreps_ii[(z_i, z_j, n_i, n_j, L)]
-                            irreps.append(fii[L].narrow(-3, pos_in_fii, 1).narrow(-1, ii, 1).squeeze(-3).squeeze(-1))
+                    for L in range(abs(l_i - l_j), l_i+l_j+1):
+                        ij = self.irreps_ij[(z_i, z_j, n_i, n_j, L)]
+                        fij_atom_pairs_in_batch = torch.index_select(fij[L], -3, atom_pair_index_in_batch[interaction_idx])
+                        ir = fij_atom_pairs_in_batch.narrow(-1, ij, 1).squeeze(-1).squeeze(0)
+                        irreps.append(ir)
+            
+            # Calculates potentially less then batch_size many matrix blocks,
+            # e.g. if atom pair interacts not in every molecule in batch
+            mblock = self.matrix_block(row=self.orbital_basis[z_i.item()],
+                                       col=self.orbital_basis[z_j.item()],
+                                       irreps=irreps,
+                                       batch_size=len(atom_pair_index_in_batch[interaction_idx]),
+                                       j_gt_i=j>i,
+                                       device=R.device,
+                                       dtype=R.dtype)
+            
+            row_offset, col_offset = ao_offsets[i], ao_offsets[j]
 
-                mblock = self.matrix_block(row=self.orbital_basis[z_i],
-                                            col=self.orbital_basis[z_j],
-                                            irreps=irreps,
-                                            batch_size=1,
-                                            j_gt_i=j>i,
-                                            device=R.device,
-                                            dtype=R.dtype)
+            matrixpart = matrix.narrow(-2, row_offset, mblock.shape[-2]).narrow(-1, col_offset, mblock.shape[-1])
+            matrixpart.index_add_(0, atom_pair_molecule_index[interaction_idx], mblock)
 
-                row_offset, col_offset = ao_offsets[pos_in_batch.item()], ao_offsets[pos_in_batch.item()]
 
-                row_end = row_offset + mblock.shape[-2]
-                col_end = col_offset + mblock.shape[-1]
-                matrix[s, row_offset:row_end, col_offset:col_end] = mblock
+        # diagonal matrix blocks
+        # 
+        # [x] indexes for each atom in batch from batch_idx_pos, i.e. location in fii per atom
+        #   apply atom_mask to max_atom_numbers?
+        #
+        # [x] get index list that holds in which molecules of the batch each atom is contained
+        #
+        # sandbox
+        # which molecules contain atom i? use batch_atom_mask
+        # 
 
+        # atoms['batch_atom_mask'][3, 0] = False
+        # atoms['atom_batch_idx'] = torch.cat((atoms['atom_batch_idx'][:, :9], atoms['atom_batch_idx'][:, 10:]), dim=1)
+        # print(f"atom_batch_idx: {atoms['atom_batch_idx']}")
+
+        atom_index = torch.where(atoms['batch_atom_mask'])[1]
+        # print(f"atom_index: {atom_index}")
+
+        unique_atoms_in_batch, atom_index_in_batch_inv = torch.unique(atom_index, return_inverse=True)
+        atom_index_in_batch = [torch.nonzero(atom_index_in_batch_inv == i, as_tuple=True)[0] for i in range(len(unique_atoms_in_batch))]
+        atom_molecule_index = [atoms['atom_batch_idx'][0][atom_idx] for atom_idx in atom_index_in_batch]
+        # print(f"unique_atoms_in_batch: {unique_atoms_in_batch}")
+        # print(f"atom_index_in_batch: {atom_index_in_batch}")
+        # print(f"atom_molecule_index: {atom_molecule_index}")
+
+        for atom_idx, i in enumerate(unique_atoms_in_batch):
+            i = i.item()
+
+            irreps = []
+
+            for n_i, orb_i in enumerate(self.orbital_basis[max_atom_numbers[i].item()]):
+                z_i, _, l_i = orb_i
+
+                for n_j, orb_j in enumerate(self.orbital_basis[max_atom_numbers[i].item()]):
+                    z_j, _, l_j = orb_j
+
+                    for L in range(abs(l_i - l_j), l_i+l_j+1):
+                        ii = self.irreps_ii[(z_i, z_j, n_i, n_j, L)]
+                        fii_atom_in_batch = torch.index_select(fii[L], -3, atom_index_in_batch[atom_idx])
+                        ir = fii_atom_in_batch.narrow(-1, ii, 1).squeeze(-1).squeeze(0)
+                        irreps.append(ir)
+
+            # Calculates potentially less then batch_size many matrix blocks,
+            # e.g. if atom not in every molecule in batch
+            mblock = self.matrix_block(row=self.orbital_basis[z_i.item()],
+                                       col=self.orbital_basis[z_j.item()],
+                                       irreps=irreps,
+                                       batch_size=len(atom_index_in_batch[atom_idx]),
+                                       j_gt_i=j>i,
+                                       device=R.device,
+                                       dtype=R.dtype)
+            
+            row_offset, col_offset = ao_offsets[i], ao_offsets[i]
+
+            matrixpart = matrix.narrow(-2, row_offset, mblock.shape[-2]).narrow(-1, col_offset, mblock.shape[-1])
+            matrixpart.index_add_(0, atom_molecule_index[atom_idx], mblock)
+
+        # print(f"time batch-wise: {time.time() - t0}")
+        # quit()
+
+
+        ############################
+        # molecule-wise
+        ############################
+        # t0 = time.time()
+        # idx = 0
+        # for s in range(batch_size):
+        #     s_atom_numbers = atoms['batch_atom_numbers'][s]
+        #     s_idx_i = idx_i_batch[atoms['neighbor_ao_matrix_batch_idx'] == s]
+        #     s_idx_j = idx_j_batch[atoms['neighbor_ao_matrix_batch_idx'] == s]
+        #     s_batch_idx = atoms['atom_batch_idx'][0] == s
+        #     s_batch_idx_in_fii = torch.where(s_batch_idx)[0]  # idx for fii
+        #     s_batch_pos = atoms['batch_idx_pos'][s_batch_idx] - (s * num_atoms_in_batch)
+
+        #     for i, j in zip(s_idx_i, s_idx_j):
+
+        #         irreps = []
+
+        #         for n_i, orb_i in enumerate(self.orbital_basis[s_atom_numbers[i].item()]):
+        #             z_i, _, l_i = orb_i
+
+        #             for n_j, orb_j in enumerate(self.orbital_basis[s_atom_numbers[j].item()]):
+        #                 z_j, _, l_j = orb_j
+
+        #                 for L in range(abs(l_i - l_j), l_i+l_j+1):
+        #                     ij = self.irreps_ij[(z_i, z_j, n_i, n_j, L)]
+        #                     ir = fij[L].narrow(-3, idx, 1).narrow(-1, ij, 1).squeeze(-3).squeeze(-1)
+        #                     irreps.append(ir)
+
+        #         mblock = self.matrix_block(row=self.orbital_basis[z_i],
+        #                                     col=self.orbital_basis[z_j],
+        #                                     irreps=irreps,
+        #                                     batch_size=1,
+        #                                     j_gt_i=j>i,
+        #                                     device=R.device,
+        #                                     dtype=R.dtype)
+
+        #         row_offset, col_offset = ao_offsets[i.item()], ao_offsets[j.item()]
+
+        #         row_end = row_offset + mblock.shape[-2]
+        #         col_end = col_offset + mblock.shape[-1]
+        #         matrix_old[s, row_offset:row_end, col_offset:col_end] = mblock
+
+        #         idx += 1
+
+        #         # diagonal matrix blocks
+        #         for i in range(len(s_batch_pos)):
+        #             pos_in_batch = s_batch_pos[i]
+        #             pos_in_fii = s_batch_idx_in_fii[i]
+
+        #             irreps = []
+
+        #             for n_i , orb_i in enumerate(self.orbital_basis[s_atom_numbers[i].item()]):
+        #                 z_i, _, l_i = orb_i
+
+        #                 for n_j , orb_j in enumerate(self.orbital_basis[s_atom_numbers[i].item()]):
+        #                     z_j, _, l_j = orb_j
+
+        #                     for L in range(abs(l_i - l_j), l_i + l_j + 1):
+        #                         ii = self.irreps_ii[(z_i, z_j, n_i, n_j, L)]
+        #                         irreps.append(fii[L].narrow(-3, pos_in_fii, 1).narrow(-1, ii, 1).squeeze(-3).squeeze(-1))
+
+        #             mblock = self.matrix_block(row=self.orbital_basis[z_i],
+        #                                         col=self.orbital_basis[z_j],
+        #                                         irreps=irreps,
+        #                                         batch_size=1,
+        #                                         j_gt_i=j>i,
+        #                                         device=R.device,
+        #                                         dtype=R.dtype)
+
+        #             row_offset, col_offset = ao_offsets[pos_in_batch.item()], ao_offsets[pos_in_batch.item()]
+
+        #             row_end = row_offset + mblock.shape[-2]
+        #             col_end = col_offset + mblock.shape[-1]
+        #             matrix_old[s, row_offset:row_end, col_offset:col_end] = mblock
+
+        # print(f"time molecule-wise: {time.time() - t0}")
+
+        # print(f"matrix_old zero?: {torch.allclose(matrix_old, torch.zeros_like(matrix_old))}")
+        # print(f"matrix zero?: {torch.allclose(matrix, torch.zeros_like(matrix))}")
+        # print(f"similiarity: {torch.allclose(matrix_old, matrix)}")
+
+        # train (bs=3*5) : 1.0425s -> 0.08875s => 8.513% of previous wall clock time => 11.75x speedup
+        # valid (bs=3*10): 1.3976s -> 0.06110s => 4.372% of previous wall clock time => 22.87x speedup
+
+        # matrix = matrix_old
         matrix = matrix + matrix.transpose(-2,-1) #symmetrize
 
         matrix = convert_ao_matrix(ao_matrix=matrix,
