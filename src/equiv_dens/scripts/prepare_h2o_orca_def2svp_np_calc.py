@@ -4,31 +4,9 @@ import scipy as sp
 import torch
 from pyscf.scf import hf
 from equiv_dens.data import HamiltonianDataset, seeded_random_split
+from pyscf import gto
+import tqdm
 
-
-# dataset_npy = np.load('../../../datasets/h2o_small_train_augccpvdz.npy', allow_pickle=True).item()
-# for prop in dataset_npy.keys():
-#     print(prop, dataset_npy[prop].shape if isinstance(dataset_npy[prop], np.ndarray) else len(dataset_npy[prop]))
-# # print(dataset_npy['atom_numbers'])
-# # print(dataset_npy['atom_types'])
-
-
-# # %%
-# print("---------------------------------")
-# dataset_density = np.load('../../../datasets/h2o_small_train_dft_augccpvdz_df_hm_dm_oe_calc.npy', allow_pickle=True)
-# print(dataset_density.shape)
-
-# dens_0 = dataset_density[0]
-# mol_dict, calc_dict = dens_0
-# print("mol_dict")
-# for prop in mol_dict:
-#     print(prop, mol_dict[prop])
-
-# print("calc_dict")
-# for prop in calc_dict:
-#     print(prop, calc_dict[prop].shape if isinstance(calc_dict[prop], np.ndarray) else calc_dict[prop])
-
-# %%
 
 atom_symbols = ['n', 'H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne']
 
@@ -44,21 +22,22 @@ print(len(train), len(valid), len(test))
 
 print("---------------------------------")
 
+basis = 'orca_def2svp'
 split_names = ['train', 'valid', 'test']
 for split_name, split_data in zip(split_names, splits):
-    print(f"split_name: {split_name}")
     data_loader = torch.utils.data.DataLoader(split_data, batch_size=1, collate_fn=dataset.collate_fn)
 
-    npy_path = f'../../../datasets/h2o_{split_name}_augccpvdz.npy'
-    calc_path = f"../../../datasets/h2o_{split_name}_augccpvdz_hm_dm_oe_calc.npy"
+    npy_path = f'../../../datasets/h2o_{split_name}_{basis}.npy'
+    calc_path = f"../../../datasets/h2o_{split_name}_{basis}_hm_dm_oe_calc.npy"
 
     data_dict = {'energy': None, 'forces': None, 'positions': None, 'atom_numbers': None, 'atom_types': None}
     N = len(split_data)
-    print(f"{split_name} samples: {N}")
+
+    print(f"split: {split_name}, N: {N}")
 
     calc_results = []
 
-    for batch in data_loader:
+    for batch in tqdm.tqdm(data_loader):
 
         # atom data
         b_energy = batch['energy']
@@ -86,11 +65,11 @@ for split_name, split_data in zip(split_names, splits):
             data_dict['atom_types'] = [np.array(dataset.database.Z) for _ in range(N)]
 
         # mol_dict
-        mol_dict = {'atom': [], 'basis': 'augccpvdz', 'unit': 'angstrom'}
+        mol_dict = {'atom': [], 'basis': basis, 'unit': 'angstrom'}
         atom_types = data_dict['atom_types'][0]
         pos = np.array(b_positions[0])
         mol_dict['atom'] = [(atom_symbols[atom_types[j]], pos[j, :]) for j in range(len(atom_types))]
-        print(mol_dict)
+        # print(mol_dict)
 
         # calc_dict
         calc_dict = {}
@@ -99,15 +78,15 @@ for split_name, split_data in zip(split_names, splits):
 
         calc_dict['hamiltonian_matrix'] = np.array(hm)
         mo_energies, mo_coeff = sp.linalg.eig(hm, om)
-        print(f"mo_energies: {mo_energies.shape}, mo_coeff: {mo_coeff.shape}")
+        # print(f"mo_energies: {mo_energies.shape}, mo_coeff: {mo_coeff.shape}")
 
         n_electrons = data_dict['atom_numbers'][0].sum()
         mo_occ = np.zeros_like(mo_energies)
         mo_occ[:n_electrons//2] = 2
-        print(f"mo_occ: {mo_occ.shape}")
+        # print(f"mo_occ: {mo_occ.shape}")
 
         dm = hf.make_rdm1(mo_coeff, mo_occ)
-        print(f"dm: {dm.shape}")
+        # print(f"dm: {dm.shape}")
 
         calc_dict['mo_coeff'] = mo_coeff
         calc_dict['mo_energies'] = mo_energies
@@ -159,4 +138,3 @@ for split_name, split_data in zip(split_names, splits):
 # print(f"mean positions of h2o_small: {np.mean(np.abs(h2o_small['positions']), axis=0)}")
 # print(f"vairance positions of h2o_small: {np.var(h2o_small['positions'], axis=0)}")
 # print(f"mean positions of h2o: {np.mean(np.abs(h2o['positions']), axis=0)}")
-# print(f"vairance positions of h2o: {np.var(h2o['positions'], axis=0)}")

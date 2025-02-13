@@ -6,6 +6,16 @@ from torch.nn.functional import assert_int_or_pair
 
 
 convention_dict = {
+    'orca_def2svp': Namespace(
+        atom_to_orbitals_map={1:  [0,0,1],
+                              6:  [0,0,0,1,1,2],
+                              7:  [0,0,0,1,1,2],
+                              8:  [0,0,0,1,1,2],
+                            },
+        orbital_idx_map={0: [0], 1: [2, 0, 1], 2: [4, 2, 0, 1, 3]},
+        orbital_sign_map={i: [1] * ((2 * i) + 1) for i in range(3)},
+        orbital_order_map={i: [] for i in range(119)},
+    ),
     'pyscf_augccpvqzjkfit': Namespace(
         atom_to_orbitals_map={1:  [0,0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,4,4],
                               8:  [0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,2,2,2,2,2,2,3,3,3,3,4,4,4,5,5],
