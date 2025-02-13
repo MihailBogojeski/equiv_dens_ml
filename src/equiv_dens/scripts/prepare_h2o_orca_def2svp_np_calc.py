@@ -111,6 +111,8 @@ for split_name, split_data in zip(split_names, splits):
     # for prop in dataset_npy.keys():
     #     print(f"type of {prop}: {type(dataset_npy[prop])} vs {type(data_dict[prop])}")
 
+    data_dict['positions'] *= 0.52917721092  # to angstrom
+
     np.save(npy_path, data_dict, allow_pickle=True)
     np.save(calc_path, calc_results, allow_pickle=True)
 
@@ -138,3 +140,5 @@ for split_name, split_data in zip(split_names, splits):
 # print(f"mean positions of h2o_small: {np.mean(np.abs(h2o_small['positions']), axis=0)}")
 # print(f"vairance positions of h2o_small: {np.var(h2o_small['positions'], axis=0)}")
 # print(f"mean positions of h2o: {np.mean(np.abs(h2o['positions']), axis=0)}")
+
+# %%
