@@ -1209,7 +1209,7 @@ class AOMatrixFromPairFeaturesV2(nn.Module):
 
         matrix = convert_ao_matrix(ao_matrix=matrix,
                                    atom_numbers=atoms['batch_atom_numbers'],
-                                   convention='pyscf_augccpvdz')
+                                   convention='orca_def2svp')
 
         atoms[self.output_property_name] = matrix
 
