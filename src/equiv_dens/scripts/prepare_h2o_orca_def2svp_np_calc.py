@@ -52,9 +52,10 @@ for split_name, split_data in zip(split_names, splits):
         else:
             data_dict['forces'] = np.concatenate((data_dict['forces'], b_forces), axis=0)
 
-        b_positions = batch['positions']
+        b_positions = np.array(batch['positions'])
+        b_positions *= 0.52917721092  # to angstrom
         if data_dict['positions'] is None:
-            data_dict['positions'] = np.array(b_positions)
+            data_dict['positions'] = b_positions
         else:
             data_dict['positions'] = np.concatenate((data_dict['positions'], b_positions), axis=0)
 
@@ -110,8 +111,6 @@ for split_name, split_data in zip(split_names, splits):
 
     # for prop in dataset_npy.keys():
     #     print(f"type of {prop}: {type(dataset_npy[prop])} vs {type(data_dict[prop])}")
-
-    data_dict['positions'] *= 0.52917721092  # to angstrom
 
     np.save(npy_path, data_dict, allow_pickle=True)
     np.save(calc_path, calc_results, allow_pickle=True)
