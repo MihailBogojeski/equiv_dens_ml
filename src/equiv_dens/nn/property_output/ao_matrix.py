@@ -1207,9 +1207,10 @@ class AOMatrixFromPairFeaturesV2(nn.Module):
         # matrix = matrix_old
         matrix = matrix + matrix.transpose(-2,-1) #symmetrize
 
+        # TODO no conversion ,i.e. convention=None
         matrix = convert_ao_matrix(ao_matrix=matrix,
                                    atom_numbers=atoms['batch_atom_numbers'],
-                                   convention='orca_def2svp')
+                                   convention=None)
 
         atoms[self.output_property_name] = matrix
 

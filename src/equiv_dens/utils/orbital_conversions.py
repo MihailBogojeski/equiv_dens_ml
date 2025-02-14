@@ -145,6 +145,7 @@ def convert_ao(ao_coeffs, atom_numbers,
 def convert_ao_matrix(ao_matrix, atom_numbers,
                       convention='pyscf_augccpvdz',
                       to_internal=False):
+    
     """
     Convert operator matrix projected on atomic orbitals from internal convention to some target convention
 
@@ -154,6 +155,9 @@ def convert_ao_matrix(ao_matrix, atom_numbers,
         convention: target convention
         to_internal: if True, convert back from target convention to internal convention
     """
+    if convention is None:
+        return ao_matrix
+
     transform_indices, transform_signs =\
         prepare_transform(atom_numbers, convention, to_internal)
 
