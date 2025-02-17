@@ -6,9 +6,9 @@ import equiv_dens.utils.base as utils
 
 file = sys.argv[1]
 every = int(sys.argv[2])
-n_runs = int(sys.argv[3])
 
 data = HDF5Loader(file, load_properties=False)
+n_runs = data.structure.n_molecules
 positions = data.properties['_positions'][::every] * 10
 atom_numbers = data.properties['_atomic_numbers']
 positions = np.reshape(positions, (positions.shape[0], n_runs, -1, positions.shape[-1]))
