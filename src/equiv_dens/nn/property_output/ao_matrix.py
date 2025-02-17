@@ -1049,7 +1049,7 @@ class AOMatrixFromPairFeaturesV2(nn.Module):
                                        col=self.orbital_basis[z_j.item()],
                                        irreps=irreps,
                                        batch_size=len(atom_pair_index_in_batch[interaction_idx]),
-                                       j_gt_i=j>i,
+                                       j_gt_i=None,
                                        device=R.device,
                                        dtype=R.dtype)
             
@@ -1107,7 +1107,7 @@ class AOMatrixFromPairFeaturesV2(nn.Module):
                                        col=self.orbital_basis[z_j.item()],
                                        irreps=irreps,
                                        batch_size=len(atom_index_in_batch[atom_idx]),
-                                       j_gt_i=j>i,
+                                       j_gt_i=None,
                                        device=R.device,
                                        dtype=R.dtype)
             
