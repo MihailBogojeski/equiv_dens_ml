@@ -962,12 +962,15 @@ class AOMatrixFromPairFeaturesV2(nn.Module):
         fij    = self.residual_ao_ij(fij)
         fij    = self.output_ij(fij)
 
+
         batch_size = atoms['batch_positions'].shape[0]
         num_atoms_in_batch = atoms['batch_positions'].shape[1]
         max_atom_numbers = torch.max(atoms['batch_atom_numbers'], dim=0)[0]
         num_orbitals_per_atom = {z.item(): sum((2*l+1) for _, _, l in self.orbital_basis[z.item()]) for z in torch.unique(max_atom_numbers)}
         num_orbitals = sum(num_orbitals_per_atom[z.item()] for z in max_atom_numbers)
         matrix = torch.zeros((batch_size, num_orbitals, num_orbitals), device=R.device)
+        # print(f"max_atom_numbers: {max_atom_numbers}")
+        # print(f"matrix shape: {matrix.shape}")
         # matrix_old = torch.zeros((batch_size, num_orbitals, num_orbitals), device=R.device)
 
         # time.sleep(10)
@@ -976,11 +979,22 @@ class AOMatrixFromPairFeaturesV2(nn.Module):
                                                                batch_idx_pos=atoms['batch_idx_pos'],
                                                                idx_i=atoms['idx_i_ao_matrix'],
                                                                idx_j=atoms['idx_j_ao_matrix'])
+        
+        # print(f"atom_numbers: {atoms['atom_numbers']}")
+        # print(f"batch_atom_numbers: {atoms['batch_atom_numbers']}")
+        # print(f"idx_i_batch: {idx_i_batch}")
+        # print(f"idx_j_batch: {idx_j_batch}")
+
+        # TODO if first water, than ethanol in batch, atom order is [1, 1, 1, 1, 1, 1, 8, 6, 6]
+        # TODO if first ethanol, than water in batch, atom order is [1, 1, 1, 1, 1, 1, 6, 6, 8]
+        # atom order determines ao offset for each atom in batch, i.e. where to place matrix block
+        # ! if atom order changes, matrix block is placed at different positions in each batch
+        # ! padding is performed batch-wise. check if padding in dynamic per batch but consequent within the batch
 
         # ao offset for each atom in batch
         ao_offsets = {0: 0}
         for i in range(1, num_atoms_in_batch):
-            z_previous = atoms['batch_atom_numbers'][0][i-1].item()
+            z_previous = max_atom_numbers[i-1].item()
             ao_offsets[i] = ao_offsets[i-1] + num_orbitals_per_atom[z_previous]
 
 
