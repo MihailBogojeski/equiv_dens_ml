@@ -59,6 +59,8 @@ for split_name, split_data in zip(split_names, splits):
 
     calc_results = []
 
+    Z = dataset.database.Z
+
     for batch in tqdm.tqdm(data_loader):
 
         # atom data
@@ -83,17 +85,19 @@ for split_name, split_data in zip(split_names, splits):
 
         # if data_dict['atom_numbers'] is None:
         #     data_dict['atom_numbers'] = np.repeat(dataset.database.Z[None, :], N, axis=0)
-        b_atom_numbers = np.repeat(dataset.database.Z[None, :], N, axis=0)
+        # b_atom_numbers = np.repeat(dataset.database.Z[None, :], N, axis=0)
         
         # if data_dict['atom_types'] is None:
         #     data_dict['atom_types'] = [np.array(dataset.database.Z) for _ in range(N)]
-        b_atom_types = [np.array(dataset.database.Z) for _ in range(N)]
+        # b_atom_types = [np.array(dataset.database.Z) for _ in range(N)]
+
+
 
         # mol_dict
         mol_dict = {'atom': [], 'basis': basis, 'unit': 'angstrom'}
-        atom_types = b_atom_types[0]
-        pos = np.array(b_positions[0])
-        mol_dict['atom'] = [(atom_symbols[atom_types[j]], pos[j, :]) for j in range(len(atom_types))]
+        # atom_types = b_atom_types[0]
+        pos = b_positions[0]
+        mol_dict['atom'] = [(atom_symbols[Z[j]], pos[j, :]) for j in range(len(Z))]
         # print(mol_dict)
 
         # calc_dict
@@ -106,7 +110,7 @@ for split_name, split_data in zip(split_names, splits):
         mo_coeff = np.real(mo_coeff)
         # print(f"mo_energies: {mo_energies.shape}, mo_coeff: {mo_coeff.shape}")
 
-        n_electrons = b_atom_numbers[0].sum()
+        n_electrons = Z.sum()
         mo_occ = np.zeros_like(mo_energies)
         mo_occ[:n_electrons//2] = 2
         # print(f"mo_occ: {mo_occ.shape}")
