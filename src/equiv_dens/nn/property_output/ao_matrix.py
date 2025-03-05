@@ -558,7 +558,7 @@ class AOMatrixFromPairFeatures(nn.Module):
         # ao offset for each atom in batch
         ao_offsets = {0: 0}
         for i in range(1, num_atoms_in_batch):
-            z_previous = atoms['batch_atom_numbers'][0][i-1].item()
+            z_previous = max_atom_numbers[i-1].item()
             ao_offsets[i] = ao_offsets[i-1] + num_orbitals_per_atom[z_previous]
 
 
@@ -787,7 +787,7 @@ class AOMatrixFromPairFeatures(nn.Module):
 
         matrix = convert_ao_matrix(ao_matrix=matrix,
                                    atom_numbers=atoms['batch_atom_numbers'],
-                                   convention='pyscf_augccpvdz')
+                                   convention=None)
 
         atoms[self.output_property_name] = matrix
 
