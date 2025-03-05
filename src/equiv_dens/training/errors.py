@@ -64,9 +64,11 @@ class ErrorDict:
             coord_weights = data['coord_weights']
         else:
             coord_weights = None
+        # print(f"coord_weights: {coord_weights}")
         for key in self.loss_weights.keys():
             loss = 0
             if self.loss_weights[key] > 0:
+                # print(f"key: {key}")
                 if key == "energy_min":
                     if exclude_energy_min:
                         continue
@@ -75,6 +77,7 @@ class ErrorDict:
                     error_dict[key + "_rmse"] = loss
                 else:
                     diff = predictions[key] - (data[key])
+                    # print(f"diff = pred - data")
                     if key == 'df_coeffs':
                         if self.df_loss_weights:
                             diff = diff * predictions['df_weights']
@@ -87,6 +90,7 @@ class ErrorDict:
                             * torch.abs(coord_weights) ** (1 / self.weights_balance)
                         balanced_weights *= torch.sum(coord_weights) / torch.sum(balanced_weights)
                     else:
+                        # print(f"balanced_weights = 1")
                         balanced_weights = 1
                     if isinstance(balanced_weights, torch.Tensor) and (diff.dim() - balanced_weights.dim() > 0):
                         dim_diff = diff.dim() - balanced_weights.dim()
@@ -95,6 +99,7 @@ class ErrorDict:
                         abs_diff = torch.abs(diff) * padded_weights
                         sq_diff = (diff ** 2) * padded_weights
                     else:
+                        # print(f"balanced weights no tensor")
                         abs_diff = torch.abs(diff) * balanced_weights
                         sq_diff = (diff ** 2) * balanced_weights
                     if key == 'density':
@@ -103,7 +108,41 @@ class ErrorDict:
                         rmse = torch.mean(rmse)
                         mae = torch.mean(torch.sum(abs_diff, dim=1))
                         mse = torch.mean(mse)
+                    elif 'matrix' in key:
+                        # print(f"matrix mse, rmse, mae")
+                        # considers only nonzero rows and columns for averaging
+
+                        nonzero_rows_cols = torch.any(data[key] != 0, dim=-1).int()  # (bs, n_orbs), row empty iff col empty (sym matrix)
+                        # print(f"count of nonzero rows and columns")
+                        # print(torch.sum(nonzero_rows_cols, dim=1))
+                        # print(f"nonzero_rows_cols")
+                        # print(nonzero_rows_cols)
+
+                        mask = torch.logical_and(nonzero_rows_cols[:, :, None], nonzero_rows_cols[:, None, :]).int()
+                        abs_diff = abs_diff * mask
+                        sq_diff = sq_diff * mask
+
+                        mask_sums = torch.sum(mask, dim=(-1, -2))
+                        # print(f"mask_sums")
+                        # print(mask_sums)
+
+                        mses = torch.sum(sq_diff, dim=(-1, -2)) / mask_sums
+                        rmses = torch.sqrt(mses)
+                        maes = torch.sum(abs_diff, dim=(-1, -2)) / mask_sums
+
+                        # print(f"mses: {mses}")
+                        # print(f"rmses: {rmses}")
+                        # print(f"maes: {maes}")
+
+                        mse = torch.mean(mses)
+                        rmse = torch.mean(rmses)
+                        mae = torch.mean(maes)
+
+                        # mse = torch.sum(sq_diff) / torch.sum(mask)
+                        # rmse = torch.sqrt(mse)
+                        # mae = torch.sum(abs_diff) / torch.sum(mask)
                     else:
+                        print(f"mse, rmse, mae")
                         mse = torch.mean(sq_diff)
                         rmse = torch.sqrt(mse)
                         mae = torch.mean(abs_diff)
@@ -161,6 +200,7 @@ class ErrorDict:
                                 coord_weights,
                             ))
                     if mae > self.max_errors[key]:
+                        # print(f"clamping mae, rmse, mse")
                         losses['mae'] = torch.clamp(losses['mae'], self.max_errors[key])
                         losses['rmse'] = torch.clamp(losses['rmse'], torch.sqrt(2) * self.max_errors[key])
                         losses['mse'] = torch.clamp(losses['mse'], self.max_errors[key]**2)
