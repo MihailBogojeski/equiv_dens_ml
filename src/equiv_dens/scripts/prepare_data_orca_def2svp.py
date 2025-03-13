@@ -59,7 +59,7 @@ for split_name, split_data in zip(split_names, splits):
 
     calc_results = []
 
-    Z = dataset.database.Z
+    atom_numbers= np.array(dataset.database.Z)
 
     for batch in tqdm.tqdm(data_loader):
 
@@ -97,7 +97,7 @@ for split_name, split_data in zip(split_names, splits):
         mol_dict = {'atom': [], 'basis': basis, 'unit': 'angstrom'}
         # atom_types = b_atom_types[0]
         pos = b_positions[0]
-        mol_dict['atom'] = [(atom_symbols[Z[j]], pos[j, :]) for j in range(len(Z))]
+        mol_dict['atom'] = [(atom_symbols[atom_numbers[j]], pos[j, :]) for j in range(len(atom_numbers))]
         # print(mol_dict)
 
         # calc_dict
@@ -105,21 +105,20 @@ for split_name, split_data in zip(split_names, splits):
         hm = batch['full_hamiltonian'][0]
         om = batch['overlap_matrix'][0]
 
-        mo_energies, mo_coeff = sp.linalg.eig(hm, om)
-        mo_energies = np.real(mo_energies)
-        mo_coeff = np.real(mo_coeff)
+        mo_energies, mo_coeff = sp.linalg.eigh(a=hm, b=om)
+        mo_energies = np.array(mo_energies)
+        mo_coeff = np.array(mo_coeff)
         # print(f"mo_energies: {mo_energies.shape}, mo_coeff: {mo_coeff.shape}")
 
-        n_electrons = Z.sum()
-        mo_occ = np.zeros_like(mo_energies)
-        mo_occ[:n_electrons//2] = 2
-        # print(f"mo_occ: {mo_occ.shape}")
+        n_electrons = np.sum(atom_numbers)
+        mo_occ = np.zeros(hm.shape[0], dtype=np.int32)
+        mo_occ[:n_electrons//2] = 2  # [2, 2, 2, 2, 2, 0, ..., 0] len=24
 
         dm = hf.make_rdm1(mo_coeff, mo_occ)
 
         # print(f"dm: {dm.shape}")
-        calc_dict['atom_numbers'] = np.array(dataset.database.Z)
-        calc_dict['atom_types'] = np.array(dataset.database.Z)
+        calc_dict['atom_numbers'] = atom_numbers
+        calc_dict['atom_types'] = atom_numbers
         calc_dict['positions'] = np.array(b_positions[0])
         calc_dict['forces'] = np.array(b_forces[0])
         calc_dict['energy'] = np.array(b_energy[0])
