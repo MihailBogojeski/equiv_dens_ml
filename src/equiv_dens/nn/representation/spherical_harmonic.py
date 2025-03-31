@@ -331,6 +331,7 @@ class EquivariantSphericalHarmonicsV2(nn.Module):
                  orbital_basis=None,  # orbitals of atoms
                  order=1,  # maximum order of spherical harmonics features
                  mixing_order=None,   # maximum order of spherical harmonics features during interactions
+                 mix_orders_in_res=True,
                  num_features=32,  # dimensionality of the feature space
                  num_hidden_att_mlp=128,
                  num_hidden_rbf_mlp=128,
@@ -379,6 +380,7 @@ class EquivariantSphericalHarmonicsV2(nn.Module):
         self.mixing_order = mixing_order
         if self.mixing_order is None:
             self.mixing_order = self.order
+        self.mix_orders_in_res = mix_orders_in_res
         self.num_features = num_features
         self.num_basis_functions = num_basis_functions
         self.num_hidden_att_mlp = num_hidden_att_mlp
@@ -488,13 +490,14 @@ class EquivariantSphericalHarmonicsV2(nn.Module):
         #                              activation=self.activation, num_neighbours=self.num_neighbours,
         #                              normalize=normalize, parity=parity) for i in range(1, self.num_modules)])
         
-        # TODO keep diferrent order for each module
+
         modules = [QHNetNodewiseInteraction(order=self.order[0],
                                             num_features=self.num_features,
                                             num_basis_functions=self.num_basis_functions,
                                             clebsch_gordan=self.clebsch_gordan,
                                             mix_orders=True, mixing_order=self.mixing_order[0],
-                                            input_order=0,
+                                            mix_orders_in_res=self.mix_orders_in_res,
+                                            input_order=self.order[0],
                                             activation=self.activation,
                                             normalize=self.normalize,
                                             parity=parity,
@@ -507,6 +510,7 @@ class EquivariantSphericalHarmonicsV2(nn.Module):
                                                  num_basis_functions=self.num_basis_functions,
                                                  clebsch_gordan=self.clebsch_gordan,
                                                  mix_orders=True, mixing_order=self.mixing_order[i],
+                                                 mix_orders_in_res=self.mix_orders_in_res,
                                                  input_order=self.order[i - 1],
                                                  activation=self.activation,
                                                  normalize=self.normalize,

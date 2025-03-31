@@ -803,6 +803,7 @@ class AOMatrixFromPairFeaturesV2(nn.Module):
     def __init__(self,
             orbital_basis        = None, #orbitals of atoms, defines layout and shape of output matrix
             order                = 1,  #maximum order of spherical harmonics features
+            mix_orders_in_res    = True, #if True, the residual blocks mix features of different orders
             num_features         = 32, #dimensionality of the feature space
             num_basis_functions  = 32, #number of basis functions for featurizing distances
             num_residual_ao_ii  = 1, #number of residual blocks applied to output atomic features for predicting irreps of diagonal blocks (output matrix)
@@ -823,6 +824,7 @@ class AOMatrixFromPairFeaturesV2(nn.Module):
 
         self.orbital_basis = orbital_basis
         self.order = order
+        self.mix_orders_in_res = mix_orders_in_res
         self.num_features = num_features
         self.num_basis_functions = num_basis_functions
         self.num_residual_ao_ii = num_residual_ao_ii
@@ -845,13 +847,8 @@ class AOMatrixFromPairFeaturesV2(nn.Module):
 
         #declare modules and parameters
         self.clebsch_gordan = ClebschGordanMatrix()
-        self.mix_ij = PairMixing(self.order, self.order, self.order, self.num_basis_functions, self.num_features, self.clebsch_gordan)
-        self.radial_ii = nn.ModuleList([nn.Linear(self.num_basis_functions, self.num_features, bias=False)
-            for L in range(self.order+1)])
-        self.radial_ij = nn.ModuleList([nn.Linear(self.num_basis_functions, self.num_features, bias=False)
-            for L in range(self.order+1)])
-        self.residual_ao_ii = ResidualStack(self.num_residual_ao_ii, self.order, self.num_features, self.clebsch_gordan, True, self.activation, use_V2=True, num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
-        self.residual_ao_ij = ResidualStack(self.num_residual_ao_ij, self.order, self.num_features, self.clebsch_gordan, True, self.activation, use_V2=True, num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
+        self.residual_ao_ii = ResidualStack(self.num_residual_ao_ii, self.order, self.num_features, self.clebsch_gordan, self.mix_orders_in_res, self.activation, use_V2=True, num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
+        self.residual_ao_ij = ResidualStack(self.num_residual_ao_ij, self.order, self.num_features, self.clebsch_gordan, self.mix_orders_in_res, self.activation, use_V2=True, num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
 
         #determine minimum number of output features based on orbitals
         #and generate dictionaries (irreps_ii/irreps_ij) that store indices 

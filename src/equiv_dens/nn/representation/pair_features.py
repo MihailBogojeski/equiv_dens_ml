@@ -150,6 +150,7 @@ class PairFeaturesV2(nn.Module):
     def __init__(self,
             orbital_basis        = None, #orbitals of atoms, used to get number of atoms
             order                = 1,  #maximum order of spherical harmonics features
+            mix_orders_in_res    = True,
             num_features         = 32, #dimensionality of the feature space
             num_basis_functions  = 32, #number of basis functions for featurizing distances
             num_residual_pc      = 1, #number of residual blocks applied to output atomic features for constructing pair features (central atoms)
@@ -176,6 +177,7 @@ class PairFeaturesV2(nn.Module):
 
         self.orbital_basis = orbital_basis
         self.order = order
+        self.mix_orders_in_res = mix_orders_in_res
         self.num_features = num_features
         self.num_basis_functions = num_basis_functions
         self.basis_functions = basis_functions
@@ -213,7 +215,7 @@ class PairFeaturesV2(nn.Module):
                                         self.num_features,
                                         self.num_basis_functions,
                                         self.clebsch_gordan,
-                                        True,
+                                        self.mix_orders_in_res,
                                         self.activation,
                                         num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
         
@@ -221,7 +223,7 @@ class PairFeaturesV2(nn.Module):
                                                 self.num_features,
                                                 self.num_basis_functions,
                                                 self.clebsch_gordan,
-                                                True,
+                                                self.mix_orders_in_res,
                                                 self.activation,
                                                 num_hidden_att_mlp=self.num_hidden_att_mlp,
                                                 num_hidden_rbf_mlp=self.num_hidden_rbf_mlp,
@@ -259,7 +261,7 @@ class DiagonalPair(nn.Module):
                  num_features,
                  num_basis_functions,
                  clebsch_gordan=None,
-                 mix_order=True,
+                 mix_orders_in_res=True,
                  activation='swish',
                  normalize=0,
                  order_out=None,
@@ -273,7 +275,7 @@ class DiagonalPair(nn.Module):
         self.num_basis_functions = num_basis_functions
         self.clebsch_gordan = clebsch_gordan
         self.normalize = normalize
-        self.mix_orders = mix_order
+        self.mix_orders_in_res = mix_orders_in_res
         self.num_hidden_normgate_mlp = num_hidden_normgate_mlp
 
         if order_out is None:
@@ -281,7 +283,7 @@ class DiagonalPair(nn.Module):
         else:
             self.order_out = order_out
 
-        if self.mix_orders:
+        if self.mix_orders_in_res:
             assert clebsch_gordan is not None
 
         if activation == "swish":
@@ -293,8 +295,8 @@ class DiagonalPair(nn.Module):
         
         self.simple_residual_l = SimplifiedResidualBlock(order=self.order,
                                                          num_features=self.num_features,
-                                                         clebsch_gordan=self.clebsch_gordan, 
-                                                         mix_orders=self.mix_orders,
+                                                         clebsch_gordan=self.clebsch_gordan if self.mix_orders_in_res else None, 
+                                                         mix_orders=self.mix_orders_in_res,
                                                          activation=activation,
                                                          normalize=normalize,
                                                          parity=parity,
@@ -302,8 +304,8 @@ class DiagonalPair(nn.Module):
                                                          num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
         self.simple_residual_r = SimplifiedResidualBlock(order=self.order,
                                                          num_features=self.num_features,
-                                                         clebsch_gordan=self.clebsch_gordan, 
-                                                         mix_orders=self.mix_orders,
+                                                         clebsch_gordan=self.clebsch_gordan if self.mix_orders_in_res else None, 
+                                                         mix_orders=self.mix_orders_in_res,
                                                          activation=activation,
                                                          normalize=normalize,
                                                          parity=parity,
@@ -314,8 +316,8 @@ class DiagonalPair(nn.Module):
 
         self.simple_residual_out = SimplifiedResidualBlock(order=self.order_out,
                                                          num_features=self.num_features,
-                                                         clebsch_gordan=self.clebsch_gordan, 
-                                                         mix_orders=self.mix_orders,
+                                                         clebsch_gordan=self.clebsch_gordan if self.mix_orders_in_res else None, 
+                                                         mix_orders=self.mix_orders_in_res,
                                                          activation=activation,
                                                          normalize=normalize,
                                                          parity=parity,
@@ -343,7 +345,7 @@ class OffDiagonalPair(nn.Module):
                  num_features,
                  num_basis_functions,
                  clebsch_gordan=None,
-                 mix_order=True,
+                 mix_orders_in_res=True,
                  activation='swish',
                  normalize=0,
                  order_out=None,
@@ -359,7 +361,7 @@ class OffDiagonalPair(nn.Module):
         self.num_basis_functions = num_basis_functions
         self.clebsch_gordan = clebsch_gordan
         self.normalize = normalize
-        self.mix_orders = mix_order
+        self.mix_orders_in_res = mix_orders_in_res
         self.num_hidden_att_mlp = num_hidden_att_mlp
         self.num_hidden_rbf_mlp = num_hidden_rbf_mlp if num_hidden_rbf_mlp > 0 else num_features
         self.num_hidden_normgate_mlp = num_hidden_normgate_mlp
@@ -369,7 +371,7 @@ class OffDiagonalPair(nn.Module):
         else:
             self.order_out = order_out
 
-        if self.mix_orders:
+        if self.mix_orders_in_res:
             assert clebsch_gordan is not None
 
         if activation == "swish":
@@ -381,8 +383,8 @@ class OffDiagonalPair(nn.Module):
 
         self.simple_residual_i = SimplifiedResidualBlock(order=self.order,
                                                          num_features=self.num_features,
-                                                         clebsch_gordan=self.clebsch_gordan, 
-                                                         mix_orders=self.mix_orders,
+                                                         clebsch_gordan=self.clebsch_gordan if self.mix_orders_in_res else None, 
+                                                         mix_orders=self.mix_orders_in_res,
                                                          activation=activation,
                                                          normalize=self.normalize,
                                                         #  order_out=self.order_out,
@@ -392,8 +394,8 @@ class OffDiagonalPair(nn.Module):
         
         self.simple_residual_j = SimplifiedResidualBlock(order=self.order,
                                                          num_features=self.num_features,
-                                                         clebsch_gordan=self.clebsch_gordan, 
-                                                         mix_orders=self.mix_orders,
+                                                         clebsch_gordan=self.clebsch_gordan if self.mix_orders_in_res else None, 
+                                                         mix_orders=self.mix_orders_in_res,
                                                          activation=activation,
                                                          normalize=self.normalize,
                                                         #  order_out=self.order_out,
@@ -404,7 +406,7 @@ class OffDiagonalPair(nn.Module):
         self.att_scores = AttentiveScores(order=self.order,
                                           num_features=self.num_features,
                                           clebsch_gordan=self.clebsch_gordan,
-                                          mix_order=self.mix_orders,
+                                          mix_order=True,
                                           activation=activation,
                                           normalize=self.normalize,
                                         #   order_out=self.order_out,
@@ -421,8 +423,8 @@ class OffDiagonalPair(nn.Module):
         
         self.simple_residual_out = SimplifiedResidualBlock(order=self.order_out,
                                                            num_features=self.num_features,
-                                                           clebsch_gordan=self.clebsch_gordan, 
-                                                           mix_orders=self.mix_orders,
+                                                           clebsch_gordan=self.clebsch_gordan if self.mix_orders_in_res else None, 
+                                                           mix_orders=self.mix_orders_in_res,
                                                            activation=activation,
                                                            normalize=self.normalize,
                                                         #    order_out=self.order_out,
