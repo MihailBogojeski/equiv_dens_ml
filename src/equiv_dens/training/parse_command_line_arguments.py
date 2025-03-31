@@ -91,6 +91,8 @@ def parse_command_line_arguments(arg_file=None):
                                   help="number of residual blocks for predicting diagonal blocks (atomic orbital matrix)")
     args_hyperparams.add_argument("--num_residual_ao_ij", metavar='INT',        type=int,      default=1,
                                   help="number of residual blocks for predicting off-diagonal blocks (atomic orbital matrix)")
+    args_hyperparams.add_argument("--mix_orders_in_res", metavar='True|False', type=str2bool, default=True,
+                                  choices=[True, False], help="Mix orders in SimplifiedResidual block.")
     args_hyperparams.add_argument("--num_energy_output", metavar='INT', type=int, default=2,
                                   help="number of layers for the simple energy output network.")
     args_hyperparams.add_argument("--num_neighbours", metavar='INT', type=int, default=1,
