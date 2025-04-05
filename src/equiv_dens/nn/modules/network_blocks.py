@@ -635,7 +635,6 @@ class QHNetNodewiseInteraction(nn.Module):
                  clebsch_gordan=None,
                  mix_orders=True,
                  mixing_order=None,
-                 mix_orders_in_res=True,
                  input_order=None,
                  activation='swish',
                  normalize=0,
@@ -654,7 +653,6 @@ class QHNetNodewiseInteraction(nn.Module):
         self.normalize = normalize
         self.mix_orders = mix_orders
         self.mixing_order = mixing_order
-        self.mix_orders_in_res = mix_orders_in_res
         self.input_order = input_order
         self.num_hidden_att_mlp = num_hidden_att_mlp
         self.num_hidden_rbf_mlp = num_hidden_rbf_mlp if num_hidden_rbf_mlp > 0 else num_features
@@ -665,7 +663,7 @@ class QHNetNodewiseInteraction(nn.Module):
         else:
             self.order_out = order_out
 
-        if self.mix_orders or self.mix_orders_in_res:
+        if self.mix_orders:
             assert clebsch_gordan is not None
 
         if self.mixing_order is None:
@@ -700,7 +698,7 @@ class QHNetNodewiseInteraction(nn.Module):
         self.simple_residual_i = SimplifiedResidualBlock(order=min(2*self.input_order, self.order),
                                                          num_features=self.num_features,
                                                          clebsch_gordan=self.clebsch_gordan if self.mix_orders else None, 
-                                                         mix_orders=self.mix_orders_in_res,
+                                                         mix_orders=self.mix_orders,
                                                          activation=activation,
                                                          normalize=self.normalize,
                                                          order_out=self.mixing_order,
@@ -711,7 +709,7 @@ class QHNetNodewiseInteraction(nn.Module):
         self.simple_residual_j = SimplifiedResidualBlock(order=min(2*self.input_order, self.order),
                                                          num_features=self.num_features,
                                                          clebsch_gordan=self.clebsch_gordan if self.mix_orders else None, 
-                                                         mix_orders=self.mix_orders_in_res,
+                                                         mix_orders=self.mix_orders,
                                                          activation=activation,
                                                          normalize=self.normalize,
                                                          order_out=self.mixing_order,
@@ -729,18 +727,6 @@ class QHNetNodewiseInteraction(nn.Module):
                                   parity=False,
                                   distance_dependent=False)
         
-        # print(f"simple resi post")
-        # self.simple_residual_post = SimplifiedResidualBlock(order=self.mixing_order,
-        #                                                      num_features=self.num_features,
-        #                                                      clebsch_gordan=self.clebsch_gordan, 
-        #                                                      mix_orders=self.mix_orders,
-        #                                                      activation=activation,
-        #                                                      normalize=self.normalize,
-        #                                                      order_out=self.mixing_order,
-        #                                                      parity=parity,
-        #                                                      bias=bias,
-        #                                                      num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
-
         self.linear_out = SphericalLinear(
             order_in=self.mixing_order,
             num_in=self.num_features,
