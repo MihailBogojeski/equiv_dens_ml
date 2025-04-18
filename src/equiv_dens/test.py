@@ -56,7 +56,6 @@ test_data_loader = set_up_data_loader(test_dataset, args.test_batch_size,
                                       args.batch_efficiency, use_gpu, False)
 
 # define model
-print('args.df_weight', args.df_weight)
 model = load_model(args, dataset)
 
 if use_gpu:
@@ -86,11 +85,9 @@ for test_batch_num, data in enumerate(test_data_loader):
     # print('step', test_batch_num)
     # print('positions shape', data['positions'].shape)
     data = model.transform_input(data)
-    print('density shape', data['density'].shape)
     predictions = model(data)
     data = model.transform_back_input(data)
 
-    # print(lkajsdlkjasfd)
     # print('energy pred', predictions['energy'])
     if args.verbose > 0:
         if 'density' in predictions.keys():
@@ -98,6 +95,7 @@ for test_batch_num, data in enumerate(test_data_loader):
         if 'energy' in predictions.keys():
             print('pred energy', predictions['energy'].view((-1, )))
             print('true energy', data['energy'].view((-1, )))
+            print('energy correlation', np.corrcoef(predictions['energy'].view((-1,)).numpy(force=True), data['energy'].view((-1,)).numpy(force=True)))
 
     # print('spherical density integral', torch.sum(predictions['density'] * data['coord_weights'], dim=-1))
     # compute error metrics
