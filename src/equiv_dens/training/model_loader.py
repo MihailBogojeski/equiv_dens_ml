@@ -5,7 +5,7 @@ import torch.nn as nn
 from equiv_dens.nn.dft_network import DFTNetwork
 from equiv_dens.nn.representation.spherical_harmonic import EquivariantSphericalHarmonics
 from equiv_dens.nn.property_output.energy import SphericalHarmonicsEnergyNetwork,\
-    SphericalLinearEnergyNetwork, RepresentationEnergyNetwork
+    SphericalLinearEnergyNetwork, RepresentationEnergyNetwork, SphericalHarmonicsEmbeddingEnergyNetwork
 from equiv_dens.nn.property_output.density import DensityCoeffsNetwork, DFDensityCoeffs,\
     FreeAtomDensityCoeffs, DensityExpansion
 from equiv_dens.nn.property_output.dipole_moment import DipoleMomentCalc, DipoleMomentIntorCalc
@@ -176,6 +176,33 @@ def load_model(args, dataset, train=False):
     if args.energy_weight + args.forces_weight > 0:
         if args.energy_model == 'spherical':
             en_class = SphericalHarmonicsEnergyNetwork
+            en_model = en_class(
+                orbital_basis=dataset.orbital_basis_num,
+                order=args.order_en,
+                mixing_order=args.mixing_order_en,
+                num_features=args.num_energy_features,
+                num_basis_functions=args.num_en_basis_functions,
+                num_modules=args.num_en_modules,
+                num_residual_pre_x=args.num_residual_pre_x,
+                num_residual_post_x=args.num_residual_post_x,
+                num_residual_pre_vi=args.num_residual_pre_vi,
+                num_residual_pre_vj=args.num_residual_pre_vj,
+                num_residual_post_v=args.num_residual_post_v,
+                num_residual_output=args.num_residual_output,
+                num_radial_components=args.num_radial_components,
+                num_neighbours=args.num_neighbours,
+                basis_functions=args.basis_functions,
+                cutoff=args.cutoff,
+                activation=args.activation,
+                clebsch_gordan=clebsch_gordan,
+                calculate_forces=calculate_forces,
+                verbose=args.verbose,
+                timing=args.timing,
+                normalize=args.normalize_en,
+                parity=args.parity_en,
+            )
+        elif args.energy_model == 'spherical_embedding':
+            en_class = SphericalHarmonicsEmbeddingEnergyNetwork
             en_model = en_class(
                 orbital_basis=dataset.orbital_basis_num,
                 order=args.order_en,
