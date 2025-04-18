@@ -84,7 +84,7 @@ class DFTNetworkCalculator(MDCalculator):
         # print('avg_force', torch.mean(torch.norm(results['forces'], dim=-1)))
         # print('avg_energy', torch.mean(results['energy']))
         # print('Model time:', time.time() - start_model)
-        print('density integral', torch.sum(results['density'] * results['coord_weights'], -1))
+        # print('density integral', torch.sum(results['density'] * results['coord_weights'], -1))
         start_coeffs = time.time()
         vector_coeffs = orbitals.coeffs_dict_to_vector(results, self.model.density_repr_model[0].orbital_basis,
                                                        results['batch_atom_numbers'])

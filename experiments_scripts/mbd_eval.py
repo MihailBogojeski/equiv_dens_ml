@@ -246,13 +246,35 @@ for i in range(len(dataset)):
 
 # print('res_radial width', res['radial_width'])
 # print('dataset radial coeffs', dataset.radial_coeffs)
-        dens_err = torch.sum(torch.abs(res['density'] - samp['density']) * samp['coord_weights'], dim=1) / torch.sum(samp['batch_atom_numbers'], dim=1)
-        print('res density integral', torch.sum(res['density'] * res['coord_weights'], dim=1))
-        print('true density integral', torch.sum(samp['density'] * samp['coord_weights'], dim=1))
-        print('density error', dens_err)
-        print('dpm error', dpm_err[i])
-        density_err.append(dens_err.numpy(force=True))
-        wA, atomic_charges, dipoles, volume_ratio = hirshfeld_analysis.hirshfeld_partitioning(samp['density'],
+    dens_err = torch.sum(torch.abs(res['density'] - samp['density']) * samp['coord_weights'], dim=1) / torch.sum(samp['batch_atom_numbers'], dim=1)
+    print('res density integral', torch.sum(res['density'] * res['coord_weights'], dim=1))
+    print('true density integral', torch.sum(samp['density'] * samp['coord_weights'], dim=1))
+    print('density error', dens_err)
+    print('dpm error', dpm_err[i])
+    density_err.append(dens_err.numpy(force=True))
+    wA, atomic_charges, dipoles, volume_ratio = hirshfeld_analysis.hirshfeld_partitioning(samp['density'],
+                                                                                          samp['atom_density_split'],
+                                                                                          samp['batch_positions'], samp['batch_atom_numbers'],
+                                                                                          samp['coords'], samp['coord_weights'],
+                                                                                          to_bohr=True)
+    pos = utils.angstrom_to_bohr(samp['batch_positions'][0].numpy(force=True))
+    nums = samp['batch_atom_numbers'][0].numpy(force=True)
+    # print('v ratio', volume_ratio[0])
+    energy = MBDGeom(pos).mbd_energy_species(utils.numbers_to_symbols(nums), volume_ratio[0].numpy(force=True), 0.83)
+    true_mbd_dict['atomic_charges'].append(atomic_charges.numpy(force=True))
+    true_mbd_dict['dipoles'].append(dipoles.numpy(force=True))
+    true_mbd_dict['volume_ratio'].append(volume_ratio.numpy(force=True))
+    true_mbd_dict['mbd_energy'].append(utils.hartree_to_kcal(energy))
+    print('MBD energy', utils.hartree_to_kcal(energy))
+
+    if main_args.expansion_volumes:
+        volume_ratio, eff_volumes = hirshfeld_analysis.volume_ratios_from_expansion(res, model.property_models['density'],
+                                                                                     free_atom_volumes=volumes,
+                                                                                     removed_free_atom=args.remove_atom_density)
+        dipoles = orbitals.get_atomic_dipoles(res, model.property_models['density'], to_bohr=False)
+        atomic_charges = orbitals.get_density_charges(res, removed_free_atom=args.remove_atom_density)
+    else:
+        wA, atomic_charges, dipoles, volume_ratio = hirshfeld_analysis.hirshfeld_partitioning(res['density'],
                                                                                             samp['atom_density_split'],
                                                                                             samp['batch_positions'], samp['batch_atom_numbers'],
                                                                                             samp['coords'], samp['coord_weights'],
