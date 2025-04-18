@@ -49,8 +49,8 @@ class CoeffsIntegralConstraint(nn.Module):
         norms = 1 / gto_norm(0, L0_widths_comb) / pyscf_gto_factor
         coeffs_pointer = 0
         if self.remove_atom_density:
-            return atoms
-            v = L0_coeffs_comb / L0_scales_comb
+            v = torch.where(L0_scales_comb != 0, L0_coeffs_comb / L0_scales_comb, torch.tensor(0.0))
+
             w = torch.zeros_like(L0_coeffs_comb)
             w = L0_scales_comb * norms
             w_dot_w = torch.einsum('bi,bi->b', w, w)
@@ -114,10 +114,12 @@ class DensityCoeffsNetwork(nn.Module):
         self.order = order
         self.num_features = num_features
         self.positive_coeffs = positive_coeffs
-        if integral_constraint == 'coeffs_in_coeffs_net':
+        print('input integral constraint', integral_constraint)
+        if integral_constraint == 'coeffs_in_coeff_net':
             self.integral_constraint = CoeffsIntegralConstraint(integral_scale, remove_atom_density)
         else:
             self.integral_constraint = None
+        print('self integral constraint', self.integral_constraint)
         self.verbose = verbose
         self.compressed_extraction = compressed_extraction
         self.timing = timing

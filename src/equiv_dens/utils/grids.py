@@ -143,11 +143,11 @@ def spherical_radial_sampling(grid_spec, n_samp, atom_numbers, positions,
         mask = atom_numbers[i] > 0
         pos_nz = pos[:, mask, :]
         atm_dist, _ = utils.calculate_distances_and_directions(positions)
-        print('atom_numbers', atom_numbers.squeeze())
-        print('atom distances', utils.angstrom_to_bohr(atm_dist.squeeze()))
+        # print('atom_numbers', atom_numbers.squeeze())
+        # print('atom distances', utils.angstrom_to_bohr(atm_dist.squeeze()))
         pos_idx = -1
         for j, z in enumerate(atom_numbers_max):
-            print('i', j)
+            # print('i', j)
             start_jz = time.time()
             if z <= 0:
                 continue

@@ -259,7 +259,9 @@ def load_model(args, dataset, train=False):
         calculate_forces_dict['energy'] = calculate_forces
     if args.dipole_moment_weight:
         if args.dpm_intor:
-            property_models['dipole_moment'] = DipoleMomentIntorCalc(orbital_basis=dataset.orbital_basis_num)
+            property_models['dipole_moment'] = DipoleMomentIntorCalc(orbital_basis=dataset.orbital_basis_num,
+                                                                     remove_atom_density=args.remove_atom_density,
+                                                                     )
         else:
             property_models['dipole_moment'] = DipoleMomentCalc()
         calculate_forces_dict['dipole_moment'] = False

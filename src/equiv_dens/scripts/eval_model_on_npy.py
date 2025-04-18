@@ -41,6 +41,9 @@ args.forces_weight = 0
 args.density_weight = 0
 args.dipole_moment_weight = 1
 args.dpm_intor = main_args.dpm_intor
+if args.dpm_intor:
+    args.integral_constraint = 'coeffs_in_coeffs_net'
+# args.integral_constraint = None 
 args, hyperparam_args, test_vars = train_utils.init_training_vars(args, hyperparam_args)
 checkpoint = test_vars['checkpoint']
 args_dict = vars(args)
@@ -113,30 +116,42 @@ else:
     files = [main_args.target]
 
 for file in files:
+    dpm_errors = []
+    dir = '/'.join(file.split('/')[:-1])
     fname = file.split('/')[-1]
     if args.dpm_intor:
         suffix = '_dpm_intor.npy'
     else:
         suffix = '_dpm.npy'
 
+    ref_file_name = fname[:-4] + '_dm.txt'
     fname = fname[:-4] + suffix
     print('fname', fname)
     print('filetype', file[-3:])
+    with open(os.path.join(dir, ref_file_name), 'r') as f:
+        ref_file_lines = f.readlines()
     out_exists = os.path.exists(os.path.join('results', fname))
     if 'npy' != file[-3:] or out_exists:
         print('skipping file')
-        continue 
+        continue
     data_npy = np.load(file, allow_pickle=True).item()
+    if data_npy['atom_numbers'].ndim == 1:
+        data_npy['atom_numbers'] = np.tile(data_npy['atom_numbers'][None, :],
+                                           (data_npy['positions'].shape[0], 1))
     data_pos = 0
-    data_npy['dipole_moment'] = None 
+    data_npy['dipole_moment'] = None
     print('data len', data_npy['positions'].shape)
 
-    # dpm_errors = None 
+    count = 0
     while data_pos < data_npy['positions'].shape[0]:
+        count += 1
+        # if count > 10:
+        #     break
         if data_pos + main_args.batch_size > data_npy['positions'].shape[0]:
             max_pos = data_npy['positions'].shape[0]
         else:
             max_pos = data_pos + main_args.batch_size
+
         batch_npy = {'positions': data_npy['positions'][data_pos:max_pos],
                      'atom_numbers': data_npy['atom_numbers'][data_pos:max_pos]}
         start = time.time()
@@ -157,17 +172,26 @@ for file in files:
             print('data from npy time', time.time() - start)
         res = model(data)
         # print('res density integral', torch.sum(res['density'] * res['coord_weights'], dim=1))
-        print('num electrons', orbitals.get_n_electrons(res['atom_numbers']))
-        print('dipole_moment', res['dipole_moment'])
+        # print('center positions', torch.mean(res['positions'],))
+        # print('num electrons', orbitals.get_n_electrons(res['atom_numbers']))
+        # print('dipole_moment', res['dipole_moment'])
+        # print('dipole magnitude', torch.norm(res['dipole_moment'], dim=-1))
         np_dpm = utils.internal_to_debye(res['dipole_moment'].numpy(force=True))
-        # print('dipole_moment np', np_dpm)
+        print('dipole_moment converted', np_dpm)
+        print('data pos', data_pos, 'max pos', max_pos)
+        try:
+            dipole_ref = [ref_file_lines[i].split(' ') for i in range(data_pos, max_pos)]
+            dipole_ref = np.array(dipole_ref).astype(float)
+            print('dipole ref', dipole_ref)
+            print('dipole error', np.linalg.norm(dipole_ref - np_dpm, axis=-1))
+            dpm_errors.append(np.linalg.norm(dipole_ref - np_dpm, axis=-1))
+        except Exception as e:
+            print(e.message)
 
         if data_npy['dipole_moment'] is None:
             data_npy['dipole_moment'] = np_dpm
         else:
-            data_npy['dipole_moment'] = np.concatenate([data_npy['dipole_moment'],
-                                                        np_dpm],
-                                                       axis=0)
+            data_npy['dipole_moment'] = np.concatenate([data_npy['dipole_moment'], np_dpm], axis=0)
 
         # samp = dataset.get_properties(np.arange(data_pos, max_pos))
         # for key in samp.keys():
@@ -186,6 +210,7 @@ for file in files:
         print(f"Memory allocated: {allocated_memory / (1024**2):.2f} MB")
         res = None
     np.save(os.path.join('results', fname), data_npy, allow_pickle=True)
+    print('average dpm error', np.mean(np.concatenate(dpm_errors, axis=-1)))
 
     # np.save(os.path.join('results', 'dpm_errors_' + fname), dpm_errors, allow_pickle=True)
     # print('mean dpm error', np.mean(dpm_errors))
