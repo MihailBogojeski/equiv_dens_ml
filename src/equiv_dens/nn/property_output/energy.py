@@ -4,7 +4,8 @@ from equiv_dens.nn.modules.network_blocks import ModularBlock, ResidualBlock, la
 from equiv_dens.nn.modules.radial_basis_functions import BernsteinRadialBasisFunctions,\
     GaussianRadialBasisFunctions, ExponentialBernsteinRadialBasisFunctions, ExponentialGaussianRadialBasisFunctions
 from equiv_dens.nn.modules.activations import Swish, ShiftedSoftplus
-from equiv_dens.utils.orbitals import combine_orbital_basis, get_invariant_features, get_max_order, coeffs_dict_to_tensors
+from equiv_dens.utils.orbitals import combine_orbital_basis, get_invariant_features,\
+        get_max_order, coeffs_dict_to_tensors, gto_norm, pyscf_gto_factor, gto_norm_pyscf
 from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
 from equiv_dens.nn.modules.spherical_harmonic_layers import SphericalLinear
 from equiv_dens.nn.modules.embeddings import SphericalEmbedding
@@ -51,6 +52,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
                  num_neighbours=1,
                  normalize=0,
                  parity=False,
+                 atom_dens=None,
                  ):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
         super().__init__()
 
@@ -82,6 +84,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
         self.pred_radial_coeffs = pred_radial_coeffs
         self.num_neighbours = num_neighbours
         self.normalize = normalize
+        self.atom_dens = atom_dens
 
         if self.mixing_order is None:
             self.mixing_order = self.order
@@ -106,12 +109,24 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
         self.spherical_spec, _, _ = combine_orbital_basis(self.orbital_basis, self.orbitals_max_order)
         self.dens_features = [0] * (self.orbitals_max_order + 1)
         seen_z = []
+        
+        if self.atom_dens is not None:
+            self.atom_df_widths = {z: torch.tensor([self.atom_dens[z]['df_basis'][z][i][1][0] for i in range(len(self.atom_dens[z]['df_basis'][z]))]) for z in self.spherical_spec.keys()}
+            self.atom_df_scales = {z: torch.tensor([gto_norm_pyscf(0, self.atom_dens[z]['df_basis'][z][i][1][0]) for i in range(len(self.atom_dens[z]['df_basis'][z]))]) for z in self.spherical_spec.keys()}
+            self.atom_df_coeffs = {z: self.atom_dens[z]['df_coeffs'] for z in self.spherical_spec.keys()}
+        else:
+            self.atom_df_widths = None
+            self.atom_df_scales = None
+            self.atom_df_coeffs = None
+
         for key in self.spherical_spec.keys():
             curr_feats = [0] * (self.orbitals_max_order + 1)
-            z = self.spherical_spec[key][0][0]
             for orb in self.spherical_spec[key]:
                 L = orb[2]
                 curr_feats[L] += orb[1]
+                z = orb[0]
+                if self.atom_dens is not None and L==0:
+                    curr_feats[0] += self.atom_dens[z]['df_coeffs'].shape[1]
 
             if self.compressed_extraction:
                 for L in range(len(curr_feats)):
@@ -218,7 +233,22 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
         neighbor_mask = 1
         # exclude self - interactions
         # initialize atomic features to embeddings
-        sph_fs, scale_fs, width_fs = coeffs_dict_to_tensors(atoms, radial_coeffs=self.pred_radial_coeffs)
+        # print('atoms sph_dict', atoms['sph_dict'])
+        # print('atoms keys', atoms.keys())
+        # print('atoms dens', self.atom_dens[16]['df_basis'])
+        # print('atoms df widths', self.atom_df_widths)
+        # print('atoms df scales', self.atom_df_scales)
+        # print('radial_widths 16', [(key, atoms['radial_width'][8][key]) for key in atoms['radial_width'][8].keys() if key[1]==0])
+        # print('radial_scales 16', [(key, atoms['radial_scale'][8][key]) for key in atoms['radial_scale'][8].keys() if key[1]==0])
+        # print('spherical coeffs 0', [(key, atoms['spherical_coeffs'][0][key]) for key in atoms['spherical_coeffs'][0].keys() if key[1]==0])
+        sph_fs, scale_fs, width_fs = coeffs_dict_to_tensors(atoms, radial_coeffs=self.pred_radial_coeffs,
+                                                            atom_df_coeffs=self.atom_df_coeffs,
+                                                            atom_df_widths=self.atom_df_widths,
+                                                            atom_df_scales=self.atom_df_scales)
+        # print('sph fs 0', sph_fs[0][:, 0, 0, :10])
+        # print('width fs 0', width_fs[0][:, 8, 0, 32:])
+        # print('scale fs 0', scale_fs[0][:, 8, 0, 32:])
+        # print('atoms.atom_dens', self.atom_dens[1]['df_coeffs'])
         for i in range(len(sph_fs)):
             sph_fs[i] = sph_fs[i].view(1, -1, *sph_fs[i].shape[2:])
             sph_fs[i] = sph_fs[i][:, atoms['atom_mask']]
@@ -597,6 +627,7 @@ class SphericalHarmonicsEmbeddingEnergyNetwork(nn.Module):
                  normalize=0,
                  parity=False,
                  Zmax=87,
+                 atom_dens=None,
                  ):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
         super().__init__()
 
@@ -629,6 +660,7 @@ class SphericalHarmonicsEmbeddingEnergyNetwork(nn.Module):
         self.num_neighbours = num_neighbours
         self.normalize = normalize
         self.Zmax = Zmax
+        self.atom_dens = atom_dens
 
         if self.mixing_order is None:
             self.mixing_order = self.order
@@ -676,7 +708,7 @@ class SphericalHarmonicsEmbeddingEnergyNetwork(nn.Module):
         else:
             self.clebsch_gordan = clebsch_gordan
         self.embedding = SphericalEmbedding(
-            self.order_max, self.num_features, self.Zmax)
+            self.orbitals_max_order, self.num_features, self.Zmax)
         if self.basis_functions == 'exp-gaussian':
             self.radial_basis_functions = ExponentialGaussianRadialBasisFunctions(
                 self.num_basis_functions, self.cutoff)
@@ -778,6 +810,7 @@ class SphericalHarmonicsEmbeddingEnergyNetwork(nn.Module):
         rbf = self.radial_basis_functions(dij).unsqueeze_(-2)  # unsqueeze for broadcasting
         xs = self.embedding(atoms['atom_numbers'])
         # print('dens features', self.dens_features)
+        dens_fs = []
         if self.pred_radial_coeffs:
             for L in range(len(scale_fs)):
                 # print('L', L)
@@ -787,17 +820,19 @@ class SphericalHarmonicsEmbeddingEnergyNetwork(nn.Module):
                 width_fs[L] = width_fs[L] * self.radial_width_filters(L)
                 radial_comb = self.coeff_activation[L](scale_fs[L] * width_fs[L])
                 radial_comb = radial_comb.sum(-2, keepdim=True)
-                xs[L] += sph_fs[L] * radial_comb
+                dens_fs.append(sph_fs[L] * radial_comb)
         else:
-            xs = [xs[L] + sph_fs[L] for i in range(len(sph_fs))]
+            dens_fs = sph_fs 
         # print('xs energy norm before:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
 
         for L in range(len(xs)):
-            xs[L] = self.input_layer[L](xs[L])
+            dens_fs[L] = self.input_layer[L](dens_fs[L])
 
         if self.normalize > 1:
             for L in range(len(xs)):
-                xs[L] = layer_norm(xs[L], dims=(-2, -1))
+                dens_fs[L] = layer_norm(dens_fs[L], dims=(-2, -1))
+
+        xs = [xs[L] + dens_fs[L] for L in range(min(len(xs), len(dens_fs)))]
         # print('xs energy norm after input layer:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
         # perform iterations over modular building blocks to get environment - dependent features
         fs = [0 for _ in range(max(self.order_max, self.orbitals_max_order) + 1)]  # output features

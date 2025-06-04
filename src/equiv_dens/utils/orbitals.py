@@ -203,7 +203,7 @@ def get_invariant_features(
     return invariant_feats
 
 
-def coeffs_dict_to_tensors(coeffs, radial_coeffs=True):
+def coeffs_dict_to_tensors(coeffs, radial_coeffs=True, atom_df_coeffs=None, atom_df_widths=None, atom_df_scales=None):
     sph_coeffs = coeffs["spherical_coeffs"]
     rad_width = coeffs["radial_width"]
     rad_scale = coeffs["radial_scale"]
@@ -230,14 +230,22 @@ def coeffs_dict_to_tensors(coeffs, radial_coeffs=True):
 
     max_num_coeffs = [0] * (max_order + 1)
     max_num_radial = [0] * (max_order + 1)
+    seen_z = []
+
     for i in range(len(sph_coeffs)):
+        curr_coeffs = [0] * (max_order + 1)
         for key in sph_coeffs[i].keys():
             L = key[1]
-            # print(i, L)
-            if sph_dict[key][-1] >= max_num_coeffs[L]:
-                max_num_coeffs[L] = sph_dict[key][-1] + 1
+            z = key[0]
+            curr_coeffs[L] += sph_coeffs[i][key].shape[-1]
+            if L==0 and atom_df_coeffs is not None:
+                curr_coeffs[0] += atom_df_coeffs[z].shape[1]
             if rad_scale[i][key].shape[-2] > max_num_radial[L]:
                 max_num_radial[L] = rad_scale[i][key].shape[-2]
+        if z not in seen_z:
+            seen_z.append(z)
+            for L in range(len(curr_coeffs)):
+                max_num_coeffs[L] += curr_coeffs[L]
 
     all_sph = [
         [
@@ -274,7 +282,16 @@ def coeffs_dict_to_tensors(coeffs, radial_coeffs=True):
     for i in range(len(sph_coeffs)):
         for key in sph_coeffs[i].keys():
             L = key[1]
+            z = key[0]
             inds = sph_dict[key]
+            if L == 0 and atom_df_coeffs is not None:
+                atom_df_inds = inds + inds[0]
+                inds = atom_df_inds + inds.shape[0]
+                all_sph[L][i][..., atom_df_inds] = atom_df_coeffs[z].to(sph_coeffs[i][key])
+                if atom_df_widths is not None:
+                    all_width[L][i][..., atom_df_inds] = atom_df_widths[z].to(rad_width[i][key])
+                    all_scale[L][i][..., atom_df_inds] = atom_df_scales[z].to(rad_scale[i][key])
+
             all_sph[L][i][..., inds] = sph_coeffs[i][key]
             if radial_coeffs:
                 all_width[L][i][..., inds] = rad_width[i][key]
