@@ -142,14 +142,12 @@ class AtomsDensityData(Dataset):
         if self.density_path is not None:
             calc_results = np.load(density_path, allow_pickle=True)
 
-        print('calc basis path', calc_basis_path)
         if calc_basis_path is not None:
             self.calc_basis = np.load(calc_basis_path, allow_pickle=True).item()
             self.calc_basis_num = orbitals.get_num_basis(self.calc_basis, all_atom_numbers)
             self.calc_basis_size = orbitals.get_basis_size(self.calc_basis_num)
         elif self.density_path is not None:
             atom = [[num, [num, 0, 0]] for num in all_atom_numbers]
-            print('atom', atom)
             basis = calc_results[0][0]['basis']
             mol = gto.Mole(atom=atom, basis=basis, spin=np.sum(all_atom_numbers) % 2)
             mol.build()
@@ -421,7 +419,7 @@ class AtomsDensityData(Dataset):
                 mol_props[pname] = np.stack(mol_props[pname], axis=0)
         # print('atom numbers', atom_numbers)
         # print('props', atom_props)
-        print('calc basis size', self.calc_basis_size)
+        # print('calc basis size', self.calc_basis_size)
         atom_numbers, props = utils.compress_batch_atoms(
             atom_numbers, atom_props,
             df_basis_size=self.orbital_basis_size,
@@ -467,15 +465,15 @@ class AtomsDensityData(Dataset):
                             idx, properties["coords"] - pos_shift,
                             density_grad=self.density_grad,
                         )
-                        print('density integral in props')
-                        print(torch.sum(properties['density'] * properties['coord_weights'], dim=1))
+                        # print('density integral in props')
+                        # print(torch.sum(properties['density'] * properties['coord_weights'], dim=1))
                     else:
                         properties[pname] = self.sample_density(
                             idx, properties["coords"] - pos_shift,
                             density_grad=self.density_grad,
                         )
-                        print('density integral in props')
-                        print(torch.sum(properties['density'] * properties['coord_weights'], dim=1))
+                        # print('density integral in props')
+                        # print(torch.sum(properties['density'] * properties['coord_weights'], dim=1))
                     if self.density_grad:
                         properties[pname + "_grad"] = properties[pname][..., 1:]
                         properties[pname] = properties[pname][..., 0]

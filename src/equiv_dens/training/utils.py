@@ -59,17 +59,18 @@ def init_training_vars(args, hyperparam_args):
         checkpoint = torch.load(os.path.join(
             checkpoint_path, 'latest_checkpoint.pth'), map_location='cpu')
         model_code = checkpoint['ID']  # load ID
-        if args.fix_arguments:
+        if args.fix_hyperparams:
+            pass
+        elif args.fix_arguments:
             for arg in vars(checkpoint['args']):
                 if arg in hyperparam_args:
-                    # print('loading hyperparam arg', arg)
+                    print('loading hyperparam arg', arg)
                     setattr(args, arg, getattr(checkpoint['args'], arg))
         step = checkpoint['step']
         restore = True
         data_split_indices = checkpoint['data_split_indices']
     if args.density_grad_weight > 0:
         args.density_grad = True
-    print('args core density basis', args.core_density_basis)
     train_vars = {'model_code': model_code, 'directory': directory, 'checkpoint': checkpoint,
                   'step': step, 'restore': restore, 'data_split_indices': data_split_indices}
 
@@ -392,7 +393,6 @@ def prepare_datasets(args, required_properties, grid_vars, data_split_indices, d
         test_dataset = torch.utils.data.Subset(test_dataset, np.arange(test_size))
 
     # print('valid dataset size', len(valid_dataset))
-
     valid_cube_dataset = prepare_cubic_datasets(args, required_properties,
                                                 train_dataset.indices,
                                                 valid_dataset.indices)

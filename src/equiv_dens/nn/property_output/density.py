@@ -111,15 +111,14 @@ class DensityCoeffsNetwork(nn.Module):
 
         # store hyperparameter values
         self.orbital_basis = orbital_basis
+        print('orbitals_basis')
         self.order = order
         self.num_features = num_features
         self.positive_coeffs = positive_coeffs
-        print('input integral constraint', integral_constraint)
         if integral_constraint == 'coeffs_in_coeff_net':
             self.integral_constraint = CoeffsIntegralConstraint(integral_scale, remove_atom_density)
         else:
             self.integral_constraint = None
-        print('self integral constraint', self.integral_constraint)
         self.verbose = verbose
         self.compressed_extraction = compressed_extraction
         self.timing = timing
@@ -201,7 +200,6 @@ class DensityCoeffsNetwork(nn.Module):
                                                  self.orbitals_max_order, max(self.sph_counts),
                                                  clebsch_gordan=None, mix_orders=False,
                                                  bias=self.output_bias, zero_init=True, normalize=self.normalize)
-        print('self.pred_radial_coeffs', self.pred_radial_coeffs)
         if self.pred_radial_coeffs:
             self.radial_width = nn.ModuleList([nn.Linear(self.num_features, self.rad_counts[L])
                                                for L in range(self.orbitals_max_order + 1)])
@@ -520,7 +518,6 @@ class DensityCoeffsNetwork(nn.Module):
         if 'spherical_coeffs' not in atoms.keys():
             atoms['spherical_coeffs'], atoms['radial_width'], atoms['radial_scale'], atoms['coeff_weights'] =\
                 self.extract_coefficients(out_sph, out_width, out_scale, atoms)
-
             if self.integral_constraint is not None:
                 atoms = self.integral_constraint(atoms)
         # if self.timing:

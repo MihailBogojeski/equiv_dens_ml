@@ -174,6 +174,10 @@ def load_model(args, dataset, train=False):
         args.num_en_modules = args.num_modules
 
     if args.energy_weight + args.forces_weight > 0:
+        if args.remove_atom_density and args.append_atom_density:
+            atom_dens = dataset.atom_dens
+        else:
+            atom_dens = None
         if args.energy_model == 'spherical':
             en_class = SphericalHarmonicsEnergyNetwork
             en_model = en_class(
@@ -200,6 +204,7 @@ def load_model(args, dataset, train=False):
                 timing=args.timing,
                 normalize=args.normalize_en,
                 parity=args.parity_en,
+                atom_dens=atom_dens,
             )
         elif args.energy_model == 'spherical_embedding':
             en_class = SphericalHarmonicsEmbeddingEnergyNetwork
@@ -227,6 +232,7 @@ def load_model(args, dataset, train=False):
                 timing=args.timing,
                 normalize=args.normalize_en,
                 parity=args.parity_en,
+                atom_dens=atom_dens,
             )
         elif args.energy_model == 'spherical_linear':
             en_model = SphericalLinearEnergyNetwork(
@@ -292,6 +298,7 @@ def load_model(args, dataset, train=False):
         else:
             property_models['dipole_moment'] = DipoleMomentCalc()
         calculate_forces_dict['dipole_moment'] = False
+    # print('property models', property_models)
 
     model = DFTNetwork(density_model, property_models,
                        calculate_forces_dict=calculate_forces_dict,
@@ -314,9 +321,12 @@ def load_model(args, dataset, train=False):
         # print('best_model_path', best_model_path)
         # print('args restart', args.restart)
         # print('best_model_path', best_model_path)
-        state_dict_path = os.path.join(args.restart, best_model_path)
+        if train:
+            state_dict = checkpoint['model_state_dict']
+        else:
+            state_dict_path = os.path.join(args.restart, best_model_path)
+            state_dict = torch.load(state_dict_path, map_location='cpu')
         # print('state_dict_path', state_dict_path)
-        state_dict = torch.load(state_dict_path, map_location='cpu')
         if not train and args.load_from is not None and args.density_weight > 0:
             # print('loading from', args.load_from)
             load_code = args.load_from.split('_')[-1]
@@ -339,10 +349,12 @@ def load_model(args, dataset, train=False):
                     print('Unexpected keywords', key)
                     raise Exception('Unexpected keywords in energy model state dict')
         if len(missing) > 0 and not args.ignore_missing_keywords:
+            print('missing', missing)
             for key in missing:
                 if 'init_' not in key:
                     if args.df_weight > 0 and 'property_models.density' not in key:
                         print('Missing keywords', key)
+
                         raise Exception('Missing keywords in df model state dict')
                     elif args.density_weight > 0:
                         if 'property_models.density' not in key and not (args.core_density_basis > 0) \
@@ -365,4 +377,8 @@ def load_model(args, dataset, train=False):
     if args.compile:
         model = torch.compile(model)
 
+    # print('train', train)
+    # print('density model end of load_model:', model.density_repr_model[1].spherical_output.linear[0].weight[:5, :5])
+    # print('density model end of load_model:', model.density_repr_model[1].linear_output.linear[0].weight[:5, :5])
+    
     return model

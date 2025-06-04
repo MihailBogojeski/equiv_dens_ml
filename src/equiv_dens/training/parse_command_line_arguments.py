@@ -29,6 +29,9 @@ def parse_command_line_arguments(arg_file=None):
     args_restart.add_argument("--fix_arguments", metavar='True|False', type=str2bool, default=False,
                               choices=[True, False],
                               help="Do not change arguments after loading checkpoint (except hyperparams).")
+    args_restart.add_argument("--fix_hyperparams", metavar='True|False', type=str2bool, default=False,
+                              choices=[True, False],
+                              help="Do not change arguments after loading checkpoint.")
     args_restart.add_argument("--args_file_name", metavar='STR', type=str, default=None,
                               help="Save filename of .txt file containing arguments for easier bookkeeping.")
     args_restart.add_argument("--ignore_missing_keywords", metavar='True|False', type=str2bool, default=False,
@@ -122,6 +125,8 @@ def parse_command_line_arguments(arg_file=None):
                                   help="Whether the final nonmixing layer is residual or not.")
     args_hyperparams.add_argument("--density_coeffs", metavar='True|False', type=str2bool, default=True,
                                   help="Use density coefficients as part of representation.")
+    args_hyperparams.add_argument("--append_atom_density", metavar='True|False', type=str2bool, default=False,
+                                  help="Append atomic density coefficients when using coreless densities for energy prediction.")
     hyperparam_args = [act.dest for act in args_hyperparams._group_actions]
 
     # arguments for training
@@ -407,6 +412,8 @@ def parse_command_line_arguments(arg_file=None):
                            choices=[True, False], help="Save output from tests as a list.")
     args_misc.add_argument('--test_save_name', metavar='STR', type=str, default="test_save_results.pt",
                            help="Filename for saved test output.")
+    args_misc.add_argument('--test_eval_all', metavar='True|False', type=str2bool, default=False,
+                           help="Evaluate errors for training and valid data as well.")
     args_misc.add_argument('--no_compare', metavar='True|False', type=str2bool, default=False,
                            choices=[True, False], help="Don't compare accuracy of test samples, just compute predictions.")
     args_misc.add_argument('--dpm_intor', metavar='True|False', type=str2bool, default=False,

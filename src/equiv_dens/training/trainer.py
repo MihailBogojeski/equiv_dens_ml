@@ -195,12 +195,12 @@ class Trainer:
             self.checkpoint_path, 'latest_checkpoint.pth'), map_location='cpu')
         # self.args = checkpoint['args']  # overwrite args
         for arg in vars(checkpoint['args']):
-            if self.args.fix_arguments:
+            if self.args.fix_hyperparams:
+                pass
+            elif self.args.fix_arguments:
                 if arg in self.hyperparam_args:
-                    print('loading hyperparam arg', arg)
                     setattr(self.args, arg, getattr(checkpoint['args'], arg))
             else:
-                print('loading all arg', arg)
                 setattr(self.args, arg, getattr(checkpoint['args'], arg))
 
         self.step = checkpoint['step']
