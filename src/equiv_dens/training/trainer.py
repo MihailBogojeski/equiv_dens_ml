@@ -47,6 +47,7 @@ class Trainer:
         max_steps=100000,
         clip_norm=0,
         wandb=None,
+        lr_scheduler_warmup_steps=0,  # don't check if learning rate is too low during warmup
         stop_at_learning_rate=1e-5,
         stop_at_learning_rate_patience=0,
         valid_check_best=None,
@@ -74,6 +75,7 @@ class Trainer:
         self.hyperparam_args = hyperparam_args
         self.max_steps = max_steps
         self.clip_norm = clip_norm
+        self.lr_scheduler_warmup_steps = lr_scheduler_warmup_steps
         self.stop_at_learning_rate = stop_at_learning_rate
         self.stop_at_learning_rate_patience = stop_at_learning_rate_patience
         self.verbose = verbose
@@ -323,7 +325,7 @@ class Trainer:
             for optimizer in self.optimizers:
                 for param_group in optimizer.param_groups:
                     stop_training = stop_training and (
-                        param_group['lr'] < self.stop_at_learning_rate)
+                        param_group['lr'] < self.stop_at_learning_rate) and (self.step > self.lr_scheduler_warmup_steps)
             if stop_training:
                 stop_training = stop_training and stop_patience_count > self.stop_at_learning_rate_patience
                 stop_patience_count += 1
@@ -447,6 +449,10 @@ class Trainer:
             start_step = time.time()
             for optimizer in self.optimizers:
                 optimizer.step()
+            for scheduler in self.schedulers:
+                if not isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+                    scheduler.step()
+                # performance-dependent schedulers are stepped in the validation step
             if self.timing:
                 print('step time', time.time() - start_step)
             if self.memory:
@@ -588,7 +594,9 @@ class Trainer:
         # pass validation loss to learning rate scheduler
         if check_best:
             for scheduler in self.schedulers:
-                scheduler.step(metrics=valid_errors['loss'])
+                if isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+                    scheduler.step(metrics=valid_errors['loss'])
+                # time-dependent schedulers are already stepped in the training step
 
             # save if it outperforms previous best
             if valid_errors['loss'] < self.best_errors['loss']:

@@ -79,9 +79,11 @@ def load_model(args, dataset, train=False):
                 orbital_basis=dataset.orbital_basis_num,
                 order=args.order,
                 num_features=args.num_features,
+                use_V2_sphlinear=args.use_V2_sphlinear,
                 num_hidden_att_mlp=args.num_hidden_att_mlp,
                 num_hidden_rbf_mlp=args.num_hidden_rbf_mlp,
                 num_hidden_normgate_mlp=args.num_hidden_normgate_mlp,
+                mix_orders_residual_out=args.mix_orders_residual_out,
                 num_basis_functions=args.num_basis_functions,
                 num_modules=args.num_modules,
                 num_radial_components=args.num_radial_components,
@@ -273,6 +275,7 @@ def load_model(args, dataset, train=False):
     print(f"density matrix weight: {args.density_matrix_weight}")
     print(f"density matrix loss comp: {args.density_matrix_loss_comp}")
     print(f"density matrix loss comp weights: {args.density_matrix_loss_comp_weights}")
+    print(f"ao matrix convention: {args.ao_matrix_convention}")
     if args.ao_matrix_from_pair_features:
 
         if args.use_V2_pair_features:
@@ -285,9 +288,11 @@ def load_model(args, dataset, train=False):
                 basis_functions=args.basis_functions,
                 cutoff=args.cutoff,
                 activation=args.activation,
+                clebsch_gordan=clebsch_gordan,
                 num_hidden_att_mlp=args.num_hidden_att_mlp,
                 num_hidden_rbf_mlp=args.num_hidden_rbf_mlp,
-                num_hidden_normgate_mlp=args.num_hidden_normgate_mlp
+                num_hidden_normgate_mlp=args.num_hidden_normgate_mlp,
+                use_V2_sphlinear=args.use_V2_sphlinear
             )
 
         else:
@@ -303,7 +308,8 @@ def load_model(args, dataset, train=False):
                 num_residual_ij=args.num_residual_ij,
                 basis_functions=args.basis_functions,
                 cutoff=args.cutoff,
-                activation=args.activation
+                activation=args.activation,
+                clebsch_gordan=clebsch_gordan,
             )
         
         if args.use_V2_matrix_construction:
@@ -318,8 +324,11 @@ def load_model(args, dataset, train=False):
                     num_residual_ao_ij=args.num_residual_ao_ij,
                     basis_functions=args.basis_functions,
                     activation=args.activation,
+                    clebsch_gordan=clebsch_gordan,
                     num_hidden_normgate_mlp=args.num_hidden_normgate_mlp,
-                    output_property_name="hamiltonian_matrix"
+                    use_V2_sphlinear=args.use_V2_sphlinear,
+                    output_property_name="hamiltonian_matrix",
+                    ao_matrix_convention=args.ao_matrix_convention
                 )
 
             if args.density_matrix_weight > 0:
@@ -333,8 +342,10 @@ def load_model(args, dataset, train=False):
                     num_residual_ao_ij=args.num_residual_ao_ij,
                     basis_functions=args.basis_functions,
                     activation=args.activation,
+                    clebsch_gordan=clebsch_gordan,
                     num_hidden_normgate_mlp=args.num_hidden_normgate_mlp,
-                    output_property_name="density_matrix"
+                    output_property_name="density_matrix",
+                    ao_matrix_convention=args.ao_matrix_convention
                 )
         else:
             if args.hamiltonian_matrix_weight > 0:
@@ -348,7 +359,9 @@ def load_model(args, dataset, train=False):
                     num_residual_ao_ij=args.num_residual_ao_ij,
                     basis_functions=args.basis_functions,
                     activation=args.activation,
-                    output_property_name="hamiltonian_matrix"
+                    clebsch_gordan=clebsch_gordan,
+                    output_property_name="hamiltonian_matrix",
+                    ao_matrix_convention=args.ao_matrix_convention
                 )
 
             if args.density_matrix_weight > 0:
@@ -362,7 +375,9 @@ def load_model(args, dataset, train=False):
                     num_residual_ao_ij=args.num_residual_ao_ij,
                     basis_functions=args.basis_functions,
                     activation=args.activation,
-                    output_property_name="density_matrix"
+                    clebsch_gordan=clebsch_gordan,
+                    output_property_name="density_matrix",
+                    ao_matrix_convention=args.ao_matrix_convention
                 )
     else:
         if args.use_V2_model:

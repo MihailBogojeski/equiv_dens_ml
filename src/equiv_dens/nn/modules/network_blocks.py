@@ -401,6 +401,7 @@ class NonmixingInteractionBlock(nn.Module):
         self.num_basis_functions = num_basis_functions
         self.num_residual_pre_vi = num_residual_pre_vi
         self.num_residual_pre_vj = num_residual_pre_vj
+        self.num_residual_post_v = num_residual_post_v
         self.num_neighbours = num_neighbours
         self.normalize = normalize
         self.residual = residual
@@ -631,6 +632,7 @@ class QHNetNodewiseInteraction(nn.Module):
     def __init__(self,
                  order,
                  num_features,
+                 use_V2_sphlinear,
                  num_basis_functions,
                  clebsch_gordan=None,
                  mix_orders=True,
@@ -643,11 +645,13 @@ class QHNetNodewiseInteraction(nn.Module):
                  bias=True,
                  num_hidden_att_mlp=128,
                  num_hidden_rbf_mlp=128,
-                 num_hidden_normgate_mlp=128):   
+                 num_hidden_normgate_mlp=128,
+                 mix_orders_residual_out=True):   
         super(QHNetNodewiseInteraction, self).__init__()
 
         self.order = order
         self.num_features = num_features
+        self.use_V2_sphlinear = use_V2_sphlinear
         self.num_basis_functions = num_basis_functions
         self.clebsch_gordan = clebsch_gordan
         self.normalize = normalize
@@ -657,6 +661,7 @@ class QHNetNodewiseInteraction(nn.Module):
         self.num_hidden_att_mlp = num_hidden_att_mlp
         self.num_hidden_rbf_mlp = num_hidden_rbf_mlp if num_hidden_rbf_mlp > 0 else num_features
         self.num_hidden_normgate_mlp = num_hidden_normgate_mlp
+        self.mix_orders_residual_out = mix_orders_residual_out
 
         if order_out is None:
             self.order_out = self.order
@@ -686,7 +691,8 @@ class QHNetNodewiseInteraction(nn.Module):
                                           normalize=self.normalize,
                                           parity=parity,
                                           bias=bias,
-                                          num_hidden_att_mlp=self.num_hidden_att_mlp)
+                                          num_hidden_att_mlp=self.num_hidden_att_mlp,
+                                          use_V2_sphlinear=self.use_V2_sphlinear)
         
         self.rbf_mlp = nn.Sequential(
             nn.Linear(self.num_features, self.num_hidden_rbf_mlp),
@@ -704,7 +710,8 @@ class QHNetNodewiseInteraction(nn.Module):
                                                          order_out=self.mixing_order,
                                                          parity=parity,
                                                          bias=bias,
-                                                         num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
+                                                         num_hidden_normgate_mlp=self.num_hidden_normgate_mlp,
+                                                         use_V2_sphlinear=self.use_V2_sphlinear)
         
         self.simple_residual_j = SimplifiedResidualBlock(order=min(2*self.input_order, self.order),
                                                          num_features=self.num_features,
@@ -715,17 +722,18 @@ class QHNetNodewiseInteraction(nn.Module):
                                                          order_out=self.mixing_order,
                                                          parity=parity,
                                                          bias=bias,
-                                                         num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
-        
+                                                         num_hidden_normgate_mlp=self.num_hidden_normgate_mlp,
+                                                         use_V2_sphlinear=self.use_V2_sphlinear)
+       
         self.pairmix = PairMixing(order_in1=self.mixing_order,
-                                  order_in2=min(2*self.input_order, self.order),
-                                  order_out=self.mixing_order,
-                                  num_basis_functions=self.num_basis_functions,
-                                  num_features=self.num_features,
-                                  clebsch_gordan=self.clebsch_gordan,
-                                  normalize=0,
-                                  parity=False,
-                                  distance_dependent=False)
+                                order_in2=min(2*self.input_order, self.order),
+                                order_out=self.mixing_order,
+                                num_basis_functions=self.num_basis_functions,
+                                num_features=self.num_features,
+                                clebsch_gordan=self.clebsch_gordan,
+                                normalize=0,
+                                parity=False,
+                                distance_dependent=False)
         
         self.linear_out = SphericalLinear(
             order_in=self.mixing_order,
@@ -737,8 +745,20 @@ class QHNetNodewiseInteraction(nn.Module):
             normalize=self.normalize,
             parity=parity,
             bias=bias,
-            use_V2=True
+            use_V2=self.use_V2_sphlinear
         )
+
+        self.simple_residual_out = SimplifiedResidualBlock(order=self.order_out,
+                                                         num_features=self.num_features,
+                                                         clebsch_gordan=self.clebsch_gordan if self.mix_orders_residual_out else None, 
+                                                         mix_orders=self.mix_orders_residual_out,
+                                                         activation=activation,
+                                                         normalize=self.normalize,
+                                                         parity=parity,
+                                                         bias=bias,
+                                                         num_hidden_normgate_mlp=self.num_hidden_normgate_mlp,
+                                                         use_V2_sphlinear=self.use_V2_sphlinear,
+                                                         )
 
     def forward(self, xs, rbf, sph, idx_i, idx_j):
 
@@ -797,7 +817,9 @@ class QHNetNodewiseInteraction(nn.Module):
 
         fs = self.linear_out(fs)
 
-        return fs
+        ys = self.simple_residual_out(fs)
+
+        return fs, ys
         
 
 class AttentiveScores(nn.Module):
@@ -812,7 +834,8 @@ class AttentiveScores(nn.Module):
                  order_out=None,
                  parity=False,
                  bias=True,
-                 num_hidden_att_mlp=128):
+                 num_hidden_att_mlp=128,
+                 use_V2_sphlinear=True):
         super().__init__()
 
         self.order = order
@@ -821,6 +844,7 @@ class AttentiveScores(nn.Module):
         self.normalize = normalize
         self.mix_orders = mix_order
         self.num_hidden_att_mlp = num_hidden_att_mlp if num_hidden_att_mlp > 0 else (self.order + 2) * self.num_features 
+        self.use_V2_sphlinear = use_V2_sphlinear
 
         if order_out is None:
             self.order_out = self.order
@@ -848,7 +872,7 @@ class AttentiveScores(nn.Module):
             normalize=self.normalize,
             parity=parity,
             bias=bias,
-            use_V2=True
+            use_V2=self.use_V2_sphlinear
         )
 
         self.linear_j = SphericalLinear(
@@ -861,7 +885,7 @@ class AttentiveScores(nn.Module):
             normalize=self.normalize,
             parity=parity,
             bias=bias,
-            use_V2=True
+            use_V2=self.use_V2_sphlinear
         )
 
         self.mlp = nn.Sequential(
@@ -912,17 +936,19 @@ class ResidualStack(nn.Module):
         normalize=0,
         parity=False,
         bias=True,
-        use_V2=False,
+        use_V2_residual=False,
+        use_V2_sphlinear=False,
         num_hidden_normgate_mlp=128
     ):
         super(ResidualStack, self).__init__()
         self.num_blocks = num_blocks
         self.order = order
         self.num_features = num_features
-        self.use_V2 = use_V2
+        self.use_V2_residual = use_V2_residual
+        self.use_V2_sphlinear = use_V2_sphlinear
         self.num_hidden_normgate_mlp = num_hidden_normgate_mlp
 
-        if self.use_V2:
+        if self.use_V2_residual:
             self.stack = nn.ModuleList(
                 [
                     SimplifiedResidualBlock(
@@ -934,7 +960,8 @@ class ResidualStack(nn.Module):
                         normalize=normalize,
                         parity=parity,
                         bias=bias,
-                        num_hidden_normgate_mlp=self.num_hidden_normgate_mlp
+                        num_hidden_normgate_mlp=self.num_hidden_normgate_mlp,
+                        use_V2_sphlinear=self.use_V2_sphlinear,
                     )
                     for i in range(self.num_blocks)
                 ]
@@ -1084,13 +1111,15 @@ class SimplifiedResidualBlock(nn.Module):
                  order_out=None,
                  parity=False,
                  bias=True,
-                 num_hidden_normgate_mlp=128):
+                 num_hidden_normgate_mlp=128,
+                 use_V2_sphlinear=True):
         super(SimplifiedResidualBlock, self).__init__()
         self.order = order
         self.num_features = num_features
         self.normalize = normalize
         self.mix_orders = mix_orders
         self.num_hidden_normgate_mlp = num_hidden_normgate_mlp
+        self.use_V2_sphlinear = use_V2_sphlinear
 
         if order_out is None:
             self.order_out = self.order
@@ -1122,7 +1151,7 @@ class SimplifiedResidualBlock(nn.Module):
             normalize=normalize,
             parity=parity,
             bias=bias,
-            use_V2=True
+            use_V2=self.use_V2_sphlinear
         )
         self.reset_parameters()
 

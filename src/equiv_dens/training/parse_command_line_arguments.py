@@ -42,6 +42,10 @@ def parse_command_line_arguments(arg_file=None):
                                   choices=[True, False], help="Use the more efficient model architecture inspired by QHNet.")
     args_hyperparams.add_argument("--use_V2_matrix_construction", metavar='True|False', type=str2bool, default=False,
                                   choices=[True, False], help="Use the more efficient ao matrix construction module.")
+    args_hyperparams.add_argument("--mix_orders_residual_out", metavar='True|False', type=str2bool, default=True,
+                                  choices=[True, False], help="Mix orders in interaction output residual")
+    args_hyperparams.add_argument("--use_V2_sphlinear", metavar='True|False', type=str2bool, default=True,
+                                  choices=[True, False], help="V2 uses weight matrix instead of parameter vector.")
     args_hyperparams.add_argument("--activation", metavar='STR', type=str, default='swish',
                                   choices=['ssp', 'swish'], help="which activation function to use (shifted softplus (ssp) or swish))")
     args_hyperparams.add_argument("--order", metavar='INT', type=int, default=[2], nargs='+', help="angular order of the feature vectors")
@@ -102,6 +106,9 @@ def parse_command_line_arguments(arg_file=None):
                                   help="cutoff radius for interactions (default corresponds to 15 Bohr)")
     args_hyperparams.add_argument("--ao_matrix_cutoff", metavar='FLOAT', type=float, default=7.937658158457616,
                                   help="cutoff radius for ao matrix construction (default corresponds to 15 Bohr)")
+    args_hyperparams.add_argument("--ao_matrix_convention", metavar='STR', type=str, default=None,
+                                  choices=['None', 'orca_def2-SVP', 'def2-SVP_to_pyscf_201', 'def2-SVP_to_pyscf_210', 'pyscf_augccpvqzjkfit', 'pyscf_augccpvdz', 'ml_dft_augccpvqzjkfit', 'ml_dft_augccpvdz'],
+                                  help="orbital convention for the atomic orbital matrix.")
     args_hyperparams.add_argument("--orthonormal_basis", metavar='True|False', type=str2bool, default=False,
                                   choices=[True, False],
                                   help="use orthonormal basis (overlap matrix is identity)" +
@@ -187,6 +194,12 @@ def parse_command_line_arguments(arg_file=None):
                                help="seed for splitting the dataset in training, validation and test sets")
     args_training.add_argument("--optimizer", metavar='adam|amsgrad|sgd', type=str, default='sgd',
                                choices=['adam', 'amsgrad', 'sgd'], help="optimizer used for training")
+    args_training.add_argument("--lr_scheduler_warmup_steps", metavar='INT', type=int, default=0,
+                               help="number of warmup steps for the learning rate scheduler (ONLY used in InterpolatedDecayLR for now)")
+    args_training.add_argument("--lr_scheduler", metavar='plateau|exp|cosine|linear|onecycle|interpolated', type=str, default='plateau',
+                               choices=['plateau', 'exp', 'cosine', 'linear', 'onecycle', 'interpolated'], help="learning rate scheduler")
+    args_training.add_argument("--interpolated_alpha", metavar='FLOAT', type=float, default=0.5,
+                               help="alpha parameter for the interpolated learning rate scheduler (0.0 -> linear, 1.0 -> exponential)")
     args_training.add_argument("--lookahead_k", metavar='INT', type=int, default=5,
                                help="Lookahead uses k steps (-1 -> no Lookahead is used)")
     args_training.add_argument("--learning_rate", metavar='FLOAT', type=float, default=1e-3, help="learning rate for the optimizer")
@@ -244,9 +257,9 @@ def parse_command_line_arguments(arg_file=None):
     args_training.add_argument("--forces_loss_comp", metavar='STR', type=str, default=['mae'], nargs='+',
                                choices=['mae', 'rmse'], help="composition of the forces loss")
     args_training.add_argument("--hamiltonian_matrix_loss_comp", metavar='STR', type=str, default=['mae'], nargs='+',
-                               choices=['mae', 'rmse'], help="composition of the hamiltonian matrix loss")
+                               choices=['mae', 'mse', 'rmse', 'sqfrob'], help="composition of the hamiltonian matrix loss")
     args_training.add_argument("--density_matrix_loss_comp", metavar='STR', type=str, default=['mae'], nargs='+',
-                               choices=['mae', 'rmse'], help="composition of the density matrix loss")
+                               choices=['mae', 'mse', 'rmse', 'sqfrob'], help="composition of the density matrix loss")
     args_training.add_argument("--density_loss_comp_weights", metavar='FLOAT', type=float, default=[1.0], nargs='+',
                                help="weights of the composition of the density loss")
     args_training.add_argument("--density_grad_loss_comp_weights", metavar='FLOAT', type=float, default=[1.0], nargs='+',

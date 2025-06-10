@@ -7,7 +7,6 @@ from equiv_dens.nn.modules.network_blocks import *
 from equiv_dens.utils.orbitals import get_max_order
 from equiv_dens.utils.base import remap_pair_idxs_for_padding
 from equiv_dens.utils.orbital_conversions import convert_ao_matrix
-# import time
 
 
 class AOMatrixFromAtomFeatures(nn.Module):
@@ -379,7 +378,9 @@ class AOMatrixFromPairFeatures(nn.Module):
             num_residual_ao_ij  = 1, #number of residual blocks applied to pair features for predicting irreps of off-diagonal blocks (output matrix)
             basis_functions      = 'exp-bernstein', #type of radial basis functions (exp-gaussian/exp-bernstein/gaussian/bernstein)
             activation           = 'swish', #type of activation function used (swish/ssp)
+            clebsch_gordan      = None, #clebsch gordan matrix (optional)
             output_property_name = 'ao_matrix', # output property key of atoms dict, e.g. atoms['hamiltonian_matrix']
+            ao_matrix_convention = None,
             load_from            = None, #if this is given the network is loaded from the specified .pth file and all other arguments are ignored
             #Zmax                 = 87 #maximum nuclear charge (+1, i.e. 87 for up to Rn) for embeddings, can be kept at default 
     ):
@@ -399,6 +400,7 @@ class AOMatrixFromPairFeatures(nn.Module):
         self.basis_functions = basis_functions
         self.activation = activation
         self.output_property_name = output_property_name
+        self.ao_matrix_convention = ao_matrix_convention
         #self.Zmax = Zmax
 
         #error checking
@@ -412,7 +414,11 @@ class AOMatrixFromPairFeatures(nn.Module):
             #don't quit here, maybe someone wants to do it like this
 
         #declare modules and parameters
-        self.clebsch_gordan = ClebschGordanMatrix()
+        if clebsch_gordan is None:
+            self.clebsch_gordan = ClebschGordanMatrix()
+        else:
+            self.clebsch_gordan = clebsch_gordan
+
         self.mix_ij = PairMixing(self.order, self.order, self.order, self.num_basis_functions, self.num_features, self.clebsch_gordan)
         self.radial_ii = nn.ModuleList([nn.Linear(self.num_basis_functions, self.num_features, bias=False)
             for L in range(self.order+1)])
@@ -787,7 +793,7 @@ class AOMatrixFromPairFeatures(nn.Module):
 
         matrix = convert_ao_matrix(ao_matrix=matrix,
                                    atom_numbers=atoms['batch_atom_numbers'],
-                                   convention=None)
+                                   convention=self.ao_matrix_convention)
 
         atoms[self.output_property_name] = matrix
 
@@ -809,8 +815,11 @@ class AOMatrixFromPairFeaturesV2(nn.Module):
             num_residual_ao_ij  = 1, #number of residual blocks applied to pair features for predicting irreps of off-diagonal blocks (output matrix)
             basis_functions      = 'exp-bernstein', #type of radial basis functions (exp-gaussian/exp-bernstein/gaussian/bernstein)
             activation           = 'swish', #type of activation function used (swish/ssp)
+            clebsch_gordan       = None, #clebsch gordan matrix
             num_hidden_normgate_mlp = 128, #number of hidden features in the normgate MLP
+            use_V2_sphlinear     = True, #use V2 version of SphericalLinear
             output_property_name = 'ao_matrix', # output property key of atoms dict, e.g. atoms['hamiltonian_matrix']
+            ao_matrix_convention = None,
             load_from            = None, #if this is given the network is loaded from the specified .pth file and all other arguments are ignored
             #Zmax                 = 87 #maximum nuclear charge (+1, i.e. 87 for up to Rn) for embeddings, can be kept at default 
     ):
@@ -830,8 +839,12 @@ class AOMatrixFromPairFeaturesV2(nn.Module):
         self.basis_functions = basis_functions
         self.activation = activation
         self.num_hidden_normgate_mlp = num_hidden_normgate_mlp
+        self.use_V2_sphlinear = use_V2_sphlinear
         self.output_property_name = output_property_name
+        self.ao_matrix_convention = None if ao_matrix_convention == 'None' else ao_matrix_convention
         #self.Zmax = Zmax
+
+        # print(f"ao matrix convention: {self.ao_matrix_convention}")
 
         #error checking
         if self.order < order_max:
@@ -844,9 +857,13 @@ class AOMatrixFromPairFeaturesV2(nn.Module):
             #don't quit here, maybe someone wants to do it like this
 
         #declare modules and parameters
-        self.clebsch_gordan = ClebschGordanMatrix()
-        self.residual_ao_ii = ResidualStack(self.num_residual_ao_ii, self.order, self.num_features, self.clebsch_gordan, True, self.activation, use_V2=True, num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
-        self.residual_ao_ij = ResidualStack(self.num_residual_ao_ij, self.order, self.num_features, self.clebsch_gordan, True, self.activation, use_V2=True, num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
+        if clebsch_gordan is None:
+            self.clebsch_gordan = ClebschGordanMatrix()
+        else:
+            self.clebsch_gordan = clebsch_gordan
+
+        self.residual_ao_ii = ResidualStack(self.num_residual_ao_ii, self.order, self.num_features, self.clebsch_gordan, True, self.activation, use_V2_residual=True, use_V2_sphlinear=self.use_V2_sphlinear, num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
+        self.residual_ao_ij = ResidualStack(self.num_residual_ao_ij, self.order, self.num_features, self.clebsch_gordan, True, self.activation, use_V2_residual=True, use_V2_sphlinear=self.use_V2_sphlinear, num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
 
         #determine minimum number of output features based on orbitals
         #and generate dictionaries (irreps_ii/irreps_ij) that store indices 
@@ -857,7 +874,7 @@ class AOMatrixFromPairFeaturesV2(nn.Module):
         for z in self.orbital_basis.keys():
             self.irreps_ii, number_L = self.compute_matrix_irreps(
                 self.orbital_basis[z], self.orbital_basis[z], self.irreps_ii, number_L)
-        self.output_ii = SphericalLinear(self.order, self.num_features, 2*order_max, max(number_L), self.clebsch_gordan, zero_init=True, use_V2=True)
+        self.output_ii = SphericalLinear(self.order, self.num_features, 2*order_max, max(number_L), self.clebsch_gordan, zero_init=True, use_V2=self.use_V2_sphlinear)
 
         #off-diagonal blocks
         number_L = [0 for L in range(2*order_max+1)] #keeps track of how many irreps of each order there are already
@@ -868,7 +885,7 @@ class AOMatrixFromPairFeaturesV2(nn.Module):
                     self.orbital_basis[z1], self.orbital_basis[z2], self.irreps_ij, number_L)
                 
         # print(f"init output ij sphlineasr with self.order={self.order}, order_max={order_max}")
-        self.output_ij = SphericalLinear(self.order, self.num_features, 2*order_max, max(number_L), self.clebsch_gordan, zero_init=True, use_V2=True)
+        self.output_ij = SphericalLinear(self.order, self.num_features, 2*order_max, max(number_L), self.clebsch_gordan, zero_init=True, use_V2=self.use_V2_sphlinear)
 
 
 
@@ -1219,7 +1236,7 @@ class AOMatrixFromPairFeaturesV2(nn.Module):
         # TODO no conversion ,i.e. convention=None
         matrix = convert_ao_matrix(ao_matrix=matrix,
                                    atom_numbers=atoms['batch_atom_numbers'],
-                                   convention=None)
+                                   convention=self.ao_matrix_convention)
 
         atoms[self.output_property_name] = matrix
 

@@ -24,6 +24,7 @@ class PairFeatures(nn.Module):
             basis_functions      = 'exp-bernstein', #type of radial basis functions (exp-gaussian/exp-bernstein/gaussian/bernstein)
             cutoff               = 15.0, #cutoff distance (default is 15 Bohr)
             activation           = 'swish', #type of activation function used (swish/ssp)
+            clebsch_gordan       = None, #clebsch gordan matrix, if not given it is computed from the orbital basis
             load_from            = None, #if this is given the network is loaded from the specified .pth file and all other arguments are ignored
             #Zmax                 = 87 #maximum nuclear charge (+1, i.e. 87 for up to Rn) for embeddings, can be kept at default 
     ):
@@ -60,7 +61,10 @@ class PairFeatures(nn.Module):
             #don't quit here, maybe someone wants to do it like this
 
         #declare modules and parameters
-        self.clebsch_gordan = ClebschGordanMatrix()
+        if clebsch_gordan is None:
+            self.clebsch_gordan = ClebschGordanMatrix()
+        else:
+            self.clebsch_gordan = clebsch_gordan
         if self.basis_functions == 'exp-gaussian':
             self.radial_basis_functions = ExponentialGaussianRadialBasisFunctions(self.num_basis_functions, self.cutoff)
         elif self.basis_functions == 'exp-bernstein':
@@ -112,19 +116,38 @@ class PairFeatures(nn.Module):
         fii = self.residual_ii(fii)
 
         #generate index lists for asymmetrizing pair interactions
-        idx_pi = []
-        idx_pj = []
-        for ni, ij1 in enumerate(zip(atoms['idx_i'], atoms['idx_j'])):
-            i1 = ij1[0].item()
-            j1 = ij1[1].item()
-            for nj, ij2 in enumerate(zip(atoms['idx_i'], atoms['idx_j'])):
-                i2 = ij2[0].item()
-                j2 = ij2[1].item()
-                if ((i1 == i2) and (not j1 == j2)):
-                    idx_pi.append(ni)
-                    idx_pj.append(nj)
-        idx_pi = torch.tensor(idx_pi, dtype=torch.int64, device=R.device)
-        idx_pj = torch.tensor(idx_pj, dtype=torch.int64, device=R.device)
+        # t0 = time.time()
+        # idx_pi = []
+        # idx_pj = []
+        # for ni, ij1 in enumerate(zip(atoms['idx_i'], atoms['idx_j'])):
+        #     i1 = ij1[0].item()
+        #     j1 = ij1[1].item()
+        #     for nj, ij2 in enumerate(zip(atoms['idx_i'], atoms['idx_j'])):
+        #         i2 = ij2[0].item()
+        #         j2 = ij2[1].item()
+        #         if ((i1 == i2) and (not j1 == j2)):
+        #             idx_pi.append(ni)
+        #             idx_pj.append(nj)
+        # idx_pi = torch.tensor(idx_pi, dtype=torch.int64, device=R.device)
+        # idx_pj = torch.tensor(idx_pj, dtype=torch.int64, device=R.device)
+        # print(f"--(old) idx_pi, idx_pj time: {time.time() - t0:.4f} seconds")
+
+        # t0 = time.time()
+        idx_i = atoms['idx_i']
+        idx_j = atoms['idx_j']
+        
+        # Create matrices for comparison
+        i1 = idx_i.unsqueeze(1)  # Shape: (N, 1)
+        i2 = idx_i.unsqueeze(0)  # Shape: (1, N)
+        j1 = idx_j.unsqueeze(1)  # Shape: (N, 1)
+        j2 = idx_j.unsqueeze(0)  # Shape: (1, N)
+        
+        # Find pairs where i1==i2 and j1!=j2
+        mask = (i1 == i2) & (j1 != j2)
+        
+        # Get indices where mask is True
+        idx_pi, idx_pj = torch.where(mask)
+        # print(f"--(new)idx_pi, idx_pj time: {time.time() - t0:.4f} seconds")
 
         #compute pair features for ordinary interactions
         fij = self.mix_ij(fi, fj, rbf) #mix pairs
@@ -159,9 +182,11 @@ class PairFeaturesV2(nn.Module):
             basis_functions      = 'exp-bernstein', #type of radial basis functions (exp-gaussian/exp-bernstein/gaussian/bernstein)
             cutoff               = 15.0, #cutoff distance (default is 15 Bohr)
             activation           = 'swish', #type of activation function used (swish/ssp)
+            clebsch_gordan       = None, #clebsch gordan matrix, if not given it is computed from the orbital basis
             num_hidden_att_mlp   = 128, #hidden size of the MLP used for computing attentive scores
             num_hidden_rbf_mlp   = 128, #hidden size of the MLP used for transforming rbf
             num_hidden_normgate_mlp = 128, #hidden size of the MLP used in normgate
+            use_V2_sphlinear     = True,
             load_from            = None, #if this is given the network is loaded from the specified .pth file and all other arguments are ignored
             #Zmax                 = 87 #maximum nuclear charge (+1, i.e. 87 for up to Rn) for embeddings, can be kept at default 
     ):
@@ -184,6 +209,7 @@ class PairFeaturesV2(nn.Module):
         self.num_hidden_att_mlp = num_hidden_att_mlp
         self.num_hidden_rbf_mlp = num_hidden_rbf_mlp
         self.num_hidden_normgate_mlp = num_hidden_normgate_mlp
+        self.use_V2_sphlinear = use_V2_sphlinear
         #self.Zmax = Zmax
 
         #error checking
@@ -197,7 +223,11 @@ class PairFeaturesV2(nn.Module):
             #don't quit here, maybe someone wants to do it like this
 
         #declare modules and parameters
-        self.clebsch_gordan = ClebschGordanMatrix()
+        if clebsch_gordan is None:
+            self.clebsch_gordan = ClebschGordanMatrix()
+        else:
+            self.clebsch_gordan = clebsch_gordan
+
         if self.basis_functions == 'exp-gaussian':
             self.radial_basis_functions = ExponentialGaussianRadialBasisFunctions(self.num_basis_functions, self.cutoff)
         elif self.basis_functions == 'exp-bernstein':
@@ -215,7 +245,8 @@ class PairFeaturesV2(nn.Module):
                                         self.clebsch_gordan,
                                         True,
                                         self.activation,
-                                        num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
+                                        num_hidden_normgate_mlp=self.num_hidden_normgate_mlp,
+                                        use_V2_sphlinear=self.use_V2_sphlinear)
         
         self.off_diagonal_pair = OffDiagonalPair(self.order,
                                                 self.num_features,
@@ -225,8 +256,8 @@ class PairFeaturesV2(nn.Module):
                                                 self.activation,
                                                 num_hidden_att_mlp=self.num_hidden_att_mlp,
                                                 num_hidden_rbf_mlp=self.num_hidden_rbf_mlp,
-                                                num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
-
+                                                num_hidden_normgate_mlp=self.num_hidden_normgate_mlp,
+                                                use_V2_sphlinear=self.use_V2_sphlinear)
     def forward(self, atoms):
 
         R = atoms['positions']
@@ -265,7 +296,8 @@ class DiagonalPair(nn.Module):
                  order_out=None,
                  parity=False,
                  bias=True,
-                 num_hidden_normgate_mlp=128):
+                 num_hidden_normgate_mlp=128,
+                 use_V2_sphlinear=True):
         super().__init__()
 
         self.order = order
@@ -275,6 +307,7 @@ class DiagonalPair(nn.Module):
         self.mix_orders = mix_orders
         self.normalize = normalize
         self.num_hidden_normgate_mlp = num_hidden_normgate_mlp
+        self.use_V2_sphlinear = use_V2_sphlinear
 
         if order_out is None:
             self.order_out = self.order
@@ -299,7 +332,8 @@ class DiagonalPair(nn.Module):
                                                          normalize=normalize,
                                                          parity=parity,
                                                          bias=bias,
-                                                         num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
+                                                         num_hidden_normgate_mlp=self.num_hidden_normgate_mlp,
+                                                         use_V2_sphlinear=self.use_V2_sphlinear)
         self.simple_residual_r = SimplifiedResidualBlock(order=self.order,
                                                          num_features=self.num_features,
                                                          clebsch_gordan=self.clebsch_gordan, 
@@ -308,7 +342,8 @@ class DiagonalPair(nn.Module):
                                                          normalize=normalize,
                                                          parity=parity,
                                                          bias=bias,
-                                                         num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
+                                                         num_hidden_normgate_mlp=self.num_hidden_normgate_mlp,
+                                                         use_V2_sphlinear=self.use_V2_sphlinear)
         
         self.mix_lr = PairMixing(self.order, self.order, self.order_out, self.num_basis_functions, self.num_features, self.clebsch_gordan, distance_dependent=False)
 
@@ -320,7 +355,8 @@ class DiagonalPair(nn.Module):
                                                          normalize=normalize,
                                                          parity=parity,
                                                          bias=bias,
-                                                         num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
+                                                         num_hidden_normgate_mlp=self.num_hidden_normgate_mlp,
+                                                         use_V2_sphlinear=self.use_V2_sphlinear)
 
     def forward(self, x):
 
@@ -351,7 +387,8 @@ class OffDiagonalPair(nn.Module):
                  bias=True,
                  num_hidden_att_mlp=128,
                  num_hidden_rbf_mlp=128,
-                 num_hidden_normgate_mlp=128):
+                 num_hidden_normgate_mlp=128,
+                 use_V2_sphlinear=True):
         super().__init__()
 
         self.order = order
@@ -363,6 +400,7 @@ class OffDiagonalPair(nn.Module):
         self.num_hidden_att_mlp = num_hidden_att_mlp
         self.num_hidden_rbf_mlp = num_hidden_rbf_mlp if num_hidden_rbf_mlp > 0 else num_features
         self.num_hidden_normgate_mlp = num_hidden_normgate_mlp
+        self.use_V2_sphlinear = use_V2_sphlinear
 
         if order_out is None:
             self.order_out = self.order
@@ -388,7 +426,8 @@ class OffDiagonalPair(nn.Module):
                                                         #  order_out=self.order_out,
                                                          parity=parity,
                                                          bias=bias,
-                                                         num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
+                                                         num_hidden_normgate_mlp=self.num_hidden_normgate_mlp,
+                                                         use_V2_sphlinear=self.use_V2_sphlinear)
         
         self.simple_residual_j = SimplifiedResidualBlock(order=self.order,
                                                          num_features=self.num_features,
@@ -399,7 +438,8 @@ class OffDiagonalPair(nn.Module):
                                                         #  order_out=self.order_out,
                                                          parity=parity,
                                                          bias=bias,
-                                                         num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
+                                                         use_V2_sphlinear=self.use_V2_sphlinear,
+                                                         )
         
         self.att_scores = AttentiveScores(order=self.order,
                                           num_features=self.num_features,
@@ -410,7 +450,8 @@ class OffDiagonalPair(nn.Module):
                                         #   order_out=self.order_out,
                                           parity=parity,
                                           bias=bias,
-                                          num_hidden_att_mlp=self.num_hidden_att_mlp)
+                                          num_hidden_att_mlp=self.num_hidden_att_mlp,
+                                          use_V2_sphlinear=self.use_V2_sphlinear)
         
         self.rbf_mlp = nn.Sequential(
             nn.Linear(self.num_features, self.num_hidden_rbf_mlp),
@@ -428,7 +469,8 @@ class OffDiagonalPair(nn.Module):
                                                         #    order_out=self.order_out,
                                                            parity=parity,
                                                            bias=bias,
-                                                           num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
+                                                           num_hidden_normgate_mlp=self.num_hidden_normgate_mlp,
+                                                           use_V2_sphlinear=self.use_V2_sphlinear)
 
     def forward(self, xi, xj, rbf):
 

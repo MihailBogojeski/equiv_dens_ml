@@ -138,11 +138,7 @@ class ErrorDict:
                         rmse = torch.mean(rmses)
                         mae = torch.mean(maes)
 
-                        # mse = torch.sum(sq_diff) / torch.sum(mask)
-                        # rmse = torch.sqrt(mse)
-                        # mae = torch.sum(abs_diff) / torch.sum(mask)
                     else:
-                        print(f"mse, rmse, mae")
                         mse = torch.mean(sq_diff)
                         rmse = torch.sqrt(mse)
                         mae = torch.mean(abs_diff)

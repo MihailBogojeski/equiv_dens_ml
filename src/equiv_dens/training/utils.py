@@ -14,6 +14,7 @@ from equiv_dens.data.density_dataset import AtomsDensityData
 from equiv_dens.data.hamiltonian_dataset import seeded_random_split
 from equiv_dens.training.lookahead import Lookahead
 from equiv_dens.training.errors import ErrorDict
+from equiv_dens.training.learning_rate_scheduler import InterpolatedDecayLR
 import numpy as np
 
 
@@ -577,11 +578,38 @@ def prepare_optimizers(args, model, phase=None):
         optimizers = [Lookahead(optimizer, k=args.lookahead_k) for optimizer in optimizers]
 
     # learning rate scheduler (decays learning rate if validation loss plateaus)
-    schedulers = [torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizers[0], mode='min', factor=args.decay_factor, patience=args.decay_patience, verbose=args.verbose)]
-    if args.energy_offset:
-        schedulers.append(torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizers[1], mode='min', factor=args.decay_factor, patience=args.decay_patience, verbose=args.verbose))
+    if args.lr_scheduler == 'plateau':
+        schedulers = [torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizers[0], mode='min', factor=args.decay_factor, patience=args.decay_patience, verbose=args.verbose)]
+        if args.energy_offset:
+            schedulers.append(torch.optim.lr_scheduler.ReduceLROnPlateau(
+                optimizers[1], mode='min', factor=args.decay_factor, patience=args.decay_patience, verbose=args.verbose))
+    elif args.lr_scheduler == 'exp':
+        schedulers = [torch.optim.lr_scheduler.ExponentialLR(
+            optimizers[0], gamma=args.decay_factor)]
+        if args.energy_offset:
+            schedulers.append(torch.optim.lr_scheduler.ExponentialLR(
+                optimizers[1], gamma=args.decay_factor))
+    elif args.lr_scheduler == 'linear':
+        schedulers = [torch.optim.lr_scheduler.LinearLR(
+            optimizers[0], start_factor=1.0, end_factor=args.stop_at_learning_rate/args.learning_rate,
+            total_iters=args.max_steps)]
+        if args.energy_offset:
+            schedulers.append(torch.optim.lr_scheduler.LinearLR(
+                optimizers[1], start_factor=1.0, end_factor=args.stop_at_learning_rate/args.learning_rate,
+                total_iters=args.max_steps))
+    elif args.lr_scheduler == 'cosine':
+        schedulers = [torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizers[0], T_max=args.max_steps, eta_min=args.stop_at_learning_rate)]
+        if args.energy_offset:
+            schedulers.append(torch.optim.lr_scheduler.CosineAnnealingLR(
+                optimizers[1], T_max=args.max_steps, eta_min=args.stop_at_learning_rate))
+    elif args.lr_scheduler == 'interpolated':
+        schedulers = [InterpolatedDecayLR(
+            optimizers[0], total_steps=args.max_steps, lr_end=args.stop_at_learning_rate, alpha=args.interpolated_alpha, warmup_steps=args.lr_scheduler_warmup_steps)]
+        if args.energy_offset:
+            schedulers.append(InterpolatedDecayLR(
+                optimizers[1], total_steps=args.max_steps, lr_end=args.stop_at_learning_rate, alpha=args.interpolated_alpha, warmup_steps=args.lr_scheduler_warmup_steps))
 
     return optimizers, schedulers, ema_params
 

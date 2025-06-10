@@ -6,7 +6,7 @@ from torch.nn.functional import assert_int_or_pair
 
 
 convention_dict = {
-    'orca_def2svp': Namespace(
+    'orca_def2-SVP': Namespace(
         atom_to_orbitals_map={1:  [0,0,1],
                               6:  [0,0,0,1,1,2],
                               7:  [0,0,0,1,1,2],
