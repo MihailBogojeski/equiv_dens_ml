@@ -285,28 +285,20 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
                 # print('self.radial_scale_filters[L]', self.radial_scale_filters(L).shape)
                 scale_fs[L] = scale_fs[L] * self.radial_scale_filters(L)
                 width_fs[L] = width_fs[L] * self.radial_width_filters(L)
-                print('scale max', torch.max(scale_fs[L]), 'min', torch.min(scale_fs[L]))
-                print('width max', torch.max(width_fs[L]), 'min', torch.min(width_fs[L]))
                 radial_comb = self.coeff_activation[L](scale_fs[L] * width_fs[L])
-                print('radial max', torch.max(radial_comb), 'min', torch.min(radial_comb))
                 radial_comb = radial_comb / torch.sqrt(torch.abs(radial_comb) + 1e-8)
                 radial_comb = radial_comb.sum(-2, keepdim=True)
-                print('radial 2 max', torch.max(radial_comb), 'min', torch.min(radial_comb))
                 if self.L0_start:
                     radial_all = radial_all + self.radial_L0_map[L](radial_comb)
-                    print('L0 out max', torch.max(self.radial_L0_map[L](radial_comb)), 'min', torch.min(self.radial_L0_map[L](radial_comb)))
                     xs.append(sph_fs[L])
                 else:
                     xs.append(sph_fs[L] * radial_comb)
             if self.L0_start:
-                print('xs 0', xs[0])
-                print('radial_all', radial_all)
                 xs[0] = xs[0] * radial_all
                 xs[0] = xs[0] / torch.sqrt(torch.abs(xs[0]) + 1e-8)
 
         else:
             xs = sph_fs
-        print('xs energy norm before:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
 
         for L in range(len(xs)):
             xs[L] = self.input_layer[L](xs[L])
@@ -316,16 +308,14 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
 
         if self.normalize > 1 or self.L0_start:
             for L in range(len(xs)):
-                print('before norm', xs[0])
                 xs[L] = layer_norm(xs[L], dims=(-3, -2, -1))
-                print('after norm', xs[0])
-        print('xs energy norm after input layer:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
-        print('xs.shape', xs[0].shape)
-        print('positions.shape', atoms['positions'].shape)
+        # print('xs energy norm after input layer:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
+        # print('xs.shape', xs[0].shape)
+        # print('positions.shape', atoms['positions'].shape)
         # perform iterations over modular building blocks to get environment - dependent features
         fs = [torch.tensor(0).to(xs[0]) for _ in range(max(self.order_max, self.orbitals_max_order) + 1)]  # output features
         # print('self normalize en', self.normalize)
-        print('fs norm start :', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
+        # print('fs norm start :', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
         # fs = [torch.zeros_like(x) for x in xs]  # output features
         for i, module in enumerate(self.module):
             xs = self.order_change[i](xs)
@@ -341,7 +331,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
                     # print('self normalize en', self.normalize)
                 fs[L] = ys[L] * scale + fs[L] * scale
                 # print('module', i, 'fs[0]', fs[0])
-            print('fs norm ', i, ':', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
+            # print('fs norm ', i, ':', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
             # print('fs nan', [torch.any(torch.isnan(fs[L])) for L in range(len(fs))])
         fs[0] = self.out_activation(fs[0])
 
@@ -351,6 +341,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
         energy = torch.zeros(1, atoms['batch_atom_numbers'].shape[0]).to(atoms['positions'])
         energy = energy.scatter_add(1, atoms['atom_batch_idx'], atom_en)
         energy = torch.t(energy)
+        exit()
 
         atoms['energy'] = energy
         if self.calculate_forces:
