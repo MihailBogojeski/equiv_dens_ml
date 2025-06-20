@@ -127,6 +127,8 @@ def parse_command_line_arguments(arg_file=None):
                                   help="Use density coefficients as part of representation.")
     args_hyperparams.add_argument("--append_atom_density", metavar='True|False', type=str2bool, default=False,
                                   help="Append atomic density coefficients when using coreless densities for energy prediction.")
+    args_hyperparams.add_argument("--L0_start", metavar='True|False', type=str2bool, default=True,
+                                  help="Start with only L0 features for energy prediction.")
     hyperparam_args = [act.dest for act in args_hyperparams._group_actions]
 
     # arguments for training

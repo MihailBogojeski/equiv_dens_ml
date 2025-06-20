@@ -53,6 +53,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
                  normalize=0,
                  parity=False,
                  atom_dens=None,
+                 L0_start=True,
                  ):  # maximum nuclear charge ( + 1, i.e. 87 for up to Rn) for embeddings, can be kept at default
         super().__init__()
 
@@ -85,6 +86,8 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
         self.num_neighbours = num_neighbours
         self.normalize = normalize
         self.atom_dens = atom_dens
+        self.L0_start = L0_start
+
 
         if self.mixing_order is None:
             self.mixing_order = self.order
@@ -109,6 +112,10 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
         self.spherical_spec, _, _ = combine_orbital_basis(self.orbital_basis, self.orbitals_max_order)
         self.dens_features = [0] * (self.orbitals_max_order + 1)
         seen_z = []
+
+        self._order = [ord for ord in self.order]
+        if self.L0_start:
+            self._order[0] = 0
         
         if self.atom_dens is not None:
             self.atom_df_widths = {z: torch.tensor([self.atom_dens[z]['df_basis'][z][i][1][0] for i in range(len(self.atom_dens[z]['df_basis'][z]))]) for z in self.spherical_spec.keys()}
@@ -167,38 +174,48 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
                 self.register_parameter(name, nn.Parameter(torch.ones(1, self.dens_features[L])))
                 name = "radial_width_filters_{}".format(L)
                 self.register_parameter(name, nn.Parameter(torch.ones(1, self.dens_features[L])))
+        if self.L0_start:
+            self.radial_L0_map = nn.ModuleList([nn.Linear(df_num, self.dens_features[0]) for df_num in self.dens_features])
+
             # self.radial_scale_filters = nn.ParameterList([nn.Parameter(torch.ones(1, df_num)) for df_num in self.dens_features])
             # self.radial_width_filters = nn.ParameterList([nn.Parameter(torch.ones(1, df_num)) for df_num in self.dens_features])
         self.input_layer = nn.ModuleList([nn.Linear(df_num, self.num_features) for df_num in self.dens_features])
 
-        modules = [ModularBlock(self.order[0], self.num_features, self.num_basis_functions,
+        modules = [ModularBlock(self._order[0], self.num_features, self.num_basis_functions,
                                 self.num_residual_pre_x, self.num_residual_post_x, self.num_residual_pre_vi,
                                 self.num_residual_pre_vj, self.num_residual_post_v, self.num_residual_output,
                                 self.clebsch_gordan, True, self.mixing_order[0], self.orbitals_max_order, self.activation,
                                 self.num_neighbours, normalize, parity=parity)]
-        modules.extend([ModularBlock(self.order[i], self.num_features, self.num_basis_functions,
+        modules.extend([ModularBlock(self._order[i], self.num_features, self.num_basis_functions,
                                      self.num_residual_pre_x, self.num_residual_post_x, self.num_residual_pre_vi,
                                      self.num_residual_pre_vj, self.num_residual_post_v, self.num_residual_output,
-                                     self.clebsch_gordan, True, self.mixing_order[i], self.order[i - 1],
+                                     self.clebsch_gordan, True, self.mixing_order[i], self._order[i - 1],
                                      self.activation, self.num_neighbours, normalize, parity=parity) for i in range(1, self.num_modules)])
         self.module = nn.ModuleList(modules)
 
         self.order_change = []
-        if self.orbitals_max_order != self.order[0]:
+        if self.L0_start:
+            self.L0_change = ResidualBlock(self.orbitals_max_order, self.num_features,
+                                                   clebsch_gordan=self.clebsch_gordan,
+                                                   activation=self.activation,
+                                                   order_out=0, normalize=normalize,
+                                                   parity=parity)
+            self.order_change.append(nn.Identity())
+        elif self.orbitals_max_order != self._order[0]:
             print('orbitals max order', self.orbitals_max_order)
             self.order_change.append(ResidualBlock(self.orbitals_max_order, self.num_features,
                                                    clebsch_gordan=self.clebsch_gordan,
                                                    activation=self.activation,
-                                                   order_out=self.order[0], normalize=normalize,
+                                                   order_out=self._order[0], normalize=normalize,
                                                    parity=parity))
         else:
             self.order_change.append(nn.Identity())
         for i in range(1, self.num_modules):
-            if self.order[i] != self.order[i - 1]:
-                self.order_change.append(ResidualBlock(self.order[i - 1], self.num_features,
+            if self._order[i] != self._order[i - 1]:
+                self.order_change.append(ResidualBlock(self._order[i - 1], self.num_features,
                                                        clebsch_gordan=self.clebsch_gordan,
                                                        activation=self.activation,
-                                                       order_out=self.order[i], normalize=normalize,
+                                                       order_out=self._order[i], normalize=normalize,
                                                        parity=parity))
             else:
                 self.order_change.append(nn.Identity())
@@ -214,7 +231,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
             print("Unsupported activation function:", self.activation)
             quit()
 
-        self.energy_output = SphericalLinear(self.order[-1], self.num_features,
+        self.energy_output = SphericalLinear(self._order[-1], self.num_features,
                                              0, 1, self.clebsch_gordan, parity=parity)
 
     def radial_scale_filters(self, L):
@@ -260,40 +277,63 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
         sph = atoms['sph']
         rbf = self.radial_basis_functions(dij).unsqueeze_(-2)  # unsqueeze for broadcasting
         xs = []
+        radial_all = 0
         # print('dens features', self.dens_features)
         if self.pred_radial_coeffs:
             for L in range(len(scale_fs)):
                 # print('L', L)
-                # print('scale fs L', scale_fs[L].shape)
                 # print('self.radial_scale_filters[L]', self.radial_scale_filters(L).shape)
                 scale_fs[L] = scale_fs[L] * self.radial_scale_filters(L)
                 width_fs[L] = width_fs[L] * self.radial_width_filters(L)
+                print('scale max', torch.max(scale_fs[L]), 'min', torch.min(scale_fs[L]))
+                print('width max', torch.max(width_fs[L]), 'min', torch.min(width_fs[L]))
                 radial_comb = self.coeff_activation[L](scale_fs[L] * width_fs[L])
+                print('radial max', torch.max(radial_comb), 'min', torch.min(radial_comb))
+                radial_comb = radial_comb / torch.sqrt(torch.abs(radial_comb) + 1e-8)
                 radial_comb = radial_comb.sum(-2, keepdim=True)
-                xs.append(sph_fs[L] * radial_comb)
+                print('radial 2 max', torch.max(radial_comb), 'min', torch.min(radial_comb))
+                if self.L0_start:
+                    radial_all = radial_all + self.radial_L0_map[L](radial_comb)
+                    print('L0 out max', torch.max(self.radial_L0_map[L](radial_comb)), 'min', torch.min(self.radial_L0_map[L](radial_comb)))
+                    xs.append(sph_fs[L])
+                else:
+                    xs.append(sph_fs[L] * radial_comb)
+            if self.L0_start:
+                print('xs 0', xs[0])
+                print('radial_all', radial_all)
+                xs[0] = xs[0] * radial_all
+                xs[0] = xs[0] / torch.sqrt(torch.abs(xs[0]) + 1e-8)
+
         else:
             xs = sph_fs
-        # print('xs energy norm before:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
+        print('xs energy norm before:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
 
         for L in range(len(xs)):
             xs[L] = self.input_layer[L](xs[L])
 
-        if self.normalize > 1:
+        if self.L0_start:
+            xs = self.L0_change(xs)
+
+        if self.normalize > 1 or self.L0_start:
             for L in range(len(xs)):
-                xs[L] = layer_norm(xs[L], dims=(-2, -1))
-        # print('xs energy norm after input layer:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
+                print('before norm', xs[0])
+                xs[L] = layer_norm(xs[L], dims=(-3, -2, -1))
+                print('after norm', xs[0])
+        print('xs energy norm after input layer:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
+        print('xs.shape', xs[0].shape)
+        print('positions.shape', atoms['positions'].shape)
         # perform iterations over modular building blocks to get environment - dependent features
-        fs = [0 for _ in range(max(self.order_max, self.orbitals_max_order) + 1)]  # output features
-        for i in range(len(xs)):
-            fs[i] = fs[i] + xs[i]
+        fs = [torch.tensor(0).to(xs[0]) for _ in range(max(self.order_max, self.orbitals_max_order) + 1)]  # output features
         # print('self normalize en', self.normalize)
-        # print('fs norm start :', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
+        print('fs norm start :', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
         # fs = [torch.zeros_like(x) for x in xs]  # output features
         for i, module in enumerate(self.module):
             xs = self.order_change[i](xs)
             # print('xs norm module ', i, ':', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
+            # print('xs nan', [torch.any(torch.isnan(xs[L])) for L in range(len(xs))])
             xs, ys = module(xs, rbf, sph, idx_i, idx_j, neighbor_mask=neighbor_mask)
-            for L in range(self.order[i] + 1):
+            # print('ys nan', [torch.any(torch.isnan(ys[L])) for L in range(len(ys))])
+            for L in range(self._order[i] + 1):
                 if not self.normalize or torch.mean(fs[L]**2) == 0 or torch.mean(ys[L]**2) == 0:
                     scale = 1
                 else:
@@ -301,10 +341,12 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
                     # print('self normalize en', self.normalize)
                 fs[L] = ys[L] * scale + fs[L] * scale
                 # print('module', i, 'fs[0]', fs[0])
-            # print('fs norm ', i, ':', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
+            print('fs norm ', i, ':', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
+            # print('fs nan', [torch.any(torch.isnan(fs[L])) for L in range(len(fs))])
         fs[0] = self.out_activation(fs[0])
 
         atom_en = self.energy_output(fs)[0].squeeze(-1).squeeze(-1)
+        # print('energy', atom_en)
 
         energy = torch.zeros(1, atoms['batch_atom_numbers'].shape[0]).to(atoms['positions'])
         energy = energy.scatter_add(1, atoms['atom_batch_idx'], atom_en)
@@ -830,7 +872,7 @@ class SphericalHarmonicsEmbeddingEnergyNetwork(nn.Module):
 
         if self.normalize > 1:
             for L in range(len(xs)):
-                dens_fs[L] = layer_norm(dens_fs[L], dims=(-2, -1))
+                dens_fs[L] = layer_norm(dens_fs[L], dims=(-3, -2, -1))
 
         xs = [xs[L] + dens_fs[L] for L in range(min(len(xs), len(dens_fs)))]
         # print('xs energy norm after input layer:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])

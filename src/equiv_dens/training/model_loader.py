@@ -205,6 +205,7 @@ def load_model(args, dataset, train=False):
                 normalize=args.normalize_en,
                 parity=args.parity_en,
                 atom_dens=atom_dens,
+                L0_start=args.L0_start,
             )
         elif args.energy_model == 'spherical_embedding':
             en_class = SphericalHarmonicsEmbeddingEnergyNetwork
