@@ -278,9 +278,11 @@ class InteractionBlock(nn.Module):
         yi[0] = self.activation_i(yi[0])
         # print('yi norm:', float(torch.mean(yi[0]**2)))
         if self.normalize > 1:
+            # print('yi before norm:', [float(torch.mean(yi[k]**2)) for k in range(len(yi))])
             for L in range(len(yi)):
                 yi[L] = layer_norm(yi[L], dims=(-3, -2, -1)) 
             # yi[0] = layer_norm(yi[0], dims=(-2, -1)) 
+            # print('yi after norm:', [float(torch.mean(yi[k]**2)) for k in range(len(yi))])
         # print('yi norm:', float(torch.mean(yi[0]**2)))
         # print('yi norm:', torch.mean(yi[0]**2, dim=(-2,-1)))
         yi = self.linear_i(yi)
@@ -294,8 +296,10 @@ class InteractionBlock(nn.Module):
         if self.normalize == 1:
             yj[0] = layer_norm(yj[0], dims=(-3, -2, -1)) 
         elif self.normalize > 1:
+            # print('yj before norm:', [float(torch.mean(yj[k]**2)) for k in range(len(yj))])
             for L in range(len(yj)):
                 yj[L] = layer_norm(yj[L], dims=(-3, -2, -1)) 
+            # print('yj after norm:', [float(torch.mean(yj[k]**2)) for k in range(len(yj))])
         # print('yj norm:', float(torch.mean(yj[0]**2)))
         yj = self.linear_j(yj)
         # interaction function
@@ -365,14 +369,25 @@ class InteractionBlock(nn.Module):
             #     print('vs[0]', vs[L])
         # print('vs norm:', [float(torch.mean(vs[L]**2)) for L in range(len(vs))])
 
+        # print('vs norm after mixing:', [float(torch.mean(vs[L]**2)) for L in range(len(vs))])
+
+        if self.normalize > 1:
+            # print('vs before norm:', [float(torch.mean(vs[k]**2)) for k in range(len(vs))])
+            for L in range(len(vs)):
+                vs[L] = layer_norm(vs[L], dims=(-3, -2, -1))
+            # print('vs after norm:', [float(torch.mean(vs[k]**2)) for k in range(len(vs))])
         if self.mixing_order != self.order:
             vs = self.linear_contract(vs)        # interaction refinement
 
+        # print('vs norm before residual:', [float(torch.mean(vs[L]**2)) for L in range(len(vs))])
         vs = self.residual_post_v(vs)
         vs[0] = self.activation_v(vs[0])
+        # print('vs norm after residual:', [float(torch.mean(vs[L]**2)) for L in range(len(vs))])
         vs = self.linear_v(vs)
         for L in range(len(xs), len(vs)):
             xs.append(torch.zeros_like(vs[L]))
+        # print('vs norm end interaction:', [float(torch.mean(vs[L]**2)) for L in range(len(vs))])
+        # print('xs norm end interaction:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
         return [x + v for x, v in zip(xs, vs)]
 
 
@@ -541,8 +556,10 @@ class NonmixingInteractionBlock(nn.Module):
         if self.normalize == 1:
             yj[0] = layer_norm(yj[0], dims=(-3, -2, -1))
         elif self.normalize > 1:
+            # print('yj before norm:', [float(torch.mean(yj[k]**2)) for k in range(len(yj))])
             for L in range(len(yj)):
                 yj[L] = layer_norm(yj[L], dims=(-3, -2, -1))
+            # print('yj after norm:', [float(torch.mean(yj[k]**2)) for k in range(len(yj))])
         # print('yj norm:', float(torch.mean(yj[0]**2)))
         yj = self.linear_j(yj)
         # interaction function
@@ -613,7 +630,7 @@ class NonmixingInteractionBlock(nn.Module):
             #     print('yi[0]', yi[L])
             # if L == 0:
             #     print('vs[0]', vs[L])
-        # print('vs norm:', [float(torch.mean(vs[L]**2)) for L in range(len(vs))])
+        print('vs norm:', [float(torch.mean(vs[L]**2)) for L in range(len(vs))])
 
         vs = self.linear_v(vs)
         if self.residual:
@@ -622,6 +639,8 @@ class NonmixingInteractionBlock(nn.Module):
             vs = self.linear_v(vs)
             for L in range(len(xs), len(vs)):
                 xs.append(torch.zeros_like(vs[L]))
+            print('vs norm:', [float(torch.mean(vs[L]**2)) for L in range(len(vs))])
+            print('xs norm:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
             return [x + v for x, v in zip(xs, vs)]
         else:
             return vs
@@ -750,9 +769,10 @@ class ResidualBlock(nn.Module):
         #     print('xs[L] post_linear1', xs[L])
         ys[0] = self.activation_post(ys[0])
         if self.normalize > 1:
+            # print('ys before norm:', [float(torch.mean(ys[k]**2)) for k in range(len(ys))])
             for L in range(len(ys)):
-                print('ys', L, 'shape', ys[L].shape)
                 ys[L] = layer_norm(ys[L], dims=(-3, -2, -1))
+            # print('ys after norm:', [float(torch.mean(ys[k]**2)) for k in range(len(ys))])
         #     # ys[0] = layer_norm(ys[0], dims=(-2, -1)) 
         # for L in range(len(ys)):
         #     if torch.mean(ys[L]**2) != 0:
