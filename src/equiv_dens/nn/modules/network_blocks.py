@@ -279,7 +279,7 @@ class InteractionBlock(nn.Module):
         # print('yi norm:', float(torch.mean(yi[0]**2)))
         if self.normalize > 1:
             for L in range(len(yi)):
-                yi[L] = layer_norm(yi[L], dims=(-2, -1)) 
+                yi[L] = layer_norm(yi[L], dims=(-3, -2, -1)) 
             # yi[0] = layer_norm(yi[0], dims=(-2, -1)) 
         # print('yi norm:', float(torch.mean(yi[0]**2)))
         # print('yi norm:', torch.mean(yi[0]**2, dim=(-2,-1)))
@@ -292,10 +292,10 @@ class InteractionBlock(nn.Module):
         yj = self.residual_pre_vj(ys)
         yj[0] = self.activation_j(yj[0])
         if self.normalize == 1:
-            yj[0] = layer_norm(yj[0], dims=(-2, -1)) 
+            yj[0] = layer_norm(yj[0], dims=(-3, -2, -1)) 
         elif self.normalize > 1:
             for L in range(len(yj)):
-                yj[L] = layer_norm(yj[L], dims=(-2, -1)) 
+                yj[L] = layer_norm(yj[L], dims=(-3, -2, -1)) 
         # print('yj norm:', float(torch.mean(yj[0]**2)))
         yj = self.linear_j(yj)
         # interaction function
@@ -539,10 +539,10 @@ class NonmixingInteractionBlock(nn.Module):
         yj = self.residual_pre_vj(ys)
         yj[0] = self.activation_j(yj[0])
         if self.normalize == 1:
-            yj[0] = layer_norm(yj[0], dims=(-2, -1))
+            yj[0] = layer_norm(yj[0], dims=(-3, -2, -1))
         elif self.normalize > 1:
             for L in range(len(yj)):
-                yj[L] = layer_norm(yj[L], dims=(-2, -1))
+                yj[L] = layer_norm(yj[L], dims=(-3, -2, -1))
         # print('yj norm:', float(torch.mean(yj[0]**2)))
         yj = self.linear_j(yj)
         # interaction function
@@ -751,7 +751,8 @@ class ResidualBlock(nn.Module):
         ys[0] = self.activation_post(ys[0])
         if self.normalize > 1:
             for L in range(len(ys)):
-                ys[L] = layer_norm(ys[L], dims=(-2, -1))
+                print('ys', L, 'shape', ys[L].shape)
+                ys[L] = layer_norm(ys[L], dims=(-3, -2, -1))
         #     # ys[0] = layer_norm(ys[0], dims=(-2, -1)) 
         # for L in range(len(ys)):
         #     if torch.mean(ys[L]**2) != 0:
@@ -788,5 +789,5 @@ def layer_norm(x, dims):
     else:
         x_std = torch.sqrt(x_var)
     # print('x_std', x_std)
-    eps = 1e-2
+    eps = 1e-8
     return (x - x_mean) / (x_std + eps)

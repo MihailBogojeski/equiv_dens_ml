@@ -376,10 +376,10 @@ class Trainer:
             if 'density' in predictions.keys():
                 print('train density intergal', torch.sum(predictions['density'] * predictions['coord_weights'], dim=1))
                 print('true density intergal', torch.sum(data['density'] * data['coord_weights'], dim=1))
+        if 'energy' in predictions.keys():
+            print('pred energy', predictions['energy'].view((-1, )))
+            print('true energy', data['energy'].view((-1, )))
         if self.verbose > 0:
-            if 'energy' in predictions.keys():
-                print('pred energy', predictions['energy'].view((-1, )))
-                print('true energy', data['energy'].view((-1, )))
             if 'forces' in predictions.keys():
                 # print('pred forces', predictions['forces'].sum((-1, -2)).view((-1, )))
                 # print('true forces', data['forces'].sum((-1, -2)).view((-1, )))
@@ -507,13 +507,13 @@ class Trainer:
             data = self._module.transform_back_input(data)
             # print('post-post-conversion forces:', data['forces'])
             # if self.verbose > 2:
+            if 'energy' in predictions.keys():
+                print('pred energy', predictions['energy'].view((-1, )))
+                print('true energy', data['energy'].view((-1, )))
             if self.verbose > 0:
                 if 'density' in predictions.keys():
                     print('valid density intergal', torch.sum(predictions['density'] * predictions['coord_weights'], dim=1))
                     print('true density intergal', torch.sum(data['density'] * data['coord_weights'], dim=1))
-                if 'energy' in predictions.keys():
-                    print('pred energy', predictions['energy'].view((-1, )))
-                    print('true energy', data['energy'].view((-1, )))
                 if 'forces' in predictions.keys():
                     # print('pred forces', predictions['forces'].sum((-1, -2)).view((-1, )))
                     # print('true forces', data['forces'].sum((-1, -2)).view((-1, )))
