@@ -47,6 +47,8 @@ class SphericalLinear(nn.Module):
         self.mix_orders = mix_orders
         self.zero_init = zero_init
         self.parity = parity
+        self.use_V2 = use_V2
+        self.normalize = normalize
         if self.mix_orders:
             assert (
                 clebsch_gordan is not None
@@ -96,7 +98,7 @@ class SphericalLinear(nn.Module):
         else:
             ys = []
             for x, linear in zip(xs, self.linear):
-                ys.append(linear(x) * np.sqrt(self.num_out))
+                ys.append(linear(x))  # !! when applied to spherical harmonics, normalize by factor sqrt(self.num_out)
         return ys
 
 
