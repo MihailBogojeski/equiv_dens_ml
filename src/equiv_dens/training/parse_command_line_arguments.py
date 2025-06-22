@@ -42,8 +42,12 @@ def parse_command_line_arguments(arg_file=None):
                                   choices=[True, False], help="Use the more efficient model architecture inspired by QHNet.")
     args_hyperparams.add_argument("--use_V2_matrix_construction", metavar='True|False', type=str2bool, default=False,
                                   choices=[True, False], help="Use the more efficient ao matrix construction module.")
-    args_hyperparams.add_argument("--mix_orders_residual_out", metavar='True|False', type=str2bool, default=True,
-                                  choices=[True, False], help="Mix orders in interaction output residual")
+    args_hyperparams.add_argument("--mix_orders_in_repr", metavar='True|False', type=str2bool, default=True,
+                                  choices=[True, False], help="Mix orders in representation (currently only supported for V2).")
+    args_hyperparams.add_argument("--mix_orders_in_pair", metavar='True|False', type=str2bool, default=True,
+                                  choices=[True, False], help="Mix orders in representation (currently only supported for V2).")
+    args_hyperparams.add_argument("--mix_orders_in_matr", metavar='True|False', type=str2bool, default=True,
+                                  choices=[True, False], help="Mix orders in representation (currently only supported for V2).")
     args_hyperparams.add_argument("--use_V2_sphlinear", metavar='True|False', type=str2bool, default=True,
                                   choices=[True, False], help="V2 uses weight matrix instead of parameter vector.")
     args_hyperparams.add_argument("--activation", metavar='STR', type=str, default='swish',

@@ -83,7 +83,7 @@ def load_model(args, dataset, train=False):
                 num_hidden_att_mlp=args.num_hidden_att_mlp,
                 num_hidden_rbf_mlp=args.num_hidden_rbf_mlp,
                 num_hidden_normgate_mlp=args.num_hidden_normgate_mlp,
-                mix_orders_residual_out=args.mix_orders_residual_out,
+                mix_orders=args.mix_orders_in_repr,
                 num_basis_functions=args.num_basis_functions,
                 num_modules=args.num_modules,
                 num_radial_components=args.num_radial_components,
@@ -276,6 +276,9 @@ def load_model(args, dataset, train=False):
     print(f"density matrix loss comp: {args.density_matrix_loss_comp}")
     print(f"density matrix loss comp weights: {args.density_matrix_loss_comp_weights}")
     print(f"ao matrix convention: {args.ao_matrix_convention}")
+    print(f"mix_orders_in_repr: {args.mix_orders_in_repr}")
+    print(f"mix_orders_in_pair: {args.mix_orders_in_pair}")
+    print(f"mix_orders_in_matr: {args.mix_orders_in_matr}")
     if args.ao_matrix_from_pair_features:
 
         if args.use_V2_pair_features:
@@ -292,7 +295,8 @@ def load_model(args, dataset, train=False):
                 num_hidden_att_mlp=args.num_hidden_att_mlp,
                 num_hidden_rbf_mlp=args.num_hidden_rbf_mlp,
                 num_hidden_normgate_mlp=args.num_hidden_normgate_mlp,
-                use_V2_sphlinear=args.use_V2_sphlinear
+                use_V2_sphlinear=args.use_V2_sphlinear,
+                mix_orders=args.mix_orders_in_pair,
             )
 
         else:
@@ -327,6 +331,7 @@ def load_model(args, dataset, train=False):
                     clebsch_gordan=clebsch_gordan,
                     num_hidden_normgate_mlp=args.num_hidden_normgate_mlp,
                     use_V2_sphlinear=args.use_V2_sphlinear,
+                    mix_orders=args.mix_orders_in_matr,
                     output_property_name="hamiltonian_matrix",
                     ao_matrix_convention=args.ao_matrix_convention
                 )
@@ -344,6 +349,8 @@ def load_model(args, dataset, train=False):
                     activation=args.activation,
                     clebsch_gordan=clebsch_gordan,
                     num_hidden_normgate_mlp=args.num_hidden_normgate_mlp,
+                    use_V2_sphlinear=args.use_V2_sphlinear,
+                    mix_orders=args.mix_orders_in_matr,
                     output_property_name="density_matrix",
                     ao_matrix_convention=args.ao_matrix_convention
                 )

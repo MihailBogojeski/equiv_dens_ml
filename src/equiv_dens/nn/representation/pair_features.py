@@ -188,7 +188,8 @@ class PairFeaturesV2(nn.Module):
             num_hidden_normgate_mlp = 128, #hidden size of the MLP used in normgate
             use_V2_sphlinear     = True,
             load_from            = None, #if this is given the network is loaded from the specified .pth file and all other arguments are ignored
-            #Zmax                 = 87 #maximum nuclear charge (+1, i.e. 87 for up to Rn) for embeddings, can be kept at default 
+            #Zmax                 = 87, #maximum nuclear charge (+1, i.e. 87 for up to Rn) for embeddings, can be kept at default
+            mix_orders           = True, #whether to mix orders in the pair features
     ):
         super().__init__()
 
@@ -210,6 +211,7 @@ class PairFeaturesV2(nn.Module):
         self.num_hidden_rbf_mlp = num_hidden_rbf_mlp
         self.num_hidden_normgate_mlp = num_hidden_normgate_mlp
         self.use_V2_sphlinear = use_V2_sphlinear
+        self.mix_orders = mix_orders
         #self.Zmax = Zmax
 
         #error checking
@@ -243,7 +245,7 @@ class PairFeaturesV2(nn.Module):
                                         self.num_features,
                                         self.num_basis_functions,
                                         self.clebsch_gordan,
-                                        True,
+                                        self.mix_orders,
                                         self.activation,
                                         num_hidden_normgate_mlp=self.num_hidden_normgate_mlp,
                                         use_V2_sphlinear=self.use_V2_sphlinear)
@@ -252,7 +254,7 @@ class PairFeaturesV2(nn.Module):
                                                 self.num_features,
                                                 self.num_basis_functions,
                                                 self.clebsch_gordan,
-                                                True,
+                                                self.mix_orders,
                                                 self.activation,
                                                 num_hidden_att_mlp=self.num_hidden_att_mlp,
                                                 num_hidden_rbf_mlp=self.num_hidden_rbf_mlp,
@@ -277,6 +279,10 @@ class PairFeaturesV2(nn.Module):
             fj.append(torch.gather(fs[L], 1, j))
         
         fij = self.off_diagonal_pair(fi, fj, rbf)
+
+        # print(f"pair features")
+        # print(f"fii norms: {[float(torch.mean(fii[L]**2)) for L in range(self.order+1)]}")
+        # print(f"fij norms: {[float(torch.mean(fij[L]**2)) for L in range(self.order+1)]}")
 
         atoms['pair_features'] = fii, fij
 

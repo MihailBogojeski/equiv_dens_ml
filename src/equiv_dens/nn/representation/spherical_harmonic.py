@@ -285,6 +285,7 @@ class EquivariantSphericalHarmonics(nn.Module):
         # print('xs norm representation:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
         # print('fs norm representation:', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
         for i, module in enumerate(self.module):
+            # print(f"module {i}")
             xs = self.order_change[i](xs)
             # print('xs norm module ', i, ':', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
             # for L in range(len(xs)):
@@ -300,6 +301,7 @@ class EquivariantSphericalHarmonics(nn.Module):
                 # print('fs[' + str(L) +'] norm before', float(torch.mean(fs[L]**2)))
                 # print('scale', scale)
                 fs[L] = ys[L] * scale + fs[L] * scale
+            # print(f"fs norms: {[float(torch.mean(fs[L]**2)) for L in range(len(fs))]}")
                 # print('fs[' + str(L) +'] norm after', float(torch.mean(fs[L]**2)))
             # print('')
             # print('ys norm:', [float(torch.mean(ys[L]**2)) for L in range(len(ys))])
@@ -336,7 +338,7 @@ class EquivariantSphericalHarmonicsV2(nn.Module):
                  num_hidden_att_mlp=128,
                  num_hidden_rbf_mlp=128,
                  num_hidden_normgate_mlp=128,
-                 mix_orders_residual_out=True,
+                 mix_orders=True,
                  num_basis_functions=32,  # number of basis functions for featurizing distances
                  num_radial_components=32,  # number of basis functions for the radial component of the density
                  # how many modules are stacked for calculating atomic features (iterations)
@@ -387,7 +389,7 @@ class EquivariantSphericalHarmonicsV2(nn.Module):
         self.num_hidden_att_mlp = num_hidden_att_mlp
         self.num_hidden_rbf_mlp = num_hidden_rbf_mlp
         self.num_hidden_normgate_mlp = num_hidden_normgate_mlp
-        self.mix_orders_residual_out = mix_orders_residual_out
+        self.mix_orders = mix_orders
         self.num_modules = num_modules
         # self.num_residual_pre_x = num_residual_pre_x
         # self.num_residual_post_x = num_residual_post_x
@@ -498,7 +500,7 @@ class EquivariantSphericalHarmonicsV2(nn.Module):
                                             use_V2_sphlinear=self.use_V2_sphlinear,
                                             num_basis_functions=self.num_basis_functions,
                                             clebsch_gordan=self.clebsch_gordan,
-                                            mix_orders=True, mixing_order=self.mixing_order[0],
+                                            mix_orders=self.mix_orders, mixing_order=self.mixing_order[0],
                                             input_order=0,
                                             activation=self.activation,
                                             normalize=self.normalize,
@@ -506,14 +508,13 @@ class EquivariantSphericalHarmonicsV2(nn.Module):
                                             bias=True,
                                             num_hidden_att_mlp=self.num_hidden_att_mlp,
                                             num_hidden_rbf_mlp=self.num_hidden_rbf_mlp,
-                                            num_hidden_normgate_mlp=self.num_hidden_normgate_mlp,
-                                            mix_orders_residual_out=self.mix_orders_residual_out)]
+                                            num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)]
         modules.extend([QHNetNodewiseInteraction(order=self.order[i],
                                                  num_features=self.num_features,
                                                  use_V2_sphlinear=self.use_V2_sphlinear,
                                                  num_basis_functions=self.num_basis_functions,
                                                  clebsch_gordan=self.clebsch_gordan,
-                                                 mix_orders=True, mixing_order=self.mixing_order[i],
+                                                 mix_orders=self.mix_orders, mixing_order=self.mixing_order[i],
                                                  input_order=self.order[i - 1],
                                                  activation=self.activation,
                                                  normalize=self.normalize,
@@ -521,8 +522,7 @@ class EquivariantSphericalHarmonicsV2(nn.Module):
                                                  bias=True,
                                                  num_hidden_att_mlp=self.num_hidden_att_mlp,
                                                  num_hidden_rbf_mlp=self.num_hidden_rbf_mlp,
-                                                 num_hidden_normgate_mlp=self.num_hidden_normgate_mlp,
-                                                 mix_orders_residual_out=self.mix_orders_residual_out) for i in range(1, self.num_modules)])
+                                                 num_hidden_normgate_mlp=self.num_hidden_normgate_mlp) for i in range(1, self.num_modules)])
 
         self.module = nn.ModuleList(modules)
 
@@ -646,7 +646,7 @@ class EquivariantSphericalHarmonicsV2(nn.Module):
         # print(f"initial order: {len(xs)-1}")
         # print("------------------------------")
         for i, module in enumerate(self.module):
-            # print("module", i)
+            # print(f"module {i}")
             # print(f"before order change: {len(xs)-1}")
             xs = self.order_change[i](xs)
             # print(f"after order change: {len(xs)-1}")
@@ -660,6 +660,8 @@ class EquivariantSphericalHarmonicsV2(nn.Module):
                     scale = np.sqrt(1/2)
 
                 fs[L] = ys[L] * scale + fs[L] * scale
+            
+            # print(f"fs norms: {[float(torch.mean(fs[L]**2)) for L in range(len(fs))]}")
 
             if self.memory:
                 print('repr forward after module', i, ':')

@@ -818,6 +818,7 @@ class AOMatrixFromPairFeaturesV2(nn.Module):
             clebsch_gordan       = None, #clebsch gordan matrix
             num_hidden_normgate_mlp = 128, #number of hidden features in the normgate MLP
             use_V2_sphlinear     = True, #use V2 version of SphericalLinear
+            mix_orders           = True, #mix orders in the SphericalLinear
             output_property_name = 'ao_matrix', # output property key of atoms dict, e.g. atoms['hamiltonian_matrix']
             ao_matrix_convention = None,
             load_from            = None, #if this is given the network is loaded from the specified .pth file and all other arguments are ignored
@@ -840,6 +841,7 @@ class AOMatrixFromPairFeaturesV2(nn.Module):
         self.activation = activation
         self.num_hidden_normgate_mlp = num_hidden_normgate_mlp
         self.use_V2_sphlinear = use_V2_sphlinear
+        self.mix_orders = mix_orders
         self.output_property_name = output_property_name
         self.ao_matrix_convention = None if ao_matrix_convention == 'None' else ao_matrix_convention
         #self.Zmax = Zmax
@@ -862,8 +864,8 @@ class AOMatrixFromPairFeaturesV2(nn.Module):
         else:
             self.clebsch_gordan = clebsch_gordan
 
-        self.residual_ao_ii = ResidualStack(self.num_residual_ao_ii, self.order, self.num_features, self.clebsch_gordan, True, self.activation, use_V2_residual=True, use_V2_sphlinear=self.use_V2_sphlinear, num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
-        self.residual_ao_ij = ResidualStack(self.num_residual_ao_ij, self.order, self.num_features, self.clebsch_gordan, True, self.activation, use_V2_residual=True, use_V2_sphlinear=self.use_V2_sphlinear, num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
+        self.residual_ao_ii = ResidualStack(self.num_residual_ao_ii, self.order, self.num_features, self.clebsch_gordan, self.mix_orders, self.activation, use_V2_residual=True, use_V2_sphlinear=self.use_V2_sphlinear, num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
+        self.residual_ao_ij = ResidualStack(self.num_residual_ao_ij, self.order, self.num_features, self.clebsch_gordan, self.mix_orders, self.activation, use_V2_residual=True, use_V2_sphlinear=self.use_V2_sphlinear, num_hidden_normgate_mlp=self.num_hidden_normgate_mlp)
 
         #determine minimum number of output features based on orbitals
         #and generate dictionaries (irreps_ii/irreps_ij) that store indices 
@@ -874,7 +876,7 @@ class AOMatrixFromPairFeaturesV2(nn.Module):
         for z in self.orbital_basis.keys():
             self.irreps_ii, number_L = self.compute_matrix_irreps(
                 self.orbital_basis[z], self.orbital_basis[z], self.irreps_ii, number_L)
-        self.output_ii = SphericalLinear(self.order, self.num_features, 2*order_max, max(number_L), self.clebsch_gordan, zero_init=True, use_V2=self.use_V2_sphlinear)
+        self.output_ii = SphericalLinear(self.order, self.num_features, 2*order_max, max(number_L), self.clebsch_gordan, mix_orders=self.mix_orders, zero_init=True, use_V2=self.use_V2_sphlinear)
 
         #off-diagonal blocks
         number_L = [0 for L in range(2*order_max+1)] #keeps track of how many irreps of each order there are already
@@ -885,7 +887,7 @@ class AOMatrixFromPairFeaturesV2(nn.Module):
                     self.orbital_basis[z1], self.orbital_basis[z2], self.irreps_ij, number_L)
                 
         # print(f"init output ij sphlineasr with self.order={self.order}, order_max={order_max}")
-        self.output_ij = SphericalLinear(self.order, self.num_features, 2*order_max, max(number_L), self.clebsch_gordan, zero_init=True, use_V2=self.use_V2_sphlinear)
+        self.output_ij = SphericalLinear(self.order, self.num_features, 2*order_max, max(number_L), self.clebsch_gordan, mix_orders=self.mix_orders, zero_init=True, use_V2=self.use_V2_sphlinear)
 
 
 
@@ -974,6 +976,9 @@ class AOMatrixFromPairFeaturesV2(nn.Module):
         fij    = self.residual_ao_ij(fij)
         fij    = self.output_ij(fij)
 
+        # print(f"ao matrix")
+        # print(f"fii norms: {[float(torch.mean(fii[L]**2)) for L in range(len(fii))]}")
+        # print(f"fij norms: {[float(torch.mean(fij[L]**2)) for L in range(len(fij))]}")
 
         batch_size = atoms['batch_positions'].shape[0]
         num_atoms_in_batch = atoms['batch_positions'].shape[1]
