@@ -310,11 +310,13 @@ class InteractionBlock(nn.Module):
         # print('rbf shape', rbf.shape)
         # print('rbf sum:', float(torch.mean(torch.sum(rbf, dim=-1))))
         ang = self.angular_fn1(sph)
+        ang = [ang[L] * np.sqrt(self.angular_fn1.num_out) for L in range(len(ang))]
         # print('sph norm:', [float(torch.mean(sph[L]**2)) for L in range(len(sph))])
         # print('angular norm:', [float(torch.mean(ang[L]**2)) for L in range(len(ang))])
         vs = self.mixing(yj, ang, rbf)
         # print('vs norm:', [float(torch.mean(vs[L]**2)) for L in range(len(vs))])
         a = self.angular_fn2(sph)
+        a = [a[L] * np.sqrt(self.angular_fn2.num_out) for L in range(len(a))]
         # print('a norm:', [float(torch.mean(a[L]**2)) for L in range(len(a))])
         for L in range(self.mixing_order + 1):
             # idx_i_scat = idx_i.view(*(1,) * len(vs[L].shape[:-3]), -1, 1, 1).repeat(
@@ -645,8 +647,7 @@ class QHNetNodewiseInteraction(nn.Module):
                  bias=True,
                  num_hidden_att_mlp=128,
                  num_hidden_rbf_mlp=128,
-                 num_hidden_normgate_mlp=128,
-                 mix_orders_residual_out=True):   
+                 num_hidden_normgate_mlp=128):
         super(QHNetNodewiseInteraction, self).__init__()
 
         self.order = order
@@ -661,7 +662,6 @@ class QHNetNodewiseInteraction(nn.Module):
         self.num_hidden_att_mlp = num_hidden_att_mlp
         self.num_hidden_rbf_mlp = num_hidden_rbf_mlp if num_hidden_rbf_mlp > 0 else num_features
         self.num_hidden_normgate_mlp = num_hidden_normgate_mlp
-        self.mix_orders_residual_out = mix_orders_residual_out
 
         if order_out is None:
             self.order_out = self.order
@@ -682,10 +682,11 @@ class QHNetNodewiseInteraction(nn.Module):
             self.activation_rbf_mlp = ShiftedSoftplus(self.num_hidden_rbf_mlp)
         else:
             raise ValueError("Unsupported activation function:", activation)
-        
+
+        # Attentive scores order 4
         self.att_scores = AttentiveScores(order=min(2*self.input_order, self.order),
                                           num_features=self.num_features,
-                                          clebsch_gordan=self.clebsch_gordan,
+                                          clebsch_gordan=self.clebsch_gordan if self.mix_orders else None,
                                           mix_order=self.mix_orders,
                                           activation=activation,
                                           normalize=self.normalize,
@@ -693,7 +694,7 @@ class QHNetNodewiseInteraction(nn.Module):
                                           bias=bias,
                                           num_hidden_att_mlp=self.num_hidden_att_mlp,
                                           use_V2_sphlinear=self.use_V2_sphlinear)
-        
+
         self.rbf_mlp = nn.Sequential(
             nn.Linear(self.num_features, self.num_hidden_rbf_mlp),
             self.activation_rbf_mlp,
@@ -750,8 +751,8 @@ class QHNetNodewiseInteraction(nn.Module):
 
         self.simple_residual_out = SimplifiedResidualBlock(order=self.order_out,
                                                          num_features=self.num_features,
-                                                         clebsch_gordan=self.clebsch_gordan if self.mix_orders_residual_out else None, 
-                                                         mix_orders=self.mix_orders_residual_out,
+                                                         clebsch_gordan=self.clebsch_gordan if self.mix_orders else None, 
+                                                         mix_orders=self.mix_orders,
                                                          activation=activation,
                                                          normalize=self.normalize,
                                                          parity=parity,
@@ -766,6 +767,7 @@ class QHNetNodewiseInteraction(nn.Module):
         # print(f"idx_j: {idx_j}")
 
         ys = [1 * x for x in xs]
+        # print(f"forward0 ys norms: {[float(torch.mean(ys[L]**2)) for L in range(len(ys))]}")
 
         # atomic pairs
         xi = []
@@ -780,24 +782,34 @@ class QHNetNodewiseInteraction(nn.Module):
         # print("\n".join(f"xi[{l}]: {xi[l].shape}" for l in range(len(xi)))) 
         
         aij = self.att_scores(xi, xj)
+        # print(f"forward aij norms: {[float(torch.mean(aij[L]**2)) for L in range(len(aij))]}")
+        # print(f"forward nans in aij: {[torch.isnan(aij[L]).any() for L in range(len(aij))]}")
         rbf_mlp = self.rbf_mlp(rbf)
+        # print(f"forward nans in rbf_mlp: {[torch.isnan(rbf_mlp).any() for l in range(len(rbf_mlp))]}")
         filter = aij * rbf_mlp
+        # print(f"forward filter norms: {[float(torch.mean(filter[L]**2)) for L in range(len(filter))]}")
+        # print(f"forward nans in filter: {[torch.isnan(filter).any() for l in range(len(filter))]}")
         # print(f"aij: {aij.shape}")
         # print(f"rbf_mlp: {rbf_mlp.shape}")
         # print(f"filter: {filter.shape}")
 
         # print("\n".join(f"x_i[{l}]: {xi[l].shape}" for l in range(len(xi))))
         x_i = self.simple_residual_i(ys)
+        # print(f"forward x_i norms: {[float(torch.mean(x_i[l]**2)) for l in range(len(x_i))]}")
         x_j = self.simple_residual_j(xj)
+        # print(f"forward x_j norms: {[float(torch.mean(x_j[l]**2)) for l in range(len(x_j))]}")
 
         # print("\n".join(f"x_i[{l}]: {x_i[l].shape}" for l in range(len(x_i))))
         # print("\n".join(f"x_j[{l}]: {x_j[l].shape}" for l in range(len(x_j))))
         # print("\n".join(f"sph[{l}]: {sph[l].shape}" for l in range(len(sph))))
 
         Fc = [filter[:, :, [l], :] * sph[l] for l in range(filter.shape[-2])]
+        # print(f"forward nans in Fc: {[torch.isnan(Fc[l]).any() for l in range(len(Fc))]}")
         # print("\n".join(f"Fc[{l}]: {Fc[l].shape}" for l in range(len(Fc))))
 
         mij = self.pairmix(x_j, Fc, None)
+        # print(f"forward mij norms: {[float(torch.mean(mij[L]**2)) for L in range(len(mij))]}")
+        # print(f"forward nans in mij: {[torch.isnan(mij[L]).any() for L in range(len(mij))]}")
         # print("\n".join(f"mij[{l}]: {mij[l].shape}" for l in range(len(mij))))
 
         # sum over j + residual connection
@@ -812,12 +824,20 @@ class QHNetNodewiseInteraction(nn.Module):
             fs[L] = x_i[L].index_add(
                 1, idx_i, mij[L]
             )
+        # print(f"forward indexadd fs norms: {[float(torch.mean(fs[L]**2)) for L in range(len(fs))]}")
+        # print(f"forward indexadd fs norm: {[float(torch.mean(fs[L]**2)) for L in range(len(fs))]}")
+        # print(f"forward indexadd nans in fs: {[torch.isnan(fs[L]).any() for L in range(len(fs))]}")
         # print("fi after index add")
         # print("\n".join(f"fi[{l}]: {fi[l].shape}" for l in range(len(fi))))
 
         fs = self.linear_out(fs)
+        # print(f"forward out fs norms: {[float(torch.mean(fs[L]**2)) for L in range(len(fs))]}")
+        # print(f"forward fs norms: {[float(torch.mean(fs[L]**2)) for L in range(len(fs))]}")
 
         ys = self.simple_residual_out(fs)
+        # print(f"forward out ys norms: {[float(torch.mean(ys[L]**2)) for L in range(len(ys))]}")
+
+        # print(f"forward resout nans in ys: {[torch.isnan(ys[L]).any() for L in range(len(ys))]}")
 
         return fs, ys
         
@@ -892,21 +912,35 @@ class AttentiveScores(nn.Module):
             nn.Linear((self.order + 2) * self.num_features, self.num_hidden_att_mlp),
             self.activation,
             nn.Linear(self.num_hidden_att_mlp, (self.order + 1) * self.num_features))
+        
+        # print(f"AttentiveScores order: {self.order}")
+        # print(f"AttentiveScores order_out: {self.order_out}")
+        # print(f"AttentiveScores num_features: {self.num_features}")
 
     def forward(self, xi, xj):
 
         bs, n_atoms, _, num_features = xi[0].shape
 
+        # print(f"AttentiveScores forward xi norms: {[float(torch.mean(xi[L]**2)) for L in range(len(xi))]}")
+        # print(f"AttentiveScores forward xj norms: {[float(torch.mean(xj[L]**2)) for L in range(len(xj))]}")
         xil = self.linear_i(xi)
         xjl = self.linear_j(xj)
+        # print(f"AttentiveScores forward xil norms: {[float(torch.mean(xil[L]**2)) for L in range(len(xil))]}")
+        # print(f"AttentiveScores forward xjl norms: {[float(torch.mean(xjl[L]**2)) for L in range(len(xjl))]}")
 
         # print("\n".join(f"xil[{l}]: {xil[l].shape}" for l in range(len(xil))))
         # print("\n".join(f"xjl[{l}]: {xjl[l].shape}" for l in range(len(xjl))))
 
+        # normalize xil and xjl to compute cosine similarity
+        for L in range(self.order + 1):
+            xil[L] = xil[L] / (torch.norm(xil[L], dim=-2, keepdim=True) + 1e-8)
+            xjl[L] = xjl[L] / (torch.norm(xjl[L], dim=-2, keepdim=True) + 1e-8)
         Iij = [torch.sum(xil[L] * xjl[L], dim=-2, keepdim=True) for L in range(1, self.order + 1)]  # (1, 30, 1/1/1/..., 128)
+        # print(f"Iij norms: {[float(torch.mean(Iij[l]**2)) for l in range(len(Iij))]}")
         # print("\n".join(f"Iij[{l}]: {Iij[l].shape}" for l in range(len(Iij))))
         
         Iij = torch.cat((*Iij, xi[0], xj[0]), dim=-2)  # (1, 30, 7, 128)
+        # print(f"Iij norms after cat: {[float(torch.mean(Iij[:, :, l]**2)) for l in range(Iij.shape[-2])]}")
         # print(f"Iij cat: {Iij.shape}")
 
         Iij = Iij.view(bs, n_atoms, -1)
