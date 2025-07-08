@@ -282,7 +282,7 @@ class EquivariantSphericalHarmonics(nn.Module):
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
             print('Memory cached', torch.cuda.memory_cached() / 1024**2)
         fs = [torch.zeros_like(x) for x in xs]  # output features
-        print('xs norm representation:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
+        # print('xs norm representation:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
         # print('fs norm representation:', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
         for i, module in enumerate(self.module):
             xs = self.order_change[i](xs)
@@ -303,7 +303,7 @@ class EquivariantSphericalHarmonics(nn.Module):
                 # print('fs[' + str(L) +'] norm after', float(torch.mean(fs[L]**2)))
             # print('')
             # print('ys norm:', [float(torch.mean(ys[L]**2)) for L in range(len(ys))])
-            print('fs norm:', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
+            # print('fs norm:', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
             # print('')
             if self.memory:
                 print('repr forward after module', i, ':')
