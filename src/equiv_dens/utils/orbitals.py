@@ -923,6 +923,74 @@ def sample_density_base(mols, coords, coeffs, scale_coords=False, projected=Fals
     return dens
 
 
+def sample_density_sqrt(mols, coords, coeffs, scale_coords=False):
+    dens = []
+    if scale_coords:
+        coords = coords / param.BOHR
+    if coords.shape[0] != len(mols):
+        raise ValueError(
+            "Batch dimension of coordinates ("
+            + str(coords.shape[0])
+            + ") must match number of molecules ("
+            + str(len(mols))
+            + ")"
+        )
+    dens = torch.zeros((coords.shape[0], coords.shape[1]))
+    for i in range(len(mols)):
+        mol = mols[i]
+        if not mol._built:
+            mol.build()
+        deriv = int(density_grad)
+        if len(mol.atom_charges()) == 0:
+            continue
+        # print('mol atom charges', mol.atom_charges())
+        # print('mol atom pos', mol.atom_coords())
+        # if isinstance(coords[i], torch.Tensor):
+        #     print('coords vals', torch.max(coords[i]), torch.min(coords[i]), torch.min(torch.abs(coords[i])))
+        # else:
+        #     print('coords vals', np.max(coords[i]), np.min(coords[i]), np.min(np.abs(coords[i])))
+        ao = numint.eval_ao(mol, coords[i], deriv=deriv)
+        dm = calc_dm_top_valence(mol, coeffs['mo_occ'], coeffs['mo_coeff']) # dm_ref is 1 spin channel
+        # rho = np.einsum("ij,ik, jk->i",ao,ao,dm)
+        rho = numint.eval_rho(mol, ao, dm)
+        n_elec = calc_num_el_from_dm(mol, dm)
+        print('nelec', n_elec)
+        dens[i, :] = torch.sqrt(torch.from_numpy(rho))
+    return dens
+
+
+def calc_dm_top_valence(mol, mo_occ, mo_coeff):
+    """ takes in a pyscf gto.mol object and the occupancy and molecular
+    coefficients from a pyscf kernel and returns the density matrix
+    of the system which will include only the top valence electrons.
+    The density matrix is only for one spin channel"""
+    top_n_elec_per_atom = {'H':1,
+                           'C':4,
+                           'N':3,
+                           'O':4,
+                           'F':5}
+    mo_occ_1spin = mo_occ/2
+    # total number of electrons in 1 spin channel
+    n_elec = np.sum(mo_occ_1spin)
+    top_n_elec = 0
+    # top_n_elec is the total number of top electrons for both spin channnels
+    for atom in mol.atom:
+        top_n_elec += top_n_elec_per_atom[atom[0]]
+    n_elec_ignore = round(n_elec - top_n_elec/2)
+    # remove the occupany of the bottom electrons
+    mo_occ_1spin[0:n_elec_ignore] = 0
+    dm_top_elec = np.einsum("m, im, jm ->ij", mo_occ_1spin, mo_coeff ,mo_coeff)
+    return dm_top_elec
+
+
+def calc_num_el_from_dm(mol, dm):
+    """  calculates the total number of electrons sum_i occ_i * |psi_i|^2"""
+    int2c1e = gto.mole.intor_cross('int1e_ovlp_sph', mol, mol)
+    # total density for one spin channel
+    total_dens = np.einsum('ij, ij->',int2c1e, dm)
+    return total_dens
+
+
 def _expand_pyscf_density(mol, ao, coeffs, density_grad=False):
     if density_grad:
         xctype = 'GGA'

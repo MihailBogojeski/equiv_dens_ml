@@ -28,6 +28,7 @@ class ErrorDict:
         self.relative_en = relative_en
         self.df_loss_weights = df_loss_weights
         self.loss_comp_weights = loss_comp_weights
+        self.width_cutoff = width_cutoff
         if self.weights_decay is None:
             self.weights_decay = {}
             for key in self.loss_weights.keys():
@@ -73,6 +74,9 @@ class ErrorDict:
                     loss = torch.mean(predictions[key])
                     error_dict[key + "_mae"] = loss
                     error_dict[key + "_rmse"] = loss
+                elif key == 'width_reg':
+                    loss = torch.mean(density_errors.L2_reg_on_pd_orbitals(predictions['radial_widths'], alpha_cutoff=self.width_cutoff))
+                    error_dict[key + "_loss"] = loss
                 else:
                     diff = predictions[key] - (data[key])
                     if key == 'df_coeffs':

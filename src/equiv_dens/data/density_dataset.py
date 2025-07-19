@@ -75,6 +75,7 @@ class AtomsDensityData(Dataset):
         all_atom_numbers=None,
         dpm_intor=False,
         all_atom_coeffs=False,
+        dens_sqrt=False,
     ):
         self.density_path = density_path
         self.np_path = np_path
@@ -105,6 +106,7 @@ class AtomsDensityData(Dataset):
         self.density_grad = density_grad
         self.dpm_intor = dpm_intor
         self.all_atom_coeffs = all_atom_coeffs
+        self.dens_sqrt = dens_sqrt
         if "dipole_moment" in self.required_properties:
             if self.dpm_intor:
                 if self.projected_density and 'df_coeffs' not in self.required_properties:
@@ -471,6 +473,7 @@ class AtomsDensityData(Dataset):
                         properties[pname] = self.sample_density(
                             idx, properties["coords"] - pos_shift,
                             density_grad=self.density_grad,
+                            sqrt=self.dens_sqrt,
                         )
                         # print('density integral in props')
                         # print(torch.sum(properties['density'] * properties['coord_weights'], dim=1))
@@ -743,7 +746,7 @@ class AtomsDensityData(Dataset):
 
         return coords, coord_weights
 
-    def sample_density(self, idx, sample_coords, density_grad=False):
+    def sample_density(self, idx, sample_coords, density_grad=False, sqrt=False):
         scaled_sample_coords = (
             sample_coords.detach().cpu().numpy() / param.BOHR
         )  # convert Angstrom grid to Bohr
@@ -757,10 +760,12 @@ class AtomsDensityData(Dataset):
                 if self.timing:
                     print("molecule build time", time.time() - build_start)
         coeffs = [self.coeffs[i] for i in idx]
-        dens = orbitals.sample_density_base(
-            mols, scaled_sample_coords, coeffs, projected=False, density_grad=density_grad,
-        )
-
+        if sqrt:
+            dens = orbitals.sample_density_sqrt(mols, scaled_sample_coords, coeffs)
+        else:
+            dens = orbitals.sample_density_base(
+                mols, scaled_sample_coords, coeffs, projected=False, density_grad=density_grad,
+            )
         return dens
 
     def sample_atom_density(
