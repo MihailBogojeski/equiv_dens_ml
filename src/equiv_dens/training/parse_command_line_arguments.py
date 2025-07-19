@@ -192,6 +192,10 @@ def parse_command_line_arguments(arg_file=None):
                                help="weight of the density in the loss function")
     args_training.add_argument("--density_grad_weight", metavar='FLOAT', type=float, default=0.0,
                                help="weight of the density gradient in the loss function")
+    args_training.add_argument("--width_reg_weight", metavar='FLOAT', type=float, default=0.0,
+                               help="weight of the width regularization in the loss function")
+    args_training.add_argument("--width_reg_cutoff", metavar='FLOAT', type=float, default=None,
+                               help="Cutoff for the width regularization")
     args_training.add_argument("--df_weight", metavar='FLOAT', type=float, default=0.0,
                                help="weight of the density fitting coeffs in the loss function")
     args_training.add_argument("--dipole_moment_weight", metavar='FLOAT', type=float, default=0.0,
@@ -353,6 +357,8 @@ def parse_command_line_arguments(arg_file=None):
                                choices=['online', 'offline', 'disabled'], help="Wandb mode.")
     args_training.add_argument("--remove_atom_density", metavar='True|False', type=str2bool, default=False,
                                choices=[True, False], help="Remove the free atom density from the total density.")
+    args_training.add_argument("--dens_sqrt", metavar='True|False', type=str2bool, default=False,
+                               choices=[True, False], help="Fit to square root of density.")
     args_training.add_argument('--atom_dens_path', metavar='STR', type=str,
                                help="Path to free atom densities file.")
     args_training.add_argument('--atom_dens_type', metavar='STR', type=str,

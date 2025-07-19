@@ -303,6 +303,7 @@ def prepare_datasets(args, required_properties, grid_vars, data_split_indices, d
                                density_grad=args.density_grad,
                                calc_basis_path=args.calc_basis_file,
                                dpm_intor=args.dpm_intor,
+                               dens_sqrt=args.dens_sqrt,
                                )
 
 # split into train / valid / test
@@ -338,6 +339,7 @@ def prepare_datasets(args, required_properties, grid_vars, data_split_indices, d
                                          density_grad=args.density_grad,
                                          calc_basis_path=args.calc_basis_file,
                                          dpm_intor=args.dpm_intor,
+                                         dens_sqrt=args.dens_sqrt,
                                          )
 
         if data_split_indices is None or args.ignore_split_indices:
@@ -383,6 +385,7 @@ def prepare_datasets(args, required_properties, grid_vars, data_split_indices, d
                                         density_grad=args.density_grad,
                                         calc_basis_path=args.calc_basis_file,
                                         dpm_intor=args.dpm_intor,
+                                        dens_sqrt=args.dens_sqrt,
                                         )
 
         if args.num_test is not None:
@@ -443,6 +446,7 @@ def init_error_dict(args, test=False):
     loss_weights['energy'] = args.energy_weight
     loss_weights['forces'] = args.forces_weight
     loss_weights['energy_min'] = args.energy_min_weight
+    loss_weights['width_reg'] = args.width_reg_weight
     if not test:
         weights_decay = {}
         weights_decay['density'] = args.density_weight_decay
@@ -497,6 +501,7 @@ def init_error_dict(args, test=False):
                                weights_decay=weights_decay, weights_min=weights_min,
                                loss_comp=loss_comp, loss_comp_weights=loss_comp_weights,
                                df_loss_weights=args.df_loss_weights,
+                               width_cutoff=args.width_reg_cutoff,
                                )
     else:
         loss_comp['density'] = ['perc_mae', 'perc_rmse']
