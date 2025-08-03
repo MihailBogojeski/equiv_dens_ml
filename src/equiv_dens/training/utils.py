@@ -531,15 +531,18 @@ def prepare_optimizers(args, model, phase=None):
     # build list of parameters to optimize (with or without weight decay)
     parameters = []
     weight_decay_parameters = []
+    en_weight_decay_parameters = []
     offset_param = []
     for name, param in model.named_parameters():
         if 'weight' in name and 'radial_fn' not in name and 'embedding' not in name:
-            weight_decay_parameters.append(param)
+            if 'energy' in name and args.en_weight_decay != 0:
+                en_weight_decay_parameters.append(param)
+            else:
+                weight_decay_parameters.append(param)
         elif name == 'en_offset':
             offset_param.append(param)
         else:
             parameters.append(param)
-
     if phase == 'energy' or args.core_density_basis > 0:
         for param_group in model.density_repr_model.parameters():
             param_group.requires_grad = False
@@ -548,7 +551,8 @@ def prepare_optimizers(args, model, phase=None):
 
     parameter_list = [
         {'params': parameters},
-        {'params': weight_decay_parameters, 'weight_decay': float(args.weight_decay)}]
+        {'params': weight_decay_parameters, 'weight_decay': float(args.weight_decay)},
+        {'params': en_weight_decay_parameters, 'weight_decay': float(args.en_weight_decay)}]
 
     # choose optimizer
     optimizers = init_optimizers(args, parameter_list, offset_param)
