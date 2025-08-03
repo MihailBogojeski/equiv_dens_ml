@@ -118,6 +118,14 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
             self._order[0] = 0
         
         if self.atom_dens is not None:
+            print('self atom dens', self.atom_dens[8]['df_basis'])
+            # for z in self.spherical_spec.keys():
+            #     print('z', z)
+            #     print("atom dens", self.atom_dens[z]['df_basis'])
+            #     print("atom dens", self.atom_dens[z]['df_basis'][z])
+            #     for i in range(len(self.atom_dens[z]['df_basis'][z])):
+            #         print('i', i)
+            #         print("atom dens", self.atom_dens[z]['df_basis'][z][i][1][0])
             self.atom_df_widths = {z: torch.tensor([self.atom_dens[z]['df_basis'][z][i][1][0] for i in range(len(self.atom_dens[z]['df_basis'][z]))]) for z in self.spherical_spec.keys()}
             self.atom_df_scales = {z: torch.tensor([gto_norm_pyscf(0, self.atom_dens[z]['df_basis'][z][i][1][0]) for i in range(len(self.atom_dens[z]['df_basis'][z]))]) for z in self.spherical_spec.keys()}
             self.atom_df_coeffs = {z: self.atom_dens[z]['df_coeffs'] for z in self.spherical_spec.keys()}
