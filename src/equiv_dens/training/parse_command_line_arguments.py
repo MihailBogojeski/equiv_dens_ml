@@ -359,6 +359,10 @@ def parse_command_line_arguments(arg_file=None):
                                choices=[True, False], help="Remove the free atom density from the total density.")
     args_training.add_argument("--dens_sqrt", metavar='True|False', type=str2bool, default=False,
                                choices=[True, False], help="Fit to square root of density.")
+    args_training.add_argument("--valence_dens", metavar='True|False', type=str2bool, default=False,
+                               choices=[True, False], help="Fit to square root of density.")
+    args_training.add_argument("--full_valence", metavar='True|False', type=str2bool, default=True,
+                               choices=[True, False], help="Fit to square root of density.")
     args_training.add_argument('--atom_dens_path', metavar='STR', type=str,
                                help="Path to free atom densities file.")
     args_training.add_argument('--atom_dens_type', metavar='STR', type=str,

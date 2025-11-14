@@ -18,6 +18,7 @@ class ErrorDict:
                  relative_en=False,
                  df_loss_weights=False,
                  loss_comp_weights=None,
+                 width_cutoff=None,
                  ):
         self.loss_weights = loss_weights
         self.weights_balance = weights_balance
@@ -31,11 +32,12 @@ class ErrorDict:
         self.width_cutoff = width_cutoff
         if self.weights_decay is None:
             self.weights_decay = {}
-            for key in self.loss_weights.keys():
-                self.weights_decay[key] = 1.0
         if self.weights_min is None:
             self.weights_min = {}
-            for key in self.loss_weights.keys():
+        for key in self.loss_weights.keys():
+            if key not in self.weights_decay:
+                self.weights_decay[key] = 1.0
+            if key not in self.weights_min:
                 self.weights_min[key] = self.loss_weights[key]
         if max_errors is None:
             self.max_errors = {key: np.inf for key in self.loss_weights.keys()}

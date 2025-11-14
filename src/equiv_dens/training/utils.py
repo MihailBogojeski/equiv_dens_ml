@@ -64,7 +64,7 @@ def init_training_vars(args, hyperparam_args):
         elif args.fix_arguments:
             for arg in vars(checkpoint['args']):
                 if arg in hyperparam_args:
-                    print('loading hyperparam arg', arg)
+                    # print('loading hyperparam arg', arg)
                     setattr(args, arg, getattr(checkpoint['args'], arg))
         step = checkpoint['step']
         restore = True
@@ -304,6 +304,8 @@ def prepare_datasets(args, required_properties, grid_vars, data_split_indices, d
                                calc_basis_path=args.calc_basis_file,
                                dpm_intor=args.dpm_intor,
                                dens_sqrt=args.dens_sqrt,
+                               valence_dens=args.valence_dens,
+                               full_valence=args.full_valence,
                                )
 
 # split into train / valid / test
@@ -340,6 +342,8 @@ def prepare_datasets(args, required_properties, grid_vars, data_split_indices, d
                                          calc_basis_path=args.calc_basis_file,
                                          dpm_intor=args.dpm_intor,
                                          dens_sqrt=args.dens_sqrt,
+                                         valence_dens=args.valence_dens,
+                                         full_valence=args.full_valence,
                                          )
 
         if data_split_indices is None or args.ignore_split_indices:
@@ -386,6 +390,8 @@ def prepare_datasets(args, required_properties, grid_vars, data_split_indices, d
                                         calc_basis_path=args.calc_basis_file,
                                         dpm_intor=args.dpm_intor,
                                         dens_sqrt=args.dens_sqrt,
+                                        valence_dens=args.valence_dens,
+                                        full_valence=args.full_valence,
                                         )
 
         if args.num_test is not None:
