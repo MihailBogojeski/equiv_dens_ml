@@ -923,7 +923,7 @@ def sample_density_base(mols, coords, coeffs, scale_coords=False, projected=Fals
     return dens
 
 
-def sample_density_sqrt(mols, coords, coeffs, scale_coords=False):
+def sample_valence_density(mols, coords, coeffs, scale_coords=False, density_grad=0, full=True):
     dens = []
     if scale_coords:
         coords = coords / param.BOHR
@@ -950,32 +950,46 @@ def sample_density_sqrt(mols, coords, coeffs, scale_coords=False):
         # else:
         #     print('coords vals', np.max(coords[i]), np.min(coords[i]), np.min(np.abs(coords[i])))
         ao = numint.eval_ao(mol, coords[i], deriv=deriv)
-        dm = calc_dm_top_valence(mol, coeffs['mo_occ'], coeffs['mo_coeff']) # dm_ref is 1 spin channel
+        dm = calc_dm_top_valence(mol, coeffs[i]['mo_occ'], coeffs[i]['mo_coeff'], full=full) # dm_ref is 1 spin channel
         # rho = np.einsum("ij,ik, jk->i",ao,ao,dm)
         rho = numint.eval_rho(mol, ao, dm)
         n_elec = calc_num_el_from_dm(mol, dm)
-        print('nelec', n_elec)
-        dens[i, :] = torch.sqrt(torch.from_numpy(rho))
+        dens[i, :] = torch.from_numpy(rho)
     return dens
 
 
-def calc_dm_top_valence(mol, mo_occ, mo_coeff):
+def calc_dm_top_valence(mol, mo_occ, mo_coeff, full=True):
     """ takes in a pyscf gto.mol object and the occupancy and molecular
     coefficients from a pyscf kernel and returns the density matrix
     of the system which will include only the top valence electrons.
     The density matrix is only for one spin channel"""
-    top_n_elec_per_atom = {'H':1,
-                           'C':4,
-                           'N':3,
-                           'O':4,
-                           'F':5}
+    if full:
+        top_n_elec_per_atom = {'H':1,
+                               'C':4,
+                               'N':5,
+                               'O':6,
+                               'F':7,
+                               'S':6,
+                               'Cl':7}
+    else:
+        top_n_elec_per_atom = {'H':1,
+                               'C':4,
+                               'N':3,
+                               'O':4,
+                               'F':5,
+                               'S':4,
+                               'Cl':5}
     mo_occ_1spin = mo_occ/2
     # total number of electrons in 1 spin channel
     n_elec = np.sum(mo_occ_1spin)
     top_n_elec = 0
     # top_n_elec is the total number of top electrons for both spin channnels
     for atom in mol.atom:
-        top_n_elec += top_n_elec_per_atom[atom[0]]
+        if not isinstance(atom[0], str):
+            atom_symb = utils.numbers_to_symbols([atom[0]])[0]
+            top_n_elec += top_n_elec_per_atom[atom_symb]
+        else:
+            top_n_elec += top_n_elec_per_atom[atom[0]]
     n_elec_ignore = round(n_elec - top_n_elec/2)
     # remove the occupany of the bottom electrons
     mo_occ_1spin[0:n_elec_ignore] = 0
@@ -1950,6 +1964,7 @@ def join_free_atom_and_ml_basis(auxmol_ml, auxmol_atom, ml_coeffs, atom_coeffs):
     ml_charges = auxmol_ml.atom_charges()
     for i in range(len(auxmol_ml.atom)):
         ml_atom.append([ml_charges[i], auxmol_ml.atom[i][1]])
+    
     split_ml_coeffs = split_ao_coeffs(ml_atom, ml_coeffs, ml_basis_size)
     # print('split_ml_coeffs', split_ml_coeffs[0])
     split_atom_coeffs = split_ao_coeffs(auxmol_atom.atom, atom_coeffs, atom_basis_size)
