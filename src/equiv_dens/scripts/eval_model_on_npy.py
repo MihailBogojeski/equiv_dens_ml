@@ -28,14 +28,14 @@ parser.add_argument('args_file', type=str)
 parser.add_argument('target', type=str)
 parser.add_argument('--dpm_intor', action='store_true', default=False)
 parser.add_argument('--batch_size', type=int, default=1)
+parser.add_argument('--timing', action='store_true', default=False)
+parser.add_argument('--memory', action='store_true', default=False)
 
 main_args = parser.parse_args()
 
 
 args, hyperparam_args = parse_command_line_arguments(arg_file=main_args.args_file)
-print('args use gpu', args.use_gpu)
 
-args.timing = True
 args.energy_weight = 0
 args.forces_weight = 0
 args.density_weight = 0
@@ -51,14 +51,10 @@ args_dict = vars(args)
 print('model code:', test_vars['model_code'])
 
 # determine whether GPU is used for training
-print('args use gpu', args.use_gpu)
 
 # load dataset(s)
-print("loading density from" + str(args.dens_dataset) + "...")
-print("loading atoms from" + args.np_dataset + "...")
 
 grid_vars = train_utils.init_grid_vars(args, test=True)
-print('grid vars', grid_vars)
 
 required_properties = ['dipole_moment']
 args.dens_dataset = None
@@ -68,7 +64,6 @@ required_properties = ['dipole_moment']
 # args.dens_dataset = "datasets/ethanethiol_md_traj_every1000_dft_augccpvdz_df_augccpvqzjkfit.npy"
 # args.np_dataset = '/home/ml-dft/equiv_dens/datasets/8mer_all-every20_pyscf_d4_augccpvdz_npy.npy'
 # args.dens_dataset = '/home/ml-dft/equiv_dens/datasets/8mer_all-every20_pyscf_d4_augccpvdz.npy'
-print('pyscf grid', args.pyscf_grid)
 dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_dataset,
                            orbitals_path=args.orbitals_file,
                            density_n_samp=10000000000000,
@@ -84,7 +79,7 @@ dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_datas
                            grid_extent=grid_vars['grid_extent'],
                            grid_origin=grid_vars['grid_origin'],
                            verbose=args.verbose,
-                           timing=args.timing,
+                           timing=main_args.timing,
                            cutoff=args.cutoff,
                            df_loss_weights=args.df_loss_weights,
                            atom_dens_path=args.atom_dens_path,
@@ -99,7 +94,6 @@ model = load_model(args, dataset, train=False)
 model.eval()
 if args.use_gpu:
     model.cuda()
-print('use gpu', args.use_gpu)
 model.to(args.dtype)
 for param in model.parameters():
     param.requires_grad = False
@@ -108,10 +102,8 @@ is_dir = os.path.isdir(main_args.target)
 
 if is_dir:
     files = os.listdir(main_args.target)
-    print(files)
     for i in range(len(files)):
         files[i] = os.path.join(main_args.target, files[i])
-    print(files)
 else:
     files = [main_args.target]
 
@@ -127,9 +119,10 @@ for file in files:
     ref_file_name = fname[:-4] + '_dm.txt'
     fname = fname[:-4] + suffix
     print('fname', fname)
-    print('filetype', file[-3:])
-    with open(os.path.join(dir, ref_file_name), 'r') as f:
-        ref_file_lines = f.readlines()
+    ref_file_lines = None
+    if os.path.exists(os.path.join(dir, ref_file_name)):
+        with open(os.path.join(dir, ref_file_name), 'r') as f:
+            ref_file_lines = f.readlines()
     out_exists = os.path.exists(os.path.join('results', fname))
     if 'npy' != file[-3:] or out_exists:
         print('skipping file')
@@ -168,7 +161,7 @@ for file in files:
         for key in data.keys():
             if isinstance(data[key], torch.Tensor) and args.use_gpu:
                 data[key] = data[key].cuda()
-        if args.timing:
+        if main_args.timing:
             print('data from npy time', time.time() - start)
         res = model(data)
         # print('res density integral', torch.sum(res['density'] * res['coord_weights'], dim=1))
@@ -178,15 +171,15 @@ for file in files:
         # print('dipole magnitude', torch.norm(res['dipole_moment'], dim=-1))
         np_dpm = utils.internal_to_debye(res['dipole_moment'].numpy(force=True))
         print('dipole_moment converted', np_dpm)
-        print('data pos', data_pos, 'max pos', max_pos)
-        try:
-            dipole_ref = [ref_file_lines[i].split(' ') for i in range(data_pos, max_pos)]
-            dipole_ref = np.array(dipole_ref).astype(float)
-            print('dipole ref', dipole_ref)
-            print('dipole error', np.linalg.norm(dipole_ref - np_dpm, axis=-1))
-            dpm_errors.append(np.linalg.norm(dipole_ref - np_dpm, axis=-1))
-        except Exception as e:
-            print(e.message)
+        if ref_file_lines is not None:
+            try:
+                dipole_ref = [ref_file_lines[i].split(' ') for i in range(data_pos, max_pos)]
+                dipole_ref = np.array(dipole_ref).astype(float)
+                print('dipole ref', dipole_ref)
+                print('dipole error', np.linalg.norm(dipole_ref - np_dpm, axis=-1))
+                dpm_errors.append(np.linalg.norm(dipole_ref - np_dpm, axis=-1))
+            except Exception as e:
+                print(e.message)
 
         if data_npy['dipole_moment'] is None:
             data_npy['dipole_moment'] = np_dpm
@@ -206,11 +199,13 @@ for file in files:
         #     dpm_errors = np.concatenate([dpm_errors, dpm_err], axis=0)
 
         data_pos += main_args.batch_size
-        allocated_memory = torch.cuda.memory_allocated()
-        print(f"Memory allocated: {allocated_memory / (1024**2):.2f} MB")
+        if main_args.memory:
+            allocated_memory = torch.cuda.memory_allocated()
+            print(f"Memory allocated: {allocated_memory / (1024**2):.2f} MB")
         res = None
     np.save(os.path.join('results', fname), data_npy, allow_pickle=True)
-    print('average dpm error', np.mean(np.concatenate(dpm_errors, axis=-1)))
+    if len(dpm_errors) > 0:
+        print('average dpm error', np.mean(np.concatenate(dpm_errors, axis=-1)))
 
     # np.save(os.path.join('results', 'dpm_errors_' + fname), dpm_errors, allow_pickle=True)
     # print('mean dpm error', np.mean(dpm_errors))
