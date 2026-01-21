@@ -595,6 +595,10 @@ class AtomsDensityData(Dataset):
             )
             properties["forces"] = properties["forces"][:, properties["atom_mask"]]
 
+        properties['n_electrons'] = orbitals.get_n_electrons(properties['batch_atom_numbers'], valence=self.valence_dens,
+                                                             full_valence=self.full_valence)
+        properties['n_electrons'] = properties['n_electrons'].to(properties['positions'])
+
         if self.calc_dpm:
             if self.dpm_intor:
                 if self.projected_density:
@@ -753,7 +757,10 @@ class AtomsDensityData(Dataset):
         scaled_sample_coords = (
             sample_coords.detach().cpu().numpy() / param.BOHR
         )  # convert Angstrom grid to Bohr
+        print('sample density idx', idx)
         mols = [self.mols[i] for i in idx]
+        print('mols[0] basis', mols[0].basis)
+        print('mols[0] _basis', mols[0]._basis)
         for i, mol in enumerate(mols):
             if not mol._built:
                 build_start = time.time()
