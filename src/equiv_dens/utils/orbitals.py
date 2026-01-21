@@ -22,6 +22,23 @@ hf.MUTE_CHKFILE = True
 
 pyscf_gto_factor = 2 * np.sqrt(np.pi)
 
+top_n_elec_per_atom_full = {'H':1,
+                            'C':4,
+                            'N':5,
+                            'O':6,
+                            'F':7,
+                            'S':6,
+                            'Cl':7}
+
+top_n_elec_per_atom_small = {'H':1,
+                             'C':4,
+                             'N':3,
+                             'O':4,
+                             'F':5,
+                             'S':4,
+                             'Cl':5}
+
+
 def combine_pyscf_basis(pyscf_basis, order_max):
     radial_spec = {}
     spherical_spec = {}
@@ -91,17 +108,22 @@ def get_max_order(orbital_basis, per_atom=False):
         return max(order_max.values())
 
 
-def get_n_electrons(atom_numbers):
-    return torch.sum(atom_numbers, -1, keepdim=True)
+def get_n_electrons(atom_numbers, valence=False, full_valence=False):
+    if valence == False:
+        return torch.sum(atom_numbers, -1, keepdim=True)
+    else:
+        top_n_elec_per_atom = top_n_elec_per_atom_full if full_valence else top_n_elec_per_atom_small
+        n_electrons = torch.zeros((atom_numbers.shape[0], 1))
+        for b in range(atom_numbers.shape[0]):
+            n_electrons[b, 0] = 0
+            for i in range(atom_numbers.shape[1]):
+                if atom_numbers[b, i] == 0:
+                    continue
+                symbol = utils.numbers_to_symbols([atom_numbers[b, i]])[0]
+                n_electrons[b, 0] += top_n_elec_per_atom[symbol]
+        return n_electrons/2
 
 
-# def get_n_electrons(orbitals):
-#     n_electrons = 0
-#     for i in range(len(orbitals)):
-#         n_electrons += orbitals[i][0][0]
-#     return n_electrons
-#
-#
 def gaussian_rbf(r, width, scale, order, normalize=False):
     if normalize:
         scale_calc = scale * gto_norm(order, width)
@@ -964,21 +986,9 @@ def calc_dm_top_valence(mol, mo_occ, mo_coeff, full=True):
     of the system which will include only the top valence electrons.
     The density matrix is only for one spin channel"""
     if full:
-        top_n_elec_per_atom = {'H':1,
-                               'C':4,
-                               'N':5,
-                               'O':6,
-                               'F':7,
-                               'S':6,
-                               'Cl':7}
+        top_elec_per_atom = top_n_elec_per_atom_full
     else:
-        top_n_elec_per_atom = {'H':1,
-                               'C':4,
-                               'N':3,
-                               'O':4,
-                               'F':5,
-                               'S':4,
-                               'Cl':5}
+        top_elec_per_atom = top_n_elec_per_atom_small
     mo_occ_1spin = mo_occ/2
     # total number of electrons in 1 spin channel
     n_elec = np.sum(mo_occ_1spin)
@@ -1582,6 +1592,8 @@ def model_input_from_atoms(
     skip_compress=False,
     coord_params=None,
     all_atom_coeffs=False,
+    valence=False,
+    full_valence=False,
 ):
     """
     Function to extracts neighbor lists, atom_types, positions e.t.c. from the system and generate a properly
@@ -1692,6 +1704,9 @@ def model_input_from_atoms(
     inputs["atom_batch_idx"] = atom_batch_idx.flatten()
     inputs["atom_batch_idx"] = inputs["atom_batch_idx"][inputs["atom_mask"]].view(1, -1)
     inputs["positions"] = inputs["positions"][:, inputs["atom_mask"]]
+    inputs['n_electrons'] = get_n_electrons(inputs['batch_atom_numbers'], valence=valence,
+                                            full_valence=full_valence)
+    inputs['n_electrons'] = inputs['n_electrons'].to(inputs['positions'])
 
     for prop in inputs.keys():
         if isinstance(inputs[prop], torch.FloatTensor) or isinstance(inputs[prop], torch.DoubleTensor):
