@@ -552,7 +552,9 @@ def prepare_optimizers(args, model, phase=None):
     parameter_list = [
         {'params': parameters},
         {'params': weight_decay_parameters, 'weight_decay': float(args.weight_decay)},
-        {'params': en_weight_decay_parameters, 'weight_decay': float(args.en_weight_decay)}]
+        ]
+    if len(en_weight_decay_parameters) > 0:
+        parameter_list.append({'params': en_weight_decay_parameters, 'weight_decay': float(args.en_weight_decay)})
 
     # choose optimizer
     optimizers = init_optimizers(args, parameter_list, offset_param)
