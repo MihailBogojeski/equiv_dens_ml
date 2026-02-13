@@ -1347,7 +1347,7 @@ def free_atom_volumes(atom_dens_dict, atom_dens_type='mo_coeff',
     for z in atom_dens_dict.keys():
         if atom_dens_type == 'mo_coeffs':
             basis = atom_dens_dict[z]['mo_basis']
-            mol = gto.M(atom=[[z, [0, 0, 0]]], basis=basis, spin=(z % 2))
+            mol = gto.M(atom=[[z, [0, 0, 0]]], basis=basis, spin=None)
             intor_v = calculate_1e_intor(mol, 'int1e_rrr', atom_dens_dict[z], coeffs_type=atom_dens_type)
             free_atom_volumes[z] = intor_v
         elif atom_dens_type == 'spline':

@@ -250,22 +250,10 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
         neighbor_mask = 1
         # exclude self - interactions
         # initialize atomic features to embeddings
-        # print('atoms sph_dict', atoms['sph_dict'])
-        # print('atoms keys', atoms.keys())
-        # print('atoms dens', self.atom_dens[16]['df_basis'])
-        # print('atoms df widths', self.atom_df_widths)
-        # print('atoms df scales', self.atom_df_scales)
-        # print('radial_widths 16', [(key, atoms['radial_width'][8][key]) for key in atoms['radial_width'][8].keys() if key[1]==0])
-        # print('radial_scales 16', [(key, atoms['radial_scale'][8][key]) for key in atoms['radial_scale'][8].keys() if key[1]==0])
-        # print('spherical coeffs 0', [(key, atoms['spherical_coeffs'][0][key]) for key in atoms['spherical_coeffs'][0].keys() if key[1]==0])
         sph_fs, scale_fs, width_fs = coeffs_dict_to_tensors(atoms, radial_coeffs=self.pred_radial_coeffs,
                                                             atom_df_coeffs=self.atom_df_coeffs,
                                                             atom_df_widths=self.atom_df_widths,
                                                             atom_df_scales=self.atom_df_scales)
-        # print('sph fs 0', sph_fs[0][:, 0, 0, :10])
-        # print('width fs 0', width_fs[0][:, 8, 0, 32:])
-        # print('scale fs 0', scale_fs[0][:, 8, 0, 32:])
-        # print('atoms.atom_dens', self.atom_dens[1]['df_coeffs'])
         for i in range(len(sph_fs)):
             sph_fs[i] = sph_fs[i].view(1, -1, *sph_fs[i].shape[2:])
             sph_fs[i] = sph_fs[i][:, atoms['atom_mask']]

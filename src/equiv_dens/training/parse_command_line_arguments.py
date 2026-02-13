@@ -284,6 +284,7 @@ def parse_command_line_arguments(arg_file=None):
     args_training.add_argument("--ema_start_epoch", metavar='INT', type=int, default=0,
                                help="starts exponential moving average of parameters only after the specified epoch is reached")
     args_training.add_argument("--weight_decay", metavar='FLOAT', type=float, default=0.0, help="regularization term for weights")
+    args_training.add_argument("--en_weight_decay", metavar='FLOAT', type=float, default=0.0, help="regularization term for weights")
     args_training.add_argument("--use_gpu", metavar='True|False', type=str2bool, default=True,
                                choices=[True, False], help="use GPU(s) for training (if available)")
     args_training.add_argument("--multiple_gpus", metavar='True|False', type=str2bool, default=False,

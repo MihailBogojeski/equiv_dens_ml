@@ -93,7 +93,7 @@ print('args use gpu', args.use_gpu)
 args.cube_grid = False
 args.radii_adjust = True
 args.expansion_constraint = None
-args.integral_constraint = 'coeffs_in_coeff_net'
+args.integral_constraint = 'coeffs_in_coeffs_net'
 args.ignore_missing_keywords = True
 if args.cube_grid:
     args.cube_origin = -2
@@ -220,113 +220,86 @@ volumes = orbitals.free_atom_volumes(dataset.atom_dens, 'spline',
                                      grid_spec=dataset.grid_spec,
                                      to_bohr=False)
 print(volumes)
-# for i in range(5):
-print('len dataset', len(dataset))
-for i in range(len(dataset)):
-        idx = i
-        print('idx', idx)
-        print('filename', data[idx][0]['filename'])
-        samp = dataset.get_properties([idx])
-        print('sum atom numbers', torch.sum(samp['batch_atom_numbers'], dim=1))
-        if args.use_gpu:
-            for key in samp.keys():
-                if isinstance(samp[key], torch.Tensor):
-                    samp[key] = samp[key].cuda()
+for i in range(10):
+# print('len dataset', len(dataset))
+# for i in range(len(dataset)):
+    idx = i
+    print('idx', idx)
+    print('filename', data[idx][0]['filename'])
+    samp = dataset.get_properties([idx])
+    print('sum atom numbers', torch.sum(samp['batch_atom_numbers'], dim=1))
+    if args.use_gpu:
+        for key in samp.keys():
+            if isinstance(samp[key], torch.Tensor):
+                samp[key] = samp[key].cuda()
 
-        # print('samp atom numbers', samp['batch_atom_numbers'])
-        # print('samp num atoms', torch.sum(samp['batch_atom_numbers'] > 0, dim=1))
-        # print('samp num electrons', torch.sum(samp['batch_atom_numbers'], dim=1))
-        res = model(samp)
+    # print('samp atom numbers', samp['batch_atom_numbers'])
+    # print('samp num atoms', torch.sum(samp['batch_atom_numbers'] > 0, dim=1))
+    # print('samp num electrons', torch.sum(samp['batch_atom_numbers'], dim=1))
+    res = model(samp)
 
-        dpm_samp = orbitals.calc_dipole_moment(samp, normalize_density=False)['dipole_moment']
-        dpm_res = orbitals.calc_dipole_moment(res, normalize_density=False)['dipole_moment']
+    dpm_samp = orbitals.calc_dipole_moment(samp, normalize_density=False)['dipole_moment']
+    dpm_res = orbitals.calc_dipole_moment(res, normalize_density=False)['dipole_moment']
 
-        dpm_err.append(utils.internal_to_debye(torch.norm(dpm_samp - dpm_res, dim=1).numpy(force=True)))
+    dpm_err.append(utils.internal_to_debye(torch.norm(dpm_samp - dpm_res, dim=1).numpy(force=True)))
 
 
 # print('res_radial width', res['radial_width'])
 # print('dataset radial coeffs', dataset.radial_coeffs)
     dens_err = torch.sum(torch.abs(res['density'] - samp['density']) * samp['coord_weights'], dim=1) / torch.sum(samp['batch_atom_numbers'], dim=1)
-    print('res density integral', torch.sum(res['density'] * res['coord_weights'], dim=1))
+    print('res density integral diff', torch.sum(res['density'] * res['coord_weights'], dim=1) - torch.sum(res['batch_atom_numbers'], dim=1))
     print('true density integral', torch.sum(samp['density'] * samp['coord_weights'], dim=1))
     print('density error', dens_err)
     print('dpm error', dpm_err[i])
     density_err.append(dens_err.numpy(force=True))
-    wA, atomic_charges, dipoles, volume_ratio = hirshfeld_analysis.hirshfeld_partitioning(samp['density'],
+    wA, atomic_charges, dipoles, volume_ratio, r3_volume, r3_volume_free = hirshfeld_analysis.hirshfeld_partitioning(samp['density'],
                                                                                           samp['atom_density_split'],
                                                                                           samp['batch_positions'], samp['batch_atom_numbers'],
                                                                                           samp['coords'], samp['coord_weights'],
                                                                                           to_bohr=True)
+    print('volume', r3_volume, 'volume_free', r3_volume_free)
     pos = utils.angstrom_to_bohr(samp['batch_positions'][0].numpy(force=True))
     nums = samp['batch_atom_numbers'][0].numpy(force=True)
-    # print('v ratio', volume_ratio[0])
+    print('v ratio true', volume_ratio[0])
     energy = MBDGeom(pos).mbd_energy_species(utils.numbers_to_symbols(nums), volume_ratio[0].numpy(force=True), 0.83)
     true_mbd_dict['atomic_charges'].append(atomic_charges.numpy(force=True))
     true_mbd_dict['dipoles'].append(dipoles.numpy(force=True))
     true_mbd_dict['volume_ratio'].append(volume_ratio.numpy(force=True))
     true_mbd_dict['mbd_energy'].append(utils.hartree_to_kcal(energy))
-    print('MBD energy', utils.hartree_to_kcal(energy))
+    print('MBD true energy', utils.hartree_to_kcal(energy))
+    if 'filename' in data[idx][0].keys():
+        fname = data[idx][0]['filename']
+        fname_dict[fname] = {}
+        fname_dict[fname]['true_atomic_charges'] = atomic_charges.numpy(force=True)
+        fname_dict[fname]['true_dipoles'] = dipoles.numpy(force=True)
+        fname_dict[fname]['true_volume_ratio'] = volume_ratio.numpy(force=True)
+        fname_dict[fname]['true_mbd_energy'] = utils.hartree_to_kcal(energy)
 
-    if main_args.expansion_volumes:
-        volume_ratio, eff_volumes = hirshfeld_analysis.volume_ratios_from_expansion(res, model.property_models['density'],
-                                                                                     free_atom_volumes=volumes,
-                                                                                     removed_free_atom=args.remove_atom_density)
-        dipoles = orbitals.get_atomic_dipoles(res, model.property_models['density'], to_bohr=False)
-        atomic_charges = orbitals.get_density_charges(res, removed_free_atom=args.remove_atom_density)
-    else:
-        wA, atomic_charges, dipoles, volume_ratio = hirshfeld_analysis.hirshfeld_partitioning(res['density'],
-                                                                                            samp['atom_density_split'],
-                                                                                            samp['batch_positions'], samp['batch_atom_numbers'],
-                                                                                            samp['coords'], samp['coord_weights'],
-                                                                                            to_bohr=True)
-        pos = utils.angstrom_to_bohr(samp['batch_positions'][0].numpy(force=True))
-        nums = samp['batch_atom_numbers'][0].numpy(force=True)
-        print('v ratio true', volume_ratio[0])
-        energy = MBDGeom(pos).mbd_energy_species(utils.numbers_to_symbols(nums), volume_ratio[0].numpy(force=True), 0.83)
-        true_mbd_dict['atomic_charges'].append(atomic_charges.numpy(force=True))
-        true_mbd_dict['dipoles'].append(dipoles.numpy(force=True))
-        true_mbd_dict['volume_ratio'].append(volume_ratio.numpy(force=True))
-        true_mbd_dict['mbd_energy'].append(utils.hartree_to_kcal(energy))
-        print('MBD energy', utils.hartree_to_kcal(energy))
-        if 'filename' in data[idx][0].keys():
-            fname = data[idx][0]['filename']
-            fname_dict[fname] = {}
-            fname_dict[fname]['true_atomic_charges'] = atomic_charges.numpy(force=True)
-            fname_dict[fname]['true_dipoles'] = dipoles.numpy(force=True)
-            fname_dict[fname]['true_volume_ratio'] = volume_ratio.numpy(force=True)
-            fname_dict[fname]['true_mbd_energy'] = utils.hartree_to_kcal(energy)
-
-        if main_args.expansion_volumes:
-            print('calculating volumes based on expansion')
-            volume_ratio, eff_volumes = hirshfeld_analysis.volume_ratios_from_expansion(res, model.property_models['density'],
-                                                                                         free_atom_volumes=volumes,
-                                                                                         removed_free_atom=args.remove_atom_density)
-            dipoles = orbitals.get_atomic_dipoles(res, model.property_models['density'], to_bohr=False)
-            atomic_charges = orbitals.get_density_charges(res, removed_free_atom=args.remove_atom_density)
-        else:
-            print('calculating volumes based on hirshfeld partitioning')
-            wA, atomic_charges, dipoles, volume_ratio = hirshfeld_analysis.hirshfeld_partitioning(res['density'],
-                                                                                                samp['atom_density_split'],
-                                                                                                samp['batch_positions'], samp['batch_atom_numbers'],
-                                                                                                samp['coords'], samp['coord_weights'],
-                                                                                                to_bohr=True)
-        print('v ratio ml', volume_ratio[0])
-        energy = MBDGeom(pos).mbd_energy_species(utils.numbers_to_symbols(nums), volume_ratio[0].numpy(force=True), 0.83)
-        print('MBD ML energy', utils.hartree_to_kcal(energy))
-        ml_mbd_dict['atomic_charges'].append(atomic_charges.numpy(force=True))
-        ml_mbd_dict['dipoles'].append(dipoles.numpy(force=True))
-        ml_mbd_dict['volume_ratio'].append(volume_ratio.numpy(force=True))
-        ml_mbd_dict['mbd_energy'].append(utils.hartree_to_kcal(energy))
-        allocated_memory = torch.cuda.memory_allocated()
-        print(f"Memory allocated: {allocated_memory / (1024**2):.2f} MB")
-        if 'filename' in data[idx][0].keys():
-            fname = data[idx][0]['filename']
-            fname_dict[fname]['ml_atomic_charges'] = atomic_charges.numpy(force=True)
-            fname_dict[fname]['ml_dipoles'] = dipoles.numpy(force=True)
-            fname_dict[fname]['ml_volume_ratio'] = volume_ratio.numpy(force=True)
-            fname_dict[fname]['ml_mbd_energy'] = utils.hartree_to_kcal(energy)
-            fname_dict[fname]['dens_err'] = density_err[-1]
-            fname_dict[fname]['dpm_err'] = dpm_err[-1]
+    wA, atomic_charges, dipoles, volume_ratio, r3_volume, r3_volume_free = hirshfeld_analysis.hirshfeld_partitioning(res['density'],
+                                                                                        samp['atom_density_split'],
+                                                                                        samp['batch_positions'], samp['batch_atom_numbers'],
+                                                                                        samp['coords'], samp['coord_weights'],
+                                                                                        to_bohr=True)
+    pos = utils.angstrom_to_bohr(samp['batch_positions'][0].numpy(force=True))
+    nums = samp['batch_atom_numbers'][0].numpy(force=True)
+    energy = MBDGeom(pos).mbd_energy_species(utils.numbers_to_symbols(nums), volume_ratio[0].numpy(force=True), 0.83)
+    print('v ratio ml', volume_ratio[0])
+    energy = MBDGeom(pos).mbd_energy_species(utils.numbers_to_symbols(nums), volume_ratio[0].numpy(force=True), 0.83)
+    print('MBD ML energy', utils.hartree_to_kcal(energy))
+    ml_mbd_dict['atomic_charges'].append(atomic_charges.numpy(force=True))
+    ml_mbd_dict['dipoles'].append(dipoles.numpy(force=True))
+    ml_mbd_dict['volume_ratio'].append(volume_ratio.numpy(force=True))
+    ml_mbd_dict['mbd_energy'].append(utils.hartree_to_kcal(energy))
+    allocated_memory = torch.cuda.memory_allocated()
+    # print(f"Memory allocated: {allocated_memory / (1024**2):.2f} MB")
+    if 'filename' in data[idx][0].keys():
+        fname = data[idx][0]['filename']
+        fname_dict[fname]['ml_atomic_charges'] = atomic_charges.numpy(force=True)
+        fname_dict[fname]['ml_dipoles'] = dipoles.numpy(force=True)
+        fname_dict[fname]['ml_volume_ratio'] = volume_ratio.numpy(force=True)
+        fname_dict[fname]['ml_mbd_energy'] = utils.hartree_to_kcal(energy)
+        fname_dict[fname]['dens_err'] = density_err[-1]
+        fname_dict[fname]['dpm_err'] = dpm_err[-1]
 
 # %%
 # np.save('results/true_mbd_dict.npy', true_mbd_dict, allow_pickle=True)
@@ -363,8 +336,8 @@ for key in ml_mbd_dict.keys():
 print('density error', np.mean(density_err))
 print('dpm error', np.mean(dpm_err))
 # %%
-np.save('results/true_mbd_dict_2.npy', true_mbd_dict, allow_pickle=True)
-np.save('results/ml_mbd_dict_2.npy', ml_mbd_dict, allow_pickle=True)
+np.save('results/true_mbd_dict_2_1.npy', true_mbd_dict, allow_pickle=True)
+np.save('results/ml_mbd_dict_2_1.npy', ml_mbd_dict, allow_pickle=True)
 if len(fname_dict.keys()) > 0:
-    np.save('results/mbd_fname_dict_2.npy', fname_dict, allow_pickle=True)
+    np.save('results/mbd_fname_dict_2_1.npy', fname_dict, allow_pickle=True)
 

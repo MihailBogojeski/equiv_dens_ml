@@ -920,7 +920,7 @@ def get_pyscf_coords(grid_spec, density_n_samp, atom_numbers, positions):
         pos = pos.unsqueeze(0)
     for i in range(atom_numbers.shape[0]):
         atom = [(atom_numbers[i, j], pos[i, j]) for j in range(atom_numbers.shape[1]) if atom_numbers[i, j] > 0]
-        mol = gto.Mole(atom=atom)
+        mol = gto.Mole(atom=atom, spin=None)
         if not mol._built:
             mol.build()
         rot_spec = grid_spec
