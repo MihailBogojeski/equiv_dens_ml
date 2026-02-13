@@ -25,7 +25,6 @@ class CoeffsIntegralConstraint(nn.Module):
 
     def forward(self, atoms):
         n_electrons = atoms['n_electrons']
-        print('n_electrons', n_electrons)
         L0_idxs = []
         L0_coeffs = []
         L0_width = []
@@ -118,9 +117,7 @@ class DensityCoeffsNetwork(nn.Module):
         self.order = order
         self.num_features = num_features
         self.positive_coeffs = positive_coeffs
-        print('integral constraint', integral_constraint)
         if integral_constraint == 'coeffs_in_coeffs_net':
-            print('activating self integral constraint')
             self.integral_constraint = CoeffsIntegralConstraint(integral_scale, remove_atom_density)
         else:
             self.integral_constraint = None
@@ -523,9 +520,7 @@ class DensityCoeffsNetwork(nn.Module):
         if 'spherical_coeffs' not in atoms.keys():
             atoms['spherical_coeffs'], atoms['radial_width'], atoms['radial_scale'], atoms['coeff_weights'] =\
                 self.extract_coefficients(out_sph, out_width, out_scale, atoms)
-            print('self integral constraint', self.integral_constraint)
             if self.integral_constraint is not None:
-                print('self integral constraing running in forward')
                 atoms = self.integral_constraint(atoms)
         # if self.timing:
         #     print('density coeffs extract time:', time.time() - extract_start)

@@ -128,7 +128,9 @@ def load_model(args, dataset, train=False):
                 linear_out=args.remove_atom_density,
             )
 
+        print('args dpm intor', args.dpm_intor)
         if args.density_weight > 0 or (args.dipole_moment_weight > 0 and not args.dpm_intor):
+            print('adding expansion model')
             expansion_model = density_expansion(dataset.orbital_basis_num,
                                                 expansion_constraint=args.expansion_constraint,
                                                 integral_constraint=args.integral_constraint,
