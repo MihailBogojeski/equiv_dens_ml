@@ -214,8 +214,11 @@ class Trainer:
             self.error_dict.relative_en = False
         for i in range(len(self.schedulers)):
             self.schedulers[i].load_state_dict(checkpoint['schedulers_state_dict'][i])
+        print('len optimizers', len(self.optimizers))
         for i in range(len(self.optimizers)):
             # try:
+            print(f'self optimizers [{i}] len', len(self.optimizers[i].param_groups))
+            print(f'chk optimizers [{i}] len', len(checkpoint['optimizers_state_dict'][i]))
             self.optimizers[i].load_state_dict(checkpoint['optimizers_state_dict'][i])
             # except Exception:
             #     self.schedulers[i]['last_lr'] = self.schedulers[i]['last_lr'] / 1000

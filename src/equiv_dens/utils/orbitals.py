@@ -22,6 +22,23 @@ hf.MUTE_CHKFILE = True
 
 pyscf_gto_factor = 2 * np.sqrt(np.pi)
 
+top_n_elec_per_atom_full = {'H':1,
+                            'C':4,
+                            'N':5,
+                            'O':6,
+                            'F':7,
+                            'S':6,
+                            'Cl':7}
+
+top_n_elec_per_atom_small = {'H':1,
+                             'C':4,
+                             'N':3,
+                             'O':4,
+                             'F':5,
+                             'S':4,
+                             'Cl':5}
+
+
 def combine_pyscf_basis(pyscf_basis, order_max):
     radial_spec = {}
     spherical_spec = {}
@@ -91,17 +108,22 @@ def get_max_order(orbital_basis, per_atom=False):
         return max(order_max.values())
 
 
-def get_n_electrons(atom_numbers):
-    return torch.sum(atom_numbers, -1, keepdim=True)
+def get_n_electrons(atom_numbers, valence=False, full_valence=False):
+    if valence == False:
+        return torch.sum(atom_numbers, -1, keepdim=True)
+    else:
+        top_n_elec_per_atom = top_n_elec_per_atom_full if full_valence else top_n_elec_per_atom_small
+        n_electrons = torch.zeros((atom_numbers.shape[0], 1))
+        for b in range(atom_numbers.shape[0]):
+            n_electrons[b, 0] = 0
+            for i in range(atom_numbers.shape[1]):
+                if atom_numbers[b, i] == 0:
+                    continue
+                symbol = utils.numbers_to_symbols([atom_numbers[b, i]])[0]
+                n_electrons[b, 0] += top_n_elec_per_atom[symbol]
+        return n_electrons/2
 
 
-# def get_n_electrons(orbitals):
-#     n_electrons = 0
-#     for i in range(len(orbitals)):
-#         n_electrons += orbitals[i][0][0]
-#     return n_electrons
-#
-#
 def gaussian_rbf(r, width, scale, order, normalize=False):
     if normalize:
         scale_calc = scale * gto_norm(order, width)
@@ -923,6 +945,76 @@ def sample_density_base(mols, coords, coeffs, scale_coords=False, projected=Fals
     return dens
 
 
+def sample_valence_density(mols, coords, coeffs, scale_coords=False, density_grad=0, full=True):
+    dens = []
+    if scale_coords:
+        coords = coords / param.BOHR
+    if coords.shape[0] != len(mols):
+        raise ValueError(
+            "Batch dimension of coordinates ("
+            + str(coords.shape[0])
+            + ") must match number of molecules ("
+            + str(len(mols))
+            + ")"
+        )
+    dens = torch.zeros((coords.shape[0], coords.shape[1]))
+    for i in range(len(mols)):
+        mol = mols[i]
+        if not mol._built:
+            mol.build()
+        deriv = int(density_grad)
+        if len(mol.atom_charges()) == 0:
+            continue
+        # print('mol atom charges', mol.atom_charges())
+        # print('mol atom pos', mol.atom_coords())
+        # if isinstance(coords[i], torch.Tensor):
+        #     print('coords vals', torch.max(coords[i]), torch.min(coords[i]), torch.min(torch.abs(coords[i])))
+        # else:
+        #     print('coords vals', np.max(coords[i]), np.min(coords[i]), np.min(np.abs(coords[i])))
+        ao = numint.eval_ao(mol, coords[i], deriv=deriv)
+        dm = calc_dm_top_valence(mol, coeffs[i]['mo_occ'], coeffs[i]['mo_coeff'], full=full) # dm_ref is 1 spin channel
+        # rho = np.einsum("ij,ik, jk->i",ao,ao,dm)
+        rho = numint.eval_rho(mol, ao, dm)
+        n_elec = calc_num_el_from_dm(mol, dm)
+        dens[i, :] = torch.from_numpy(rho)
+    return dens
+
+
+def calc_dm_top_valence(mol, mo_occ, mo_coeff, full=True):
+    """ takes in a pyscf gto.mol object and the occupancy and molecular
+    coefficients from a pyscf kernel and returns the density matrix
+    of the system which will include only the top valence electrons.
+    The density matrix is only for one spin channel"""
+    if full:
+        top_elec_per_atom = top_n_elec_per_atom_full
+    else:
+        top_elec_per_atom = top_n_elec_per_atom_small
+    mo_occ_1spin = mo_occ/2
+    # total number of electrons in 1 spin channel
+    n_elec = np.sum(mo_occ_1spin)
+    top_n_elec = 0
+    # top_n_elec is the total number of top electrons for both spin channnels
+    for atom in mol.atom:
+        if not isinstance(atom[0], str):
+            atom_symb = utils.numbers_to_symbols([atom[0]])[0]
+            top_n_elec += top_n_elec_per_atom[atom_symb]
+        else:
+            top_n_elec += top_n_elec_per_atom[atom[0]]
+    n_elec_ignore = round(n_elec - top_n_elec/2)
+    # remove the occupany of the bottom electrons
+    mo_occ_1spin[0:n_elec_ignore] = 0
+    dm_top_elec = np.einsum("m, im, jm ->ij", mo_occ_1spin, mo_coeff ,mo_coeff)
+    return dm_top_elec
+
+
+def calc_num_el_from_dm(mol, dm):
+    """  calculates the total number of electrons sum_i occ_i * |psi_i|^2"""
+    int2c1e = gto.mole.intor_cross('int1e_ovlp_sph', mol, mol)
+    # total density for one spin channel
+    total_dens = np.einsum('ij, ij->',int2c1e, dm)
+    return total_dens
+
+
 def _expand_pyscf_density(mol, ao, coeffs, density_grad=False):
     if density_grad:
         xctype = 'GGA'
@@ -1255,7 +1347,7 @@ def free_atom_volumes(atom_dens_dict, atom_dens_type='mo_coeff',
     for z in atom_dens_dict.keys():
         if atom_dens_type == 'mo_coeffs':
             basis = atom_dens_dict[z]['mo_basis']
-            mol = gto.M(atom=[[z, [0, 0, 0]]], basis=basis, spin=(z % 2))
+            mol = gto.M(atom=[[z, [0, 0, 0]]], basis=basis, spin=None)
             intor_v = calculate_1e_intor(mol, 'int1e_rrr', atom_dens_dict[z], coeffs_type=atom_dens_type)
             free_atom_volumes[z] = intor_v
         elif atom_dens_type == 'spline':
@@ -1500,6 +1592,8 @@ def model_input_from_atoms(
     skip_compress=False,
     coord_params=None,
     all_atom_coeffs=False,
+    valence=False,
+    full_valence=False,
 ):
     """
     Function to extracts neighbor lists, atom_types, positions e.t.c. from the system and generate a properly
@@ -1610,6 +1704,9 @@ def model_input_from_atoms(
     inputs["atom_batch_idx"] = atom_batch_idx.flatten()
     inputs["atom_batch_idx"] = inputs["atom_batch_idx"][inputs["atom_mask"]].view(1, -1)
     inputs["positions"] = inputs["positions"][:, inputs["atom_mask"]]
+    inputs['n_electrons'] = get_n_electrons(inputs['batch_atom_numbers'], valence=valence,
+                                            full_valence=full_valence)
+    inputs['n_electrons'] = inputs['n_electrons'].to(inputs['positions'])
 
     for prop in inputs.keys():
         if isinstance(inputs[prop], torch.FloatTensor) or isinstance(inputs[prop], torch.DoubleTensor):
@@ -1882,6 +1979,7 @@ def join_free_atom_and_ml_basis(auxmol_ml, auxmol_atom, ml_coeffs, atom_coeffs):
     ml_charges = auxmol_ml.atom_charges()
     for i in range(len(auxmol_ml.atom)):
         ml_atom.append([ml_charges[i], auxmol_ml.atom[i][1]])
+    
     split_ml_coeffs = split_ao_coeffs(ml_atom, ml_coeffs, ml_basis_size)
     # print('split_ml_coeffs', split_ml_coeffs[0])
     split_atom_coeffs = split_ao_coeffs(auxmol_atom.atom, atom_coeffs, atom_basis_size)
