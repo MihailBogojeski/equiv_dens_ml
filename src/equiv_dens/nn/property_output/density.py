@@ -24,7 +24,7 @@ class CoeffsIntegralConstraint(nn.Module):
         self.remove_atom_density = remove_atom_density
 
     def forward(self, atoms):
-        n_electrons = get_n_electrons(atoms['batch_atom_numbers'])
+        n_electrons = atoms['n_electrons']
         L0_idxs = []
         L0_coeffs = []
         L0_width = []
@@ -61,7 +61,9 @@ class CoeffsIntegralConstraint(nn.Module):
                 coeffs_pointer += L0_coeff_len
         else:
             coeffs_sum = torch.sum(L0_coeffs_comb * norms, dim=1, keepdim=True)
+            print('coeffs sum', coeffs_sum)
             scale_factor = n_electrons / coeffs_sum
+            print('scale factor', scale_factor)
             scale_factor = scale_factor.reshape(*scale_factor.shape, 1, 1)
             L0_coeffs_comb = L0_coeffs_comb * torch.clamp(self.integral_scale, 0.5, 1.5)
             for j, (i, key) in enumerate(L0_idxs):
@@ -115,7 +117,7 @@ class DensityCoeffsNetwork(nn.Module):
         self.order = order
         self.num_features = num_features
         self.positive_coeffs = positive_coeffs
-        if integral_constraint == 'coeffs_in_coeff_net':
+        if integral_constraint == 'coeffs_in_coeffs_net':
             self.integral_constraint = CoeffsIntegralConstraint(integral_scale, remove_atom_density)
         else:
             self.integral_constraint = None
@@ -758,7 +760,7 @@ class DensityExpansion(nn.Module):
         atoms['density'] = 0
         if density_grad:
             atoms['density_grad'] = 0
-        n_electrons = get_n_electrons(atoms['batch_atom_numbers'])
+        n_electrons = atoms['n_electrons']
         for i in range(n_eval):
             if self.verbose > 1 and self.memory:
                 print('Atom', i)

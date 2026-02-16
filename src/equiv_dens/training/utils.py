@@ -64,7 +64,7 @@ def init_training_vars(args, hyperparam_args):
         elif args.fix_arguments:
             for arg in vars(checkpoint['args']):
                 if arg in hyperparam_args:
-                    print('loading hyperparam arg', arg)
+                    # print('loading hyperparam arg', arg)
                     setattr(args, arg, getattr(checkpoint['args'], arg))
         step = checkpoint['step']
         restore = True
