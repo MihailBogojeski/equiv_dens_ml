@@ -407,11 +407,12 @@ def calculate_sapt0_ml(res_1, res_2, res, orbital_basis_num, precalc_basis=True,
 
 def calculate_sapt0_elst(res, mol, auxmol, auxmol_ml, df_coeffs_ml,
                          res_1, mol_1, auxmol_1, auxmol_ml_1, df_coeffs_ml_1,
-                         res_2, mol_2, auxmol_2, auxmol_ml_2, df_coeffs_ml_2, use_df=False):
+                         res_2, mol_2, auxmol_2, auxmol_ml_2, df_coeffs_ml_2, use_df=False, use_less_mem=False):
+    """ The use_less_mem flag will dramatically reduce memory requirements at the cost of longer calculation time"""
     sapt0_ml_elst = []
     for i in range(len(auxmol)):
         print('start atom mo dm')
-        m1_dm = hf.make_rdm1(mo_coeff=res_1['atom_mo_coeffs'][i].numpy(force=True), mo_occ=res_1['atom_mo_coeffs_occ'][i].numpy(force=True))
+        m1_dm = hf.make_rdm1(mo_coeff=res_1['atom_mo_coeffs'][i].numpy(force=True), mo_occ=res_1['atom_mo_coeffs_occ'][i].numpy(force=True)) # these are for both channels
         m2_dm = hf.make_rdm1(mo_coeff=res_2['atom_mo_coeffs'][i].numpy(force=True), mo_occ=res_2['atom_mo_coeffs_occ'][i].numpy(force=True))
         m12_dm = hf.make_rdm1(mo_coeff=res['atom_mo_coeffs'][i].numpy(force=True), mo_occ=res['atom_mo_coeffs_occ'][i].numpy(force=True))
         if use_df:
@@ -432,17 +433,26 @@ def calculate_sapt0_elst(res, mol, auxmol, auxmol_ml, df_coeffs_ml,
             coulomb_en_ml_1 = orbitals.calculate_int2c2e(auxmol_ml_1[i], df_coeffs_ml_1[i])
             coulomb_en_ml_2 = orbitals.calculate_int2c2e(auxmol_ml_2[i], df_coeffs_ml_2[i])
 
-
-            vj, _ = hf.get_jk(mol[i], m12_dm)
-            coulomb_en_atom = np.einsum('ij,ji->', vj, m12_dm).real * .5
-            vj_1, _ = hf.get_jk(mol_1[i], m1_dm)
-            coulomb_en_atom_1 = np.einsum('ij,ji->', vj_1, m1_dm).real * .5
-            vj_2, _ = hf.get_jk(mol_2[i], m2_dm)
-            coulomb_en_atom_2 = np.einsum('ij,ji->', vj_2, m2_dm).real * .5
+            if use_less_mem:
+                # DW: I calculate the cross integral, rather than calculate the dimer - mon1 - mon2
+                # I'll set coulomb_en_atom = cross integral and coulomb_en_atom_1 = 0 so that
+                # is compatible with the rest of the code
+                coulomb_en_atom = orbitals.calc_ee_cross_atom_by_atom_fast(mol_1[i], m1_dm, mol_2[i], m2_dm)
+                coulomb_en_atom_1 = 0
+                coulomb_en_atom_2 = 0
+            else:
+                vj, _ = hf.get_jk(mol[i], m12_dm)
+                # m12_dm should be *.5 to get one spin channel, but this implictly incorportates coulomb_en = 2 * int rho_1channel* rho_1channel/r_ij
+                coulomb_en_atom = np.einsum('ij,ji->', vj, m12_dm).real * .5
+                vj_1, _ = hf.get_jk(mol_1[i], m1_dm)
+                coulomb_en_atom_1 = np.einsum('ij,ji->', vj_1, m1_dm).real * .5
+                vj_2, _ = hf.get_jk(mol_2[i], m2_dm)
+                coulomb_en_atom_2 = np.einsum('ij,ji->', vj_2, m2_dm).real * .5
 
             print('start coulomb integrals mix')
             coulomb_en_mix = orbitals.calculate_int2c2e(auxmol_ml[i], df_coeffs_ml[i],
                                                         auxmol[i], res['atom_df_coeffs'][i])
+            # df's are two channel, 
             coulomb_en_mix_1 = orbitals.calculate_int2c2e(auxmol_ml_1[i], df_coeffs_ml_1[i],
                                                         auxmol_1[i], res_1['atom_df_coeffs'][i])
             coulomb_en_mix_2 = orbitals.calculate_int2c2e(auxmol_ml_2[i], df_coeffs_ml_2[i],
@@ -480,6 +490,7 @@ def calculate_sapt0_elst(res, mol, auxmol, auxmol_ml, df_coeffs_ml,
         sapt0_ml_elst.append(sapt0_coul.numpy(force=True))
 
     return np.array(sapt0_ml_elst)
+
 
 
 def calculate_efield(res_1, mol_1, auxmol_1, auxmol_ml_1, df_coeffs_ml_1,
