@@ -14,7 +14,6 @@ import time
 import gc
 import copy
 
-
 def calculate_sapt0_ref(mols_1, mols_2,
                         dm_1=None, dm_2=None,
                         collect_calc_dict=False):
@@ -324,9 +323,10 @@ def evaluate_ml_dimer(mols_1, mols_2, model,
 
     return m1_res_arr, m2_res_arr, m12_res_arr
 
-
-def calculate_sapt0_ml(res_1, res_2, res, orbital_basis_num, precalc_basis=True, use_df=False):
-
+#begin dahvyd debug 2026.03.24
+def calculate_sapt0_ml(res_1, res_2, res, orbital_basis_num, precalc_basis=True, use_df=False, use_less_mem=False):
+#end debug
+    
     auxmol = utils.npy_to_pyscf(res['batch_positions'].numpy(force=True),
                                 res['batch_atom_numbers'].numpy(force=True),
                                 basis=res['atom_df_coeffs_basis'],
@@ -389,21 +389,24 @@ def calculate_sapt0_ml(res_1, res_2, res, orbital_basis_num, precalc_basis=True,
             auxmol_ml.append(orbitals.ml_basis_to_auxmol(res, i, skip_zero=False))
             auxmol_ml_1.append(orbitals.ml_basis_to_auxmol(res_1, i, skip_zero=False))
             auxmol_ml_2.append(orbitals.ml_basis_to_auxmol(res_2, i, skip_zero=False))
-
+    # dahvyd debug 2026.03.24
     sapt0_ml_elst = calculate_sapt0_elst(res, mol, auxmol, auxmol_ml, df_coeffs_ml,
                                          res_1, mol_1, auxmol_1, auxmol_ml_1, df_coeffs_ml_1,
                                          res_2, mol_2, auxmol_2, auxmol_ml_2, df_coeffs_ml_2,
-                                         use_df)
+                                         use_df,
+                                         use_less_mem = use_less_mem)
+    #
 
-    sapt0_ml_efield12, sapt0_ml_efield21 = calculate_efield(res_1, mol_1, auxmol_1, auxmol_ml_1, df_coeffs_ml_1,
-                                                            res_2, mol_2, auxmol_2, auxmol_ml_2, df_coeffs_ml_2,
-                                                            use_df)
+    # sapt0_ml_efield12, sapt0_ml_efield21 = calculate_efield(res_1, mol_1, auxmol_1, auxmol_ml_1, df_coeffs_ml_1,
+    #                                                         res_2, mol_2, auxmol_2, auxmol_ml_2, df_coeffs_ml_2,
+    #                                                         use_df)
 
     # dens_ml_ovlp = calculate_ovlp(res_1, mol_1, auxmol_ml_1, df_coeffs_ml_1,
     #                               res_2, mol_2, auxmol_ml_2, df_coeffs_ml_2)
 
-    return sapt0_ml_elst, sapt0_ml_efield12, sapt0_ml_efield21  #, dens_ml_ovlp
-
+    return sapt0_ml_elst #, sapt0_ml_efield12, sapt0_ml_efield21  #, dens_ml_ovlp
+    # return sapt0_ml_elst, sapt0_ml_efield12, sapt0_ml_efield21  #, dens_ml_ovlp
+    #end debug
 
 def calculate_sapt0_elst(res, mol, auxmol, auxmol_ml, df_coeffs_ml,
                          res_1, mol_1, auxmol_1, auxmol_ml_1, df_coeffs_ml_1,
@@ -429,10 +432,11 @@ def calculate_sapt0_elst(res, mol, auxmol, auxmol_ml, df_coeffs_ml,
         else:
             # calculate coulomb of joined density analytically for DF basis
             print('start coulomb integrals ml')
-            coulomb_en_ml = orbitals.calculate_int2c2e(auxmol_ml[i], df_coeffs_ml[i])
-            coulomb_en_ml_1 = orbitals.calculate_int2c2e(auxmol_ml_1[i], df_coeffs_ml_1[i])
-            coulomb_en_ml_2 = orbitals.calculate_int2c2e(auxmol_ml_2[i], df_coeffs_ml_2[i])
-
+            # begin Dahvyd fix: convert to float64
+            coulomb_en_ml = orbitals.calculate_int2c2e_np(auxmol_ml[i], df_coeffs_ml[i])
+            coulomb_en_ml_1 = orbitals.calculate_int2c2e_np(auxmol_ml_1[i], df_coeffs_ml_1[i])
+            coulomb_en_ml_2 = orbitals.calculate_int2c2e_np(auxmol_ml_2[i], df_coeffs_ml_2[i])
+            # end debug
             if use_less_mem:
                 # DW: I calculate the cross integral, rather than calculate the dimer - mon1 - mon2
                 # I'll set coulomb_en_atom = cross integral and coulomb_en_atom_1 = 0 so that
@@ -448,25 +452,22 @@ def calculate_sapt0_elst(res, mol, auxmol, auxmol_ml, df_coeffs_ml,
                 coulomb_en_atom_1 = np.einsum('ij,ji->', vj_1, m1_dm).real * .5
                 vj_2, _ = hf.get_jk(mol_2[i], m2_dm)
                 coulomb_en_atom_2 = np.einsum('ij,ji->', vj_2, m2_dm).real * .5
-
             print('start coulomb integrals mix')
-            coulomb_en_mix = orbitals.calculate_int2c2e(auxmol_ml[i], df_coeffs_ml[i],
-                                                        auxmol[i], res['atom_df_coeffs'][i])
+            #being dw fix: float64 2026.03.24
+            coulomb_en_mix = orbitals.calculate_int2c2e_np(auxmol_ml[i], df_coeffs_ml[i],
+                                                           auxmol[i], res['atom_df_coeffs'][i])
             # df's are two channel, 
-            coulomb_en_mix_1 = orbitals.calculate_int2c2e(auxmol_ml_1[i], df_coeffs_ml_1[i],
-                                                        auxmol_1[i], res_1['atom_df_coeffs'][i])
-            coulomb_en_mix_2 = orbitals.calculate_int2c2e(auxmol_ml_2[i], df_coeffs_ml_2[i],
-                                                        auxmol_2[i], res_2['atom_df_coeffs'][i])
-
+            coulomb_en_mix_1 = orbitals.calculate_int2c2e_np(auxmol_ml_1[i], df_coeffs_ml_1[i],
+                                                             auxmol_1[i], res_1['atom_df_coeffs'][i])         
+            coulomb_en_mix_2 = orbitals.calculate_int2c2e_np(auxmol_ml_2[i], df_coeffs_ml_2[i],
+                                                             auxmol_2[i], res_2['atom_df_coeffs'][i])
+            #end fix
             coulomb_en_sum = coulomb_en_ml + coulomb_en_atom + 2 * coulomb_en_mix
             coulomb_en_sum_1 = coulomb_en_ml_1 + coulomb_en_atom_1 + 2 * coulomb_en_mix_1
             coulomb_en_sum_2 = coulomb_en_ml_2 + coulomb_en_atom_2 + 2 * coulomb_en_mix_2
-
         coulomb_en_sum_els = coulomb_en_sum - coulomb_en_sum_1 - coulomb_en_sum_2
-
         inter_nuc_en = auxmol_ml[i].energy_nuc() - auxmol_ml_1[i].energy_nuc() - auxmol_ml_2[i].energy_nuc()
 
-        print('start coulomb integrals nuc')
         m1_m_nuc = mol_1[i].intor('int1e_nuc')
         m1_e_ne_mo = np.einsum('ij,ji', m1_dm, m1_m_nuc)
         m2_m_nuc = mol_2[i].intor('int1e_nuc')
