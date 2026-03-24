@@ -716,6 +716,20 @@ def calculate_int2c2e(mol, coeffs, mol_2=None, coeffs_2=None):
     e_har = torch.einsum('i,ij,j->', coeffs, int2c2e, coeffs_2) / 2
     return e_har
 
+def calculate_int2c2e_np(mol, coeffs, mol_2=None, coeffs_2=None):
+    """ This is the same as calculate_int2c2e, but it doesn't
+    convert to torch, which defaults to float32 and loses precision"""
+    if mol_2 is None:
+        mol_2 = mol
+    if coeffs_2 is None:
+        coeffs_2 = coeffs
+    int2c2e = gto.mole.intor_cross('int2c2e', mol, mol_2)
+    # int2c2e = mol.intor('int2c2e')
+    # e_har = torch.einsum('i,ij,j->', coeffs, int2c2e, coeffs) / 2
+    e_har = np.einsum('i,ij,j->', coeffs, int2c2e, coeffs_2) / 2
+    return e_har
+
+
 def calc_ee_cross_atom_by_atom_fast(mol1, dm1, mol2, dm2):
     """ a cross integral is energy of the interaction between two different densities
     this splits up a 4c2e cross integral atom by atom to save memory
@@ -809,8 +823,6 @@ def calc_ee_cross_4_atoms(mol1a, mol1b, dm1, mol2c, mol2d, dm2):
     e_coul = np.einsum('ij,ijkl,kl->', dm1, ints, dm2)
     return e_coul
 
-
-
 def calc_dipole_moment_analytic(atoms, basis, coeffs_type):
     if coeffs_type == 'ml_coeffs':
         return intor_dipole_moment_ml(atoms, basis)
@@ -821,6 +833,35 @@ def calc_dipole_moment_analytic(atoms, basis, coeffs_type):
     else:
         raise ValueError('Unknown coeffs_type for dipole moment calculation')
 
+
+def calc_ee_cross_all(mol1, dm1, mol2, dm2):
+    """ only calculates electron electron repulsion
+    this was only for debug purposes
+    dm1 is composed of basis sets from mol1
+    dm2 is composed of basis sets from mol2"""
+    nbas1 = len(mol1._bas)
+    nbas2 = len(mol2._bas)
+    atmc, basc, envc = gto.mole.conc_env(mol1._atm, mol1._bas, mol1._env,
+                                         mol2._atm, mol2._bas, mol2._env)
+    shls_slice = (0, nbas1,
+                  0, nbas1,
+                  nbas1, nbas1+nbas2,
+                  nbas1, nbas1+nbas2)
+    #turn off symmetry
+    ints = gto.moleintor.getints('int2e_sph', atmc, basc, envc, shls_slice, comp = 1, hermi=0, aosym ='s1')
+    e_coul = np.einsum('ij,ijkl,kl->', dm1, ints, dm2)
+    return e_coul
+
+def calc_dipole_moment_analytic(atoms, basis, coeffs_type):
+    if coeffs_type == 'ml_coeffs':
+        return intor_dipole_moment_ml(atoms, basis)
+    elif coeffs_type == 'mo_coeffs':
+        return intor_dipole_moment_mo(atoms, basis)
+    elif coeffs_type == 'df_coeffs':
+        return intor_dipole_moment_df(atoms, basis)
+    else:
+        raise ValueError('Unknown coeffs_type for dipole moment calculation')
+    
 
 def intor_dipole_moment_ml(
     atoms,
