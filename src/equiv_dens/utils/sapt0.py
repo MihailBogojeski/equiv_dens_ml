@@ -395,17 +395,17 @@ def calculate_sapt0_ml(res_1, res_2, res, orbital_basis_num, precalc_basis=True,
                                          res_2, mol_2, auxmol_2, auxmol_ml_2, df_coeffs_ml_2,
                                          use_df,
                                          use_less_mem = use_less_mem)
-    #
+    
 
-    # sapt0_ml_efield12, sapt0_ml_efield21 = calculate_efield(res_1, mol_1, auxmol_1, auxmol_ml_1, df_coeffs_ml_1,
-    #                                                         res_2, mol_2, auxmol_2, auxmol_ml_2, df_coeffs_ml_2,
-    #                                                         use_df)
+    sapt0_ml_efield12, sapt0_ml_efield21 = calculate_efield(res_1, mol_1, auxmol_1, auxmol_ml_1, df_coeffs_ml_1,
+                                                            res_2, mol_2, auxmol_2, auxmol_ml_2, df_coeffs_ml_2,
+                                                            use_df)
 
     # dens_ml_ovlp = calculate_ovlp(res_1, mol_1, auxmol_ml_1, df_coeffs_ml_1,
     #                               res_2, mol_2, auxmol_ml_2, df_coeffs_ml_2)
 
-    return sapt0_ml_elst #, sapt0_ml_efield12, sapt0_ml_efield21  #, dens_ml_ovlp
-    # return sapt0_ml_elst, sapt0_ml_efield12, sapt0_ml_efield21  #, dens_ml_ovlp
+    # return sapt0_ml_elst #, sapt0_ml_efield12, sapt0_ml_efield21  #, dens_ml_ovlp
+    return sapt0_ml_elst, sapt0_ml_efield12, sapt0_ml_efield21  #, dens_ml_ovlp
     #end debug
 
 def calculate_sapt0_elst(res, mol, auxmol, auxmol_ml, df_coeffs_ml,
@@ -426,9 +426,9 @@ def calculate_sapt0_elst(res, mol, auxmol, auxmol_ml, df_coeffs_ml,
                                                                     df_coeffs_ml_1[i], res_1['atom_df_coeffs'][i])
             auxmol_ml_2_joined, df_coeffs_ml_2_joined = orbitals.join_free_atom_and_ml_basis(auxmol_ml_2[i], auxmol_2[i],
                                                                     df_coeffs_ml_2[i], res_2['atom_df_coeffs'][i])
-            coulomb_en_sum = orbitals.calculate_int2c2e(auxmol_ml_joined, df_coeffs_ml_joined)
-            coulomb_en_sum_1 = orbitals.calculate_int2c2e(auxmol_ml_1_joined, df_coeffs_ml_1_joined)
-            coulomb_en_sum_2 = orbitals.calculate_int2c2e(auxmol_ml_2_joined, df_coeffs_ml_2_joined)
+            coulomb_en_sum = orbitals.calculate_int2c2e_np(auxmol_ml_joined, df_coeffs_ml_joined)
+            coulomb_en_sum_1 = orbitals.calculate_int2c2e_np(auxmol_ml_1_joined, df_coeffs_ml_1_joined)
+            coulomb_en_sum_2 = orbitals.calculate_int2c2e_np(auxmol_ml_2_joined, df_coeffs_ml_2_joined)
         else:
             # calculate coulomb of joined density analytically for DF basis
             print('start coulomb integrals ml')
@@ -438,6 +438,7 @@ def calculate_sapt0_elst(res, mol, auxmol, auxmol_ml, df_coeffs_ml,
             coulomb_en_ml_2 = orbitals.calculate_int2c2e_np(auxmol_ml_2[i], df_coeffs_ml_2[i])
             # end debug
             if use_less_mem:
+                print("using less memory!!!!")
                 # DW: I calculate the cross integral, rather than calculate the dimer - mon1 - mon2
                 # I'll set coulomb_en_atom = cross integral and coulomb_en_atom_1 = 0 so that
                 # is compatible with the rest of the code
