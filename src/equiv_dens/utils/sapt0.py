@@ -530,7 +530,6 @@ def calculate_efield(res_1, mol_1, auxmol_1, auxmol_ml_1, df_coeffs_ml_1,
         fakemol2._env[-2] = alpha
 
         if use_df:
-            print('start joined df intor cross')
             int_df = gto.mole.intor_cross('int2c2e', auxmol_ml_1_joined, fakemol1)
             elef_ml1 = -np.einsum('ip, i -> p', int_df, df_coeffs_ml_1_joined.numpy(force=True))
             elef_ml1 = np.reshape(elef_ml1, (-1, 3))
@@ -538,12 +537,9 @@ def calculate_efield(res_1, mol_1, auxmol_1, auxmol_ml_1, df_coeffs_ml_1,
             elef_ml2 = -np.einsum('ip, i -> p', int_df, df_coeffs_ml_2_joined.numpy(force=True))
             elef_ml2 = np.reshape(elef_ml2, (-1, 3))
         else:
-            print('start atom mo dm')
             m1_dm = hf.make_rdm1(mo_coeff=res_1['atom_mo_coeffs'][i].numpy(force=True), mo_occ=res_1['atom_mo_coeffs_occ'][i].numpy(force=True))
             m2_dm = hf.make_rdm1(mo_coeff=res_2['atom_mo_coeffs'][i].numpy(force=True), mo_occ=res_2['atom_mo_coeffs_occ'][i].numpy(force=True))
-            print('start df intor cross')
             int_df = gto.mole.intor_cross('int2c2e', auxmol_ml_1[i], fakemol1)
-            print('start mo intor cross')
             int_mo = df.incore.aux_e2(mol_1[i], fakemol1)
             elef_ml_df1 = -np.einsum('ip, i -> p', int_df, df_coeffs_ml_1[i].numpy(force=True))
             elef_ml_df1 = np.reshape(elef_ml_df1, (-1, 3))
@@ -551,9 +547,7 @@ def calculate_efield(res_1, mol_1, auxmol_1, auxmol_ml_1, df_coeffs_ml_1,
             elef_ml_mo1 = np.reshape(elef_ml_mo1, (-1, 3))
             elef_ml1 = elef_ml_df1 + elef_ml_mo1
 
-            print('start df intor cross')
             int_df = gto.mole.intor_cross('int2c2e', auxmol_ml_2[i], fakemol2)
-            print('start mo intor cross')
             int_mo = df.incore.aux_e2(mol_2[i], fakemol2)
             elef_ml_df2 = -np.einsum('ip, i -> p', int_df, df_coeffs_ml_2[i].numpy(force=True))
             elef_ml_df2 = np.reshape(elef_ml_df2, (-1, 3))
