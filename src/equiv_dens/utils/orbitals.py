@@ -716,6 +716,112 @@ def calculate_int2c2e(mol, coeffs, mol_2=None, coeffs_2=None):
     e_har = torch.einsum('i,ij,j->', coeffs, int2c2e, coeffs_2) / 2
     return e_har
 
+def calculate_int2c2e_np(mol, coeffs, mol_2=None, coeffs_2=None):
+    """ This is the same as calculate_int2c2e, but it doesn't
+    convert to torch, which defaults to float32 and loses precision"""
+    if mol_2 is None:
+        mol_2 = mol
+    if coeffs_2 is None:
+        coeffs_2 = coeffs
+    int2c2e = gto.mole.intor_cross('int2c2e', mol, mol_2)
+    # int2c2e = mol.intor('int2c2e')
+    # e_har = torch.einsum('i,ij,j->', coeffs, int2c2e, coeffs) / 2
+    e_har = np.einsum('i,ij,j->', coeffs, int2c2e, coeffs_2) / 2
+    return e_har
+
+
+def calc_ee_cross_atom_by_atom_fast(mol1, dm1, mol2, dm2):
+    """ a cross integral is energy of the interaction between two different densities
+    this splits up a 4c2e cross integral atom by atom to save memory
+    it is a bit slower than a direct 4c2e calculation
+    dm1 and dm2 are two spin channels
+    it uses the symmetry of the overlap integral to reduce the number calculations
+    by a factor of 4.
+    """
+    n_atoms1 =  mol1.natm
+    n_atoms2 =  mol2.natm
+    # mol1_idxs is a list of tuples (start_index, end_index)
+    # one tuple per atom
+    # the indices are for the wvf coeffs
+    mol1_idxs = atom_to_coeff_index2(mol1)
+    mol2_idxs = atom_to_coeff_index2(mol2)
+    ee_elst = 0
+    # create all the mol objects for each atom
+    atoms_mol1 = []
+    atoms_mol2 = []
+    for i in range(n_atoms1):
+        atom1_type = mol1.atom_symbol(i)
+        #the internal basis format is all caps
+        atom1_pos = mol1.atom_coord(i, unit='angstrom')
+        # I trick pyscf into thinking this is helium
+        # so that doesn't throw an error that this is really a spin polarized system
+        atom1 = gto.M(atom = [(2, atom1_pos)], basis = {2:mol1._basis[atom1_type]})
+        atoms_mol1.append(atom1)
+    for k in range(n_atoms2):
+        atom2_type = mol2.atom_symbol(k)
+        atom2_pos = mol2.atom_coord(k, unit='angstrom')
+        atom2 = gto.M(atom = [(2, atom2_pos)], basis = {2:mol2._basis[atom2_type]})
+        atoms_mol2.append(atom2)
+    # break the 4-center 2e integral into a block of 2 atoms in mol1 and 2 atom in mol2
+    # and iterate over all atoms
+    for i in range(n_atoms1):
+        # dm1 and dm2 are hermitian, so I only calculate a lower triangle of each dm matrix
+        for j in range(i+1):
+            dm_atom1_atom2 = dm1[slice(*mol1_idxs[i]), slice(*mol1_idxs[j])]
+            factor_ij = 2.0 if (i != j) else 1.0
+            for k in range(n_atoms2):
+                # dm1 and dm2 are hermitian, so I only calculate a lower triangle of each dm matrix
+                for l in range(k+1):
+                    dm_atom3_atom4 = dm2[slice(*mol2_idxs[k]), slice(*mol2_idxs[l])]
+                    factor_kl = 2.0 if (k != l) else 1.0
+                    ee_elst += (calc_ee_cross_4_atoms(atoms_mol1[i], atoms_mol1[j], dm_atom1_atom2,
+                                                      atoms_mol2[k], atoms_mol2[l], dm_atom3_atom4)
+                                * factor_ij * factor_kl)
+                    # the factors account for the fact that I am only calculating half of the matrix
+    return ee_elst
+
+def atom_to_coeff_index2(mol):
+    """ returns a list where each element is a tuple (start_index, end_index)
+    for a specific atom which are the indices of coefficients
+    of basis functions for that atom"""
+    n_atoms = mol.natm
+    n_funcs_per_atom = np.zeros(n_atoms, dtype = int)
+    # count the number of basis functions for each atom
+    for shell in mol._bas:
+        atom_id = shell[0]
+        l = shell[1]
+        n_contracted = shell[3]
+        n_funcs_per_atom[atom_id] += (2*l +1)*n_contracted
+    basis_index = 0
+    idxs = []
+    for i in range(n_atoms):
+        idxs.append((basis_index, basis_index + n_funcs_per_atom[i]))
+        basis_index += n_funcs_per_atom[i]
+    return idxs
+
+
+def calc_ee_cross_4_atoms(mol1a, mol1b, dm1, mol2c, mol2d, dm2):
+    """ only calculates the electron electron repulsion
+    dm1 is composed of basis sets from mol1a and mol1b
+    dm2 is composed of basis sets from mol2c and mol2d"""
+    nbas1 = len(mol1a._bas)
+    nbas2 = len(mol1b._bas)
+    nbas3 = len(mol2c._bas)
+    nbas4 = len(mol2d._bas)    
+    atmc, basc, envc = gto.mole.conc_env(mol1a._atm, mol1a._bas, mol1a._env,
+                                         mol1b._atm, mol1b._bas, mol1b._env)
+    atmc, basc, envc = gto.mole.conc_env(atmc, basc, envc,
+                                         mol2c._atm, mol2c._bas, mol2c._env)
+    atmc, basc, envc = gto.mole.conc_env(atmc, basc, envc,
+                                         mol2d._atm, mol2d._bas, mol2d._env)
+    shls_slice = (0, nbas1,
+                  nbas1, nbas1+nbas2,
+                  nbas1+nbas2, nbas1+nbas2 +nbas3,
+                  nbas1+nbas2+nbas3, nbas1+nbas2+nbas3+nbas4)
+    #turn off symmetry
+    ints = gto.moleintor.getints('int2e_sph', atmc, basc, envc, shls_slice, comp = 1, hermi=0, aosym ='s1')
+    e_coul = np.einsum('ij,ijkl,kl->', dm1, ints, dm2)
+    return e_coul
 
 def calc_dipole_moment_analytic(atoms, basis, coeffs_type):
     if coeffs_type == 'ml_coeffs':
@@ -727,6 +833,35 @@ def calc_dipole_moment_analytic(atoms, basis, coeffs_type):
     else:
         raise ValueError('Unknown coeffs_type for dipole moment calculation')
 
+
+def calc_ee_cross_all(mol1, dm1, mol2, dm2):
+    """ only calculates electron electron repulsion
+    this was only for debug purposes
+    dm1 is composed of basis sets from mol1
+    dm2 is composed of basis sets from mol2"""
+    nbas1 = len(mol1._bas)
+    nbas2 = len(mol2._bas)
+    atmc, basc, envc = gto.mole.conc_env(mol1._atm, mol1._bas, mol1._env,
+                                         mol2._atm, mol2._bas, mol2._env)
+    shls_slice = (0, nbas1,
+                  0, nbas1,
+                  nbas1, nbas1+nbas2,
+                  nbas1, nbas1+nbas2)
+    #turn off symmetry
+    ints = gto.moleintor.getints('int2e_sph', atmc, basc, envc, shls_slice, comp = 1, hermi=0, aosym ='s1')
+    e_coul = np.einsum('ij,ijkl,kl->', dm1, ints, dm2)
+    return e_coul
+
+def calc_dipole_moment_analytic(atoms, basis, coeffs_type):
+    if coeffs_type == 'ml_coeffs':
+        return intor_dipole_moment_ml(atoms, basis)
+    elif coeffs_type == 'mo_coeffs':
+        return intor_dipole_moment_mo(atoms, basis)
+    elif coeffs_type == 'df_coeffs':
+        return intor_dipole_moment_df(atoms, basis)
+    else:
+        raise ValueError('Unknown coeffs_type for dipole moment calculation')
+    
 
 def intor_dipole_moment_ml(
     atoms,
