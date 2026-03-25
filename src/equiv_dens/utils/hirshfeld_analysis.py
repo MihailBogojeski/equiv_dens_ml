@@ -99,9 +99,10 @@ def spline_radial(x, y, k=7):
 
 def eval_spline_density(spl, coords, density_grad=False):
     x_in = torch.norm(coords, dim=-1) / param.BOHR
-    y_out = spl(np.log(x_in))
+    y_out = spl(np.log(x_in.numpy(force=True)))
 
     y_out[y_out < 0] = 0
+    y_out[np.isnan(y_out)] = 0
     y_out = torch.from_numpy(y_out)
 
     if density_grad:
@@ -214,11 +215,17 @@ class HirshfeldAnalysis:
         return self
 
 
-def hirshfeld_partitioning(density, free_atom_densities, atom_positions, atom_numbers, coords, coord_weights):
+def hirshfeld_partitioning(density, free_atom_densities, atom_positions, atom_numbers, coords, coord_weights, to_bohr=True):
+    if to_bohr:
+        atom_positions = utils.angstrom_to_bohr(atom_positions)
+        coords = utils.angstrom_to_bohr(coords)
     sum_charge = torch.sum(atom_numbers, dim=1)
-    dens_int = torch.sum(density * coord_weights, dim=1)
+    dens_int = torch.sum(density * coord_weights, dim=-1)
+    # print('dens_int', dens_int)
     density *= (sum_charge / dens_int).unsqueeze(1)
     free_atom_density = torch.sum(free_atom_densities, dim=1, keepdim=True)
+    # print('atom_dens_int', torch.sum(free_atom_density * coord_weights, dim=-1))
+    # print('atom_dens_all_int', torch.sum(free_atom_densities * coord_weights, dim=-1))
     # gridpoint - r_atom_center, for centering because the atom densities are evaluated at 0 0 0
     # coords_atoms = grid.coords[None, :, :] - (mol.atom_coords()[:, None, :] )
     wA = free_atom_densities / (free_atom_density + ((free_atom_density < 1e-15) * 1e-15))
@@ -228,12 +235,50 @@ def hirshfeld_partitioning(density, free_atom_densities, atom_positions, atom_nu
     elec_atm = torch.sum(dens_eff * coord_weights.unsqueeze(1), dim=-1)
     # net charge (Q_A) on each atom
     atomic_charges = - elec_atm + atom_numbers
-    dipoles = - torch.sum((dens_eff * coord_weights.unsqueeze(1)).unsqueeze(-1) * (coords.unsqueeze(1) - atom_positions.unsqueeze(2)), dim=-2)
-    # r3_volume = torch.sum((dens_eff * coord_weights.unsqueeze(1)) *
-    #                         torch.norm(utils.angstrom_to_bohr(coords.unsqueeze(1) - atom_positions.unsqueeze(2)), dim=-1)**3, dim=-1)
-    # r3_volume_free = torch.sum((free_atom_densities * coord_weights.unsqueeze(1)) *
-    #                              torch.norm(utils.angstrom_to_bohr(coords.unsqueeze(1) - atom_positions.unsqueeze(2)), dim=-1)**3, dim=-1)
+    # print('atomic_charges', atomic_charges)
+    dipoles = - torch.sum((dens_eff * coord_weights.unsqueeze(1)).unsqueeze(-1) * (coords.unsqueeze(1) - atom_positions.unsqueeze(2)), dim=-2)                                           
+    r3_volume = torch.sum((dens_eff * coord_weights.unsqueeze(1)) *
+                          torch.norm(coords.unsqueeze(1) - atom_positions.unsqueeze(2), dim=-1)**3, dim=-1)
+    r3_volume_free = torch.sum((free_atom_densities * coord_weights.unsqueeze(1)) *
+                               torch.norm(coords.unsqueeze(1) - atom_positions.unsqueeze(2), dim=-1)**3, dim=-1)
+    # print('volume free', r3_volume_free)
+    # print('volume eff', r3_volume)
+    # print('atom_numbers', atom_numbers)
+    volume_ratio = r3_volume / r3_volume_free
     #
     # print('r3_volume', r3_volume)
     # print('r3_volume_free', r3_volume_free)
-    return wA, atomic_charges, dipoles
+    return wA, atomic_charges, dipoles, volume_ratio, r3_volume, r3_volume_free
+
+
+def volume_ratios_from_expansion(atoms, expansion_model, free_atom_volumes, to_bohr=True,
+                                 removed_free_atom=False):
+    atoms_c = {**atoms}
+    volumes = torch.zeros_like(atoms["batch_atom_numbers"]).to(torch.float32)
+    volume_ratios = torch.zeros_like(atoms["batch_atom_numbers"]).to(torch.float32)
+    if to_bohr:
+        coords = utils.angstrom_to_bohr(atoms["coords"])
+        pos = utils.angstrom_to_bohr(atoms['batch_positions'])
+    else:
+        coords = atoms["coords"]
+        pos = atoms['batch_positions']
+    for i in range(len(atoms["spherical_coeffs"])):
+        z = torch.max(atoms['batch_atom_numbers'][:, i]).item()
+        dens = expansion_model(atoms_c, eval_atoms=[i])["density"]
+        if removed_free_atom:
+            dens += atoms['atom_density_split'][:, i]
+        vol1 = torch.sum((dens * atoms['coord_weights']) *
+                         torch.norm(coords - pos[:, [i]], dim=-1)**3, dim=-1)
+        volumes[:, i] = vol1
+        volume_ratios[:, i] = vol1 / free_atom_volumes[z]
+
+    return volume_ratios, volumes
+    # r3_volume = torch.sum((dens_eff * coord_weights.unsqueeze(1)) *
+    #                       torch.norm(coords.unsqueeze(1) - atom_positions.unsqueeze(2), dim=-1)**3, dim=-1)
+    # print('volume eff', r3_volume)
+    # print('atom_numbers', atoms['batch_atom_numbers'])
+    # volume_ratio = r3_volume / r3_volume_free
+    # #
+    # # print('r3_volume', r3_volume)
+    # # print('r3_volume_free', r3_volume_free)
+    # return wA, atomic_charges, dipoles, volume_ratio

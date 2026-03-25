@@ -38,10 +38,11 @@ if args.args_file_name is not None:
     wandb_id = args.args_file_name + '_'
 else:
     wandb_id = ''
-wandb_name = wandb_id + datetime.utcnow().strftime("%Y-%m-%d")
+wandb_date = train_vars['directory'].split('/')[-1].split('_')[0]
+wandb_name = wandb_id + wandb_date
 wandb_id = wandb_name + '_' + train_vars['model_code']
 wandb_run = wandb.init(project='equiv_dens', config=args_dict,
-                       name=wandb_name, id=wandb_id, resume='allow')
+                       name=wandb_name, id=wandb_id, resume='allow', mode=args.wandb_mode)
 
 if args.no_restore:
     restore = False

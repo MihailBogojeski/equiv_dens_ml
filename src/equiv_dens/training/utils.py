@@ -59,7 +59,9 @@ def init_training_vars(args, hyperparam_args):
         checkpoint = torch.load(os.path.join(
             checkpoint_path, 'latest_checkpoint.pth'), map_location='cpu')
         model_code = checkpoint['ID']  # load ID
-        if args.fix_arguments:
+        if args.fix_hyperparams:
+            pass
+        elif args.fix_arguments:
             for arg in vars(checkpoint['args']):
                 if arg in hyperparam_args:
                     # print('loading hyperparam arg', arg)
@@ -69,7 +71,6 @@ def init_training_vars(args, hyperparam_args):
         data_split_indices = checkpoint['data_split_indices']
     if args.density_grad_weight > 0:
         args.density_grad = True
-    print('args core density basis', args.core_density_basis)
     train_vars = {'model_code': model_code, 'directory': directory, 'checkpoint': checkpoint,
                   'step': step, 'restore': restore, 'data_split_indices': data_split_indices}
 
@@ -87,7 +88,7 @@ def init_grid_vars(args, test=False):
     Returns:
         grid_vars: Dictionary containing data variables.
     """
-    if test:
+    if test or not args.rotate_grid:
         rotate = False
     else:
         rotate = True
@@ -242,6 +243,7 @@ def prepare_cubic_datasets(args, required_properties, train_indices, valid_indic
                                         atom_dens_type=args.atom_dens_type,
                                         density_grad=args.density_grad,
                                         calc_basis_path=args.calc_basis_file,
+                                        dpm_intor=args.dpm_intor,
                                         )
 
         valid_cube_dataset = torch.utils.data.Subset(cube_dataset, valid_indices)
@@ -300,6 +302,7 @@ def prepare_datasets(args, required_properties, grid_vars, data_split_indices, d
                                atom_dens_type=args.atom_dens_type,
                                density_grad=args.density_grad,
                                calc_basis_path=args.calc_basis_file,
+                               dpm_intor=args.dpm_intor,
                                )
 
 # split into train / valid / test
@@ -334,6 +337,7 @@ def prepare_datasets(args, required_properties, grid_vars, data_split_indices, d
                                          atom_dens_type=args.atom_dens_type,
                                          density_grad=args.density_grad,
                                          calc_basis_path=args.calc_basis_file,
+                                         dpm_intor=args.dpm_intor,
                                          )
 
         if data_split_indices is None or args.ignore_split_indices:
@@ -378,6 +382,7 @@ def prepare_datasets(args, required_properties, grid_vars, data_split_indices, d
                                         atom_dens_type=args.atom_dens_type,
                                         density_grad=args.density_grad,
                                         calc_basis_path=args.calc_basis_file,
+                                        dpm_intor=args.dpm_intor,
                                         )
 
         if args.num_test is not None:
@@ -388,7 +393,6 @@ def prepare_datasets(args, required_properties, grid_vars, data_split_indices, d
         test_dataset = torch.utils.data.Subset(test_dataset, np.arange(test_size))
 
     # print('valid dataset size', len(valid_dataset))
-
     valid_cube_dataset = prepare_cubic_datasets(args, required_properties,
                                                 train_dataset.indices,
                                                 valid_dataset.indices)
@@ -527,15 +531,18 @@ def prepare_optimizers(args, model, phase=None):
     # build list of parameters to optimize (with or without weight decay)
     parameters = []
     weight_decay_parameters = []
+    en_weight_decay_parameters = []
     offset_param = []
     for name, param in model.named_parameters():
         if 'weight' in name and 'radial_fn' not in name and 'embedding' not in name:
-            weight_decay_parameters.append(param)
+            if 'energy' in name and args.en_weight_decay != 0:
+                en_weight_decay_parameters.append(param)
+            else:
+                weight_decay_parameters.append(param)
         elif name == 'en_offset':
             offset_param.append(param)
         else:
             parameters.append(param)
-
     if phase == 'energy' or args.core_density_basis > 0:
         for param_group in model.density_repr_model.parameters():
             param_group.requires_grad = False
@@ -544,7 +551,10 @@ def prepare_optimizers(args, model, phase=None):
 
     parameter_list = [
         {'params': parameters},
-        {'params': weight_decay_parameters, 'weight_decay': float(args.weight_decay)}]
+        {'params': weight_decay_parameters, 'weight_decay': float(args.weight_decay)},
+        ]
+    if len(en_weight_decay_parameters) > 0:
+        parameter_list.append({'params': en_weight_decay_parameters, 'weight_decay': float(args.en_weight_decay)})
 
     # choose optimizer
     optimizers = init_optimizers(args, parameter_list, offset_param)
