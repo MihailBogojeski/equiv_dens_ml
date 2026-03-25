@@ -17,9 +17,11 @@ import copy
 """
 # read arguments
 args, hyperparam_args = parse_command_line_arguments()
+print('args energy model', args.energy_model)
 wandb.login()
 
 args, hyperparam_args, train_vars = train_utils.init_training_vars(args, hyperparam_args)
+print('args energy model', args.energy_model)
 checkpoint = train_vars['checkpoint']
 args_dict = vars(args)
 if args.args_file_name is not None:
@@ -153,7 +155,7 @@ for phase in training_phases:
     trainer.run(args.max_steps, use_gpu=use_gpu, dtype=args.dtype)
     print('finished trainer run of phase', phase)
     ongoing_phases.remove(phase)
-    train_vars['restore'] = False
+    train_vars['restore'] = False 
 print('Starting test evaluation!!!')
 
 args.df_weight = 0.0

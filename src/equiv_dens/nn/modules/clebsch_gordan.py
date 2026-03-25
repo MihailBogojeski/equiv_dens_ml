@@ -51,7 +51,6 @@ def construct_cg_matrix(order_max):
                                'clebsch_gordan_coefficients_L10.npz'),
                   allow_pickle=True)['cg'][()]
 
-    print('cg_matrix shape', cg_matrix.shape)
     for l123 in tmp.keys():
         if max(l123) > order_max:
             continue

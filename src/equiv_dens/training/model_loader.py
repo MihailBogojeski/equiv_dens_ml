@@ -5,10 +5,10 @@ import torch.nn as nn
 from equiv_dens.nn.dft_network import DFTNetwork
 from equiv_dens.nn.representation.spherical_harmonic import EquivariantSphericalHarmonics
 from equiv_dens.nn.property_output.energy import SphericalHarmonicsEnergyNetwork,\
-    SphericalLinearEnergyNetwork, RepresentationEnergyNetwork
+    SphericalLinearEnergyNetwork, RepresentationEnergyNetwork, SphericalHarmonicsEmbeddingEnergyNetwork
 from equiv_dens.nn.property_output.density import DensityCoeffsNetwork, DFDensityCoeffs,\
     FreeAtomDensityCoeffs, DensityExpansion
-from equiv_dens.nn.property_output.dipole_moment import DipoleMomentCalc
+from equiv_dens.nn.property_output.dipole_moment import DipoleMomentCalc, DipoleMomentIntorCalc
 from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
 from equiv_dens.utils.scaling import UnitConversion, VarianceScaling
 import equiv_dens.utils.base as utils
@@ -26,8 +26,8 @@ def load_model(args, dataset, train=False):
     use_gpu = args.use_gpu and torch.cuda.is_available()
     z_vals = dataset.atoms['atom_numbers']
     clebsch_gordan = ClebschGordanMatrix()
-    print('args energy_unit_in', args.energy_unit_in)
-    print('args energy_unit_out', args.energy_unit_out)
+    # print('args energy_unit_in', args.energy_unit_in)
+    # print('args energy_unit_out', args.energy_unit_out)
     conversions_in = UnitConversion(
         en_conversion_func=getattr(utils, args.energy_unit_in + '_to_kcal'),
         dist_conversion_func=getattr(utils, args.distance_unit_in + '_to_angstrom'))
@@ -37,8 +37,8 @@ def load_model(args, dataset, train=False):
     force_scaling = VarianceScaling()
     if args.output_scaling and 'forces' in dataset.required_properties:
         force_scaling = VarianceScaling(conversions_in.en_conversion_func(dataset.forces)/conversions_in.dist_conversion_func(1))
-    print('conversions in', conversions_in.en_conversion_func)
-    print('conversions out', conversions_out.en_conversion_func)
+    # print('conversions in', conversions_in.en_conversion_func)
+    # print('conversions out', conversions_out.en_conversion_func)
 
     if args.density_from_df or args.density_from_free_atoms:
         repr_model = nn.Identity()
@@ -101,7 +101,7 @@ def load_model(args, dataset, train=False):
         density_coeffs_network = DensityCoeffsNetwork
         density_expansion = DensityExpansion
 
-        
+
         if args.density_coeffs:
             dens_model = density_coeffs_network(
                 orbital_basis=dataset.orbital_basis_num,
@@ -122,10 +122,15 @@ def load_model(args, dataset, train=False):
                 scale_sph_order=args.scale_sph_order,
                 normalize=args.normalize,
                 parity=args.parity_dens,
-                linear_out=args.remove_atom_density
+                remove_atom_density=args.remove_atom_density,
+                nonmixing=args.nonmixing_interaction,
+                nonmixing_bias=args.nonmixing_interaction_residual,
+                linear_out=args.remove_atom_density,
             )
 
-        if args.density_weight + args.dipole_moment_weight > 0:
+        print('args dpm intor', args.dpm_intor)
+        if args.density_weight > 0 or (args.dipole_moment_weight > 0 and not args.dpm_intor):
+            print('adding expansion model')
             expansion_model = density_expansion(dataset.orbital_basis_num,
                                                 expansion_constraint=args.expansion_constraint,
                                                 integral_constraint=args.integral_constraint,
@@ -155,6 +160,8 @@ def load_model(args, dataset, train=False):
                     normalize=args.normalize,
                     parity=args.parity_dens,
                     core_basis_ratio=args.core_density_basis,
+                    remove_atom_density=args.remove_atom_density,
+                    linear_out=args.remove_atom_density,
                 )
         else:
             expansion_model = None
@@ -169,9 +176,12 @@ def load_model(args, dataset, train=False):
         args.num_en_modules = args.num_modules
 
     if args.energy_weight + args.forces_weight > 0:
+        if args.remove_atom_density and args.append_atom_density:
+            atom_dens = dataset.atom_dens
+        else:
+            atom_dens = None
         if args.energy_model == 'spherical':
             en_class = SphericalHarmonicsEnergyNetwork
-            print('building spherical harmonic energy model')
             en_model = en_class(
                 orbital_basis=dataset.orbital_basis_num,
                 order=args.order_en,
@@ -196,9 +206,38 @@ def load_model(args, dataset, train=False):
                 timing=args.timing,
                 normalize=args.normalize_en,
                 parity=args.parity_en,
+                atom_dens=atom_dens,
+                L0_start=args.L0_start,
+            )
+        elif args.energy_model == 'spherical_embedding':
+            en_class = SphericalHarmonicsEmbeddingEnergyNetwork
+            en_model = en_class(
+                orbital_basis=dataset.orbital_basis_num,
+                order=args.order_en,
+                mixing_order=args.mixing_order_en,
+                num_features=args.num_energy_features,
+                num_basis_functions=args.num_en_basis_functions,
+                num_modules=args.num_en_modules,
+                num_residual_pre_x=args.num_residual_pre_x,
+                num_residual_post_x=args.num_residual_post_x,
+                num_residual_pre_vi=args.num_residual_pre_vi,
+                num_residual_pre_vj=args.num_residual_pre_vj,
+                num_residual_post_v=args.num_residual_post_v,
+                num_residual_output=args.num_residual_output,
+                num_radial_components=args.num_radial_components,
+                num_neighbours=args.num_neighbours,
+                basis_functions=args.basis_functions,
+                cutoff=args.cutoff,
+                activation=args.activation,
+                clebsch_gordan=clebsch_gordan,
+                calculate_forces=calculate_forces,
+                verbose=args.verbose,
+                timing=args.timing,
+                normalize=args.normalize_en,
+                parity=args.parity_en,
+                atom_dens=atom_dens,
             )
         elif args.energy_model == 'spherical_linear':
-            print('building spherical linear energy model')
             en_model = SphericalLinearEnergyNetwork(
                 orbital_basis=dataset.orbital_basis_num,
                 order=args.order_en,
@@ -216,7 +255,6 @@ def load_model(args, dataset, train=False):
                 parity=args.parity_en,
             )
         elif args.energy_model == 'representation':
-            print('building representation energy model')
             en_model = RepresentationEnergyNetwork(
                 order=args.order_en,
                 num_features=args.num_energy_features,
@@ -243,9 +281,7 @@ def load_model(args, dataset, train=False):
 
     property_models = {}
     calculate_forces_dict = {}
-    print('density_weight', args.density_weight)
-    print('dipole_moment_weight', args.dipole_moment_weight)
-    if args.density_weight + args.dipole_moment_weight > 0:
+    if args.density_weight > 0 or (args.dipole_moment_weight > 0 and not args.dpm_intor):
         if args.core_density_basis > 0:
             property_models['core_density'] = core_coeffs_model
             calculate_forces_dict['core_density'] = False
@@ -258,8 +294,14 @@ def load_model(args, dataset, train=False):
         property_models['energy'] = en_model
         calculate_forces_dict['energy'] = calculate_forces
     if args.dipole_moment_weight:
-        property_models['dipole_moment'] = DipoleMomentCalc()
+        if args.dpm_intor:
+            property_models['dipole_moment'] = DipoleMomentIntorCalc(orbital_basis=dataset.orbital_basis_num,
+                                                                     remove_atom_density=args.remove_atom_density,
+                                                                     )
+        else:
+            property_models['dipole_moment'] = DipoleMomentCalc()
         calculate_forces_dict['dipole_moment'] = False
+    # print('property models', property_models)
 
     model = DFTNetwork(density_model, property_models,
                        calculate_forces_dict=calculate_forces_dict,
@@ -282,16 +324,18 @@ def load_model(args, dataset, train=False):
         # print('best_model_path', best_model_path)
         # print('args restart', args.restart)
         # print('best_model_path', best_model_path)
-        state_dict_path = os.path.join(args.restart, best_model_path)
+        if train:
+            state_dict = checkpoint['model_state_dict']
+        else:
+            state_dict_path = os.path.join(args.restart, best_model_path)
+            state_dict = torch.load(state_dict_path, map_location='cpu')
         # print('state_dict_path', state_dict_path)
-        state_dict = torch.load(state_dict_path, map_location='cpu')
         if not train and args.load_from is not None and args.density_weight > 0:
             # print('loading from', args.load_from)
             load_code = args.load_from.split('_')[-1]
             model_dict = torch.load(os.path.join(args.load_from, 'best_' + load_code + '.pth'), map_location='cpu')
             for key in model_dict.keys():
                 if 'property_models.density' in key:
-                    print('key', key)
                     state_dict[key] = model_dict[key]
         missing, unexpected = model.load_state_dict(state_dict, strict=False)
         if len(unexpected) > 0:
@@ -308,10 +352,12 @@ def load_model(args, dataset, train=False):
                     print('Unexpected keywords', key)
                     raise Exception('Unexpected keywords in energy model state dict')
         if len(missing) > 0 and not args.ignore_missing_keywords:
+            print('missing', missing)
             for key in missing:
                 if 'init_' not in key:
                     if args.df_weight > 0 and 'property_models.density' not in key:
                         print('Missing keywords', key)
+
                         raise Exception('Missing keywords in df model state dict')
                     elif args.density_weight > 0:
                         if 'property_models.density' not in key and not (args.core_density_basis > 0) \
@@ -334,4 +380,8 @@ def load_model(args, dataset, train=False):
     if args.compile:
         model = torch.compile(model)
 
+    # print('train', train)
+    # print('density model end of load_model:', model.density_repr_model[1].spherical_output.linear[0].weight[:5, :5])
+    # print('density model end of load_model:', model.density_repr_model[1].linear_output.linear[0].weight[:5, :5])
+    
     return model

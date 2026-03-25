@@ -28,7 +28,6 @@ import os
 # %%
 # %load_ext autoreload
 # %autoreload 2
-# %cd ..
 # %%
 mol = gto.M(atom='O  0  0  1; H  0,  0, 2; N 0,  0, 3; C 0, 0, 4; S 0, 0, 5; F 0, 0 6; Cl 0, 0, 7', basis='augccpvdz')
 
@@ -245,7 +244,7 @@ dataset = AtomsDensityData(np_path=args.np_dataset_test, density_path=args.dens_
                            projected_density=args.projected_density,
                            radii_adjust=args.radii_adjust,
                            calc_data=True,
-                           atom_dens_path='datasets/free_atom_densities_augccpvdz_augccpvqzjkfit.npy',
+                           atom_dens_path='datasets/free_atom_densities_augccpvdz_augccpvqzjkfit_pyscf.npy',
                            atom_dens_type='spline'
                            )
 
@@ -697,8 +696,9 @@ for t in ['spline', 'df_coeffs', 'mo_coeffs']:
                                    atom_dens_path='datasets/free_atom_densities_augccpvdz_augccpvqzjkfit_pyscf_minimized.npy',
                                    atom_dens_type=t,
                                    split_atom_dens=True,
+                                   timing=True
                                    )
-    
+
     dataset_new = AtomsDensityData(np_path=args.np_dataset_test,
                                    density_path=args.dens_dataset_test,
                                    orbitals_path=args.orbitals_file,
@@ -720,6 +720,7 @@ for t in ['spline', 'df_coeffs', 'mo_coeffs']:
                                    atom_dens_path='datasets/free_atom_densities_augccpvdz_augccpvqzjkfit_pyscf.npy',
                                    atom_dens_type=t,
                                    split_atom_dens=True,
+                                   timing=True
                                    )
 
     start = time.time()

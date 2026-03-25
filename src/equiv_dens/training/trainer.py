@@ -195,12 +195,12 @@ class Trainer:
             self.checkpoint_path, 'latest_checkpoint.pth'), map_location='cpu')
         # self.args = checkpoint['args']  # overwrite args
         for arg in vars(checkpoint['args']):
-            if self.args.fix_arguments:
+            if self.args.fix_hyperparams:
+                pass
+            elif self.args.fix_arguments:
                 if arg in self.hyperparam_args:
-                    print('loading hyperparam arg', arg)
                     setattr(self.args, arg, getattr(checkpoint['args'], arg))
             else:
-                print('loading all arg', arg)
                 setattr(self.args, arg, getattr(checkpoint['args'], arg))
 
         self.step = checkpoint['step']
@@ -214,8 +214,11 @@ class Trainer:
             self.error_dict.relative_en = False
         for i in range(len(self.schedulers)):
             self.schedulers[i].load_state_dict(checkpoint['schedulers_state_dict'][i])
+        print('len optimizers', len(self.optimizers))
         for i in range(len(self.optimizers)):
             # try:
+            print(f'self optimizers [{i}] len', len(self.optimizers[i].param_groups))
+            print(f'chk optimizers [{i}] len', len(checkpoint['optimizers_state_dict'][i]))
             self.optimizers[i].load_state_dict(checkpoint['optimizers_state_dict'][i])
             # except Exception:
             #     self.schedulers[i]['last_lr'] = self.schedulers[i]['last_lr'] / 1000
@@ -368,6 +371,7 @@ class Trainer:
 
         data = self._module.transform_input(data)
         # print('model embedding layer before', self._model.density_repr_model[0].embedding.embedding.element_embedding)
+        # print('batch size', data['batch_atom_numbers'].shape[0])
         predictions = self._module(data)
         # print('model embedding layer after pred', self._model.density_repr_model[0].embedding.embedding.element_embedding)
 
@@ -375,10 +379,10 @@ class Trainer:
             if 'density' in predictions.keys():
                 print('train density intergal', torch.sum(predictions['density'] * predictions['coord_weights'], dim=1))
                 print('true density intergal', torch.sum(data['density'] * data['coord_weights'], dim=1))
-        if self.verbose > 0:
             if 'energy' in predictions.keys():
                 print('pred energy', predictions['energy'].view((-1, )))
                 print('true energy', data['energy'].view((-1, )))
+        if self.verbose > 0:
             if 'forces' in predictions.keys():
                 # print('pred forces', predictions['forces'].sum((-1, -2)).view((-1, )))
                 # print('true forces', data['forces'].sum((-1, -2)).view((-1, )))
@@ -497,6 +501,7 @@ class Trainer:
                 print('valid load memory cached', torch.cuda.memory_cached() / 1024**2)
 
             data = self._module.transform_input(data)
+            # print('batch size', data['batch_atom_numbers'].shape[0])
             # print('post-conversion forces:', data['forces'])
             predictions = self._module(data)
             # print('predictions, sph repr', predictions['sph_repr_batch'][0][0])
@@ -504,14 +509,14 @@ class Trainer:
 
             data = self._module.transform_back_input(data)
             # print('post-post-conversion forces:', data['forces'])
-            # if self.verbose > 2:
+            if self.verbose > 2:
+                if 'energy' in predictions.keys():
+                    print('pred energy', predictions['energy'].view((-1, )))
+                    print('true energy', data['energy'].view((-1, )))
             if self.verbose > 0:
                 if 'density' in predictions.keys():
                     print('valid density intergal', torch.sum(predictions['density'] * predictions['coord_weights'], dim=1))
                     print('true density intergal', torch.sum(data['density'] * data['coord_weights'], dim=1))
-                if 'energy' in predictions.keys():
-                    print('pred energy', predictions['energy'].view((-1, )))
-                    print('true energy', data['energy'].view((-1, )))
                 if 'forces' in predictions.keys():
                     # print('pred forces', predictions['forces'].sum((-1, -2)).view((-1, )))
                     # print('true forces', data['forces'].sum((-1, -2)).view((-1, )))
@@ -633,6 +638,8 @@ class Trainer:
         if self.clip_norm > 0:
             # self.summary.add_scalar('gradient/norm', self.gradient_norm, self.step)
             wandb_uncommited_log({'gradient_norm': self.gradient_norm})
+
+        wandb_uncommited_log({'learning rate': self.optimizers[0].param_groups[0]['lr']})
 
         # write optional summaries for model parameters
         if self.args.write_parameter_summaries:

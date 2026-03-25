@@ -29,6 +29,9 @@ def parse_command_line_arguments(arg_file=None):
     args_restart.add_argument("--fix_arguments", metavar='True|False', type=str2bool, default=False,
                               choices=[True, False],
                               help="Do not change arguments after loading checkpoint (except hyperparams).")
+    args_restart.add_argument("--fix_hyperparams", metavar='True|False', type=str2bool, default=False,
+                              choices=[True, False],
+                              help="Do not change arguments after loading checkpoint.")
     args_restart.add_argument("--args_file_name", metavar='STR', type=str, default=None,
                               help="Save filename of .txt file containing arguments for easier bookkeeping.")
     args_restart.add_argument("--ignore_missing_keywords", metavar='True|False', type=str2bool, default=False,
@@ -122,6 +125,10 @@ def parse_command_line_arguments(arg_file=None):
                                   help="Whether the final nonmixing layer is residual or not.")
     args_hyperparams.add_argument("--density_coeffs", metavar='True|False', type=str2bool, default=True,
                                   help="Use density coefficients as part of representation.")
+    args_hyperparams.add_argument("--append_atom_density", metavar='True|False', type=str2bool, default=False,
+                                  help="Append atomic density coefficients when using coreless densities for energy prediction.")
+    args_hyperparams.add_argument("--L0_start", metavar='True|False', type=str2bool, default=True,
+                                  help="Start with only L0 features for energy prediction.")
     hyperparam_args = [act.dest for act in args_hyperparams._group_actions]
 
     # arguments for training
@@ -185,6 +192,10 @@ def parse_command_line_arguments(arg_file=None):
                                help="weight of the density in the loss function")
     args_training.add_argument("--density_grad_weight", metavar='FLOAT', type=float, default=0.0,
                                help="weight of the density gradient in the loss function")
+    args_training.add_argument("--width_reg_weight", metavar='FLOAT', type=float, default=0.0,
+                               help="weight of the width regularization in the loss function")
+    args_training.add_argument("--width_reg_cutoff", metavar='FLOAT', type=float, default=None,
+                               help="Cutoff for the width regularization")
     args_training.add_argument("--df_weight", metavar='FLOAT', type=float, default=0.0,
                                help="weight of the density fitting coeffs in the loss function")
     args_training.add_argument("--dipole_moment_weight", metavar='FLOAT', type=float, default=0.0,
@@ -273,6 +284,7 @@ def parse_command_line_arguments(arg_file=None):
     args_training.add_argument("--ema_start_epoch", metavar='INT', type=int, default=0,
                                help="starts exponential moving average of parameters only after the specified epoch is reached")
     args_training.add_argument("--weight_decay", metavar='FLOAT', type=float, default=0.0, help="regularization term for weights")
+    args_training.add_argument("--en_weight_decay", metavar='FLOAT', type=float, default=0.0, help="regularization term for energy weights")
     args_training.add_argument("--use_gpu", metavar='True|False', type=str2bool, default=True,
                                choices=[True, False], help="use GPU(s) for training (if available)")
     args_training.add_argument("--multiple_gpus", metavar='True|False', type=str2bool, default=False,
@@ -285,7 +297,7 @@ def parse_command_line_arguments(arg_file=None):
                                choices=[True, False], help="Normalize the coefficients using softmax.")
     args_training.add_argument("--percentage_error", metavar='True|False', type=str2bool, default=True,
                                choices=[True, False], help="Measure error as a percentage of the density integral.")
-    args_training.add_argument("--pyscf_grid", metavar='True|False', type=str2bool, default=False,
+    args_training.add_argument("--pyscf_grid", metavar='True|False', type=str2bool, default=True,
                                choices=[True, False], help="Use pyscf for density grid generation.")
     args_training.add_argument("--cube_grid", metavar='True|False', type=str2bool, default=False,
                                choices=[True, False], help="Use cubical densty grid for training.")
@@ -346,6 +358,12 @@ def parse_command_line_arguments(arg_file=None):
                                choices=['online', 'offline', 'disabled'], help="Wandb mode.")
     args_training.add_argument("--remove_atom_density", metavar='True|False', type=str2bool, default=False,
                                choices=[True, False], help="Remove the free atom density from the total density.")
+    args_training.add_argument("--dens_sqrt", metavar='True|False', type=str2bool, default=False,
+                               choices=[True, False], help="Fit to square root of density.")
+    args_training.add_argument("--valence_dens", metavar='True|False', type=str2bool, default=False,
+                               choices=[True, False], help="Fit to square root of density.")
+    args_training.add_argument("--full_valence", metavar='True|False', type=str2bool, default=True,
+                               choices=[True, False], help="Fit to square root of density.")
     args_training.add_argument('--atom_dens_path', metavar='STR', type=str,
                                help="Path to free atom densities file.")
     args_training.add_argument('--atom_dens_type', metavar='STR', type=str,
@@ -357,6 +375,10 @@ def parse_command_line_arguments(arg_file=None):
                                choices=[True, False], help="Set density coeffs to free atom coeffs instead of predicting them")
     args_training.add_argument("--compile", metavar='True|False', type=str2bool, default=False,
                                choices=[True, False], help="Compile the model for higher efficiency.")
+    args_training.add_argument("--rotate_grid", metavar='True|False', type=str2bool, default=True,
+                               choices=[True, False], help="Rotate density grid during training.")
+    args_training.add_argument("--cutoff_dens_coords", metavar='True|False', type=str2bool, default=False,
+                               help="cutoff density grid coordinates for each atom based on the grid extent for that atom")
     # arguments for simulations
     args_simulation = parser.add_argument_group("simulation hyperparameters")
     args_simulation.add_argument("--temperature", metavar='INT', type=int, default=300,
@@ -403,8 +425,12 @@ def parse_command_line_arguments(arg_file=None):
                            choices=[True, False], help="Save output from tests as a list.")
     args_misc.add_argument('--test_save_name', metavar='STR', type=str, default="test_save_results.pt",
                            help="Filename for saved test output.")
+    args_misc.add_argument('--test_eval_all', metavar='True|False', type=str2bool, default=False,
+                           help="Evaluate errors for training and valid data as well.")
     args_misc.add_argument('--no_compare', metavar='True|False', type=str2bool, default=False,
                            choices=[True, False], help="Don't compare accuracy of test samples, just compute predictions.")
+    args_misc.add_argument('--dpm_intor', metavar='True|False', type=str2bool, default=False,
+                           choices=[True, False], help="Calculate dipole moments using analytic integrals.")
 
     # actually parse command line arguments
     if arg_file is None and len(sys.argv) == 1:  # no arguments were specified, print help message
