@@ -281,10 +281,6 @@ class InteractionBlock(nn.Module):
             # print('yi before norm:', [float(torch.mean(yi[k]**2)) for k in range(len(yi))])
             for L in range(len(yi)):
                 yi[L] = layer_norm(yi[L], dims=(-3, -2, -1)) 
-            # yi[0] = layer_norm(yi[0], dims=(-2, -1)) 
-            # print('yi after norm:', [float(torch.mean(yi[k]**2)) for k in range(len(yi))])
-        # print('yi norm:', float(torch.mean(yi[0]**2)))
-        # print('yi norm:', torch.mean(yi[0]**2, dim=(-2,-1)))
         yi = self.linear_i(yi)
 
         for L in range(len(yi), self.mixing_order + 1):
