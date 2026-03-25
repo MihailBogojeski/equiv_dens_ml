@@ -412,12 +412,10 @@ def calculate_sapt0_elst(res, mol, auxmol, auxmol_ml, df_coeffs_ml,
     """ The use_less_mem flag will dramatically reduce memory requirements at the cost of longer calculation time"""
     sapt0_ml_elst = []
     for i in range(len(auxmol)):
-        print('start atom mo dm')
         m1_dm = hf.make_rdm1(mo_coeff=res_1['atom_mo_coeffs'][i].numpy(force=True), mo_occ=res_1['atom_mo_coeffs_occ'][i].numpy(force=True)) # these are for both channels
         m2_dm = hf.make_rdm1(mo_coeff=res_2['atom_mo_coeffs'][i].numpy(force=True), mo_occ=res_2['atom_mo_coeffs_occ'][i].numpy(force=True))
         m12_dm = hf.make_rdm1(mo_coeff=res['atom_mo_coeffs'][i].numpy(force=True), mo_occ=res['atom_mo_coeffs_occ'][i].numpy(force=True))
         if use_df:
-            print('start coulomb integrals joined ml')
             auxmol_ml_joined, df_coeffs_ml_joined = orbitals.join_free_atom_and_ml_basis(auxmol_ml[i], auxmol[i],
                                                                     df_coeffs_ml[i], res['atom_df_coeffs'][i])
             auxmol_ml_1_joined, df_coeffs_ml_1_joined = orbitals.join_free_atom_and_ml_basis(auxmol_ml_1[i], auxmol_1[i],
@@ -427,42 +425,10 @@ def calculate_sapt0_elst(res, mol, auxmol, auxmol_ml, df_coeffs_ml,
             coulomb_en_sum = orbitals.calculate_int2c2e(auxmol_ml_joined, df_coeffs_ml_joined)
             coulomb_en_sum_1 = orbitals.calculate_int2c2e(auxmol_ml_1_joined, df_coeffs_ml_1_joined)
             coulomb_en_sum_2 = orbitals.calculate_int2c2e(auxmol_ml_2_joined, df_coeffs_ml_2_joined)
-            print('[DF direct] coulomb_en_sum   (12, 1, 2):', coulomb_en_sum, coulomb_en_sum_1, coulomb_en_sum_2)
-            print('[DF direct] delta coulomb_en_sum:', coulomb_en_sum - coulomb_en_sum_1 - coulomb_en_sum_2)
-
-            # Split the DF calculation into ML, free-atom DF, and cross terms for debugging
-            coulomb_en_ml_df = orbitals.calculate_int2c2e_np(auxmol_ml[i], df_coeffs_ml[i].numpy(force=True))
-            coulomb_en_ml_df_1 = orbitals.calculate_int2c2e_np(auxmol_ml_1[i], df_coeffs_ml_1[i].numpy(force=True))
-            coulomb_en_ml_df_2 = orbitals.calculate_int2c2e_np(auxmol_ml_2[i], df_coeffs_ml_2[i].numpy(force=True))
-            coulomb_en_atom_df = orbitals.calculate_int2c2e_np(auxmol[i], res['atom_df_coeffs'][i].numpy(force=True))
-            coulomb_en_atom_df_1 = orbitals.calculate_int2c2e_np(auxmol_1[i], res_1['atom_df_coeffs'][i].numpy(force=True))
-            coulomb_en_atom_df_2 = orbitals.calculate_int2c2e_np(auxmol_2[i], res_2['atom_df_coeffs'][i].numpy(force=True))
-            coulomb_en_mix_df = orbitals.calculate_int2c2e_np(auxmol_ml[i], df_coeffs_ml[i].numpy(force=True),
-                                                              auxmol[i], res['atom_df_coeffs'][i].numpy(force=True))
-            coulomb_en_mix_df_1 = orbitals.calculate_int2c2e_np(auxmol_ml_1[i], df_coeffs_ml_1[i].numpy(force=True),
-                                                                auxmol_1[i], res_1['atom_df_coeffs'][i].numpy(force=True))
-            coulomb_en_mix_df_2 = orbitals.calculate_int2c2e_np(auxmol_ml_2[i], df_coeffs_ml_2[i].numpy(force=True),
-                                                                auxmol_2[i], res_2['atom_df_coeffs'][i].numpy(force=True))
-            coulomb_en_sum_split = coulomb_en_ml_df + coulomb_en_atom_df + 2 * coulomb_en_mix_df
-            coulomb_en_sum_1_split = coulomb_en_ml_df_1 + coulomb_en_atom_df_1 + 2 * coulomb_en_mix_df_1
-            coulomb_en_sum_2_split = coulomb_en_ml_df_2 + coulomb_en_atom_df_2 + 2 * coulomb_en_mix_df_2
-            print('[DF split] ML DF Coulomb     (12, 1, 2):', coulomb_en_ml_df, coulomb_en_ml_df_1, coulomb_en_ml_df_2)
-            print('[DF split] Atom DF Coulomb   (12, 1, 2):', coulomb_en_atom_df, coulomb_en_atom_df_1, coulomb_en_atom_df_2)
-            print('[DF split] Cross ML-DF       (12, 1, 2):', coulomb_en_mix_df, coulomb_en_mix_df_1, coulomb_en_mix_df_2)
-            print('[DF split] sum (check vs direct) (12, 1, 2):', coulomb_en_sum_split, coulomb_en_sum_1_split, coulomb_en_sum_2_split)
-            print('[DF split] delta ML DF:', coulomb_en_ml_df - coulomb_en_ml_df_1 - coulomb_en_ml_df_2)
-            print('[DF split] delta Atom DF:', coulomb_en_atom_df - coulomb_en_atom_df_1 - coulomb_en_atom_df_2)
-            print('[DF split] delta Cross ML-DF:', 2 * (coulomb_en_mix_df - coulomb_en_mix_df_1 - coulomb_en_mix_df_2))
-            print('[DF split] delta coulomb_en_sum_split:', coulomb_en_sum_split - coulomb_en_sum_1_split - coulomb_en_sum_2_split)
         else:
-            # calculate coulomb of joined density analytically for DF basis
-            print('start coulomb integrals ml')
-            # begin Dahvyd fix: convert to float64
             coulomb_en_ml = orbitals.calculate_int2c2e_np(auxmol_ml[i], df_coeffs_ml[i].numpy(force=True))
             coulomb_en_ml_1 = orbitals.calculate_int2c2e_np(auxmol_ml_1[i], df_coeffs_ml_1[i].numpy(force=True))
             coulomb_en_ml_2 = orbitals.calculate_int2c2e_np(auxmol_ml_2[i], df_coeffs_ml_2[i].numpy(force=True))
-            # end debug
-            print('use less mem', use_less_mem)
             if use_less_mem:
                 # DW: I calculate the cross integral, rather than calculate the dimer - mon1 - mon2
                 # I'll set coulomb_en_atom = cross integral and coulomb_en_atom_1 = 0 so that
@@ -478,27 +444,15 @@ def calculate_sapt0_elst(res, mol, auxmol, auxmol_ml, df_coeffs_ml,
                 coulomb_en_atom_1 = np.einsum('ij,ji->', vj_1, m1_dm).real * .5
                 vj_2, _ = hf.get_jk(mol_2[i], m2_dm)
                 coulomb_en_atom_2 = np.einsum('ij,ji->', vj_2, m2_dm).real * .5
-            print('start coulomb integrals mix')
-            #being dw fix: float64 2026.03.24
             coulomb_en_mix = orbitals.calculate_int2c2e_np(auxmol_ml[i], df_coeffs_ml[i].numpy(force=True),
                                                            auxmol[i], res['atom_df_coeffs'][i].numpy(force=True))
-            # df's are two channel,
             coulomb_en_mix_1 = orbitals.calculate_int2c2e_np(auxmol_ml_1[i], df_coeffs_ml_1[i].numpy(force=True),
                                                              auxmol_1[i], res_1['atom_df_coeffs'][i].numpy(force=True))
             coulomb_en_mix_2 = orbitals.calculate_int2c2e_np(auxmol_ml_2[i], df_coeffs_ml_2[i].numpy(force=True),
                                                              auxmol_2[i], res_2['atom_df_coeffs'][i].numpy(force=True))
-            #end fix
             coulomb_en_sum = coulomb_en_ml + coulomb_en_atom + 2 * coulomb_en_mix
             coulomb_en_sum_1 = coulomb_en_ml_1 + coulomb_en_atom_1 + 2 * coulomb_en_mix_1
             coulomb_en_sum_2 = coulomb_en_ml_2 + coulomb_en_atom_2 + 2 * coulomb_en_mix_2
-            print('[MO] ML DF Coulomb           (12, 1, 2):', coulomb_en_ml, coulomb_en_ml_1, coulomb_en_ml_2)
-            print('[MO] Atom MO Coulomb         (12, 1, 2):', coulomb_en_atom, coulomb_en_atom_1, coulomb_en_atom_2)
-            print('[MO] Cross ML-MO             (12, 1, 2):', coulomb_en_mix, coulomb_en_mix_1, coulomb_en_mix_2)
-            print('[MO] sum                     (12, 1, 2):', coulomb_en_sum, coulomb_en_sum_1, coulomb_en_sum_2)
-            print('[MO] delta ML DF:', coulomb_en_ml - coulomb_en_ml_1 - coulomb_en_ml_2)
-            print('[MO] delta Atom MO:', coulomb_en_atom - coulomb_en_atom_1 - coulomb_en_atom_2)
-            print('[MO] delta Cross ML-MO:', 2 * (coulomb_en_mix - coulomb_en_mix_1 - coulomb_en_mix_2))
-            print('[MO] delta coulomb_en_sum:', coulomb_en_sum - coulomb_en_sum_1 - coulomb_en_sum_2)
         coulomb_en_sum_els = coulomb_en_sum - coulomb_en_sum_1 - coulomb_en_sum_2
         inter_nuc_en = auxmol_ml[i].energy_nuc() - auxmol_ml_1[i].energy_nuc() - auxmol_ml_2[i].energy_nuc()
 
@@ -520,12 +474,6 @@ def calculate_sapt0_elst(res, mol, auxmol, auxmol_ml, df_coeffs_ml,
             m12_e_nuc = m12_e_ne_ml_df + m12_e_ne_atom_df
             m1_e_nuc  = m1_e_ne_ml_df  + m1_e_ne_atom_df
             m2_e_nuc  = m2_e_ne_ml_df  + m2_e_ne_atom_df
-            print('[NE DF] ML DF n-e           (12, 1, 2):', m12_e_ne_ml_df, m1_e_ne_ml_df, m2_e_ne_ml_df)
-            print('[NE DF] Atom DF n-e         (12, 1, 2):', m12_e_ne_atom_df, m1_e_ne_atom_df, m2_e_ne_atom_df)
-            print('[NE DF] total n-e           (12, 1, 2):', m12_e_nuc, m1_e_nuc, m2_e_nuc)
-            print('[NE DF] delta ML DF n-e:', m12_e_ne_ml_df - m1_e_ne_ml_df - m2_e_ne_ml_df)
-            print('[NE DF] delta Atom DF n-e:', m12_e_ne_atom_df - m1_e_ne_atom_df - m2_e_ne_atom_df)
-            print('[NE DF] delta total n-e:', m12_e_nuc - m1_e_nuc - m2_e_nuc)
         else:
             m1_e_ne_atom_mo = np.einsum('ij,ji', m1_dm, mol_1[i].intor('int1e_nuc'))
             m2_e_ne_atom_mo = np.einsum('ij,ji', m2_dm, mol_2[i].intor('int1e_nuc'))
@@ -533,12 +481,6 @@ def calculate_sapt0_elst(res, mol, auxmol, auxmol_ml, df_coeffs_ml,
             m12_e_nuc = m12_e_ne_ml_df + m12_e_ne_atom_mo
             m1_e_nuc  = m1_e_ne_ml_df  + m1_e_ne_atom_mo
             m2_e_nuc  = m2_e_ne_ml_df  + m2_e_ne_atom_mo
-            print('[NE MO] ML DF n-e           (12, 1, 2):', m12_e_ne_ml_df, m1_e_ne_ml_df, m2_e_ne_ml_df)
-            print('[NE MO] Atom MO n-e         (12, 1, 2):', m12_e_ne_atom_mo, m1_e_ne_atom_mo, m2_e_ne_atom_mo)
-            print('[NE MO] total n-e           (12, 1, 2):', m12_e_nuc, m1_e_nuc, m2_e_nuc)
-            print('[NE MO] delta ML DF n-e:', m12_e_ne_ml_df - m1_e_ne_ml_df - m2_e_ne_ml_df)
-            print('[NE MO] delta Atom MO n-e:', m12_e_ne_atom_mo - m1_e_ne_atom_mo - m2_e_ne_atom_mo)
-            print('[NE MO] delta total n-e:', m12_e_nuc - m1_e_nuc - m2_e_nuc)
 
         m12_e_off = m12_e_nuc - m1_e_nuc - m2_e_nuc
 
