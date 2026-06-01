@@ -279,8 +279,8 @@ for count, calc_key in enumerate(mono1.keys()):
 
     # sapt0 electrosatic values 
     # sapt0_ml_elst, sapt0_ml_efield12, sapt0_ml_efield21, sapt0_ml_ovlp = sapt0.calculate_sapt0_ml(res1, res2, res12, dataset.orbital_basis_num, precalc_basis=False)
-    # sapt0_ml_elst, sapt0_ml_efield12, sapt0_ml_efield21 = sapt0.calculate_sapt0_ml(res1, res2, res12, dataset.orbital_basis_num, precalc_basis=False, use_df=True)
-    sapt0_ml_elst, sapt0_ml_efield12, sapt0_ml_efield21 = sapt0.calculate_sapt0_ml(res1, res2, res12, dataset.orbital_basis_num, precalc_basis=False, use_df=False, use_less_mem=True)
+    sapt0_ml_elst, sapt0_ml_efield12, sapt0_ml_efield21 = sapt0.calculate_sapt0_ml(res1, res2, res12, dataset.orbital_basis_num, precalc_basis=False, use_df=True)
+    # sapt0_ml_elst, sapt0_ml_efield12, sapt0_ml_efield21 = sapt0.calculate_sapt0_ml(res1, res2, res12, dataset.orbital_basis_num, precalc_basis=False, use_df=False, use_less_mem=True)
     sapt0_ml[calc_key]['elst'] = sapt0_ml_elst
     sapt0_ml[calc_key]['efield12'] = sapt0_ml_efield12
     sapt0_ml[calc_key]['efield21'] = sapt0_ml_efield21
@@ -288,4 +288,4 @@ for count, calc_key in enumerate(mono1.keys()):
     # sapt0_ml[calc_key]['ovlp'] = sapt0_ml_ovlp
 
     # exit()
-    np.save('results/' + main_args.save_file + '_sapt0_ml_' + target + '.npy', sapt0_ml, allow_pickle=True)
+    np.save('results/' + main_args.save_file + '_sapt0_ml_df_' + target + '.npy', sapt0_ml, allow_pickle=True)
