@@ -393,7 +393,7 @@ def calculate_sapt0_ml(res_1, res_2, res, orbital_basis_num, precalc_basis=True,
                                          res_2, mol_2, auxmol_2, auxmol_ml_2, df_coeffs_ml_2,
                                          use_df,
                                          use_less_mem = use_less_mem)
-    #
+    
 
     sapt0_ml_efield12, sapt0_ml_efield21 = calculate_efield(res_1, mol_1, auxmol_1, auxmol_ml_1, df_coeffs_ml_1,
                                                             res_2, mol_2, auxmol_2, auxmol_ml_2, df_coeffs_ml_2,
@@ -422,14 +422,15 @@ def calculate_sapt0_elst(res, mol, auxmol, auxmol_ml, df_coeffs_ml,
                                                                     df_coeffs_ml_1[i], res_1['atom_df_coeffs'][i])
             auxmol_ml_2_joined, df_coeffs_ml_2_joined = orbitals.join_free_atom_and_ml_basis(auxmol_ml_2[i], auxmol_2[i],
                                                                     df_coeffs_ml_2[i], res_2['atom_df_coeffs'][i])
-            coulomb_en_sum = orbitals.calculate_int2c2e(auxmol_ml_joined, df_coeffs_ml_joined)
-            coulomb_en_sum_1 = orbitals.calculate_int2c2e(auxmol_ml_1_joined, df_coeffs_ml_1_joined)
-            coulomb_en_sum_2 = orbitals.calculate_int2c2e(auxmol_ml_2_joined, df_coeffs_ml_2_joined)
+            coulomb_en_sum = orbitals.calculate_int2c2e_np(auxmol_ml_joined, df_coeffs_ml_joined)
+            coulomb_en_sum_1 = orbitals.calculate_int2c2e_np(auxmol_ml_1_joined, df_coeffs_ml_1_joined)
+            coulomb_en_sum_2 = orbitals.calculate_int2c2e_np(auxmol_ml_2_joined, df_coeffs_ml_2_joined)
         else:
             coulomb_en_ml = orbitals.calculate_int2c2e_np(auxmol_ml[i], df_coeffs_ml[i].numpy(force=True))
             coulomb_en_ml_1 = orbitals.calculate_int2c2e_np(auxmol_ml_1[i], df_coeffs_ml_1[i].numpy(force=True))
             coulomb_en_ml_2 = orbitals.calculate_int2c2e_np(auxmol_ml_2[i], df_coeffs_ml_2[i].numpy(force=True))
             if use_less_mem:
+                print("using less memory!!!!")
                 # DW: I calculate the cross integral, rather than calculate the dimer - mon1 - mon2
                 # I'll set coulomb_en_atom = cross integral and coulomb_en_atom_1 = 0 so that
                 # is compatible with the rest of the code
