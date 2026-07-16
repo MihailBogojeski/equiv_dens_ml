@@ -1,4 +1,6 @@
 # !/usr/bin/env python3
+import equiv_dens.compat  # noqa: F401 - apply T_co patch before schnetpack import
+
 import os
 import sys
 import torch
@@ -21,7 +23,7 @@ from schnetpack.md import Simulator
 from schnetpack.md.simulation_hooks import thermostats
 from schnetpack.md.simulation_hooks import logging_hooks
 from schnetpack.md.calculators import MDCalculator, MDCalculatorError
-from schnetpack.md.utils import HDF5Loader
+from schnetpack.md.data import HDF5Loader
 
 
 # MD calculator class

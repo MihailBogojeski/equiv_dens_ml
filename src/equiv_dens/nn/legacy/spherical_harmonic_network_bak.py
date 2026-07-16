@@ -56,7 +56,9 @@ class DensityNetwork(nn.Module):
 
         # load state from a file (if load_from is given) and overwrite hyperparameters
         if load_from is not None:
-            saved_state = torch.load(load_from, map_location='cpu')
+            saved_state = torch.load(
+                load_from, map_location='cpu', weights_only=False
+            )
             print('saved state', saved_state.keys())
             orbitals = saved_state['orbitals']
             order = saved_state['order']

@@ -55,8 +55,11 @@ else:
     directory = args.restart  # load directory name
     # load latest checkpoint
     checkpoint_path = os.path.join(directory, 'checkpoints')  # checkpoint directory
-    checkpoint = torch.load(os.path.join(
-        checkpoint_path, 'latest_checkpoint.pth'), map_location='cpu')
+    checkpoint = torch.load(
+        os.path.join(checkpoint_path, 'latest_checkpoint.pth'),
+        map_location='cpu',
+        weights_only=False,
+    )
     latest_checkpoint = checkpoint['step']
     model_code = checkpoint['ID']  # load ID
     for arg in vars(checkpoint['args']):
@@ -291,7 +294,11 @@ for name, param in model.property_models['energy'].named_parameters():
 if args.load_from is not None:
     print('loading from', args.load_from)
     load_code = args.load_from.split('_')[-1]
-    model_dict = torch.load(os.path.join(args.load_from, 'best_' + load_code + '.pth'), map_location='cpu')
+    model_dict = torch.load(
+        os.path.join(args.load_from, 'best_' + load_code + '.pth'),
+        map_location='cpu',
+        weights_only=False,
+    )
     density_dict = {}
 
     for key in model_dict.keys():

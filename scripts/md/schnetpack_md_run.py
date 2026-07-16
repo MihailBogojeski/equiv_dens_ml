@@ -1,4 +1,6 @@
 # !/usr/bin/env python3
+import equiv_dens.compat  # noqa: F401 - apply T_co patch before schnetpack import
+
 import os
 import torch
 from equiv_dens.training.parse_command_line_arguments import parse_command_line_arguments
@@ -8,6 +10,7 @@ from equiv_dens.utils.grids import cubical_grid, cubical_sampling,\
 import equiv_dens.utils.base as utils
 from equiv_dens.training.model_loader import load_model
 from equiv_dens.md.dft_network_calculator import DFTNetworkCalculator
+from equiv_dens.md.md_console_logger import MDConsoleLogger
 
 import numpy as np
 from functools import partial
@@ -22,28 +25,35 @@ from schnetpack.md.simulation_hooks import thermostats
 from schnetpack.md.simulation_hooks import callback_hooks
 
 
-def wandb_summary(wandb, md_system):
-    wandb.log({'energy': torch.mean(md_system.energy)}, commit=False)
-    wandb.log({'forces': torch.mean(torch.norm(md_system.forces, dim=-1))}, commit=False)
+def wandb_summary(wandb_run, md_system):
+    if wandb_run is None:
+        return
+    wandb_run.log({'energy': torch.mean(md_system.energy)}, commit=False)
+    wandb_run.log({'forces': torch.mean(torch.norm(md_system.forces, dim=-1))}, commit=False)
     pos = md_system.positions
     n_mols = md_system.n_molecules
     pos = torch.reshape(pos, (n_mols, -1, 3))
     distances, _ = utils.calculate_distances_and_directions(pos)
-    wandb.log({'distances': torch.mean(distances)})
+    wandb_run.log({'distances': torch.mean(distances)})
 
 
-def run_molecular_dynamics(args, dataset, model):
-    wandb.login()
-    args_dict = vars(args)
-    if args.args_file_name is not None:
-        wandb_id = args.args_file_name + '_'
-    else:
-        wandb_id = ''
-    wandb_date = directory.split('/')[-1].split('_')[0]
-    wandb_name = wandb_id + wandb_date
-    wandb_id = wandb_name + '_' + model_code
-    wandb_run = wandb.init(project='equiv_dens', config=args_dict,
+def run_molecular_dynamics(args, dataset, model, directory=None, model_code=None):
+    wandb_run = None
+    try:
+        wandb.login()
+        args_dict = vars(args)
+        if args.args_file_name is not None:
+            wandb_id = args.args_file_name + '_'
+        else:
+            wandb_id = ''
+        restart_dir = directory if directory is not None else args.restart
+        wandb_date = restart_dir.split('/')[-1].split('_')[0]
+        wandb_name = wandb_id + wandb_date
+        wandb_id = wandb_name + '_' + (model_code if model_code is not None else 'unknown')
+        wandb_run = wandb.init(project='equiv_dens', config=args_dict,
                            name=wandb_name, id=wandb_id, resume='allow')
+    except Exception as e:
+        print(f"wandb init failed ({e}), continuing without logging")
     np.random.seed(args.split_seed)
     # start_ind = 10
     if args.start_idx is None:
@@ -78,7 +88,7 @@ def run_molecular_dynamics(args, dataset, model):
     # Initialize momenta of the system
     md_initializer.initialize_system(md_system)
 
-    time_step = 0.5  # fs
+    time_step = getattr(args, 'md_timestep_fs', 0.5)  # fs, configurable (1.0 matches AIMNet)
 
     # Setup the integrator
     md_integrator = VelocityVerlet(time_step)
@@ -105,6 +115,16 @@ def run_molecular_dynamics(args, dataset, model):
         use_gpu=args.use_gpu,
         cutoff=args.cutoff,
         pyscf_grid=args.pyscf_grid,
+        atom_dens=dataset.atom_dens,
+        atom_dens_type=args.atom_dens_type,
+        remove_atom_density=args.remove_atom_density,
+        dpm_intor=getattr(args, 'dpm_intor', False),
+        enable_tf32=getattr(args, 'enable_tf32', True),
+        enable_inference_mode=getattr(args, 'enable_inference_mode', True),
+        cache_grid=getattr(args, 'cache_grid', True),
+        grid_cache_threshold=getattr(args, 'grid_cache_threshold', 0.1),
+        use_fast_inference=getattr(args, 'use_fast_inference', False),
+        compile_model=getattr(args, 'compile_model', False),
     )
 
     simulation_hooks = []
@@ -123,15 +143,25 @@ def run_molecular_dynamics(args, dataset, model):
         callback_hooks.PropertyStream(target_properties=target_properties),
     ]
 
-    # Create the file logger
+    # Create the file logger (log_every_n_steps=4 gives dipole output every 4 fs at 1 fs timestep)
+    log_every_n = getattr(args, 'log_every_n_steps', 1)
     file_logger = callback_hooks.FileLogger(
         log_file,
         buffer_size,
-        data_streams=data_streams
+        data_streams=data_streams,
+        every_n_steps=log_every_n,
     )
 
     # Update the simulation hooks
     simulation_hooks.append(file_logger)
+
+    # Console logger for conventional MD-style output
+    console_logger = MDConsoleLogger(
+        every_n_steps=args.console_log_interval,
+        time_step_fs=time_step,
+        energy_unit=args.energy_conversion,
+    )
+    simulation_hooks.append(console_logger)
 
     # Set the path to the checkpoint file
     chk_file = os.path.join(args.md_log_dir, 'simulation' + args.log_suffix + '.chk')
@@ -154,9 +184,11 @@ def run_molecular_dynamics(args, dataset, model):
         if args.langevin:
             simulation_hooks.append(langevin)
         elif args.new_run:
-            warmup_hooks = simulation_hooks + [langevin]
+            # Exclude FileLogger from warmup to avoid h5py "file already open" when main run starts
+            warmup_hooks = [h for h in simulation_hooks if not isinstance(h, callback_hooks.FileLogger)] + [langevin]
             warmup_simulator = Simulator(md_system, md_integrator, md_calculator,
-                                         simulator_hooks=warmup_hooks)
+                                         simulator_hooks=warmup_hooks,
+                                         progress=False)
             if args.use_gpu:
                 warmup_simulator = warmup_simulator.to('cuda')
             warmup_simulator = warmup_simulator.to(args.dtype)
@@ -168,11 +200,12 @@ def run_molecular_dynamics(args, dataset, model):
             print('finishing warm up')
 
     md_simulator = Simulator(md_system, md_integrator, md_calculator,
-                             simulator_hooks=simulation_hooks)
+                             simulator_hooks=simulation_hooks,
+                             progress=False)
 
     if os.path.exists(chk_file):
         print('restarting past model')
-        state_dict = torch.load(chk_file)
+        state_dict = torch.load(chk_file, weights_only=False)
         md_simulator.restart_simulation(state_dict)
     if args.use_gpu:
         md_simulator = md_simulator.to('cuda')
@@ -196,8 +229,11 @@ if __name__ == "__main__":
     directory = args.restart  # load directory name
     # load latest checkpoint
     checkpoint_path = os.path.join(directory, 'checkpoints')  # checkpoint directory
-    checkpoint = torch.load(os.path.join(
-        checkpoint_path, 'latest_checkpoint.pth'), map_location='cpu')
+    checkpoint = torch.load(
+        os.path.join(checkpoint_path, 'latest_checkpoint.pth'),
+        map_location='cpu',
+        weights_only=False,
+    )
     latest_checkpoint = checkpoint['step']
     model_code = checkpoint['ID']  # load ID
     for arg in vars(checkpoint['args']):
@@ -216,6 +252,14 @@ if __name__ == "__main__":
     # determine whether GPU is used for training
     print('args use gpu', args.use_gpu)
     args.use_gpu = args.use_gpu and torch.cuda.is_available()
+
+    # Allow MD without density files (inference-only; model predicts energy/forces)
+    dens = getattr(args, 'dens_dataset', None)
+    if not dens or (isinstance(dens, str) and (not dens.strip() or not os.path.exists(dens))):
+        args.dens_dataset = None
+    dens_test = getattr(args, 'dens_dataset_test', None)
+    if not dens_test or (isinstance(dens_test, str) and (not dens_test.strip() or not os.path.exists(dens_test))):
+        args.dens_dataset_test = None
 
     # load dataset(s)
     print("loading density from" + str(args.dens_dataset) + "...")
@@ -248,7 +292,9 @@ if __name__ == "__main__":
                                grid_origin=grid_origin,
                                cutoff=args.cutoff,
                                verbose=args.verbose,
-                               df_loss_weights=args.df_loss_weights)
+                               df_loss_weights=args.df_loss_weights,
+                               atom_dens_path=args.atom_dens_path,
+                               atom_dens_type=args.atom_dens_type)
 
     test_dataset = AtomsDensityData(np_path=args.np_dataset_test, density_path=args.dens_dataset_test,
                                     orbitals_path=args.orbitals_file,
@@ -264,7 +310,9 @@ if __name__ == "__main__":
                                     grid_origin=grid_origin,
                                     cutoff=args.cutoff,
                                     verbose=args.verbose,
-                                    df_loss_weights=args.df_loss_weights)
+                                    df_loss_weights=args.df_loss_weights,
+                                    atom_dens_path=args.atom_dens_path,
+                                    atom_dens_type=args.atom_dens_type)
     # if args.center_energy:
     #     if args.atomic_energies is None:
     #         energy_mean = dataset.atoms['energy'].mean()
@@ -282,7 +330,7 @@ if __name__ == "__main__":
         os.makedirs(args.md_log_dir)
 
     if args.simulation_type == 'md':
-        run_molecular_dynamics(args, test_dataset, model)
+        run_molecular_dynamics(args, test_dataset, model, directory=directory, model_code=model_code)
     # elif args.simulation_type == 'opt':
     #     run_optimization(args, dataset, model)
     else:

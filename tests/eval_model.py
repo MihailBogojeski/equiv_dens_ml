@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""Evaluate trained model on test dataset. Run via: run.py test -C <checkpoint_dir> [@args.txt]"""
+
 import os
 import torch
 from equiv_dens.training.parse_command_line_arguments import parse_command_line_arguments
@@ -122,7 +124,7 @@ for test_dat in datasets:
                     # print('saved results', key, ' extend before', saved_results[key].shape)
                     # print('predictions', key, ' extend before', predictions[key].shape)
                     if isinstance(predictions[key], torch.Tensor):
-                        saved_results[key] = torch.cat((saved_results[key], predictions[key].detach().cpu()), dim=0) 
+                        saved_results[key] = torch.cat((saved_results[key], predictions[key].detach().cpu()), dim=0)
                     # print('saved results', key, ' extend after', saved_results[key].shape)
                     # if key == 'density':
                         # print('data density integral', torch.sum(data['density'] * data['coord_weights'], dim=1))

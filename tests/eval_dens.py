@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""Evaluate density-only model on test dataset."""
+
 import os
 import torch
 import torch.nn as nn
@@ -30,8 +32,11 @@ print('args use gpu', args.use_gpu)
 directory = args.restart  # load directory name
 # load latest checkpoint
 checkpoint_path = os.path.join(directory, 'checkpoints')  # checkpoint directory
-checkpoint = torch.load(os.path.join(
-    checkpoint_path, 'latest_checkpoint.pth'), map_location='cpu')
+checkpoint = torch.load(
+    os.path.join(checkpoint_path, 'latest_checkpoint.pth'),
+    map_location='cpu',
+    weights_only=False,
+)
 latest_checkpoint = checkpoint['step']
 model_code = checkpoint['ID']  # load ID
 for arg in vars(checkpoint['args']):
@@ -172,7 +177,9 @@ print(args.restart)
 print(best_model_path)
 state_dict_path = os.path.join(args.restart, best_model_path)
 print(state_dict_path)
-state_dict = torch.load(state_dict_path, map_location='cpu')
+state_dict = torch.load(
+    state_dict_path, map_location='cpu', weights_only=False
+)
 model.load_state_dict(state_dict)
 model.to(device)
 model.to(args.dtype)
