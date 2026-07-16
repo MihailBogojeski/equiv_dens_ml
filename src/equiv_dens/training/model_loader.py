@@ -101,8 +101,15 @@ def load_model(args, dataset, train=False):
         density_coeffs_network = DensityCoeffsNetwork
         density_expansion = DensityExpansion
 
-
-        if args.density_coeffs:
+        # dens_model (DensityCoeffsNetwork) produces spherical_coeffs needed for either
+        # DensityExpansion (grid) or DipoleMomentIntorCalc (analytic dipole). Create it when:
+        # - density_coeffs (standard arch) OR
+        # - dpm_intor + dipole needed (analytic path requires spherical_coeffs from density branch)
+        need_spherical_coeffs = (
+            args.density_weight > 0
+            or (args.dipole_moment_weight > 0 and args.dpm_intor)
+        )
+        if args.density_coeffs or need_spherical_coeffs:
             dens_model = density_coeffs_network(
                 orbital_basis=dataset.orbital_basis_num,
                 order=args.order[-1],
@@ -128,9 +135,7 @@ def load_model(args, dataset, train=False):
                 linear_out=args.remove_atom_density,
             )
 
-        print('args dpm intor', args.dpm_intor)
         if args.density_weight > 0 or (args.dipole_moment_weight > 0 and not args.dpm_intor):
-            print('adding expansion model')
             expansion_model = density_expansion(dataset.orbital_basis_num,
                                                 expansion_constraint=args.expansion_constraint,
                                                 integral_constraint=args.integral_constraint,
@@ -274,7 +279,8 @@ def load_model(args, dataset, train=False):
                                    store_energy=(args.energy_model is None))
         functional_en_model = nn.Sequential(expansion_model, functional)
 
-    if args.density_coeffs:
+    # Use dens_model (produces spherical_coeffs) when needed for density or analytic dipole
+    if args.density_coeffs or (args.dipole_moment_weight > 0 and args.dpm_intor):
         density_model = nn.Sequential(repr_model, dens_model)
     else:
         density_model = repr_model
@@ -295,9 +301,11 @@ def load_model(args, dataset, train=False):
         calculate_forces_dict['energy'] = calculate_forces
     if args.dipole_moment_weight:
         if args.dpm_intor:
-            property_models['dipole_moment'] = DipoleMomentIntorCalc(orbital_basis=dataset.orbital_basis_num,
-                                                                     remove_atom_density=args.remove_atom_density,
-                                                                     )
+            property_models['dipole_moment'] = DipoleMomentIntorCalc(
+                orbital_basis=dataset.orbital_basis_num,
+                remove_atom_density=args.remove_atom_density,
+                dipole_every_n_steps=getattr(args, 'dipole_every_n_steps', 1),
+            )
         else:
             property_models['dipole_moment'] = DipoleMomentCalc()
         calculate_forces_dict['dipole_moment'] = False
@@ -317,28 +325,73 @@ def load_model(args, dataset, train=False):
         directory = args.restart  # load directory name
     # load latest checkpoint
         checkpoint_path = os.path.join(directory, 'checkpoints')  # checkpoint directory
-        checkpoint = torch.load(os.path.join(
-            checkpoint_path, 'latest_checkpoint.pth'), map_location='cpu')
+        checkpoint = torch.load(
+            os.path.join(checkpoint_path, 'latest_checkpoint.pth'),
+            map_location='cpu',
+            weights_only=False,
+        )
         model_code = checkpoint['ID']
         best_model_path = 'best_' + model_code + '.pth'
-        # print('best_model_path', best_model_path)
-        # print('args restart', args.restart)
-        # print('best_model_path', best_model_path)
         if train:
             state_dict = checkpoint['model_state_dict']
         else:
             state_dict_path = os.path.join(args.restart, best_model_path)
-            state_dict = torch.load(state_dict_path, map_location='cpu')
+            if not os.path.isfile(state_dict_path):
+                # Fallback: trainer may have saved only phase-named checkpoints
+                # (best_checkpoint_energy.pth / best_checkpoint_density.pth)
+                need_energy = args.energy_weight + args.forces_weight > 0
+                fallback_candidates = (
+                    [os.path.join(checkpoint_path, 'best_checkpoint_energy.pth')]
+                    if need_energy
+                    else []
+                ) + [
+                    os.path.join(checkpoint_path, 'best_checkpoint_density.pth'),
+                    os.path.join(checkpoint_path, 'latest_checkpoint.pth'),
+                ]
+                loaded = None
+                for candidate in fallback_candidates:
+                    if os.path.isfile(candidate):
+                        loaded = torch.load(
+                            candidate, map_location='cpu', weights_only=False
+                        )
+                        state_dict = loaded.get('model_state_dict', loaded)
+                        state_dict_path = candidate
+                        break
+                if loaded is None:
+                    raise FileNotFoundError(
+                        f"Best checkpoint not found: {state_dict_path} and no fallback "
+                        f"(best_checkpoint_energy.pth / best_checkpoint_density.pth) in {checkpoint_path}"
+                    )
+            else:
+                state_dict = torch.load(
+                    state_dict_path, map_location='cpu', weights_only=False
+                )
+                if isinstance(state_dict, dict) and 'model_state_dict' in state_dict:
+                    state_dict = state_dict['model_state_dict']
+            # Check for MD: energy/forces require a full model, not density-only
+            if args.energy_weight + args.forces_weight > 0:
+                has_energy = any('property_models.energy' in k for k in state_dict.keys())
+                if not has_energy:
+                    raise RuntimeError(
+                        f"Checkpoint {state_dict_path} is density-only (no energy model). "
+                        "MD requires a model trained with energy+forces. "
+                        "Use a checkpoint from joint density+energy training, or see "
+                        "paper/models/polythiophene/archive_old_models/ (may need legacy code)."
+                    )
         # print('state_dict_path', state_dict_path)
         if not train and args.load_from is not None and args.density_weight > 0:
             # print('loading from', args.load_from)
             load_code = args.load_from.split('_')[-1]
-            model_dict = torch.load(os.path.join(args.load_from, 'best_' + load_code + '.pth'), map_location='cpu')
+            model_dict = torch.load(
+                os.path.join(args.load_from, 'best_' + load_code + '.pth'),
+                map_location='cpu',
+                weights_only=False,
+            )
             for key in model_dict.keys():
                 if 'property_models.density' in key:
                     state_dict[key] = model_dict[key]
         missing, unexpected = model.load_state_dict(state_dict, strict=False)
-        if len(unexpected) > 0:
+        if len(unexpected) > 0 and not getattr(args, 'ignore_unexpected_keywords', False):
             for key in unexpected:
                 if args.density_weight + args.df_weight > 0 \
                         and 'property_models.energy' not in key \

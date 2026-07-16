@@ -191,25 +191,3 @@ def density_grad_norm_int(pred_dens_grad, target_dens_grad, grid_weights):
     """
 
     return torch.sum(torch.norm(pred_dens_grad - target_dens_grad, dim=-1) * grid_weights)
-
-
-def L2_reg_on_pd_orbitals(radial_widths, alpha_cutoff = None):
-    """ loss = \sum_i coeff_i^2
-    where i goes over all basis functions with l>0
-    alpha_cutoff turns off L2 regularization for the widest orbitals
-    """
-    L2_loss = 0
-    for widths in radial_widths:
-        for key in widths.keys():
-            L, z = key
-            if L == 0:
-                continue
-            alpha = widths.clone()
-            if alpha_cutoff is not None:
-                if alpha_cutoff > 0:
-                    alpha = alpha * (alpha < alpha_cutoff).to(alpha)
-                else:
-                    alpha = (1/alpha) * (alpha > torch.abs(alpha_cutoff)).to(alpha)
-            L2_loss = L2_loss + torch.sum(alpha**2)
-
-    return L2_loss

@@ -1,8 +1,18 @@
+import numpy as np
 import torch
 import torch.nn as nn
+from pyscf import gto
+
 from equiv_dens.utils import orbitals
 from equiv_dens.utils import base as utils
-from pyscf import gto
+
+try:
+    import cupy as cp
+
+    _CUPY_AVAILABLE = True
+except Exception:
+    cp = None
+    _CUPY_AVAILABLE = False
 
 
 class DipoleMomentCalc(nn.Module):
@@ -15,7 +25,9 @@ class DipoleMomentCalc(nn.Module):
         positive_dens = (density >= 0).to(density)
         density = density * positive_dens
         n_electrons = orbitals.get_n_electrons(atoms['batch_atom_numbers'])
-        scaling_factor = n_electrons / torch.sum(density * atoms['coord_weights'], dim=1, keepdim=True)
+        dens_sum = torch.sum(density * atoms['coord_weights'], dim=1, keepdim=True)
+        dens_sum = torch.clamp(dens_sum, min=1e-30)  # avoid inf scaling
+        scaling_factor = n_electrons / dens_sum
         density = density * scaling_factor
         if center_coordinates:
             center_of_mass = torch.sum(atoms['batch_positions'] * atoms['batch_atom_numbers'].unsqueeze(-1), dim=1, keepdim=True)\
@@ -41,11 +53,44 @@ class DipoleMomentCalc(nn.Module):
 
 
 class DipoleMomentIntorCalc(nn.Module):
+    """
+    Analytic dipole moment from ML density coefficients (paper-critical).
 
-    def __init__(self, orbital_basis, remove_atom_density=False):
+    Evaluates mu = sum_A Z_A R_A - integral r rho(r) dr using PySCF int1e_r
+    (or GPU path in ``equiv_dens.integral.dipole_gpu`` when available).
+    Supports free-atom density subtraction and integral caching for MD:
+    when geometry displacement is below ``integral_cache_threshold``, reuse
+    cached integrals and only recompute the coefficient contraction.
+
+    Args:
+        orbital_basis: Atom-centered orbital basis specification.
+        remove_atom_density: Subtract free-atom densities before dipole eval.
+        cache_integrals: Reuse int1e_r when geometry changes are small (MD).
+        integral_cache_threshold: Max displacement (Angstrom) for cache reuse.
+        dipole_every_n_steps: Compute dipole every N MD steps (default 1).
+    """
+
+    def __init__(self, orbital_basis, remove_atom_density=False, cache_integrals=True,
+                 integral_cache_threshold=0.5, dipole_every_n_steps=1):
         super().__init__()
         self.orbital_basis = orbital_basis
         self.remove_atom_density = remove_atom_density
+        self.cache_integrals = cache_integrals
+        self.integral_cache_threshold = integral_cache_threshold
+        self.dipole_every_n_steps = max(1, int(dipole_every_n_steps))
+        self._cached_positions = None
+        self._cached_int1e_r = []
+        self._cached_el_dip = None  # Reused when dipole_every_n_steps > 1
+        self._dipole_call_count = 0
+
+    def _can_use_cached_integrals(self, coords):
+        """Return True if cached integrals can be reused (small displacement)."""
+        if not self.cache_integrals or self._cached_positions is None:
+            return False
+        if self._cached_positions.shape != coords.shape:
+            return False
+        displacement = torch.max(torch.abs(coords - self._cached_positions))
+        return displacement.item() < self.integral_cache_threshold
 
     def forward(self, atoms):
         df_coeffs_ml = orbitals.coeffs_dict_to_vector(atoms, self.orbital_basis, atoms['batch_atom_numbers'],
@@ -54,22 +99,51 @@ class DipoleMomentIntorCalc(nn.Module):
         coords = atoms['batch_positions']
 
         nucl_dip = torch.sum(charges.unsqueeze(-1) * coords, dim=1)
-        batch_dens_dip = []
-        for i in range(atoms['batch_atom_numbers'].shape[0]):
-            auxmol_ml = orbitals.ml_basis_to_auxmol(atoms, i, skip_zero=False)
-            helper_mol = orbitals.build_1c1e_helper_mol(auxmol_ml)
-            intor_idx = [
-                auxmol_ml.bas_atom(ibas)
-                for ibas in range(auxmol_ml.nbas) for _ in range(auxmol_ml.bas_angular(ibas) * 2 + 1)
-            ]
-            int1e_r = gto.mole.intor_cross('int1e_r', helper_mol, auxmol_ml)
-            int1e_r = int1e_r[:, intor_idx, range(auxmol_ml.nao)]
-            int1e_r = utils.bohr_to_angstrom(torch.from_numpy(int1e_r).to(nucl_dip))
-            # ml_dip = utils.bohr_to_angstrom(nucl_dip - torch.einsum('ji,i->j', int1e_r, df_coeffs_ml))
-            el_dip = torch.einsum('ji,i->j', int1e_r, df_coeffs_ml[i])
-            batch_dens_dip.append(el_dip)
+        batch_size = atoms['batch_atom_numbers'].shape[0]
 
-        dens_dip = torch.stack(batch_dens_dip, dim=0)
+        self._dipole_call_count += 1
+        compute_integrals = (
+            self.dipole_every_n_steps <= 1
+            or self._dipole_call_count % self.dipole_every_n_steps == 1
+            or self._cached_el_dip is None
+        )
+
+        if not compute_integrals and self._cached_el_dip is not None:
+            dens_dip = self._cached_el_dip.to(coords)
+        else:
+            batch_dens_dip = []
+            use_cached = self._can_use_cached_integrals(coords) and len(self._cached_int1e_r) == batch_size
+
+            for i in range(batch_size):
+                if use_cached and i < len(self._cached_int1e_r):
+                    int1e_r = self._cached_int1e_r[i].to(coords)
+                else:
+                    auxmol_ml = orbitals.ml_basis_to_auxmol(atoms, i, skip_zero=False)
+                    helper_mol = orbitals.build_1c1e_helper_mol(auxmol_ml)
+                    intor_idx = [
+                        auxmol_ml.bas_atom(ibas)
+                        for ibas in range(auxmol_ml.nbas) for _ in range(auxmol_ml.bas_angular(ibas) * 2 + 1)
+                    ]
+                    # PySCF libcint (CPU) is ~10k× faster than CuPy implementation for small molecules
+                    int1e_r_arr = gto.mole.intor_cross("int1e_r", helper_mol, auxmol_ml)
+                    int1e_r_arr = int1e_r_arr[:, intor_idx, range(auxmol_ml.nao)]
+                    int1e_r = torch.from_numpy(int1e_r_arr).to(coords.dtype).to(coords.device)
+                    int1e_r = utils.bohr_to_angstrom(int1e_r)
+                    if self.cache_integrals:
+                        if i >= len(self._cached_int1e_r):
+                            self._cached_int1e_r.append(int1e_r.detach())
+                        else:
+                            self._cached_int1e_r[i] = int1e_r.detach()
+
+                el_dip = torch.einsum('ji,i->j', int1e_r, df_coeffs_ml[i])
+                batch_dens_dip.append(el_dip)
+
+            if self.cache_integrals and not use_cached:
+                self._cached_positions = coords.detach().clone()
+
+            dens_dip = torch.stack(batch_dens_dip, dim=0)
+            if self.dipole_every_n_steps > 1:
+                self._cached_el_dip = dens_dip.detach().clone()
 
         if self.remove_atom_density:
             atoms = orbitals.intor_dipole_moment_free_atom(atoms)

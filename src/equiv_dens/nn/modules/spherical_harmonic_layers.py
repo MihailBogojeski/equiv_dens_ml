@@ -352,7 +352,7 @@ class PairMixing(nn.Module):
                 self.order_in1, self.order_in2, self.order_out
             )
         else:
-            cg_matrix = torch.ones((1, 1, 1)).to(x1s[0])
+            cg_matrix = torch.ones((1, 1, 1), device=x1s[0].device, dtype=x1s[0].dtype)
         # loop over all combinations of orders
         # print('xs1 pairmix norm', [float(torch.mean(x1s[L] ** 2)) for L in range(len(x1s))])
         # print('xs2 pairmix norm', [float(torch.mean(x2s[L] ** 2)) for L in range(len(x2s))])
@@ -481,7 +481,7 @@ class PairInteraction(nn.Module):
                 self.order, self.order, self.order
             )
         else:
-            cg_matrix = torch.ones((1, 1, 1)).to(x1s[0])
+            cg_matrix = torch.ones((1, 1, 1), device=x1s[0].device, dtype=x1s[0].dtype)
         # loop over all combinations of orders
         # print('xs1 pairmix norm', [float(torch.mean(x1s[L] ** 2)) for L in range(len(x1s))])
         # print('xs2 pairmix norm', [float(torch.mean(x2s[L] ** 2)) for L in range(len(x2s))])

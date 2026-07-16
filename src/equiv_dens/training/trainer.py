@@ -191,8 +191,11 @@ class Trainer:
 
     def restore_checkpoint(self):
         print('RESTORING CHECKPOINT')
-        checkpoint = torch.load(os.path.join(
-            self.checkpoint_path, 'latest_checkpoint.pth'), map_location='cpu')
+        checkpoint = torch.load(
+            os.path.join(self.checkpoint_path, 'latest_checkpoint.pth'),
+            map_location='cpu',
+            weights_only=False,
+        )
         # self.args = checkpoint['args']  # overwrite args
         for arg in vars(checkpoint['args']):
             if self.args.fix_hyperparams:
@@ -214,11 +217,8 @@ class Trainer:
             self.error_dict.relative_en = False
         for i in range(len(self.schedulers)):
             self.schedulers[i].load_state_dict(checkpoint['schedulers_state_dict'][i])
-        print('len optimizers', len(self.optimizers))
         for i in range(len(self.optimizers)):
             # try:
-            print(f'self optimizers [{i}] len', len(self.optimizers[i].param_groups))
-            print(f'chk optimizers [{i}] len', len(checkpoint['optimizers_state_dict'][i]))
             self.optimizers[i].load_state_dict(checkpoint['optimizers_state_dict'][i])
             # except Exception:
             #     self.schedulers[i]['last_lr'] = self.schedulers[i]['last_lr'] / 1000
@@ -422,9 +422,11 @@ class Trainer:
             for k in errors.keys():
                 print('key', k)
                 print('nans', torch.any(torch.isnan(errors[k])))
-            torch.save(predictions, self.model_code + '_pred_crash_dump_train_' + str(self.step) + '.pth')
-            torch.save(data, self.model_code + '_true_crash_dump_train_' + str(self.step) + '.pth')
-            torch.save(self._module.state_dict(), self.model_code + '_model_crash_dump_train_' + str(self.step) + '.pth')
+            crash_dir = os.path.join(self.model_path, "crash_dumps")
+            os.makedirs(crash_dir, exist_ok=True)
+            torch.save(predictions, os.path.join(crash_dir, self.model_code + '_pred_crash_dump_train_' + str(self.step) + '.pth'))
+            torch.save(data, os.path.join(crash_dir, self.model_code + '_true_crash_dump_train_' + str(self.step) + '.pth'))
+            torch.save(self._module.state_dict(), os.path.join(crash_dir, self.model_code + '_model_crash_dump_train_' + str(self.step) + '.pth'))
             return
 
         start_bw = time.time()
@@ -562,9 +564,11 @@ class Trainer:
                 for k in errors.keys():
                     print('key', k)
                     print('nans', torch.any(torch.isnan(errors[k])))
-                torch.save(predictions, self.model_code + '_pred_crash_dump_valid_' + str(self.step) + '.pth')
-                torch.save(data, self.model_code + '_true_crash_dump_valid_' + str(self.step) + '.pth')
-                torch.save(self._module.state_dict(), self.model_code + '_model_crash_dump_valid_' + str(self.step) + '.pth')
+                crash_dir = os.path.join(self.model_path, "crash_dumps")
+                os.makedirs(crash_dir, exist_ok=True)
+                torch.save(predictions, os.path.join(crash_dir, self.model_code + '_pred_crash_dump_valid_' + str(self.step) + '.pth'))
+                torch.save(data, os.path.join(crash_dir, self.model_code + '_true_crash_dump_valid_' + str(self.step) + '.pth'))
+                torch.save(self._module.state_dict(), os.path.join(crash_dir, self.model_code + '_model_crash_dump_valid_' + str(self.step) + '.pth'))
                 continue
             # print('valid errors', errors)
             for key in errors.keys():
@@ -610,54 +614,48 @@ class Trainer:
 
     def write_summary(self, new_valid, new_best):
         # if training phases are given, log to wandb with separate x-axis
-        if self.training_phases is not None:
-            phase_metric = f'step_{self.training_phases[0]}'
-            def wandb_uncommited_log(data):
-                self.wandb.log({**data, phase_metric: self.step}, commit=False)
-        else:
-            def wandb_uncommited_log(data):
-                self.wandb.log(data, commit=False)
+        if self.wandb is not None:
+            if self.training_phases is not None:
+                phase_metric = f'step_{self.training_phases[0]}'
+                def wandb_uncommited_log(data):
+                    self.wandb.log({**data, phase_metric: self.step}, commit=False)
+            else:
+                def wandb_uncommited_log(data):
+                    self.wandb.log(data, commit=False)
 
-        for key in self.train_errors.keys():
-            # self.summary.add_scalar(key + '/train', self.train_errors[key], self.step)
-            wandb_uncommited_log({key + '_train': self.train_errors[key]})
+            for key in self.train_errors.keys():
+                wandb_uncommited_log({key + '_train': self.train_errors[key]})
 
-        if new_valid:
-            for valid_err in self.valid_errors:
-                for key in valid_err.keys():
-                    # self.summary.add_scalar(key + '/valid', valid_err[key], self.step)
-                    wandb_uncommited_log({key + '_valid': valid_err[key]})
-            new_valid = False
+            if new_valid:
+                for valid_err in self.valid_errors:
+                    for key in valid_err.keys():
+                        wandb_uncommited_log({key + '_valid': valid_err[key]})
+                new_valid = False
 
-        if new_best:
-            for key in self.best_errors.keys():
-                # self.summary.add_scalar(key + '/best', self.best_errors[key], self.step)
-                self.wandb.summary[key + '_valid_best'] = self.best_errors[key]
-            new_best = False
+            if new_best:
+                for key in self.best_errors.keys():
+                    self.wandb.summary[key + '_valid_best'] = self.best_errors[key]
+                new_best = False
 
-        if self.clip_norm > 0:
-            # self.summary.add_scalar('gradient/norm', self.gradient_norm, self.step)
-            wandb_uncommited_log({'gradient_norm': self.gradient_norm})
+            if self.clip_norm > 0:
+                wandb_uncommited_log({'gradient_norm': self.gradient_norm})
 
-        wandb_uncommited_log({'learning rate': self.optimizers[0].param_groups[0]['lr']})
+            wandb_uncommited_log({'learning rate': self.optimizers[0].param_groups[0]['lr']})
 
-        # write optional summaries for model parameters
-        if self.args.write_parameter_summaries:
-            for name, param in self._module.named_parameters():
-                splitted_name = name.split('.', 1)
-                if len(splitted_name) > 1:
-                    first, last = splitted_name
-                else:
-                    first = 'nn'
-                    last = splitted_name[0]
-                if param.numel() > 1 and param.requires_grad:  # only tensors get written as histogram
-                    hist = wandb.Histogram(param.clone().cpu().data.numpy())
-                    wandb_uncommited_log({first + '_' + last: hist})
-                    # self.summary.add_histogram(
-                    #     first + '/' + last, param.clone().cpu().data.numpy(), self.step)
+            # write optional summaries for model parameters
+            if self.args.write_parameter_summaries:
+                for name, param in self._module.named_parameters():
+                    splitted_name = name.split('.', 1)
+                    if len(splitted_name) > 1:
+                        first, last = splitted_name
+                    else:
+                        first = 'nn'
+                        last = splitted_name[0]
+                    if param.numel() > 1 and param.requires_grad:
+                        hist = wandb.Histogram(param.clone().cpu().data.numpy())
+                        wandb_uncommited_log({first + '_' + last: hist})
 
-        # commit logging step (empty dict with commit=True)
-        self.wandb.log({})
+            self.wandb.log({})
 
         # print progress to consoles
         progress_string = str(self.step).zfill(

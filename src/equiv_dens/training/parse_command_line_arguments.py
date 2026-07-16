@@ -36,6 +36,8 @@ def parse_command_line_arguments(arg_file=None):
                               help="Save filename of .txt file containing arguments for easier bookkeeping.")
     args_restart.add_argument("--ignore_missing_keywords", metavar='True|False', type=str2bool, default=False,
                               choices=[True, False], help="Ignore missing keywords when loading the model.")
+    args_restart.add_argument("--ignore_unexpected_keywords", metavar='True|False', type=str2bool, default=False,
+                              choices=[True, False], help="Ignore unexpected keywords in checkpoint (e.g. older model with extra mixing params).")
 
     # arguments for neural network architecture hyperparameters
     args_hyperparams = parser.add_argument_group("neural network architecture hyperparameters")
@@ -192,10 +194,6 @@ def parse_command_line_arguments(arg_file=None):
                                help="weight of the density in the loss function")
     args_training.add_argument("--density_grad_weight", metavar='FLOAT', type=float, default=0.0,
                                help="weight of the density gradient in the loss function")
-    args_training.add_argument("--width_reg_weight", metavar='FLOAT', type=float, default=0.0,
-                               help="weight of the width regularization in the loss function")
-    args_training.add_argument("--width_reg_cutoff", metavar='FLOAT', type=float, default=None,
-                               help="Cutoff for the width regularization")
     args_training.add_argument("--df_weight", metavar='FLOAT', type=float, default=0.0,
                                help="weight of the density fitting coeffs in the loss function")
     args_training.add_argument("--dipole_moment_weight", metavar='FLOAT', type=float, default=0.0,
@@ -358,12 +356,6 @@ def parse_command_line_arguments(arg_file=None):
                                choices=['online', 'offline', 'disabled'], help="Wandb mode.")
     args_training.add_argument("--remove_atom_density", metavar='True|False', type=str2bool, default=False,
                                choices=[True, False], help="Remove the free atom density from the total density.")
-    args_training.add_argument("--dens_sqrt", metavar='True|False', type=str2bool, default=False,
-                               choices=[True, False], help="Fit to square root of density.")
-    args_training.add_argument("--valence_dens", metavar='True|False', type=str2bool, default=False,
-                               choices=[True, False], help="Fit to square root of density.")
-    args_training.add_argument("--full_valence", metavar='True|False', type=str2bool, default=True,
-                               choices=[True, False], help="Fit to square root of density.")
     args_training.add_argument('--atom_dens_path', metavar='STR', type=str,
                                help="Path to free atom densities file.")
     args_training.add_argument('--atom_dens_type', metavar='STR', type=str,
@@ -386,10 +378,13 @@ def parse_command_line_arguments(arg_file=None):
     args_simulation.add_argument("--new_run", metavar='True|False', type=str2bool, default=True,
                                  choices=[True, False],
                                  help="If true start new simulation, otherwise continue previous one.")
-    args_simulation.add_argument("--log_dir", metavar='STR', default='.', type=str, help="Path to simulation and logs directory.")
+    args_simulation.add_argument("--log_dir", metavar='STR', default='scratch', type=str,
+                                 help="Path to simulation and logs directory (default: scratch).")
     args_simulation.add_argument("--log_suffix", metavar='STR', default='', type=str, help="Suffix for the log file.")
     args_simulation.add_argument("--md_steps", metavar='INT', type=int, default=100,
                                  help="Number of molecular dynamic steps.")
+    args_simulation.add_argument("--md_timestep_fs", metavar='FLOAT', type=float, default=0.5,
+                                 help="MD timestep in femtoseconds (default: 0.5). Use 1.0 to match AIMNet for 2x speedup.")
     args_simulation.add_argument("--langevin", metavar='True|False', type=str2bool, default=True,
                                  choices=[True, False], help="If true use Langevin dynamics, else use velocity Verlet.")
     args_simulation.add_argument("--warm_up", metavar="True|False", type=str2bool, default=True,
@@ -402,10 +397,29 @@ def parse_command_line_arguments(arg_file=None):
     args_simulation.add_argument("--position_conversion", metavar='STR', default='Ang', type=str, help="Position conversion unit.")
     args_simulation.add_argument("--energy_conversion", metavar='STR', default='kcal/mol', type=str, help="Energy conversion unit.")
     args_simulation.add_argument("--start_idx", metavar='INT', type=int, default=[-1], nargs='+', help="Start indices for the simulation.")
+    args_simulation.add_argument("--console_log_interval", metavar='INT', type=int, default=100,
+                                 help="Print MD progress to console every N steps (default 100).")
+    args_simulation.add_argument("--log_every_n_steps", metavar='INT', type=int, default=1,
+                                 help="Write positions/dipoles to HDF5 every N steps (default 1). Use 4 for 4 fs spacing at 1 fs timestep.")
+    args_simulation.add_argument("--dipole_every_n_steps", metavar='INT', type=int, default=10,
+                                 help="Compute dipole every N MD steps when using dpm_intor (default 10, use 1 for every step).")
+    args_simulation.add_argument("--enable_tf32", metavar='True|False', type=str2bool, default=True,
+                                 choices=[True, False], help="Enable TF32 for faster GPU matmul (default: True).")
+    args_simulation.add_argument("--enable_inference_mode", metavar='True|False', type=str2bool, default=True,
+                                 choices=[True, False], help="Use torch.inference_mode for faster inference (default: True).")
+    args_simulation.add_argument("--cache_grid", metavar='True|False', type=str2bool, default=True,
+                                 choices=[True, False], help="Cache grid coordinates between MD steps (default: True).")
+    args_simulation.add_argument("--grid_cache_threshold", metavar='FLOAT', type=float, default=0.1,
+                                 help="Max position displacement (Angstrom) for grid caching (default: 0.1).")
+    args_simulation.add_argument("--use_fast_inference", metavar='True|False', type=str2bool, default=False,
+                                 choices=[True, False], help="Use FastInferenceWrapper (default: False, can be slower).")
+    args_simulation.add_argument("--compile_model", metavar='True|False', type=str2bool, default=False,
+                                 choices=[True, False], help="Use torch.compile for model (default: False, can be slower).")
 
     # arguments for logging and checkpoints
     args_logging = parser.add_argument_group("logging and checkpoints")
-    args_logging.add_argument("--save_dir", metavar='STR', default='.', type=str, help="Path to model and logs directory.")
+    args_logging.add_argument("--save_dir", metavar='STR', default='scratch/training', type=str,
+                              help="Path to model and logs directory (default: scratch/training).")
     args_logging.add_argument("--write_parameter_summaries", metavar='True|False', type=str2bool,
                               default=False, choices=[True, False], help="write summaries for parameters")
     args_logging.add_argument("--validation_interval", metavar='INT', type=int, default=1,
@@ -431,6 +445,14 @@ def parse_command_line_arguments(arg_file=None):
                            choices=[True, False], help="Don't compare accuracy of test samples, just compute predictions.")
     args_misc.add_argument('--dpm_intor', metavar='True|False', type=str2bool, default=False,
                            choices=[True, False], help="Calculate dipole moments using analytic integrals.")
+
+    # benchmark script arguments (optional, have defaults)
+    args_misc.add_argument('--properties', metavar='STR', type=str, default='energy',
+                           help="Comma-separated properties for benchmark: energy or energy,forces")
+    args_misc.add_argument('--n-warmup', metavar='INT', type=int, default=10,
+                           help="Warmup iterations for benchmark")
+    args_misc.add_argument('--n-runs', metavar='INT', type=int, default=100,
+                           help="Timed iterations for benchmark")
 
     # actually parse command line arguments
     if arg_file is None and len(sys.argv) == 1:  # no arguments were specified, print help message

@@ -234,7 +234,7 @@ class EquivariantSphericalHarmonics(nn.Module):
             print('repr forward start:')
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
             print('Memory cached', torch.cuda.memory_cached() / 1024**2)
-        start = time.time()
+        # start = time.time()
         # for key in atoms.keys():
         #     print('prop', key)
         #     if hasattr(atoms[key], 'shape'):
@@ -252,7 +252,7 @@ class EquivariantSphericalHarmonics(nn.Module):
             print('repr forward distances:')
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
             print('Memory cached', torch.cuda.memory_cached() / 1024**2)
-        rbf = self.radial_basis_functions(dij).unsqueeze_(-2)  # unsqueeze for broadcasting
+        rbf = self.radial_basis_functions(dij).unsqueeze(-2)  # unsqueeze for broadcasting
         # print('rbf shape', rbf.shape)
         # print('rbf', rbf)
         # print('rbf shape', rbf.shape)
@@ -264,7 +264,7 @@ class EquivariantSphericalHarmonics(nn.Module):
         atoms['directions'] = uij
         # print('sph shape', sph[0].shape)
         for L in range(self.order_max + 1):
-            sph[L].unsqueeze_(-1)  # unsqueeze for broadcasting
+            sph[L] = sph[L].unsqueeze(-1)  # unsqueeze for broadcasting
         # print('sph shape', sph[0].shape)
         atoms['sph'] = sph
         # print('sph norm:', [float(torch.mean(torch.norm(sph[L], dim=(-2, -1))**2)) for L in range(len(sph))])
@@ -313,8 +313,8 @@ class EquivariantSphericalHarmonics(nn.Module):
         if self.nonmixing_interaction:
             fs = self.nonmixing_interaction_block(fs, rbf, sph, idx_i, idx_j, neighbor_mask=neighbor_mask)
         atoms['sph_repr'] = fs
-        if self.timing:
-            print('sph repr time', time.time() - start)
+        # if self.timing:
+        #     print('sph repr time', time.time() - start)
         if self.memory:
             print('repr forward end:')
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
