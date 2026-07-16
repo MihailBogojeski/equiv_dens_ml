@@ -8,21 +8,24 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-# Import after potential sys.path setup
+import importlib.util
 import sys
 
-# Ensure equiv_dens_ml is on path when running from project root
+# Load polythiophene_generator directly; a third-party ``scripts`` package in
+# site-packages can shadow the repo's scripts/ directory.
 _script_dir = Path(__file__).resolve().parent
 _project_root = _script_dir.parent
-if str(_project_root) not in sys.path:
-    sys.path.insert(0, str(_project_root))
-
-from scripts.data.polythiophene_generator import (
-    generate_nmer_from_smiles,
-    optimize_with_gxtb,
-    polythiophene_smiles,
-    smiles_to_ase_atoms,
+_generator_path = _project_root / "scripts" / "data" / "polythiophene_generator.py"
+_spec = importlib.util.spec_from_file_location(
+    "polythiophene_generator", _generator_path
 )
+_mod = importlib.util.module_from_spec(_spec)
+assert _spec.loader is not None
+_spec.loader.exec_module(_mod)
+generate_nmer_from_smiles = _mod.generate_nmer_from_smiles
+optimize_with_gxtb = _mod.optimize_with_gxtb
+polythiophene_smiles = _mod.polythiophene_smiles
+smiles_to_ase_atoms = _mod.smiles_to_ase_atoms
 
 
 def test_polythiophene_smiles():

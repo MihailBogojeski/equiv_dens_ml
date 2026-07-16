@@ -13,17 +13,13 @@ Switch to old branch:
 
 Copy the above files in the datasets folder.
 
-Config MD settings in document args/thiophene_poly_all_001_md.txt
+Config MD settings in config/paper/thiophene_poly_all_001_coreless_dpm.txt
 
 Start MD run:
-  python src/equiv_dens/scripts/schnetpack_md_run.py @args/thiophene_poly_all_001_2mer_md.txt
-
-Switch to branch dipole_accuracy:
-  git checkout master
-  git checkout dipole_accuracy
+  python run.py md @config/md/nn/polythiophene_2mer.txt
 
 Convert md trajectory to numpy files:
-  python src/equiv_dens/scripts/schnetpack_md_to_npy.py md_logs/2023-05-27_9yXHffp1/<simulation_file_name>.hdf5 <take_every_n_steps> <n_trajectories>
+  python scripts/md/schnetpack_md_to_npy.py md_logs/2023-05-27_9yXHffp1/<simulation_file_name>.hdf5 <take_every_n_steps> <n_trajectories>
 
-Call function to evaluate dipole moments on trajectories using newer model:
-  python src/equiv_dens/scripts/eval_model_on_npy.py thiophene_poly_all_001_coreless_dpm.txt md_logs/2023-05-27_9yXHffp1/simulation_local_all_2mer_md_001_0.npy --dpm_intor --batch_size=5
+Evaluate dipole moments on trajectories using newer model:
+  python run.py infer --model config/paper/thiophene_poly_all_001_coreless_dpm.txt --trajectory md_logs/2023-05-27_9yXHffp1/simulation_local_all_2mer_md_001_0.npy --dpm-intor --batch-size 5
