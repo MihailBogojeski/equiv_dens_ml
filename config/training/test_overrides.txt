@@ -1,0 +1,3 @@
+--save_dir=scratch/test_runs
+--keep_checkpoints=0
+--max_steps=20

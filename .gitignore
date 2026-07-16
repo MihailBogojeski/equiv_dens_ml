@@ -1,21 +1,88 @@
+# Generated LFS filter paths (from lfs_paths_to_remove.txt)
+lfs_paths_filter.txt
+
+# Unused embedded repo (integral library; not used by equiv_dens)
+libintx/
+
+# Python
 *.pyc
-*.vim
+__pycache__/
+*.egg-info/
+.pytest_cache/
+fairchem/
+
+# Large data files
+# (*.npy, *.pth, *.pt, *.zip now tracked via Git LFS - see .gitattributes)
+
+# Log and temporary files
+*.log
+*.bak
 *.swp
-*.txt
-20*_*
-*.npz
-*.npy
-*.sh
-*.jpg
-*.svg
-*.png
-*.pdf
+*.vim
 *.out
-*.xyz
-*.ipynb
-*.pt
-*.cube
+
+# Large data directories
+# (paper/models/ and paper/trajectories/ now tracked via Git LFS - see .gitattributes)
+paper/results/
+paper/test_*/
+# LFS budget fixed - archives now tracked via LFS
+# paper/archives/
+# paper/trajectories/archives/
+
+# LFS budget fixed - trajectories now tracked via LFS
+# paper/trajectories/polythiophene_full_md/
+# paper/trajectories/polythiophene_full_with_velocity/
+# to_organize/thiophene_md_trajectories.zip
+# Backup directories (remove manually after confirming no unique content)
+for_paper_pre_paper_project_*/
+backups_gpu_opt/
+
+# Analysis results and data files (entire directory - large .npy and outputs)
+paper/new_dipole_calcs/
+paper/notebooks/
+paper/scripts/batch_calculate_dipoles.sh
+
+# Weights & Biases
 wandb/
-pseudo_potentials/
-.*
+
+# System files
+.DS_Store
 *.DS_Store
+
+# Editor and build artifacts
+*@neomake*
+*.o
+*.a
+*.so
+
+# QC/g-xtb output files
+gradient
+.data
+energy
+gxtbrestart
+
+# AIMD/MD and run artifacts at repo root
+aimd_trajectory.traj
+md_logs/
+water_dynamic_models
+dipole_calc_*.log
+ensemble_run.log
+
+# Training run directories (timestamped checkpoints from test/debug runs)
+# LFS budget fixed - model directories now tracked via LFS
+# 20*_*/
+
+# Legacy test output directory (now use scratch/test_runs via test_overrides.txt)
+test_runs/
+
+# Scratch/output directory - all generated run outputs (training, MD, dipole, etc.)
+# Safe to delete entirely when cleaning up
+scratch/
+results/
+
+# Specific large file patterns (legacy - dirs above now ignored)
+20*_*/checkpoints/*.pth
+20*_*/checkpoints/*.pt
+
+# Jupyter notebook checkpoints
+.ipynb_checkpoints/

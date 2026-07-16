@@ -1,0 +1,15 @@
+--restart=paper/models/resorcinol/2024-03-18_Ozf6CkNF_ext1
+--fix_arguments=True
+--np_dataset=datasets/resorcinol_combo_kmeansidx-1000_train.npy
+--np_dataset_test=datasets/resorcinol_augccpvdz_test.npy
+--orbitals_file=datasets/augccpvqzjkfit_orbital_basis_df.npy
+--radial_coeffs_file=datasets/augccpvqzjkfit_radial_coeffs_libcint_df.npy
+--atom_dens_path=datasets/free_atom_densities_augccpvdz_augccpvqzjkfit_pyscf_minimized.npy
+--atom_dens_type=spline
+--energy_weight=0.01
+--forces_weight=0.99
+--temperature=300
+--langevin=False
+--md_steps=200000
+--simulation_type=md
+--log_suffix=cluster_all_001

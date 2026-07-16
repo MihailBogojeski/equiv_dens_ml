@@ -1,0 +1,11 @@
+--structure=datasets/thiophene2mer_md.npy
+--structure-frame=0
+--position-unit=Bohr
+--gxtb-path=g-xtb/binary/gxtb
+--gxtb-params=g-xtb/parameters
+--temperature=300
+--md-steps=1000
+--langevin=True
+--time-step=0.5
+--log-dir=results/gxtb_md
+--log-suffix=2mer
