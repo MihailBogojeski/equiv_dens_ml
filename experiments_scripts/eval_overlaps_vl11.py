@@ -21,6 +21,10 @@ from equiv_dens.training import utils as train_utils
 from equiv_dens.training import model_loader
 from equiv_dens.utils import orbitals
 
+import socket
+_hostname = socket.gethostname()
+DATA_ROOT = '/home/ml-dft/equiv_dens/datasets' if (_hostname == 'hydra' or (_hostname.startswith('head') and _hostname[4:].isdigit())) else 'datasets'
+
 # basic arguments for model loading
 main_args = Namespace()
 
@@ -73,10 +77,10 @@ if main_args.ref_np_load_file is not None:
 if main_args.ref_dens_load_file is not None:
     args.dens_dataset_test = main_args.ref_dens_load_file
 
-# #args.np_dataset_test = "datasets/qm7x_test_dft_augccpvdz_small_base.npy"
-# #args.dens_dataset_test = "datasets/qm7x_test_dft_augccpvdz_small.npy"
-args.np_dataset_test = "/home/ml-dft/equiv_dens/datasets/s66x8_pyscf_augccpvdz_base.npy"
-args.dens_dataset_test = "/home/ml-dft/equiv_dens/datasets/s66x8_pyscf_augccpvdz_calc.npy"
+# #args.np_dataset_test = f'{DATA_ROOT}/qm7x_test_dft_augccpvdz_small_base.npy'
+# #args.dens_dataset_test = f'{DATA_ROOT}/qm7x_test_dft_augccpvdz_small.npy'
+args.np_dataset_test = f'{DATA_ROOT}/s66x8_pyscf_augccpvdz_base.npy'
+args.dens_dataset_test = f'{DATA_ROOT}/s66x8_pyscf_augccpvdz_calc.npy'
 
 dataset = AtomsDensityData(np_path=args.np_dataset, density_path=None,
                            orbitals_path=args.orbitals_file,
@@ -100,7 +104,7 @@ dataset = AtomsDensityData(np_path=args.np_dataset, density_path=None,
                            atom_dens_type='mo_coeffs',
                            split_atom_dens=True,
                            density_grad=args.density_grad,
-                           calc_basis_path='/home/ml-dft/equiv_dens/datasets/augccpvdz_orbital_basis.npy',
+                           calc_basis_path=f'{DATA_ROOT}/augccpvdz_orbital_basis.npy',
                            all_atom_coeffs=True,
                            dens_sqrt=args.dens_sqrt,
                            valence_dens=args.valence_dens,
@@ -129,7 +133,7 @@ dataset_test = AtomsDensityData(np_path=args.np_dataset_test, density_path=args.
                            atom_dens_type='mo_coeffs',
                            split_atom_dens=True,
                            density_grad=args.density_grad,
-                           calc_basis_path='/home/ml-dft/equiv_dens/datasets/augccpvdz_orbital_basis.npy',
+                           calc_basis_path=f'{DATA_ROOT}/augccpvdz_orbital_basis.npy',
                            all_atom_coeffs=True,
                            dens_sqrt=args.dens_sqrt,
                            valence_dens=args.valence_dens,
@@ -153,7 +157,7 @@ print('len(dataset)', len(dataset_test))
 """
 Each calculation name is a key for the dicts monomer1 and monomer2. monomer1[key] is an ase.Atoms object of just the first monomer in each calc and monomer2[key] is the corresponding Atoms object for monomer2.
 """
-with open("/home/ml-dft/equiv_dens/datasets/vL11_monomers.pickle", 'rb') as f:
+with open(f'{DATA_ROOT}/vL11_monomers.pickle', 'rb') as f:
     monomers1, monomers2 = pickle.load(f)
 mono1 = monomers1
 mono2 = monomers2

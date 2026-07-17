@@ -276,3 +276,8 @@ Mihail Bogojeski is the primary contributor and built the original code. Muhamma
 ## Contact
 
 For model access or missing files: Mihail Bogojeski. For code issues: open a GitHub issue.
+
+## Experiments scripts
+
+Legacy evaluation scripts for SAPT0, overlap analysis, and MBD benchmarks live in `experiments_scripts/` (e.g. `eval_sapt0.py`, `eval_overlaps.py`).
+

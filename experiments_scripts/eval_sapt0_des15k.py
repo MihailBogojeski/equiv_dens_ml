@@ -27,9 +27,12 @@ from pyscf.lib import param
 from equiv_dens.training import utils as train_utils
 from argparse import Namespace
 from equiv_dens.training import model_loader
-from vdw import to_mbd
 from equiv_dens.utils import hirshfeld_analysis, orbitals, sapt0
 import pickle
+import socket
+
+_hostname = socket.gethostname()
+DATA_ROOT = '/home/ml-dft/equiv_dens/datasets' if (_hostname == 'hydra' or (_hostname.startswith('head') and _hostname[4:].isdigit())) else 'datasets'
 
 main_args = Namespace()
 
@@ -45,10 +48,10 @@ main_args.args_file = "args/qm7x250_dens_001_coreless.txt"
 # main_args.args_file = "args/ethanethiol_all_001_SH_even.txt"
 main_args.ref_np_load_file = None
 main_args.ref_dens_load_file = None
-# main_args.res_load_file = 'datasets/ethanethiol_all_006_test.pt'
-# main_args.res_load_file = 'datasets/ethanethiol_all_001_coreless_test_results.npy'
+# main_args.res_load_file = f'{DATA_ROOT}/ethanethiol_all_006_test.pt'
+# main_args.res_load_file = f'{DATA_ROOT}/ethanethiol_all_001_coreless_test_results.npy'
 # main_args.res_load_file = None
-# main_args.res_load_file = 'datasets/resorcinol_all_005_test.pt'
+# main_args.res_load_file = f'{DATA_ROOT}/resorcinol_all_005_test.pt'
 # main_args.save_file = 'ethanethiol_all_006'
 # main_args.save_file = 'ethanethiol_all_106'
 # main_args.save_file = 'h2o_small_all_001'
@@ -106,12 +109,12 @@ if main_args.ref_np_load_file is not None:
 if main_args.ref_dens_load_file is not None:
     args.dens_dataset_test = main_args.ref_dens_load_file
 
-# args.np_dataset_test = "/home/ml-dft/equiv_dens/datasets/qm7x_test_dft_augccpvdz_small_base.npy"
-# args.dens_dataset_test = "/home/ml-dft/equiv_dens/datasets/qm7x_test_dft_augccpvdz_small.npy"
-# data = np.load('/home/ml-dft/equiv_dens/datasets/qm7x_test_dft_augccpvdz_small.npy', allow_pickle=True)
-args.np_dataset_test = "/home/ml-dft/equiv_dens/datasets/s66x8_pyscf_augccpvdz_base.npy"
-args.dens_dataset_test = "/home/ml-dft/equiv_dens/datasets/s66x8_pyscf_augccpvdz_calc.npy"
-data = np.load('/home/ml-dft/equiv_dens/datasets/s66x8_pyscf_augccpvdz_calc.npy', allow_pickle=True)
+# args.np_dataset_test = f'{DATA_ROOT}/qm7x_test_dft_augccpvdz_small_base.npy'
+# args.dens_dataset_test = f'{DATA_ROOT}/qm7x_test_dft_augccpvdz_small.npy'
+# data = np.load(f'{DATA_ROOT}/qm7x_test_dft_augccpvdz_small.npy', allow_pickle=True)
+args.np_dataset_test = f'{DATA_ROOT}/s66x8_pyscf_augccpvdz_base.npy'
+args.dens_dataset_test = f'{DATA_ROOT}/s66x8_pyscf_augccpvdz_calc.npy'
+data = np.load(f'{DATA_ROOT}/s66x8_pyscf_augccpvdz_calc.npy', allow_pickle=True)
 
 print('pyscf_grid', args.pyscf_grid)
 dataset = AtomsDensityData(np_path=args.np_dataset, density_path=None,
@@ -131,7 +134,7 @@ dataset = AtomsDensityData(np_path=args.np_dataset, density_path=None,
                            projected_density=args.projected_density,
                            radii_adjust=args.radii_adjust,
                            calc_data=True,
-                           atom_dens_path='/home/ml-dft/equiv_dens/datasets/free_atom_densities_augccpvdz_augccpvqzjkfit_pyscf_minimized.npy',
+                           atom_dens_path=f'{DATA_ROOT}/free_atom_densities_augccpvdz_augccpvqzjkfit_pyscf_minimized.npy',
                            atom_dens_type='mo_coeffs',
                            split_atom_dens=True,
                            density_grad=args.density_grad,
@@ -159,9 +162,9 @@ if args.use_gpu:
 """
 Each calculation name is a key for the dicts monomer1 and monomer2. monomer1[key] is an ase.Atoms object of just the first monomer in each calc and monomer2[key] is the corresponding Atoms object for monomer2.
 """
-with open("/home/ml-dft/equiv_dens/datasets/opt_monomers.pickle", 'rb') as f:
+with open(f'{DATA_ROOT}/des15k_opt_monomers.pickle', 'rb') as f:
     opt_monomers1, opt_monomers2 = pickle.load(f)
-with open("/home/ml-dft/equiv_dens/datasets/md_monomers.pickle", 'rb') as f:
+with open(f'{DATA_ROOT}/des15k_md_monomers.pickle', 'rb') as f:
     md_monomers1, md_monomers2 = pickle.load(f)
 monomers_1 = {'opt': opt_monomers1, 'md': md_monomers1}
 monomers_2 = {'opt': opt_monomers2, 'md': md_monomers2}
@@ -267,10 +270,12 @@ for mode in monomers_1.keys():
         print('intor res12', orbitals.calculate_1e_intor_ml(res12, dataset.orbital_basis_num, 'int1e_ovlp'))
 
         # sapt0 electrosatic values 
-        sapt0_ml_elst, sapt0_ml_efield12, sapt0_ml_efield21, sapt0_ml_ovlp = sapt0.calculate_sapt0_ml(res1, res2, res12, dataset.orbital_basis_num, precalc_basis=False)
+        sapt0_ml_elst, sapt0_ml_efield12, sapt0_ml_efield21 = sapt0.calculate_sapt0_ml(res1, res2, res12, dataset.orbital_basis_num, precalc_basis=False)
         sapt0_ml[calc_key]['elst'] = sapt0_ml_elst
         sapt0_ml[calc_key]['efield12'] = sapt0_ml_efield12
         sapt0_ml[calc_key]['efield21'] = sapt0_ml_efield21
-        sapt0_ml[calc_key]['ovlp'] = sapt0_ml_ovlp
+        # sapt0_ml[calc_key]['ovlp'] = sapt0_ml_ovlp
+        # print('sapt0_ml', calc_key, sapt0_ml[calc_key])
+        # exit()
 
         np.save('results/' + main_args.save_file + '_sapt0_ml_' + mode + '_des15k.npy', sapt0_ml, allow_pickle=True)

@@ -22,6 +22,23 @@ hf.MUTE_CHKFILE = True
 
 pyscf_gto_factor = 2 * np.sqrt(np.pi)
 
+top_n_elec_per_atom_full = {'H':1,
+                            'C':4,
+                            'N':5,
+                            'O':6,
+                            'F':7,
+                            'S':6,
+                            'Cl':7}
+
+top_n_elec_per_atom_small = {'H':1,
+                             'C':4,
+                             'N':3,
+                             'O':4,
+                             'F':5,
+                             'S':4,
+                             'Cl':5}
+
+
 def combine_pyscf_basis(pyscf_basis, order_max):
     radial_spec = {}
     spherical_spec = {}
@@ -91,17 +108,22 @@ def get_max_order(orbital_basis, per_atom=False):
         return max(order_max.values())
 
 
-def get_n_electrons(atom_numbers):
-    return torch.sum(atom_numbers, -1, keepdim=True)
+def get_n_electrons(atom_numbers, valence=False, full_valence=False):
+    if valence == False:
+        return torch.sum(atom_numbers, -1, keepdim=True)
+    else:
+        top_n_elec_per_atom = top_n_elec_per_atom_full if full_valence else top_n_elec_per_atom_small
+        n_electrons = torch.zeros((atom_numbers.shape[0], 1))
+        for b in range(atom_numbers.shape[0]):
+            n_electrons[b, 0] = 0
+            for i in range(atom_numbers.shape[1]):
+                if atom_numbers[b, i] == 0:
+                    continue
+                symbol = utils.numbers_to_symbols([atom_numbers[b, i]])[0]
+                n_electrons[b, 0] += top_n_elec_per_atom[symbol]
+        return n_electrons/2
 
 
-# def get_n_electrons(orbitals):
-#     n_electrons = 0
-#     for i in range(len(orbitals)):
-#         n_electrons += orbitals[i][0][0]
-#     return n_electrons
-#
-#
 def gaussian_rbf(r, width, scale, order, normalize=False):
     if normalize:
         scale_calc = scale * gto_norm(order, width)
@@ -695,67 +717,82 @@ def calculate_int2c2e(mol, coeffs, mol_2=None, coeffs_2=None):
     e_har = torch.einsum('i,ij,j->', coeffs, int2c2e, coeffs_2) / 2
     return e_har
 
-
 def calculate_int2c2e_np(mol, coeffs, mol_2=None, coeffs_2=None):
-    """Like calculate_int2c2e but stays in float64 NumPy (no torch cast).
-
-    Called from sapt0.py for cross Coulomb terms.
-    """
+    """ This is the same as calculate_int2c2e, but it doesn't
+    convert to torch, which defaults to float32 and loses precision"""
     if mol_2 is None:
         mol_2 = mol
     if coeffs_2 is None:
         coeffs_2 = coeffs
     int2c2e = gto.mole.intor_cross('int2c2e', mol, mol_2)
+    # int2c2e = mol.intor('int2c2e')
+    # e_har = torch.einsum('i,ij,j->', coeffs, int2c2e, coeffs) / 2
     e_har = np.einsum('i,ij,j->', coeffs, int2c2e, coeffs_2) / 2
     return e_har
 
 
 def calc_ee_cross_atom_by_atom_fast(mol1, dm1, mol2, dm2):
-    """Cross Coulomb energy between two densities; atom blocks to limit memory."""
-    n_atoms1 = mol1.natm
-    n_atoms2 = mol2.natm
+    """ a cross integral is energy of the interaction between two different densities
+    this splits up a 4c2e cross integral atom by atom to save memory
+    it is a bit slower than a direct 4c2e calculation
+    dm1 and dm2 are two spin channels
+    it uses the symmetry of the overlap integral to reduce the number calculations
+    by a factor of 4.
+    """
+    n_atoms1 =  mol1.natm
+    n_atoms2 =  mol2.natm
+    # mol1_idxs is a list of tuples (start_index, end_index)
+    # one tuple per atom
+    # the indices are for the wvf coeffs
     mol1_idxs = atom_to_coeff_index2(mol1)
     mol2_idxs = atom_to_coeff_index2(mol2)
     ee_elst = 0
+    # create all the mol objects for each atom
     atoms_mol1 = []
     atoms_mol2 = []
     for i in range(n_atoms1):
         atom1_type = mol1.atom_symbol(i)
+        #the internal basis format is all caps
         atom1_pos = mol1.atom_coord(i, unit='angstrom')
-        atom1 = gto.M(atom=[(2, atom1_pos)], basis={2: mol1._basis[atom1_type]})
+        # I trick pyscf into thinking this is helium
+        # so that doesn't throw an error that this is really a spin polarized system
+        atom1 = gto.M(atom = [(2, atom1_pos)], basis = {2:mol1._basis[atom1_type]})
         atoms_mol1.append(atom1)
     for k in range(n_atoms2):
         atom2_type = mol2.atom_symbol(k)
         atom2_pos = mol2.atom_coord(k, unit='angstrom')
-        atom2 = gto.M(atom=[(2, atom2_pos)], basis={2: mol2._basis[atom2_type]})
+        atom2 = gto.M(atom = [(2, atom2_pos)], basis = {2:mol2._basis[atom2_type]})
         atoms_mol2.append(atom2)
+    # break the 4-center 2e integral into a block of 2 atoms in mol1 and 2 atom in mol2
+    # and iterate over all atoms
     for i in range(n_atoms1):
-        for j in range(i + 1):
+        # dm1 and dm2 are hermitian, so I only calculate a lower triangle of each dm matrix
+        for j in range(i+1):
             dm_atom1_atom2 = dm1[slice(*mol1_idxs[i]), slice(*mol1_idxs[j])]
             factor_ij = 2.0 if (i != j) else 1.0
             for k in range(n_atoms2):
-                for l in range(k + 1):
+                # dm1 and dm2 are hermitian, so I only calculate a lower triangle of each dm matrix
+                for l in range(k+1):
                     dm_atom3_atom4 = dm2[slice(*mol2_idxs[k]), slice(*mol2_idxs[l])]
                     factor_kl = 2.0 if (k != l) else 1.0
-                    ee_elst += (
-                        calc_ee_cross_4_atoms(
-                            atoms_mol1[i], atoms_mol1[j], dm_atom1_atom2,
-                            atoms_mol2[k], atoms_mol2[l], dm_atom3_atom4,
-                        )
-                        * factor_ij * factor_kl
-                    )
+                    ee_elst += (calc_ee_cross_4_atoms(atoms_mol1[i], atoms_mol1[j], dm_atom1_atom2,
+                                                      atoms_mol2[k], atoms_mol2[l], dm_atom3_atom4)
+                                * factor_ij * factor_kl)
+                    # the factors account for the fact that I am only calculating half of the matrix
     return ee_elst
 
-
 def atom_to_coeff_index2(mol):
-    """Return (start, end) AO coefficient slices for each atom."""
+    """ returns a list where each element is a tuple (start_index, end_index)
+    for a specific atom which are the indices of coefficients
+    of basis functions for that atom"""
     n_atoms = mol.natm
-    n_funcs_per_atom = np.zeros(n_atoms, dtype=int)
+    n_funcs_per_atom = np.zeros(n_atoms, dtype = int)
+    # count the number of basis functions for each atom
     for shell in mol._bas:
         atom_id = shell[0]
         l = shell[1]
         n_contracted = shell[3]
-        n_funcs_per_atom[atom_id] += (2 * l + 1) * n_contracted
+        n_funcs_per_atom[atom_id] += (2*l +1)*n_contracted
     basis_index = 0
     idxs = []
     for i in range(n_atoms):
@@ -765,47 +802,46 @@ def atom_to_coeff_index2(mol):
 
 
 def calc_ee_cross_4_atoms(mol1a, mol1b, dm1, mol2c, mol2d, dm2):
-    """Electron-electron repulsion for a 2+2 atom shell block."""
+    """ only calculates the electron electron repulsion
+    dm1 is composed of basis sets from mol1a and mol1b
+    dm2 is composed of basis sets from mol2c and mol2d"""
     nbas1 = len(mol1a._bas)
     nbas2 = len(mol1b._bas)
     nbas3 = len(mol2c._bas)
-    nbas4 = len(mol2d._bas)
-    atmc, basc, envc = gto.mole.conc_env(
-        mol1a._atm, mol1a._bas, mol1a._env, mol1b._atm, mol1b._bas, mol1b._env,
-    )
-    atmc, basc, envc = gto.mole.conc_env(
-        atmc, basc, envc, mol2c._atm, mol2c._bas, mol2c._env,
-    )
-    atmc, basc, envc = gto.mole.conc_env(
-        atmc, basc, envc, mol2d._atm, mol2d._bas, mol2d._env,
-    )
-    shls_slice = (
-        0, nbas1,
-        nbas1, nbas1 + nbas2,
-        nbas1 + nbas2, nbas1 + nbas2 + nbas3,
-        nbas1 + nbas2 + nbas3, nbas1 + nbas2 + nbas3 + nbas4,
-    )
-    ints = gto.moleintor.getints(
-        'int2e_sph', atmc, basc, envc, shls_slice, comp=1, hermi=0, aosym='s1',
-    )
+    nbas4 = len(mol2d._bas)    
+    atmc, basc, envc = gto.mole.conc_env(mol1a._atm, mol1a._bas, mol1a._env,
+                                         mol1b._atm, mol1b._bas, mol1b._env)
+    atmc, basc, envc = gto.mole.conc_env(atmc, basc, envc,
+                                         mol2c._atm, mol2c._bas, mol2c._env)
+    atmc, basc, envc = gto.mole.conc_env(atmc, basc, envc,
+                                         mol2d._atm, mol2d._bas, mol2d._env)
+    shls_slice = (0, nbas1,
+                  nbas1, nbas1+nbas2,
+                  nbas1+nbas2, nbas1+nbas2 +nbas3,
+                  nbas1+nbas2+nbas3, nbas1+nbas2+nbas3+nbas4)
+    #turn off symmetry
+    ints = gto.moleintor.getints('int2e_sph', atmc, basc, envc, shls_slice, comp = 1, hermi=0, aosym ='s1')
     e_coul = np.einsum('ij,ijkl,kl->', dm1, ints, dm2)
     return e_coul
 
 
 def calc_ee_cross_all(mol1, dm1, mol2, dm2):
-    """Full cross Coulomb without atom blocking (debug only)."""
+    """ only calculates electron electron repulsion
+    this was only for debug purposes
+    dm1 is composed of basis sets from mol1
+    dm2 is composed of basis sets from mol2"""
     nbas1 = len(mol1._bas)
     nbas2 = len(mol2._bas)
-    atmc, basc, envc = gto.mole.conc_env(
-        mol1._atm, mol1._bas, mol1._env, mol2._atm, mol2._bas, mol2._env,
-    )
-    shls_slice = (0, nbas1, 0, nbas1, nbas1, nbas1 + nbas2, nbas1, nbas1 + nbas2)
-    ints = gto.moleintor.getints(
-        'int2e_sph', atmc, basc, envc, shls_slice, comp=1, hermi=0, aosym='s1',
-    )
+    atmc, basc, envc = gto.mole.conc_env(mol1._atm, mol1._bas, mol1._env,
+                                         mol2._atm, mol2._bas, mol2._env)
+    shls_slice = (0, nbas1,
+                  0, nbas1,
+                  nbas1, nbas1+nbas2,
+                  nbas1, nbas1+nbas2)
+    #turn off symmetry
+    ints = gto.moleintor.getints('int2e_sph', atmc, basc, envc, shls_slice, comp = 1, hermi=0, aosym ='s1')
     e_coul = np.einsum('ij,ijkl,kl->', dm1, ints, dm2)
     return e_coul
-
 
 def calc_dipole_moment_analytic(atoms, basis, coeffs_type):
     if coeffs_type == 'ml_coeffs':
@@ -816,7 +852,7 @@ def calc_dipole_moment_analytic(atoms, basis, coeffs_type):
         return intor_dipole_moment_df(atoms, basis)
     else:
         raise ValueError('Unknown coeffs_type for dipole moment calculation')
-
+    
 
 def intor_dipole_moment_ml(
     atoms,
@@ -1033,6 +1069,76 @@ def sample_density_base(mols, coords, coeffs, scale_coords=False, projected=Fals
             rho = np.transpose(rho)
         dens[i, :] = torch.from_numpy(rho)
     return dens
+
+
+def sample_valence_density(mols, coords, coeffs, scale_coords=False, density_grad=0, full=True):
+    dens = []
+    if scale_coords:
+        coords = coords / param.BOHR
+    if coords.shape[0] != len(mols):
+        raise ValueError(
+            "Batch dimension of coordinates ("
+            + str(coords.shape[0])
+            + ") must match number of molecules ("
+            + str(len(mols))
+            + ")"
+        )
+    dens = torch.zeros((coords.shape[0], coords.shape[1]))
+    for i in range(len(mols)):
+        mol = mols[i]
+        if not mol._built:
+            mol.build()
+        deriv = int(density_grad)
+        if len(mol.atom_charges()) == 0:
+            continue
+        # print('mol atom charges', mol.atom_charges())
+        # print('mol atom pos', mol.atom_coords())
+        # if isinstance(coords[i], torch.Tensor):
+        #     print('coords vals', torch.max(coords[i]), torch.min(coords[i]), torch.min(torch.abs(coords[i])))
+        # else:
+        #     print('coords vals', np.max(coords[i]), np.min(coords[i]), np.min(np.abs(coords[i])))
+        ao = numint.eval_ao(mol, coords[i], deriv=deriv)
+        dm = calc_dm_top_valence(mol, coeffs[i]['mo_occ'], coeffs[i]['mo_coeff'], full=full) # dm_ref is 1 spin channel
+        # rho = np.einsum("ij,ik, jk->i",ao,ao,dm)
+        rho = numint.eval_rho(mol, ao, dm)
+        n_elec = calc_num_el_from_dm(mol, dm)
+        dens[i, :] = torch.from_numpy(rho)
+    return dens
+
+
+def calc_dm_top_valence(mol, mo_occ, mo_coeff, full=True):
+    """ takes in a pyscf gto.mol object and the occupancy and molecular
+    coefficients from a pyscf kernel and returns the density matrix
+    of the system which will include only the top valence electrons.
+    The density matrix is only for one spin channel"""
+    if full:
+        top_elec_per_atom = top_n_elec_per_atom_full
+    else:
+        top_elec_per_atom = top_n_elec_per_atom_small
+    mo_occ_1spin = mo_occ/2
+    # total number of electrons in 1 spin channel
+    n_elec = np.sum(mo_occ_1spin)
+    top_n_elec = 0
+    # top_n_elec is the total number of top electrons for both spin channnels
+    for atom in mol.atom:
+        if not isinstance(atom[0], str):
+            atom_symb = utils.numbers_to_symbols([atom[0]])[0]
+            top_n_elec += top_n_elec_per_atom[atom_symb]
+        else:
+            top_n_elec += top_n_elec_per_atom[atom[0]]
+    n_elec_ignore = round(n_elec - top_n_elec/2)
+    # remove the occupany of the bottom electrons
+    mo_occ_1spin[0:n_elec_ignore] = 0
+    dm_top_elec = np.einsum("m, im, jm ->ij", mo_occ_1spin, mo_coeff ,mo_coeff)
+    return dm_top_elec
+
+
+def calc_num_el_from_dm(mol, dm):
+    """  calculates the total number of electrons sum_i occ_i * |psi_i|^2"""
+    int2c1e = gto.mole.intor_cross('int1e_ovlp_sph', mol, mol)
+    # total density for one spin channel
+    total_dens = np.einsum('ij, ij->',int2c1e, dm)
+    return total_dens
 
 
 def _expand_pyscf_density(mol, ao, coeffs, density_grad=False):
@@ -1613,6 +1719,8 @@ def model_input_from_atoms(
     skip_compress=False,
     coord_params=None,
     all_atom_coeffs=False,
+    valence=False,
+    full_valence=False,
 ):
     """
     Function to extracts neighbor lists, atom_types, positions e.t.c. from the system and generate a properly
@@ -1723,6 +1831,9 @@ def model_input_from_atoms(
     inputs["atom_batch_idx"] = atom_batch_idx.flatten()
     inputs["atom_batch_idx"] = inputs["atom_batch_idx"][inputs["atom_mask"]].view(1, -1)
     inputs["positions"] = inputs["positions"][:, inputs["atom_mask"]]
+    inputs['n_electrons'] = get_n_electrons(inputs['batch_atom_numbers'], valence=valence,
+                                            full_valence=full_valence)
+    inputs['n_electrons'] = inputs['n_electrons'].to(inputs['positions'])
 
     for prop in inputs.keys():
         if isinstance(inputs[prop], torch.FloatTensor) or isinstance(inputs[prop], torch.DoubleTensor):
@@ -1995,6 +2106,7 @@ def join_free_atom_and_ml_basis(auxmol_ml, auxmol_atom, ml_coeffs, atom_coeffs):
     ml_charges = auxmol_ml.atom_charges()
     for i in range(len(auxmol_ml.atom)):
         ml_atom.append([ml_charges[i], auxmol_ml.atom[i][1]])
+    
     split_ml_coeffs = split_ao_coeffs(ml_atom, ml_coeffs, ml_basis_size)
     # print('split_ml_coeffs', split_ml_coeffs[0])
     split_atom_coeffs = split_ao_coeffs(auxmol_atom.atom, atom_coeffs, atom_basis_size)
