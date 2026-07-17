@@ -1,16 +1,9 @@
-"""
-GPU dipole moment integrals (int1e_r) using CuPy.
+"""CuPy port of PySCF int1e_r (dipole integrals).
 
-Paper-critical path for ML-MD dipole evaluation on long trajectories. This
-module accelerates the dominant cost in analytic dipole moments when the
-basis is uncontracted (nctr=1); contracted shells fall back to PySCF.
-
-Port of libcint's int1e_r algorithm:
-- Overlap CINTg1e_ovlp + position recurrence CINTx1i_1e
-- Returns ⟨i|r - R_origin|j⟩ in Bohr (same as PySCF intor_cross('int1e_r'))
-
-Uses NumPy when CuPy is unavailable (xp=np). Install optional dep
-``equiv-dens[cupy-dipole]`` (or cupy-cuda12x) for GPU acceleration.
+Implements libcint overlap + position recurrence (CINTg1e_ovlp, CINTx1i_1e).
+Works for uncontracted shells only (nctr=1); use PySCF for contracted bases.
+Output is ⟨i|r - R_origin|j⟩ in Bohr, same units as intor_cross('int1e_r').
+Uses NumPy when CuPy is not installed.
 """
 
 from __future__ import annotations
@@ -303,18 +296,9 @@ def int1e_r_gpu(
     r_origin: tuple[float, float, float] | None = None,
 ) -> np.ndarray | "cp.ndarray":
     """
-    Compute dipole moment integrals ⟨i|r - r_origin|j⟩ between two molecules.
+    Compute ⟨i|r - r_origin|j⟩ between mol_bra and mol_ket.
 
-    Port of PySCF libcint intor_cross('int1e_r'). Returns (3, n_bra, n_ket) in Bohr.
-
-    Args:
-        mol_bra: PySCF Mole object (bra basis, e.g. helper_mol)
-        mol_ket: PySCF Mole object (ket basis, e.g. auxmol_ml)
-        xp: Array module (numpy or cupy). If None, uses numpy.
-        r_origin: Origin for dipole (r - r_origin). Default (0,0,0).
-
-    Returns:
-        Array of shape (3, n_ao_bra, n_ao_ket) for x, y, z components.
+    Returns (3, n_bra, n_ket) in Bohr. xp defaults to CuPy if importable, else NumPy.
     """
     if xp is None:
         xp = _cp if _CUPY_AVAILABLE and _cp is not None else np

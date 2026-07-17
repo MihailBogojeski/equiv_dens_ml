@@ -697,9 +697,9 @@ def calculate_int2c2e(mol, coeffs, mol_2=None, coeffs_2=None):
 
 
 def calculate_int2c2e_np(mol, coeffs, mol_2=None, coeffs_2=None):
-    """Same as calculate_int2c2e but keeps NumPy precision (no float32 torch conversion).
+    """Like calculate_int2c2e but stays in float64 NumPy (no torch cast).
 
-    Used by SAPT0 / intermolecular cross-integral routines on master.
+    Called from sapt0.py for cross Coulomb terms.
     """
     if mol_2 is None:
         mol_2 = mol
@@ -711,7 +711,7 @@ def calculate_int2c2e_np(mol, coeffs, mol_2=None, coeffs_2=None):
 
 
 def calc_ee_cross_atom_by_atom_fast(mol1, dm1, mol2, dm2):
-    """Cross Coulomb energy between two densities, atom-blocked for memory efficiency."""
+    """Cross Coulomb energy between two densities; atom blocks to limit memory."""
     n_atoms1 = mol1.natm
     n_atoms2 = mol2.natm
     mol1_idxs = atom_to_coeff_index2(mol1)
@@ -793,7 +793,7 @@ def calc_ee_cross_4_atoms(mol1a, mol1b, dm1, mol2c, mol2d, dm2):
 
 
 def calc_ee_cross_all(mol1, dm1, mol2, dm2):
-    """Full cross Coulomb energy (debug helper retained from master)."""
+    """Full cross Coulomb without atom blocking (debug only)."""
     nbas1 = len(mol1._bas)
     nbas2 = len(mol2._bas)
     atmc, basc, envc = gto.mole.conc_env(

@@ -1,15 +1,7 @@
-"""
-Unified CLI entry point for equiv_dens_ml.
+"""CLI for run.py and the equiv-dens entry point.
 
-Subcommands:
-  train      - density / joint / multiphase / energy training
-  md         - ML-enhanced SchNetPack MD (polythiophene paper workflow)
-  gxtb-md    - semi-empirical g-xtb MD baseline
-  infer      - trajectory inference (density, energy, forces, dipole)
-  test       - dataset evaluation from checkpoint
-  dipole     - parallel dipole recomputation on saved trajectories
-
-Use via ``equiv-dens`` (after pip install) or ``python run.py`` from repo root.
+Subcommands dispatch to scripts/training/ and scripts/md/. Run with
+``python run.py --help`` or ``equiv-dens --help`` after pip install.
 """
 
 import equiv_dens.compat  # noqa: F401 - apply patches before any schnetpack import

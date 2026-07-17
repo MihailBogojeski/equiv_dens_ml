@@ -1,8 +1,4 @@
-"""
-Fast inference wrapper for DFTNetwork models.
-
-Applies TF32, torch.compile, and optionally CUDA graphs for faster single-point inference.
-"""
+"""Optional inference wrappers (TF32, compile, CUDA graphs)."""
 
 from __future__ import annotations
 
@@ -18,27 +14,14 @@ logger = logging.getLogger(__name__)
 
 
 class FastInferenceWrapper(torch.nn.Module):
-    """
-    Wraps a DFTNetwork model with inference optimizations.
+    """Wrap DFTNetwork with TF32, torch.compile, and optional CUDA graphs.
 
-    Applies TF32 (TensorFloat32) and torch.compile following fairchem patterns.
-    CUDA graph support captures the full DFTNetwork.forward for energy-only inference
-    (forces are incompatible because they require autograd).
-
-    If CUDA graph capture fails (e.g. due to host-device transfers in the model's
-    forward path), the wrapper automatically falls back to eager mode with a warning.
-
-    Usage:
-        wrapper = FastInferenceWrapper(model, InferenceSettings(tf32=True, compile=True))
-        result = wrapper(data, compute_forces=False)
+    CUDA graphs only work for energy-only forward passes (no forces/autograd).
+    If capture fails, falls back to eager mode and logs a warning.
     """
 
     def __init__(self, model: torch.nn.Module, settings: InferenceSettings | None = None):
-        """
-        Args:
-            model: DFTNetwork or compatible model.
-            settings: Inference settings. If None, uses defaults (all optimizations off).
-        """
+        """settings=None leaves all optimizations off."""
         super().__init__()
         self.model = model
         self.settings = settings or InferenceSettings()

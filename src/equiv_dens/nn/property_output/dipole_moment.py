@@ -53,21 +53,13 @@ class DipoleMomentCalc(nn.Module):
 
 
 class DipoleMomentIntorCalc(nn.Module):
-    """
-    Analytic dipole moment from ML density coefficients (paper-critical).
+    """Dipole from density coefficients via int1e_r (PySCF or dipole_gpu).
 
-    Evaluates mu = sum_A Z_A R_A - integral r rho(r) dr using PySCF int1e_r
-    (or GPU path in ``equiv_dens.integral.dipole_gpu`` when available).
-    Supports free-atom density subtraction and integral caching for MD:
-    when geometry displacement is below ``integral_cache_threshold``, reuse
-    cached integrals and only recompute the coefficient contraction.
-
-    Args:
-        orbital_basis: Atom-centered orbital basis specification.
-        remove_atom_density: Subtract free-atom densities before dipole eval.
-        cache_integrals: Reuse int1e_r when geometry changes are small (MD).
-        integral_cache_threshold: Max displacement (Angstrom) for cache reuse.
-        dipole_every_n_steps: Compute dipole every N MD steps (default 1).
+    Nuclear term plus -<r>_elec. Set remove_atom_density to subtract
+    free-atom contributions first. For MD trajectories, cache_integrals
+    skips rebuilding int1e_r when atomic positions move less than
+    integral_cache_threshold (Angstrom). dipole_every_n_steps reuses the
+    last electronic dipole on intermediate steps.
     """
 
     def __init__(self, orbital_basis, remove_atom_density=False, cache_integrals=True,

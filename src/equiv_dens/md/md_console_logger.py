@@ -1,9 +1,4 @@
-"""
-MD Console Logger - SimulationHook for conventional MD-style console output.
-
-Prints step, time, energies, temperature, dipole moments, and instantaneous
-simulation speed (ns/day) at configurable intervals.
-"""
+"""SchNetPack SimulationHook that prints MD progress lines to stdout."""
 
 import time
 import torch
@@ -19,16 +14,9 @@ if TYPE_CHECKING:
 
 
 class MDConsoleLogger(SimulationHook):
-    """
-    SimulationHook that prints conventional MD-style progress to the console.
+    """Log step, time, energies, T, dipole (Debye), and ns/day every N steps.
 
-    Displays: Step, Time(ps), E_pot, E_kin, E_tot, T(K), dipole (μx μy μz |μ| in Debye),
-    and instantaneous ns/day (rate over the last logging interval only).
-
-    Args:
-        every_n_steps: Print every N steps (default 100).
-        time_step_fs: Timestep in femtoseconds (default 0.5).
-        energy_unit: Energy display unit (default 'kcal/mol').
+    ns/day is computed from wall time since the previous log line, not cumulatively.
     """
 
     def __init__(

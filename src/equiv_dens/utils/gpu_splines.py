@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
-"""
-GPU-accelerated spline interpolation using CuPy.
+"""Spline evaluation on GPU (CuPy) with scipy fallback on CPU.
 
-Paper-critical helper for fast free-atom density lookup during MD dipole
-evaluation. Provides GPU alternatives to scipy spline interpolation;
-falls back to CPU scipy when CuPy is unavailable or tensors are on CPU.
+Called from free-atom density loading during MD; see grids.py.
 """
 
 import torch
@@ -33,22 +30,10 @@ except ImportError:
 
 
 class GPUSpline:
-    """
-    Wrapper for GPU-accelerated spline interpolation using CuPy.
-    
-    Handles CPU/GPU data and falls back to scipy when CuPy is unavailable.
-    """
+    """CuPy spline with scipy fallback if GPU init fails."""
     
     def __init__(self, x, y, k=7, use_gpu=True):
-        """
-        Initialize GPU-accelerated spline.
-        
-        Args:
-            x: Input coordinates (numpy/torch/cupy array)
-            y: Values at coordinates (numpy/torch/cupy array)
-            k: Spline order (default: 7)
-            use_gpu: Whether to use GPU if available
-        """
+        """k=7 matches the radial basis order used in atom density tables."""
         self.k = k
         self.use_gpu = use_gpu and CUPY_AVAILABLE
         

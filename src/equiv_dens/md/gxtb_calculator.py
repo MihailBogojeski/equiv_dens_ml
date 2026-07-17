@@ -1,10 +1,4 @@
-"""
-g-xtb MD calculator for SchNetPack molecular dynamics.
-
-Uses g-xtb for energy and gradient evaluation, reusing SchNetPack MD
-infrastructure (integrators, thermostats, logging). Energy and gradient
-are parsed from g-xtb output files; forces = -gradient.
-"""
+"""SchNetPack MD calculator backed by g-xtb (subprocess, parse energy/gradient)."""
 
 import equiv_dens.compat  # noqa: F401 - apply T_co patch before schnetpack import
 
@@ -23,22 +17,10 @@ from schnetpack import properties
 
 
 class GxtbMDCalculator(MDCalculator):
-    """
-    SchNetPack MD calculator that uses g-xtb for energy and gradient.
+    """Run gxtb -grad on coord.xyz each step; forces = -gradient.
 
-    Extends schnetpack.md.calculators.MDCalculator. Writes coord.xyz,
-    runs gxtb -grad -c coord.xyz, parses energy (Eh) and gradient (Eh/bohr),
-    converts to kcal/mol and kcal/mol/Å, and updates the system.
-
-    Args:
-        gxtb_path: Path to the gxtb executable.
-        gxtb_params_dir: Path to GXTBHOME (parameter directory).
-        workdir: Scratch directory for g-xtb I/O (created per step).
-        required_properties: Properties to compute (default: ['energy', 'forces']).
-        force_key: Key for forces in results (default: 'forces').
-        energy_key: Key for energy in results (default: 'energy').
-        position_unit: Unit of positions passed to calculator (default: 'Angstrom').
-        energy_unit: Unit of energy in results (default: 'kcal/mol').
+    Writes scratch files under workdir. Energy in Eh, gradient in Eh/bohr;
+    converted to kcal/mol and kcal/mol/Å for SchNetPack.
     """
 
     def __init__(
