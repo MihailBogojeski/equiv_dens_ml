@@ -511,6 +511,11 @@ def compute_shifts(cell, pbc, cutoff):
         :class:`torch.Tensor`: long tensor of shifts. the center cell and
             symmetric cells are not included.
     """
+    # Non-periodic systems: no shifts needed; skip cell.inverse() which can
+    # fail for singular/near-singular cells (e.g. open-boundary small molecules)
+    if not pbc.any():
+        return torch.empty(0, 3, dtype=torch.long, device=cell.device)
+
     reciprocal_cell = cell.inverse().t()
     inv_distances = reciprocal_cell.norm(2, -1)
     num_repeats = torch.ceil(cutoff * inv_distances).to(pbc).type(torch.long)
@@ -745,14 +750,17 @@ def batch_compressed_atoms(atoms, relevant_keys):
             continue
         if isinstance(atoms[key], list):
             batch_props[key] = [torch.zeros((batch_size * batch_atom_count,
-                                             *atoms[key][i].shape[2:])).to(atoms[key][i])
+                                             *atoms[key][i].shape[2:]),
+                                            device=atoms[key][i].device,
+                                            dtype=atoms[key][i].dtype)
                                 for i in range(len(atoms[key]))]
             for i in range(len(atoms[key])):
                 batch_props[key][i][batch_idx_pos] = atoms[key][i]
                 batch_props[key][i] = batch_props[key][i].view(batch_size, batch_atom_count, *atoms[key][i].shape[2:])
                 atoms[key][i] = batch_props[key][i]
         else:
-            batch_props[key] = torch.zeros((batch_size * batch_atom_count, *atoms[key].shape[2:])).to(atoms[key])
+            batch_props[key] = torch.zeros((batch_size * batch_atom_count, *atoms[key].shape[2:]),
+                                            device=atoms[key].device, dtype=atoms[key].dtype)
             batch_props[key][batch_idx_pos] = atoms[key]
             batch_props[key] = batch_props[key].view(batch_size, batch_atom_count, *atoms[key].shape[2:])
             atoms[key] = batch_props[key]
@@ -761,6 +769,7 @@ def batch_compressed_atoms(atoms, relevant_keys):
 
 
 def get_atom_num_first_positions(atom_numbers):
+    """Return dict mapping atomic number (int) -> first index. Uses Python ints for torch.compile compatibility."""
     if atom_numbers.ndim > 1:
         if isinstance(atom_numbers, np.ndarray):
             atom_numbers = np.max(atom_numbers, axis=0)
@@ -769,8 +778,9 @@ def get_atom_num_first_positions(atom_numbers):
     atom_numbers_first_positions = {}
     for i in range(len(atom_numbers)):
         z = atom_numbers[i]
-        if z not in atom_numbers_first_positions.keys():
-            atom_numbers_first_positions[z] = i
+        z_int = int(z)  # Python int avoids dynamo guard on numpy scalar object id
+        if z_int not in atom_numbers_first_positions:
+            atom_numbers_first_positions[z_int] = i
 
     return atom_numbers_first_positions
 
@@ -920,7 +930,7 @@ def get_pyscf_coords(grid_spec, density_n_samp, atom_numbers, positions):
         pos = pos.unsqueeze(0)
     for i in range(atom_numbers.shape[0]):
         atom = [(atom_numbers[i, j], pos[i, j]) for j in range(atom_numbers.shape[1]) if atom_numbers[i, j] > 0]
-        mol = gto.Mole(atom=atom, spin=None)
+        mol = gto.Mole(atom=atom)
         if not mol._built:
             mol.build()
         rot_spec = grid_spec

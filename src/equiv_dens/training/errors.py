@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-import equiv_dens.scripts.transform_df_coeffs as transform_df_coeffs
+import equiv_dens.utils.transform_df_coeffs as transform_df_coeffs
 from equiv_dens.utils import orbitals
 from equiv_dens.training import density_errors
 
@@ -18,7 +18,6 @@ class ErrorDict:
                  relative_en=False,
                  df_loss_weights=False,
                  loss_comp_weights=None,
-                 width_cutoff=None,
                  ):
         self.loss_weights = loss_weights
         self.weights_balance = weights_balance
@@ -29,15 +28,13 @@ class ErrorDict:
         self.relative_en = relative_en
         self.df_loss_weights = df_loss_weights
         self.loss_comp_weights = loss_comp_weights
-        self.width_cutoff = width_cutoff
         if self.weights_decay is None:
             self.weights_decay = {}
+            for key in self.loss_weights.keys():
+                self.weights_decay[key] = 1.0
         if self.weights_min is None:
             self.weights_min = {}
-        for key in self.loss_weights.keys():
-            if key not in self.weights_decay:
-                self.weights_decay[key] = 1.0
-            if key not in self.weights_min:
+            for key in self.loss_weights.keys():
                 self.weights_min[key] = self.loss_weights[key]
         if max_errors is None:
             self.max_errors = {key: np.inf for key in self.loss_weights.keys()}
@@ -76,9 +73,6 @@ class ErrorDict:
                     loss = torch.mean(predictions[key])
                     error_dict[key + "_mae"] = loss
                     error_dict[key + "_rmse"] = loss
-                elif key == 'width_reg':
-                    loss = torch.mean(density_errors.L2_reg_on_pd_orbitals(predictions['radial_widths'], alpha_cutoff=self.width_cutoff))
-                    error_dict[key + "_loss"] = loss
                 else:
                     diff = predictions[key] - (data[key])
                     if key == 'df_coeffs':

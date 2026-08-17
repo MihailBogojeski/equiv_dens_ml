@@ -24,7 +24,7 @@ class CoeffsIntegralConstraint(nn.Module):
         self.remove_atom_density = remove_atom_density
 
     def forward(self, atoms):
-        n_electrons = atoms['n_electrons']
+        n_electrons = get_n_electrons(atoms['batch_atom_numbers'])
         L0_idxs = []
         L0_coeffs = []
         L0_width = []
@@ -61,9 +61,7 @@ class CoeffsIntegralConstraint(nn.Module):
                 coeffs_pointer += L0_coeff_len
         else:
             coeffs_sum = torch.sum(L0_coeffs_comb * norms, dim=1, keepdim=True)
-            print('coeffs sum', coeffs_sum)
             scale_factor = n_electrons / coeffs_sum
-            print('scale factor', scale_factor)
             scale_factor = scale_factor.reshape(*scale_factor.shape, 1, 1)
             L0_coeffs_comb = L0_coeffs_comb * torch.clamp(self.integral_scale, 0.5, 1.5)
             for j, (i, key) in enumerate(L0_idxs):
@@ -117,7 +115,7 @@ class DensityCoeffsNetwork(nn.Module):
         self.order = order
         self.num_features = num_features
         self.positive_coeffs = positive_coeffs
-        if integral_constraint == 'coeffs_in_coeffs_net':
+        if integral_constraint in ('coeffs_in_coeff_net', 'coeffs_in_coeffs_net'):
             self.integral_constraint = CoeffsIntegralConstraint(integral_scale, remove_atom_density)
         else:
             self.integral_constraint = None
@@ -183,7 +181,7 @@ class DensityCoeffsNetwork(nn.Module):
             self.output_zero_init = True
             mix_orders = True
         elif self.nonmixing:
-            self.output_bias = nonmixing_bias 
+            self.output_bias = nonmixing_bias
             self.output_zero_init = False
             mix_orders = False
         else:
@@ -353,7 +351,7 @@ class DensityCoeffsNetwork(nn.Module):
             radial_scale[i] = {}
             coeff_weights[i] = {}
             z = int(max(atom_numbers[:, i]))
-            atom_mask = atoms['batch_atom_mask'][:, i].to(pos)
+            atom_mask = atoms['batch_atom_mask'][:, i].to(device=pos.device, dtype=pos.dtype)
             dim_diff = 4 - atom_mask.dim()
             if dim_diff > 0:
                 atom_mask = atom_mask.reshape(atom_mask.shape + (1,) * dim_diff)
@@ -368,8 +366,10 @@ class DensityCoeffsNetwork(nn.Module):
                 if self.coeff_weights is not None:
                     coeff_weights[i][key] = torch.sum(self.coeff_weight(key), dim=-2, keepdim=True)
                     coeff_weights[i][key] = coeff_weights[i][key].expand(-1, -1, spherical_coeffs[i][key].shape[-2], -1).clone()
-                radial_width[i][key] = torch.zeros(*sph_fs_i.shape[:2], self.r_max[key], orb[1]).to(sph_fs_i)
-                radial_scale[i][key] = torch.zeros(*sph_fs_i.shape[:2], self.r_max[key], orb[1]).to(sph_fs_i)
+                radial_width[i][key] = torch.zeros(*sph_fs_i.shape[:2], self.r_max[key], orb[1],
+                                                   device=sph_fs_i.device, dtype=sph_fs_i.dtype)
+                radial_scale[i][key] = torch.zeros(*sph_fs_i.shape[:2], self.r_max[key], orb[1],
+                                                   device=sph_fs_i.device, dtype=sph_fs_i.dtype)
                 if self.pred_radial_coeffs and z != 0:
                     inds = self.rad_dict[key]
                     rad_w_i = rad_width[L][:, [i], :, :]
@@ -480,7 +480,7 @@ class DensityCoeffsNetwork(nn.Module):
             print('density coeffs forward start:')
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
             print('Memory cached', torch.cuda.memory_cached() / 1024**2)
-        start = time.time()
+        # start = time.time()
         atoms['sph_repr_batch'] = [repr * 1 for repr in atoms['sph_repr']]
         atoms = batch_compressed_atoms(atoms, ['sph_repr_batch'])
         fs = atoms['sph_repr_batch']
@@ -553,8 +553,8 @@ class DensityCoeffsNetwork(nn.Module):
         else:
             atoms['rad_dict'] = {key: self.rad_dict[key].to('cpu') for key in self.rad_dict.keys()}
             atoms['sph_dict'] = {key: self.sph_dict[key].to('cpu') for key in self.sph_dict.keys()}
-        if self.timing:
-            print('density coeffs time:', time.time() - start)
+        # if self.timing:
+        #     print('density coeffs time:', time.time() - start)
         if self.memory:
             print('density coeffs forward end:')
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
@@ -618,7 +618,7 @@ class DFDensityCoeffs(nn.Module):
         atoms['directions'] = uij
         sph = spherical_harmonics(self.orbitals_max_order, uij)
         for L in range(self.orbitals_max_order + 1):
-            sph[L].unsqueeze_(-1)  # unsqueeze for broadcasting
+            sph[L] = sph[L].unsqueeze(-1)  # unsqueeze for broadcasting
         atoms['sph'] = sph
         if 'density' in atoms:
             del atoms['density']
@@ -686,7 +686,7 @@ class FreeAtomDensityCoeffs(nn.Module):
         atoms['directions'] = uij
         sph = spherical_harmonics(self.orbitals_max_order, uij)
         for L in range(self.orbitals_max_order + 1):
-            sph[L].unsqueeze_(-1)  # unsqueeze for broadcasting
+            sph[L] = sph[L].unsqueeze(-1)  # unsqueeze for broadcasting
         atoms['sph'] = sph
         if 'density' in atoms:
             del atoms['density']
@@ -752,7 +752,8 @@ class DensityExpansion(nn.Module):
         if density_grad is None:
             density_grad = self.density_grad
         n_eval = len(atoms['spherical_coeffs'])
-        start = time.time()
+        if self.timing:
+            start = time.time()
         if eval_atoms is None:
             eval_atoms = list(range(n_eval))
         if eval_L is None:
@@ -760,7 +761,7 @@ class DensityExpansion(nn.Module):
         atoms['density'] = 0
         if density_grad:
             atoms['density_grad'] = 0
-        n_electrons = atoms['n_electrons']
+        n_electrons = get_n_electrons(atoms['batch_atom_numbers'])
         for i in range(n_eval):
             if self.verbose > 1 and self.memory:
                 print('Atom', i)

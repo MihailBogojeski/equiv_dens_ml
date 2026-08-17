@@ -1,0 +1,16 @@
+--restart=paper/models/ethanol/2024-03-22_96w7KyGG
+--fix_arguments=True
+--ignore_unexpected_keywords=True
+--np_dataset=datasets/ethanol_train_10.npy
+--np_dataset_test=datasets/ethanol_train_10.npy
+--orbitals_file=datasets/augccpvqzjkfit_orbital_basis_df.npy
+--radial_coeffs_file=datasets/augccpvqzjkfit_radial_coeffs_libcint_df.npy
+--atom_dens_path=datasets/free_atom_densities_augccpvdz_augccpvqzjkfit_pyscf_minimized.npy
+--atom_dens_type=spline
+--energy_weight=0.01
+--forces_weight=0.99
+--temperature=300
+--langevin=False
+--md_steps=200000
+--simulation_type=md
+--log_suffix=cluster_all_001

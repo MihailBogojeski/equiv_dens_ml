@@ -165,6 +165,7 @@ def gto_norm(order, width):
 
 def gto_norm_pyscf(order, width):
     if np.all(order >= 0):
+        width = np.maximum(np.asarray(width, dtype=float), 1e-10)  # avoid divide-by-zero
         # f = 2**(2*l+3) * math.factorial(l+1) * (2*expnt)**(l+1.5) \
         #        / (math.factorial(2*l+2) * math.sqrt(math.pi))
         # return math.sqrt(f)
@@ -823,16 +824,6 @@ def calc_ee_cross_4_atoms(mol1a, mol1b, dm1, mol2c, mol2d, dm2):
     e_coul = np.einsum('ij,ijkl,kl->', dm1, ints, dm2)
     return e_coul
 
-def calc_dipole_moment_analytic(atoms, basis, coeffs_type):
-    if coeffs_type == 'ml_coeffs':
-        return intor_dipole_moment_ml(atoms, basis)
-    elif coeffs_type == 'mo_coeffs':
-        return intor_dipole_moment_mo(atoms, basis)
-    elif coeffs_type == 'df_coeffs':
-        return intor_dipole_moment_df(atoms, basis)
-    else:
-        raise ValueError('Unknown coeffs_type for dipole moment calculation')
-
 
 def calc_ee_cross_all(mol1, dm1, mol2, dm2):
     """ only calculates electron electron repulsion
@@ -968,7 +959,7 @@ def intor_dipole_moment_df(
         ]
         int1e_r = gto.mole.intor_cross('int1e_r', helper_mol, auxmol)
         int1e_r = int1e_r[:, intor_idx, range(auxmol.nao)]
-        int1e_r = utils.bohr_to_angstrom(torch.from_numpy(int1e_r).to(nucl_dip))
+        int1e_r = utils.bohr_to_angstrom(torch.from_numpy(int1e_r).to(coords))
         # ml_dip = utils.bohr_to_angstrom(nucl_dip - torch.einsum('ji,i->j', int1e_r, df_coeffs_ml))
         el_dip = torch.einsum('ji,i->j', int1e_r, atoms[df_coeff][i])
         batch_dens_dip.append(el_dip)
@@ -1314,6 +1305,7 @@ def ml_basis_to_pyscf_basis(pred, atom_types, index=0):
             radial_widths = (
                 pred["radial_width"][i][key][index].squeeze().numpy(force=True)
             )
+            radial_widths = np.maximum(radial_widths, 1e-10)  # avoid zero exponent for PySCF
             radial_scales = (
                 pred["radial_scale"][i][key][index].squeeze().numpy(force=True)
             )
@@ -1482,7 +1474,7 @@ def free_atom_volumes(atom_dens_dict, atom_dens_type='mo_coeff',
     for z in atom_dens_dict.keys():
         if atom_dens_type == 'mo_coeffs':
             basis = atom_dens_dict[z]['mo_basis']
-            mol = gto.M(atom=[[z, [0, 0, 0]]], basis=basis, spin=None)
+            mol = gto.M(atom=[[z, [0, 0, 0]]], basis=basis, spin=(z % 2))
             intor_v = calculate_1e_intor(mol, 'int1e_rrr', atom_dens_dict[z], coeffs_type=atom_dens_type)
             free_atom_volumes[z] = intor_v
         elif atom_dens_type == 'spline':

@@ -1,3 +1,5 @@
+import equiv_dens.compat  # noqa: F401 - apply T_co patch before schnetpack import
+
 import time
 import torch
 import torch.nn as nn
@@ -7,6 +9,12 @@ from schnetpack.md.calculators import MDCalculator, MDCalculatorError
 from schnetpack import properties
 import numpy as np
 from pyscf import gto, dft
+
+try:
+    from equiv_dens.inference import FastInferenceWrapper, InferenceSettings
+    HAS_FAST_INFERENCE = True
+except ImportError:
+    HAS_FAST_INFERENCE = False
 
 
 # MD calculator class
@@ -25,9 +33,19 @@ class DFTNetworkCalculator(MDCalculator):
                  grid_sampling_fn=None,
                  use_gpu=False,
                  detach=True,
-                 cutoff=7.937658158457616,
-                 pyscf_grid=False,
-                 ):
+        cutoff=7.937658158457616,
+        pyscf_grid=False,
+        atom_dens=None,
+        atom_dens_type=None,
+        remove_atom_density=False,
+        dpm_intor=False,
+        enable_tf32=True,
+        enable_inference_mode=True,
+        cache_grid=True,
+        grid_cache_threshold=0.1,
+        use_fast_inference=False,
+        compile_model=False,
+        ):
         # energy prediction model
         super().__init__(
             required_properties,
@@ -54,6 +72,44 @@ class DFTNetworkCalculator(MDCalculator):
             self.grid_spec = grid_spec
         self.density_expansion = density_expansion
         self.detach = detach
+        self.atom_dens = atom_dens
+        self.atom_dens_type = atom_dens_type or 'spline'
+        self.remove_atom_density = remove_atom_density
+        self.dpm_intor = dpm_intor
+        
+        # Performance optimizations
+        self.enable_tf32 = enable_tf32
+        self.enable_inference_mode = enable_inference_mode
+        self.cache_grid = cache_grid
+        self.grid_cache_threshold = grid_cache_threshold
+        
+        # Grid caching state
+        self._cached_grid_coords = None
+        self._cached_grid_weights = None
+        self._cached_positions = None
+        self._cached_atom_density = None
+        
+        # Apply TF32 optimization if enabled
+        if self.enable_tf32 and torch.cuda.is_available():
+            torch.backends.cuda.matmul.allow_tf32 = True
+            torch.backends.cudnn.allow_tf32 = True
+            if self.verbose > 0:
+                print("TF32 enabled for faster matrix operations")
+        
+        # Optional FastInferenceWrapper integration
+        self.use_fast_inference = use_fast_inference
+        self.compile_model = compile_model
+        self._inference_wrapper = None
+        
+        if self.use_fast_inference and HAS_FAST_INFERENCE:
+            settings = InferenceSettings(
+                tf32=self.enable_tf32,
+                compile=self.compile_model,
+                cuda_graph=False,  # CUDA graphs don't work well with MD (dynamic shapes)
+            )
+            self._inference_wrapper = FastInferenceWrapper(self.model, settings)
+            if self.verbose > 0:
+                print(f"FastInferenceWrapper enabled (tf32={self.enable_tf32}, compile={self.compile_model})")
 
     def calculate(self, system):
         """
@@ -69,39 +125,31 @@ class DFTNetworkCalculator(MDCalculator):
 
         inputs = self._generate_input(system)
 
-        # for key in inputs.keys():
-        #     if isinstance(inputs[key], torch.Tensor) or isinstance(inputs[key], np.ndarray):
-        #         print(key, 'type', inputs[key].type())
-        #     else:
-        #         print(key, 'type', type(inputs[key]))
-
+        # Run model forward pass with optional inference mode for speed
         start_model = time.time()
-        results = self.model(inputs)
-        # print('avg_distance', torch.mean(results['distances']))
-        # print('avg_force', torch.mean(torch.norm(results['forces'], dim=-1)))
-        # print('avg_energy', torch.mean(results['energy']))
-        # print('avg_distance', torch.mean(results['distances']))
-        # print('avg_force', torch.mean(torch.norm(results['forces'], dim=-1)))
-        # print('avg_energy', torch.mean(results['energy']))
-        # print('Model time:', time.time() - start_model)
-        # print('density integral', torch.sum(results['density'] * results['coord_weights'], -1))
+        compute_forces = 'forces' in self.required_properties
+        
+        if self._inference_wrapper is not None:
+            # Use FastInferenceWrapper if available
+            results = self._inference_wrapper(inputs, compute_forces=compute_forces)
+        elif self.enable_inference_mode and not compute_forces:
+            # Use inference mode when we don't need gradients for forces
+            with torch.inference_mode():
+                results = self.model(inputs)
+        else:
+            # Need gradients for force computation
+            results = self.model(inputs)
+        
         start_coeffs = time.time()
         vector_coeffs = orbitals.coeffs_dict_to_vector(results, self.model.density_repr_model[0].orbital_basis,
                                                        results['batch_atom_numbers'])
-        # print('Coeffs time:', time.time() - start_coeffs)
         start_other = time.time()
         results['spherical_coeffs'] = vector_coeffs['spherical_coeffs']
         results['radial_width'] = vector_coeffs['radial_width']
         results['radial_scale'] = vector_coeffs['radial_scale']
         results = utils.batch_compressed_atoms(results, ['positions', 'forces'])
-        print('forces', results['forces'])
         self.results = {}
         for p in self.required_properties:
-            # if p in ['spherical_coeffs', 'radial_width', 'radial_scale']:
-            #     self.results[p] = []
-            #     for L in range(len(coeffs[p])):
-            #         self.results[p].append(coeffs[p][L].detach())
-            # elif p not in results:
             if p not in results:
                 raise MDCalculatorError(
                     "Requested property {:s} not in " "results".format(p)
@@ -109,13 +157,17 @@ class DFTNetworkCalculator(MDCalculator):
             else:
                 # Detach properties if requested
                 self.results[p] = results[p].detach() if self.detach else results[p]
-        # print('system before', system.properties)
         self._update_system(system)
-        # print('system after', system.properties)
-        # print('Other time:', time.time() - start_other)
 
-        # print('Step time:', time.time() - start)
-
+    def _can_use_cached_grid(self, positions):
+        """Check if cached grid can be reused based on position displacement."""
+        if not self.cache_grid or self._cached_positions is None:
+            return False
+        
+        # Compute max displacement from cached positions
+        displacement = torch.max(torch.abs(positions - self._cached_positions))
+        return displacement.item() < self.grid_cache_threshold
+    
     def _generate_input(self, system):
         """
         Function to extracts neighbor lists, atom_types, positions e.t.c. from the system and generate a properly
@@ -145,17 +197,58 @@ class DFTNetworkCalculator(MDCalculator):
         positions = torch.from_numpy(props['positions']).to(positions)
         inputs = {}
         if self.density_expansion:
-            # print('grid spec', self.grid_spec)
-            if self.pyscf_grid:
-                sample_coords, coord_weights = get_pyscf_coords(self.grid_spec, 10000000000,
-                                                                atom_numbers,
-                                                                positions)
+            # Check if we can use cached grid coordinates
+            use_cached = self._can_use_cached_grid(positions)
+            
+            if use_cached and self._cached_grid_coords is not None:
+                # Reuse cached grid
+                sample_coords = self._cached_grid_coords
+                coord_weights = self._cached_grid_weights
             else:
-                sample_coords, coord_weights = self.grid_sampling_fn(self.grid_spec, 10000000000,
-                                                                     atom_numbers,
-                                                                     positions)
+                # Generate new grid
+                if self.pyscf_grid:
+                    sample_coords, coord_weights = get_pyscf_coords(self.grid_spec, 10000000000,
+                                                                    atom_numbers,
+                                                                    positions)
+                else:
+                    sample_coords, coord_weights = self.grid_sampling_fn(self.grid_spec, 10000000000,
+                                                                         atom_numbers,
+                                                                         positions)
+                # Cache for next step
+                if self.cache_grid:
+                    self._cached_grid_coords = sample_coords
+                    self._cached_grid_weights = coord_weights
+                    self._cached_positions = positions.clone()
+            
             inputs['coords'] = sample_coords
             inputs['coord_weights'] = coord_weights
+            if self.remove_atom_density and self.atom_dens is not None:
+                # Check if we can use cached atom density
+                if use_cached and self._cached_atom_density is not None:
+                    inputs['atom_density'] = self._cached_atom_density
+                else:
+                    positions_for_dens = positions.view(-1, atom_numbers.shape[1], 3).cpu()
+                    atom_numbers_t = torch.tensor(atom_numbers).type(torch.long)
+                    sample_coords_cpu = sample_coords.cpu() if sample_coords.is_cuda else sample_coords
+                    atom_dens, _ = orbitals.sample_atom_density(
+                        positions=positions_for_dens,
+                        atom_numbers=atom_numbers_t,
+                        coords=sample_coords_cpu,
+                        atom_dens_type=self.atom_dens_type,
+                        atom_dens_dict=self.atom_dens,
+                    )
+                    inputs['atom_density'] = atom_dens.to(positions)
+                    if self.cache_grid:
+                        self._cached_atom_density = inputs['atom_density']
+
+        # dpm_intor + remove_atom_density needs atom_mo_coeffs/atom_df_coeffs for intor_dipole_moment_free_atom
+        if (not self.density_expansion and self.dpm_intor and self.remove_atom_density
+                and self.atom_dens is not None and 'coeffs' in self.atom_dens_type):
+            atom_dens_t = self.atom_dens_type
+            (inputs['atom_' + atom_dens_t],
+             inputs['atom_' + atom_dens_t + '_occ'],
+             inputs['atom_' + atom_dens_t + '_basis']) = orbitals.join_atom_coeffs(
+                torch.LongTensor(atom_numbers), self.atom_dens, atom_dens_t)
 
         inputs['positions'] = positions
         inputs['atom_numbers_first_positions'] = utils.get_atom_num_first_positions(atom_numbers)
@@ -163,17 +256,14 @@ class DFTNetworkCalculator(MDCalculator):
         inputs['atom_mask'] = inputs['atom_numbers'] > 0
 
         nl = utils.TorchNeighborList(self.cutoff)
-        print(inputs['positions'])
         idx_is, idx_js, _ = nl.get_neighbors(inputs)
-        # print('inputs positions shape', inputs['positions'].shape)
-        # print('idx_is', idx_is)
         prev_max = 0
         for i in range(len(idx_is)):
             idx_is[i] += prev_max
             idx_js[i] += prev_max
-            print('idx_is shape', idx_is[i].shape)
-            max_i = torch.max(idx_is[i])
-            max_j = torch.max(idx_is[i])
+            # Handle empty neighbor lists (e.g. single-atom or edge-case configs)
+            max_i = torch.max(idx_is[i]).item() if idx_is[i].numel() > 0 else prev_max
+            max_j = torch.max(idx_js[i]).item() if idx_js[i].numel() > 0 else prev_max
             prev_max = max(max_i, max_j) + 1
 
         atom_batch_idx = np.zeros_like(atom_numbers)

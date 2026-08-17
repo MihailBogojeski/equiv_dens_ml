@@ -2,6 +2,7 @@ import torch
 import torch.utils.data
 import torch.nn as nn
 import numpy as np
+from itertools import accumulate
 from .sqlite_database import HamiltonianDatabase
 
 
@@ -54,8 +55,16 @@ def seeded_random_split(dataset, lengths, seed=None):
         dataset (Dataset): Dataset to be split
         lengths (sequence): lengths of splits to be produced
     """
-    if sum(lengths) != len(dataset):
+    n = len(dataset)
+    n_train, n_valid, n_test = lengths[0], lengths[1], lengths[2]
+    if n_train + n_valid + n_test != n or n_test < 0:
+        n_train = min(n_train, n)
+        n_valid = min(n_valid, n - n_train)
+        n_test = max(0, n - n_train - n_valid)
+        lengths = [n_train, n_valid, n_test]
+
+    if sum(lengths) != n:
         raise ValueError("Sum of input lengths does not equal the length of the input dataset!")
 
-    indices = np.random.RandomState(seed=seed).permutation(sum(lengths))
-    return [torch.utils.data.Subset(dataset, indices[offset - length:offset]) for offset, length in zip(torch._utils._accumulate(lengths), lengths)]
+    indices = np.random.RandomState(seed=seed).permutation(n)
+    return [torch.utils.data.Subset(dataset, indices[offset - length:offset]) for offset, length in zip(accumulate(lengths), lengths)]

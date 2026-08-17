@@ -75,9 +75,6 @@ class AtomsDensityData(Dataset):
         all_atom_numbers=None,
         dpm_intor=False,
         all_atom_coeffs=False,
-        dens_sqrt=False,
-        valence_dens=False,
-        full_valence=True,
     ):
         self.density_path = density_path
         self.np_path = np_path
@@ -108,9 +105,6 @@ class AtomsDensityData(Dataset):
         self.density_grad = density_grad
         self.dpm_intor = dpm_intor
         self.all_atom_coeffs = all_atom_coeffs
-        self.dens_sqrt = dens_sqrt
-        self.valence_dens = valence_dens
-        self.full_valence = full_valence
         if "dipole_moment" in self.required_properties:
             if self.dpm_intor:
                 if self.projected_density and 'df_coeffs' not in self.required_properties:
@@ -433,6 +427,10 @@ class AtomsDensityData(Dataset):
         )
         props.update(mol_props)
         # atom_numbers = torch.from_numpy(atom_numbers).type(self.dtype)
+        if "positions" not in props.keys():
+            print("idx", idx)
+            print("atom_props", atom_props)
+            print("props", props)
         positions = torch.from_numpy(props["positions"]).type(self.dtype)
         if self.centered_positions:
             # print('atom center', positions.mean(axis=0))
@@ -467,13 +465,12 @@ class AtomsDensityData(Dataset):
                             idx, properties["coords"] - pos_shift,
                             density_grad=self.density_grad,
                         )
+                        # print('density integral in props')
+                        # print(torch.sum(properties['density'] * properties['coord_weights'], dim=1))
                     else:
                         properties[pname] = self.sample_density(
                             idx, properties["coords"] - pos_shift,
                             density_grad=self.density_grad,
-                            sqrt=self.dens_sqrt,
-                            valence=self.valence_dens,
-                            full=self.full_valence,
                         )
                         # print('density integral in props')
                         # print(torch.sum(properties['density'] * properties['coord_weights'], dim=1))
@@ -513,7 +510,7 @@ class AtomsDensityData(Dataset):
             elif pname == 'mo_coeff':
                 properties[pname] = torch.from_numpy(props[pname]).type(self.dtype)
                 properties['mo_occ'] = torch.from_numpy(props['mo_occ']).type(self.dtype)
-            else:
+            elif pname in props:
                 properties[pname] = torch.from_numpy(props[pname]).type(self.dtype)
 
         if self.atom_dens is not None and 'coeffs' in self.atom_dens_type:
@@ -595,10 +592,6 @@ class AtomsDensityData(Dataset):
             )
             properties["forces"] = properties["forces"][:, properties["atom_mask"]]
 
-        properties['n_electrons'] = orbitals.get_n_electrons(properties['batch_atom_numbers'], valence=self.valence_dens,
-                                                             full_valence=self.full_valence)
-        properties['n_electrons'] = properties['n_electrons'].to(properties['positions'])
-
         if self.calc_dpm:
             if self.dpm_intor:
                 if self.projected_density:
@@ -613,8 +606,6 @@ class AtomsDensityData(Dataset):
         for prop in self.fixed_properties.keys():
             properties[prop] = self.fixed_properties[prop]
 
-        # print('density integral in props', properties['density'].shape)
-        # print(torch.sum(properties['density'] * properties['coord_weights'], dim=1))
         if self.timing:
             print("final props time", time.time() - final_start)
             print("total time", time.time() - props_start)
@@ -752,15 +743,11 @@ class AtomsDensityData(Dataset):
 
         return coords, coord_weights
 
-    def sample_density(self, idx, sample_coords, density_grad=False, sqrt=False, valence=False,
-                       full=True):
+    def sample_density(self, idx, sample_coords, density_grad=False):
         scaled_sample_coords = (
             sample_coords.detach().cpu().numpy() / param.BOHR
         )  # convert Angstrom grid to Bohr
-        print('sample density idx', idx)
         mols = [self.mols[i] for i in idx]
-        print('mols[0] basis', mols[0].basis)
-        print('mols[0] _basis', mols[0]._basis)
         for i, mol in enumerate(mols):
             if not mol._built:
                 build_start = time.time()
@@ -769,16 +756,11 @@ class AtomsDensityData(Dataset):
                 mol.build()
                 if self.timing:
                     print("molecule build time", time.time() - build_start)
-
         coeffs = [self.coeffs[i] for i in idx]
-        if valence:
-            dens = orbitals.sample_valence_density(mols, scaled_sample_coords, coeffs, full=full)
-        else:
-            dens = orbitals.sample_density_base(
-                mols, scaled_sample_coords, coeffs, projected=False, density_grad=density_grad,
-            )
-        if sqrt:
-            dens = torch.sqrt(dens)
+        dens = orbitals.sample_density_base(
+            mols, scaled_sample_coords, coeffs, projected=False, density_grad=density_grad,
+        )
+
         return dens
 
     def sample_atom_density(

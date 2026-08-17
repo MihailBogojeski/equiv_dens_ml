@@ -1,0 +1,10 @@
+--structure=datasets/thiophene12mer_test.xyz
+--structure-frame=0
+--gxtb-path=g-xtb/binary/gxtb
+--gxtb-params=g-xtb/parameters
+--temperature=300
+--md-steps=200
+--langevin=True
+--time-step=0.5
+--log-dir=results/gxtb_md
+--log-suffix=12mer

@@ -230,6 +230,8 @@ def set_up_data_loader(dataset: Dataset, batch_size: int = 1,
     electron_num_batching (bool): True to use adaptive batching based on number of electrons.
     use_gpu (bool): True to use GPU.
     """
+    if len(dataset) == 0:
+        raise ValueError("Cannot create DataLoader for empty dataset")
     if isinstance(dataset, torch.utils.data.Subset):
         def collate_fn(batch):
             return dataset.dataset.get_properties(batch)

@@ -258,10 +258,22 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
         neighbor_mask = 1
         # exclude self - interactions
         # initialize atomic features to embeddings
+        # print('atoms sph_dict', atoms['sph_dict'])
+        # print('atoms keys', atoms.keys())
+        # print('atoms dens', self.atom_dens[16]['df_basis'])
+        # print('atoms df widths', self.atom_df_widths)
+        # print('atoms df scales', self.atom_df_scales)
+        # print('radial_widths 16', [(key, atoms['radial_width'][8][key]) for key in atoms['radial_width'][8].keys() if key[1]==0])
+        # print('radial_scales 16', [(key, atoms['radial_scale'][8][key]) for key in atoms['radial_scale'][8].keys() if key[1]==0])
+        # print('spherical coeffs 0', [(key, atoms['spherical_coeffs'][0][key]) for key in atoms['spherical_coeffs'][0].keys() if key[1]==0])
         sph_fs, scale_fs, width_fs = coeffs_dict_to_tensors(atoms, radial_coeffs=self.pred_radial_coeffs,
                                                             atom_df_coeffs=self.atom_df_coeffs,
                                                             atom_df_widths=self.atom_df_widths,
                                                             atom_df_scales=self.atom_df_scales)
+        # print('sph fs 0', sph_fs[0][:, 0, 0, :10])
+        # print('width fs 0', width_fs[0][:, 8, 0, 32:])
+        # print('scale fs 0', scale_fs[0][:, 8, 0, 32:])
+        # print('atoms.atom_dens', self.atom_dens[1]['df_coeffs'])
         for i in range(len(sph_fs)):
             sph_fs[i] = sph_fs[i].view(1, -1, *sph_fs[i].shape[2:])
             sph_fs[i] = sph_fs[i][:, atoms['atom_mask']]
@@ -271,7 +283,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
             width_fs[i] = width_fs[i][:, atoms['atom_mask']]
         dij = atoms['distances']
         sph = atoms['sph']
-        rbf = self.radial_basis_functions(dij).unsqueeze_(-2)  # unsqueeze for broadcasting
+        rbf = self.radial_basis_functions(dij).unsqueeze(-2)  # unsqueeze for broadcasting
         xs = []
         radial_all = 0
         # print('dens features', self.dens_features)
@@ -309,7 +321,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
         # print('xs.shape', xs[0].shape)
         # print('positions.shape', atoms['positions'].shape)
         # perform iterations over modular building blocks to get environment - dependent features
-        fs = [torch.tensor(0).to(xs[0]) for _ in range(max(self.order_max, self.orbitals_max_order) + 1)]  # output features
+        fs = [torch.tensor(0, device=xs[0].device, dtype=xs[0].dtype) for _ in range(max(self.order_max, self.orbitals_max_order) + 1)]  # output features
         # print('self normalize en', self.normalize)
         # print('fs norm start :', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
         # fs = [torch.zeros_like(x) for x in xs]  # output features
@@ -334,7 +346,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
         atom_en = self.energy_output(fs)[0].squeeze(-1).squeeze(-1)
         # print('energy', atom_en)
 
-        energy = torch.zeros(1, atoms['batch_atom_numbers'].shape[0]).to(atoms['positions'])
+        energy = torch.zeros(1, atoms['batch_atom_numbers'].shape[0], device=atoms['positions'].device, dtype=atoms['positions'].dtype)
         energy = energy.scatter_add(1, atoms['atom_batch_idx'], atom_en)
         energy = torch.t(energy)
 
@@ -600,7 +612,7 @@ class RepresentationEnergyNetwork(nn.Module):
 
         # print('atom_en shape', atom_en.shape)
         # print('positions shape', atoms['positions'].shape)
-        energy = torch.zeros(1, atoms['batch_atom_numbers'].shape[0]).to(atoms['positions'])
+        energy = torch.zeros(1, atoms['batch_atom_numbers'].shape[0], device=atoms['positions'].device, dtype=atoms['positions'].dtype)
         energy = energy.scatter_add(1, atoms['atom_batch_idx'], atom_en)
         energy = torch.t(energy)
 
@@ -835,7 +847,7 @@ class SphericalHarmonicsEmbeddingEnergyNetwork(nn.Module):
             width_fs[i] = width_fs[i][:, atoms['atom_mask']]
         dij = atoms['distances']
         sph = atoms['sph']
-        rbf = self.radial_basis_functions(dij).unsqueeze_(-2)  # unsqueeze for broadcasting
+        rbf = self.radial_basis_functions(dij).unsqueeze(-2)  # unsqueeze for broadcasting
         xs = self.embedding(atoms['atom_numbers'])
         # print('dens features', self.dens_features)
         dens_fs = []
@@ -886,7 +898,7 @@ class SphericalHarmonicsEmbeddingEnergyNetwork(nn.Module):
 
         atom_en = self.energy_output(fs)[0].squeeze(-1).squeeze(-1)
 
-        energy = torch.zeros(1, atoms['batch_atom_numbers'].shape[0]).to(atoms['positions'])
+        energy = torch.zeros(1, atoms['batch_atom_numbers'].shape[0], device=atoms['positions'].device, dtype=atoms['positions'].dtype)
         energy = energy.scatter_add(1, atoms['atom_batch_idx'], atom_en)
         energy = torch.t(energy)
 

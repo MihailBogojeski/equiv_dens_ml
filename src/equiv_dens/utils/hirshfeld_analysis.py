@@ -1,6 +1,6 @@
 import numpy as np
 import os
-from scipy.interpolate import make_interp_spline
+from scipy.interpolate import make_interp_spline, BSpline
 from pyscf import gto, scf, dft
 from pyscf.scf import atom_hf, ADIIS
 from pyscf.dft import rks
@@ -97,17 +97,37 @@ def spline_radial(x, y, k=7):
     return spl
 
 
+def _ensure_bspline_compatible(spl):
+    """Recreate BSpline from (t, c, k) if loaded from pickle with incompatible scipy version.
+
+    Pickled BSpline objects from older scipy may have t, c, k (no underscore) in __dict__
+    instead of _t, _c, causing AttributeError when the current scipy's __call__ runs.
+    """
+    if not isinstance(spl, BSpline):
+        return spl
+    d = getattr(spl, '__dict__', {})
+    if 't' in d and 'c' in d and 'k' in d:
+        return BSpline(
+            np.ascontiguousarray(np.asarray(d['t'])),
+            np.ascontiguousarray(np.asarray(d['c'])),
+            int(d['k']),
+        )
+    return spl
+
+
 def eval_spline_density(spl, coords, density_grad=False):
+    spl = _ensure_bspline_compatible(spl)
     x_in = torch.norm(coords, dim=-1) / param.BOHR
-    y_out = spl(np.log(x_in.numpy(force=True)))
+    x_log = np.ascontiguousarray(np.log(x_in.detach().cpu().numpy()), dtype=np.float64)
+    y_out = spl(x_log)
 
     y_out[y_out < 0] = 0
     y_out[np.isnan(y_out)] = 0
     y_out = torch.from_numpy(y_out)
 
     if density_grad:
-        deriv = spl.derivative()
-        spl_deriv = torch.from_numpy(deriv(np.log(x_in)))
+        deriv = _ensure_bspline_compatible(spl.derivative())
+        spl_deriv = torch.from_numpy(deriv(x_log))
         y_deriv = spl_deriv.unsqueeze(-1) * (1 / x_in).unsqueeze(-1) * (coords / x_in.unsqueeze(-1)) / param.BOHR
         y_out = torch.cat([y_out.unsqueeze(-1), y_deriv], dim=-1)
     return y_out

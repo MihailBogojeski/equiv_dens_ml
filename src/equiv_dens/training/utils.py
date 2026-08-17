@@ -56,15 +56,18 @@ def init_training_vars(args, hyperparam_args):
         directory = args.restart  # load directory name
         # load latest checkpoint
         checkpoint_path = os.path.join(directory, 'checkpoints')  # checkpoint directory
-        checkpoint = torch.load(os.path.join(
-            checkpoint_path, 'latest_checkpoint.pth'), map_location='cpu')
+        checkpoint = torch.load(
+            os.path.join(checkpoint_path, 'latest_checkpoint.pth'),
+            map_location='cpu',
+            weights_only=False,
+        )
         model_code = checkpoint['ID']  # load ID
         if args.fix_hyperparams:
             pass
         elif args.fix_arguments:
             for arg in vars(checkpoint['args']):
                 if arg in hyperparam_args:
-                    # print('loading hyperparam arg', arg)
+                    print('loading hyperparam arg', arg)
                     setattr(args, arg, getattr(checkpoint['args'], arg))
         step = checkpoint['step']
         restore = True
@@ -552,9 +555,7 @@ def prepare_optimizers(args, model, phase=None):
     parameter_list = [
         {'params': parameters},
         {'params': weight_decay_parameters, 'weight_decay': float(args.weight_decay)},
-        ]
-    if len(en_weight_decay_parameters) > 0:
-        parameter_list.append({'params': en_weight_decay_parameters, 'weight_decay': float(args.en_weight_decay)})
+        {'params': en_weight_decay_parameters, 'weight_decay': float(args.en_weight_decay)}]
 
     # choose optimizer
     optimizers = init_optimizers(args, parameter_list, offset_param)
