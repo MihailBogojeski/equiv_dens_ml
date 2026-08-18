@@ -39,7 +39,8 @@ PBE0 labels **70/70**. Water / ethanol-OOD PBE still running. Do not start water
 | GPU 0 geo-opt | RMSD 0.0 Å; energy 0.224 eV (not physical until energy head is restored) |
 | GPU 0 NVE 0.1 ps | std 8.4 meV, drift 0.18 eV/ps, 0.069 ns/day |
 | GPU 0 OOD forces | **80 frames**: force MAE 5.01 eV/Å, energy MAE ~4206 eV (not physical) |
-| GPU 0 PBE0 train | `run.py train @config/training/ethanol_pbe0_001.txt` started |
+| GPU 0 PBE0 train | reached first forward; died on energy DF feature 16 vs 27 (needs paper DF SAD / energy-head fix). GPU 0 now running ASE 500 ps MD |
+| GPU 0 ASE MD | `ase_densnet_md.py` 1e6 steps — this calculator path already works |
 | GPU 1 | ethanol 500 ps `run.py md` (SAD `mo_basis` patched; ASE Langevin fallback if it dies) |
 
 Slurm (qos `gpu48`, Priority): `dens-pbe0` 15934887, `dens-ethanol-md` 15934889, `dens-thiophene-md` 15934890.
