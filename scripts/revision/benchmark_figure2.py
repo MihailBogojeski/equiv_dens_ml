@@ -32,11 +32,25 @@ def _load_atoms(path: Path) -> Atoms:
     return Atoms(numbers=anum, positions=pos)
 
 
-def _time_call(fn, n_warm=1, n_rep=5):
+def _uncache(atoms):
+    calc = getattr(atoms, "calc", None)
+    if calc is None:
+        return
+    if hasattr(calc, "reset"):
+        calc.reset()
+    elif hasattr(calc, "results"):
+        calc.results = {}
+
+
+def _time_call(fn, atoms=None, n_warm=1, n_rep=5):
     for _ in range(n_warm):
+        if atoms is not None:
+            _uncache(atoms)
         fn()
     ts = []
     for _ in range(n_rep):
+        if atoms is not None:
+            _uncache(atoms)
         t0 = time.perf_counter()
         fn()
         ts.append(time.perf_counter() - t0)
@@ -75,7 +89,7 @@ def main():
                     atoms.get_potential_energy()
                     atoms.get_forces()
 
-                results["methods"][method] = _time_call(_run, n_rep=args.n_rep)
+                results["methods"][method] = _time_call(_run, atoms=atoms, n_rep=args.n_rep)
 
             elif method in ("gfn2xtb", "tblite"):
                 calc = None
@@ -102,7 +116,7 @@ def main():
                     atoms.get_potential_energy()
                     atoms.get_forces()
 
-                results["methods"][method] = _time_call(_run, n_rep=args.n_rep)
+                results["methods"][method] = _time_call(_run, atoms=atoms, n_rep=args.n_rep)
 
             elif method == "maceoff":
                 from mace.calculators import mace_off
@@ -113,7 +127,7 @@ def main():
                     atoms.get_potential_energy()
                     atoms.get_forces()
 
-                results["methods"][method] = _time_call(_run, n_rep=args.n_rep)
+                results["methods"][method] = _time_call(_run, atoms=atoms, n_rep=args.n_rep)
 
             elif method == "aimd":
                 results["methods"][method] = {
@@ -124,6 +138,9 @@ def main():
                     "note": "Restore paper checkpoint then time run.py infer --dpm-intor on one frame",
                 }
             elif method == "aimnet2":
+                import os
+
+                os.environ.setdefault("TORCHDYNAMO_DISABLE", "1")
                 try:
                     from aimnet.calculators import AIMNet2ASE
 
@@ -141,7 +158,7 @@ def main():
                     atoms.get_potential_energy()
                     atoms.get_forces()
 
-                results["methods"][method] = _time_call(_run, n_rep=args.n_rep)
+                results["methods"][method] = _time_call(_run, atoms=atoms, n_rep=args.n_rep)
             else:
                 results["methods"][method] = {"error": f"unknown method {method}"}
         except Exception as exc:

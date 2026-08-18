@@ -1,0 +1,30 @@
+{
+  "structure": "datasets/ethanol_train_10.xyz",
+  "n_atoms": 9,
+  "methods": {
+    "gxtb": {
+      "mean_s": 0.6997685382763544,
+      "std_s": 0.27062998386146964,
+      "n": 3,
+      "ms_per_step": 699.7685382763544,
+      "ns_per_day_0.5fs": 0.06173469888544681
+    },
+    "gfn2xtb": {
+      "mean_s": 3.0501239974983037,
+      "std_s": 0.32214062308200125,
+      "n": 3,
+      "ms_per_step": 3050.1239974983037,
+      "ns_per_day_0.5fs": 0.014163358616053782
+    },
+    "maceoff": {
+      "mean_s": 4.479309977963567,
+      "std_s": 0.28371462657956836,
+      "n": 3,
+      "ms_per_step": 4479.309977963567,
+      "ns_per_day_0.5fs": 0.009644342591275645
+    },
+    "aimnet2": {
+      "error": "Command '['/usr/bin/gcc', '/tmp/tmpinirdryi/cuda_utils.c', '-O3', '-shared', '-fPIC', '-Wno-psabi', '-o', '/tmp/tmpinirdryi/cuda_utils.cpython-312-x86_64-linux-gnu.so', '-l:libcuda.so.1', '-L/scratch/mh7373/projects/equiv_dens_ml/.venv/lib/python3.12/site-packages/triton/backends/nvidia/lib', '-L/lib64', '-I/scratch/mh7373/projects/equiv_dens_ml/.venv/lib/python3.12/site-packages/triton/backends/nvidia/include', '-I/tmp/tmpinirdryi', '-I/usr/include/python3.12']' returned non-zero exit status 1."
+    }
+  }
+}

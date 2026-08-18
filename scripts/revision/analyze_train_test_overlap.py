@@ -85,8 +85,8 @@ def main():
     parser.add_argument("--train", required=True, type=Path)
     parser.add_argument("--test", required=True, type=Path)
     parser.add_argument("--out", type=Path, default=Path("results/revision/overlap.json"))
-    parser.add_argument("--max-train", type=int, default=400)
-    parser.add_argument("--max-test", type=int, default=400)
+    parser.add_argument("--max-train", type=int, default=2000)
+    parser.add_argument("--max-test", type=int, default=2000)
     args = parser.parse_args()
 
     train = _load_positions(args.train)[: args.max_train]
@@ -99,11 +99,7 @@ def main():
         test_z = test_z[: args.max_test]
 
     groups = {("all", train.shape[1]): (train, test)}
-    if train.shape[1] != test.shape[1] or (
-        train_z is not None and test_z is not None and train_z.shape[1] != test_z.shape[1]
-    ):
-        if train_z is None or test_z is None:
-            raise ValueError("Train and test atom counts differ; compare per-molecule splits.")
+    if train_z is not None and test_z is not None:
         groups = {}
         for n in sorted(set(int(np.sum(z > 0)) for z in train_z)):
             tr = train[np.array([int(np.sum(z > 0)) == n for z in train_z])]
@@ -112,6 +108,8 @@ def main():
                 groups[(f"n_atoms={n}", n)] = (tr[:, :n], te[:, :n])
         if not groups:
             raise ValueError("No overlapping atom-count groups between train and test.")
+    elif train.shape[1] != test.shape[1]:
+        raise ValueError("Train and test atom counts differ; compare per-molecule splits.")
 
     rmsds = []
     desc_dists = []

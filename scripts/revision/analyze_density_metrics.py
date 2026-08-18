@@ -41,14 +41,17 @@ def main():
     frames = _load_obj(args.dens_ref)
     if not isinstance(frames, list):
         raise ValueError(f"Expected list of (mol.pack(), calc) in {args.dens_ref}")
-    sad = _load_obj(args.atom_dens)
+    try:
+        sad = _load_obj(args.atom_dens)
+    except Exception as exc:
+        sad = {"_load_error": str(exc)}
     if not isinstance(sad, dict):
         raise ValueError("SAD prior must be a dict keyed by atomic number")
 
     rel = []
     signed_frac = []
     for item in frames[: args.max_frames]:
-        calc = item[1] if isinstance(item, (list, tuple)) else item
+        calc = item[1] if isinstance(item, (list, tuple, np.ndarray)) and len(item) == 2 else item
         if "df_coeff" not in calc:
             continue
         df = np.asarray(calc["df_coeff"]).ravel()

@@ -41,12 +41,12 @@ Searched this checkout, `paper/`, `datasets/`, and `/home/ml-dft/equiv_dens/data
 
 | ID | Request | Action | Status | Deliverable |
 | --- | --- | --- | --- | --- |
-| R1.1 | H-bond / size extrapolation (water clusters; NMA/MeOH/AcAc optional) | `new DFT` + train | `geoms_ready` | [Calculation 1](#calculation-1--water-clusters) |
-| R1.2 | Intentional OOD conformations | `new DFT` | `geoms_ready` | [Calculation 2](#calculation-2--ood-conformations) |
+| R1.1 | H-bond / size extrapolation (water clusters; NMA/MeOH/AcAc optional) | `new DFT` + train | `running` | [Calculation 1](#calculation-1--water-clusters); CPU PBE+D4 DFT in tmux `dft-pbe-train` |
+| R1.2 | Intentional OOD conformations | `new DFT` | `running` | [Calculation 2](#calculation-2--ood-conformations); ethanol OOD DFT in `dft-pbe-rest`; overlap vs 10 parents computed |
 | R1.3 | Shorten polythiophene; move Fig. 6 | `manuscript` | `written` | outline §R1.3 |
 | R1.4 | Move Fig. 7 to SI | `manuscript` | `written` | outline §R1.4 |
-| R1.5 | SI S2.2 details + train/test overlap evidence | `analysis` + `recover` | `scripts_ready` | `scripts/revision/analyze_train_test_overlap.py` |
-| R1.6 | Deduplicate 755 ms vs 5 min | `manuscript` | `scripts_ready` | `scripts/revision/benchmark_figure2.py` |
+| R1.5 | SI S2.2 details + train/test overlap evidence | `analysis` + `recover` | `computed` | ethanol OOD + water ID overlap JSON; paper-split NPYs still missing; water ID RMSD all <0.2 Å (same minima + noise) |
+| R1.6 | Deduplicate 755 ms vs 5 min | `manuscript` | `computed` | CPU Figure 2: g-xTB 700 ms, GFN2-xTB 3.05 s, MACE-OFF 4.48 s / ethanol step; DenSNet/AIMNet2 blocked |
 | R1.7 | Retract unsupported dielectric / H-bond-network claims | `manuscript` | `written` | outline §R1.7; water clusters restore a limited claim |
 
 ### Reviewer 2
@@ -54,16 +54,16 @@ Searched this checkout, `paper/`, `datasets/`, and `/home/ml-dft/equiv_dens/data
 | ID | Request | Action | Status | Deliverable |
 | --- | --- | --- | --- | --- |
 | R2.1 | Cite Hazra–Sanvito JCP 2025 density→IR workflow | `manuscript` | `written` | outline citations |
-| R2.2 | Compare general IR methods (MACE4IR, AIMNet2, TranSpec, AIQM) | `new MD` + `manuscript` | `scripts_ready` | [Calculation 4](#calculation-4--mlff--semiempirical-comparison); TranSpec/AIQM discussed as different tasks |
+| R2.2 | Compare general IR methods (MACE4IR, AIMNet2, TranSpec, AIQM) | `new MD` + `manuscript` | `running` | CPU single-point timings on ethanol; 200–500 ps IR needs a free GPU (CPU MACE-OFF ≈ 0.01 ns/day) |
 | R2.3 | Tougher extrapolation than hexamer-trained oligomers | `manuscript` | `written` | water-cluster size hold-out is the new experiment |
 | R2.4 | Companion network: embedding, autodiff, energy conservation | `new MD` + `manuscript` | `scripts_ready` | `nve_energy_drift.py`; outline §R2.4 |
 | R2.5 | Who produces dipoles vs energy/forces | `manuscript` | `written` | outline §R2.5 |
 | R2.6 | One framework vs two networks at MD time | `manuscript` | `written` | outline §R2.6 |
 | R2.7 | Electron-count normalization vs delta-learning | `manuscript` | `written` | outline §R2.7 |
-| R2.8 | Softplus vs signed delta-density | `manuscript` + `analysis` | `scripts_ready` | `analyze_density_metrics.py`; outline §R2.8 |
+| R2.8 | Softplus vs signed delta-density | `manuscript` + `analysis` | `computed` | h2o_small_test: 46.7% negative DF coeffs; SAD e-counts H/C/N/O/S = 1/6/7/8/16 |
 | R2.9 | State max AIMD time in main text | `manuscript` | `written` | recovered: ethanol AIMD **10 ps** on disk |
 | R2.10 | Units for density errors | `manuscript` | `written` | use **e/a0³** and relative MAE |
-| R2.11 | Numerical evidence DenSNet ≈ DFT equilibria | `new MD` | `scripts_ready` | `optimize_densnet.py` |
+| R2.11 | Numerical evidence DenSNet ≈ DFT equilibria | `new MD` | `running` | Water-dimer PBE BFGS done (`geoopt_water_dimer_dft.json`, −4155.66 eV); DenSNet opt blocked (no checkpoint) |
 | R2.12 | Cite Cuevas-Zuviría / Pacios JCIM 2020 | `manuscript` | `written` | outline citations |
 | R2.13 | Corresponding authors MS vs SI | `manuscript` | `written` | outline §R2.13 |
 
@@ -71,9 +71,9 @@ Searched this checkout, `paper/`, `datasets/`, and `/home/ml-dft/equiv_dens/data
 
 | ID | Request | Action | Status | Deliverable |
 | --- | --- | --- | --- | --- |
-| R3.1 | Hybrid DFT densities (PBE0+MBD / ωB97M-V) | `new DFT` | `scripts_ready` | [Calculation 3](#calculation-3--hybrid-dft-pbe0) |
-| R3.2 | Compare SO3LR, MACE-OFF, GFN-xTB, DFTB; expand Fig. 2 | `new MD` | `scripts_ready` | [Calculation 4](#calculation-4--mlff--semiempirical-comparison); Crambin/paracetamol/FGG **declined** as DenSNet targets |
-| R3.3 | Relative density errors + uncertainty | `analysis` | `scripts_ready` | `analyze_density_metrics.py` |
+| R3.1 | Hybrid DFT densities (PBE0+MBD / ωB97M-V) | `new DFT` | `running` | PBE0 SAD written; 70-frame ethanol+water subset labeling in tmux `dft-pbe0` (OMol25 skipped) |
+| R3.2 | Compare SO3LR, MACE-OFF, GFN-xTB, DFTB; expand Fig. 2 | `new MD` | `running` | CPU timings in `figure2_timing.json`; AIMNet2 needs `Python.h`/triton; SO3LR/DFTB not installed; no GPU IR |
+| R3.3 | Relative density errors + uncertainty | `analysis` | `computed` | DF-coeff / SAD diagnostics; 3-seed DenSNet ensemble still needs training |
 | R3.4 | Direct vs delta cost and correction magnitude | `analysis` | `scripts_ready` | SAD timing in `benchmark_figure2.py`; Δρ histograms in `analyze_density_metrics.py` |
 | R3.5 | Hyperparameter / cutoff optimization | `analysis` | `scripts_ready` | `config/training/water_clusters_cutoff_*.txt` |
 | R3.6 | IR convergence vs trajectory length | `new MD` | `scripts_ready` | [Calculation 5](#calculation-5--ir-length) |
@@ -277,6 +277,15 @@ Record each production job here.
 | --- | --- | --- | --- | --- | --- | --- |
 | 2026-08-17 | water n=2–12 | geometries only (analytic minima + thermal noise) | see manifest | `scripts/revision/generate_water_cluster_geoms.py` | `datasets/revision/water_clusters/` | re-thermalize with g-xTB/TIP3P before production DFT if desired |
 | 2026-08-17 | ethanol OOD | geometries only (strain + high-T noise) | see manifest | `scripts/revision/generate_ood_geometries.py` | `datasets/revision/ood/` | 10 parent frames from `ethanol_train_10.xyz` |
+| 2026-08-17 | water + ethanol OOD | g-xTB single points | 2240 (1 ethanol fail) | `run_gxtb_labels.py` (fixed leftover-energy reuse) | `results/revision/gxtb/*.jsonl` | water train mean −305.69 Eh (n=2–6 mix) |
+| 2026-08-17 | ethanol 10-parent vs OOD | overlap | 10 / 190 | `analyze_train_test_overlap.py` | `results/revision/overlap_ethanol_ood.json` | median min-RMSD 0.202 Å; 94/190 below 0.2 Å |
+| 2026-08-17 | water train vs ID test | overlap | 1250 / 250 | `analyze_train_test_overlap.py` | `results/revision/overlap_water_id.json` | all 250 ID frames <0.2 Å — same-minima thermal noise |
+| 2026-08-17 | water H-bond hists | geometry only | train/id/ood | `evaluate_hbond_metrics.py` | `results/revision/water_hbond_*.json` | OOD n=8–12 mean O···O 3.19 Å vs train 2.96 Å |
+| 2026-08-17 | H,C,N,O,S | PBE and PBE0 SAD | 5 atoms | `build_sad_prior.py` | `datasets/revision/sad_{pbe,pbe0}_augccpvdz.npy` | rebuilt for current SciPy pickle |
+| 2026-08-17 | water dimer | PBE+D4+DF smoke | 1 | `generate_dft_labels.py` | `datasets/revision/water_clusters/water_dimer_smoke_*` | E=−152.661674 Eh; ~32 s CPU |
+| 2026-08-17 | water train + ethanol OOD + PBE0 subset | PBE/PBE0+D4+DF | in progress | `run_dft_campaign.sh` | `datasets/revision/**/` | tmux `dft-pbe-train`, `dft-pbe-rest`, `dft-pbe0`; `--no-gpu` |
+| 2026-08-17 | ethanol | CPU Figure 2 timings | 1 geom | `benchmark_figure2.py` | `results/revision/figure2_timing.json` | g-xTB 0.70 s; GFN2 3.05 s; MACE-OFF 4.48 s; AIMNet2 failed (triton/Python.h) |
+| 2026-08-17 | water dimer | PBE BFGS geo-opt | 1 | `optimize_densnet.py` | `results/revision/geoopt_water_dimer_dft.json` | −4155.66 eV; DenSNet skipped |
 
 ---
 

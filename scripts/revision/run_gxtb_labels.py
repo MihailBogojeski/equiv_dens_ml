@@ -92,6 +92,10 @@ def main():
         for i, (comment, atoms) in enumerate(frames, start=args.offset):
             if i in done:
                 continue
+            for leftover in ("energy", "gradient", "gxtbrestart", "coord.xyz"):
+                p = work / leftover
+                if p.exists():
+                    p.unlink()
             coord = work / "coord.xyz"
             write_xyz(coord, atoms, comment)
             result = subprocess.run(

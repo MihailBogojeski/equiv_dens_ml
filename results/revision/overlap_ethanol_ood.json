@@ -1,0 +1,21 @@
+{
+  "train": "datasets/ethanol_train_10.npy",
+  "test": "datasets/revision/ood/ethanol_ood.npy",
+  "n_train": 10,
+  "n_test": 190,
+  "rmsd_min_mean": 0.2191320279897884,
+  "rmsd_min_median": 0.2019580922120714,
+  "rmsd_min_p10": 0.14820472649649089,
+  "rmsd_min_p90": 0.3337427157835845,
+  "pairdesc_min_mean": 0.7105690534392645,
+  "pairdesc_min_median": 0.6936676169561728,
+  "n_test_rmsd_below_0.2A": 94,
+  "per_group": {
+    "all": {
+      "n_train": 10,
+      "n_test": 190,
+      "rmsd_min_mean": 0.2191320279897884,
+      "rmsd_min_median": 0.2019580922120714
+    }
+  }
+}

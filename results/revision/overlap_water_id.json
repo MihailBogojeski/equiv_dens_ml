@@ -1,0 +1,45 @@
+{
+  "train": "datasets/revision/water_clusters/train.xyz",
+  "test": "datasets/revision/water_clusters/id_test.xyz",
+  "n_train": 1250,
+  "n_test": 250,
+  "rmsd_min_mean": 0.08289429519591533,
+  "rmsd_min_median": 0.08011146450651796,
+  "rmsd_min_p10": 0.05270171212250948,
+  "rmsd_min_p90": 0.11672878203295135,
+  "pairdesc_min_mean": 0.30942009515493873,
+  "pairdesc_min_median": 0.3041985417805517,
+  "n_test_rmsd_below_0.2A": 250,
+  "per_group": {
+    "n_atoms=6": {
+      "n_train": 250,
+      "n_test": 50,
+      "rmsd_min_mean": 0.05845817695338658,
+      "rmsd_min_median": 0.05627111702112393
+    },
+    "n_atoms=9": {
+      "n_train": 250,
+      "n_test": 50,
+      "rmsd_min_mean": 0.07781558572193994,
+      "rmsd_min_median": 0.0754091042637832
+    },
+    "n_atoms=12": {
+      "n_train": 250,
+      "n_test": 50,
+      "rmsd_min_mean": 0.08747673286873793,
+      "rmsd_min_median": 0.08470563381360935
+    },
+    "n_atoms=15": {
+      "n_train": 250,
+      "n_test": 50,
+      "rmsd_min_mean": 0.09297677905565481,
+      "rmsd_min_median": 0.0942564222312536
+    },
+    "n_atoms=18": {
+      "n_train": 250,
+      "n_test": 50,
+      "rmsd_min_mean": 0.0977442013798574,
+      "rmsd_min_median": 0.09453387104240553
+    }
+  }
+}

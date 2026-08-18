@@ -1,0 +1,59 @@
+[
+  {
+    "path": "results/revision/gxtb/ethanol_ood.jsonl",
+    "n_frames": 190,
+    "n_ok": 189,
+    "n_failed": 1,
+    "n_nonzero_returncode": 0,
+    "failed_indices": [
+      146
+    ],
+    "energy_hartree_mean": -154.7103715554698,
+    "energy_hartree_min": -155.022615507012,
+    "energy_hartree_max": -149.56472300287078
+  },
+  {
+    "path": "results/revision/gxtb/water_id_test.jsonl",
+    "n_frames": 250,
+    "n_ok": 250,
+    "n_failed": 0,
+    "n_nonzero_returncode": 0,
+    "failed_indices": [],
+    "energy_hartree_mean": -305.6964139163067,
+    "energy_hartree_min": -458.6397689392414,
+    "energy_hartree_max": -152.7596036278383
+  },
+  {
+    "path": "results/revision/gxtb/water_ood_size.jsonl",
+    "n_frames": 300,
+    "n_ok": 300,
+    "n_failed": 0,
+    "n_nonzero_returncode": 0,
+    "failed_indices": [],
+    "energy_hartree_mean": -764.0002322303973,
+    "energy_hartree_min": -916.8610218212992,
+    "energy_hartree_max": -611.2321988097648
+  },
+  {
+    "path": "results/revision/gxtb/water_train.jsonl",
+    "n_frames": 1250,
+    "n_ok": 1250,
+    "n_failed": 0,
+    "n_nonzero_returncode": 0,
+    "failed_indices": [],
+    "energy_hartree_mean": -305.6940238481236,
+    "energy_hartree_min": -458.66058950413134,
+    "energy_hartree_max": -152.70290530763688
+  },
+  {
+    "path": "results/revision/gxtb/water_val.jsonl",
+    "n_frames": 250,
+    "n_ok": 250,
+    "n_failed": 0,
+    "n_nonzero_returncode": 0,
+    "failed_indices": [],
+    "energy_hartree_mean": -305.6938102311843,
+    "energy_hartree_min": -458.663396069511,
+    "energy_hartree_max": -152.7303893708727
+  }
+]

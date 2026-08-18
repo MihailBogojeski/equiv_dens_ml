@@ -1,0 +1,10 @@
+{
+  "structure": "datasets/ethanol_train_10.xyz",
+  "n_atoms": 9,
+  "methods": {
+    "gxtb": {
+      "method": "gxtb",
+      "error": "Could not parse energy from g-xtb output"
+    }
+  }
+}

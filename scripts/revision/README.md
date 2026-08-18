@@ -16,4 +16,11 @@ Commands and status live in [docs/jacs_revision_todo.md](../../docs/jacs_revisio
 | `ir_vs_length.py` | IR vs trajectory window |
 | `benchmark_figure2.py` | Timing table for Figure 2 |
 
-Geometry scripts need only the Python standard library. DFT / MD / analysis scripts need the project environment (`pip install -e .` plus PySCF, ASE, dftd4).
+| `run_dft_campaign.sh` | Resume-safe CPU PBE / PBE0 queue (`smoke`, `pbe-train`, `pbe-rest`, `pbe0`) |
+| `run_gxtb_labels.py` | g-xTB single points (deletes leftover `energy`/`gradient` each frame) |
+| `cpu_mlip_suite.py` | CPU geo-opt / short NVE for g-xTB, GFN2, MACE-OFF, AIMNet2 |
+| `summarize_gxtb.py` | JSONL energy summary |
+| `xyz_to_npy.py` | XYZ → positions/atom_numbers NPY |
+| `prepare_pbe0_subset.py` | Small hybrid-DFT XYZ without paper ethanol frames |
+
+Geometry scripts need only the Python standard library. DFT / MD / analysis scripts need `.venv` (`pip install -e . -r requirements.txt` plus `mace-torch`, `aimnet[ase]`, `tblite`). Live status: [results/revision/STATUS.md](../../results/revision/STATUS.md).

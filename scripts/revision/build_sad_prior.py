@@ -37,8 +37,8 @@ def main():
     args = parser.parse_args()
 
     symbols = [s.strip() for s in args.elements.split(",") if s.strip()]
-    atom_str = " ".join(f"{el} 0 0 {i}" for i, el in enumerate(symbols, start=1))
-    mol = gto.M(atom=atom_str, basis=args.basis)
+    atom_str = "; ".join(f"{el} 0 0 {3 * i}" for i, el in enumerate(symbols))
+    mol = gto.M(atom=atom_str, basis=args.basis, charge=0, spin=0)
     mf_elems = get_atm_nrks(mol, xc=args.xc)
 
     result = {}

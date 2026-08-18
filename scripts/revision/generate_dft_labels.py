@@ -159,33 +159,29 @@ def main():
 
     np.save(dens_path, np.array(results, dtype=object), allow_pickle=True)
 
-    geo = {"positions": [], "atom_numbers": None, "energy": [], "forces": []}
-    for pos, anum in (
-        frames if not (frames and _is_precomputed_frame(frames[0])) else []
-    ) or []:
-        geo["positions"].append(pos)
-        geo["atom_numbers"] = anum if geo["atom_numbers"] is None else geo["atom_numbers"]
-    if not geo["positions"]:
-        from generate_polythiophene_dataset import load_trajectory as _lt  # already imported
-
-        raw = _lt(args.trajectory, stride=args.stride)
-        if args.max_frames:
-            raw = raw[: args.max_frames]
-        if raw and not _is_precomputed_frame(raw[0]):
-            geo["positions"] = [p for p, _ in raw]
-            geo["atom_numbers"] = raw[0][1]
-
-    if geo["positions"]:
-        geo["positions"] = np.asarray(geo["positions"])
-        geo["atom_numbers"] = np.asarray(geo["atom_numbers"])
-        geo["energy"] = np.array([r[1]["energy"] for r in results])
-        geo["forces"] = np.array([r[1]["forces"] for r in results])
+    raw = load_trajectory(args.trajectory, stride=args.stride)
+    if args.start_index:
+        raw = raw[args.start_index :]
+    if args.end_index:
+        raw = raw[: max(0, args.end_index - args.start_index)]
+    if args.max_frames:
+        raw = raw[: args.max_frames]
+    raw = raw[: len(results)]
+    wrote_npy = False
+    if raw and not _is_precomputed_frame(raw[0]):
+        geo = {
+            "positions": np.asarray([p for p, _ in raw], dtype=object),
+            "atom_numbers": np.asarray([a for _, a in raw], dtype=object),
+            "energy": np.array([r[1]["energy"] for r in results]),
+            "forces": np.asarray([r[1]["forces"] for r in results], dtype=object),
+        }
         if "dipole" in results[0][1]:
             geo["dipole_moment"] = np.array([r[1]["dipole"] for r in results])
         np.save(npy_path, geo, allow_pickle=True)
+        wrote_npy = True
 
     print(f"wrote {dens_path}")
-    if geo["positions"]:
+    if wrote_npy:
         print(f"wrote {npy_path}")
 
 

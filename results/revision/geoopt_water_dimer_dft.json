@@ -1,0 +1,11 @@
+{
+  "structure": "datasets/revision/water_clusters/minima/n2_dimer.xyz",
+  "model": null,
+  "dft_xc": "pbe",
+  "dft_energy_eV": -4155.661727664782,
+  "dft_error": null,
+  "densnet_energy_eV": null,
+  "densnet_error": null,
+  "rmsd_angstrom": null,
+  "n_atoms": 6
+}

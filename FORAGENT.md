@@ -36,13 +36,13 @@ A local `pip install` into `.venv` was **stopped on purpose** (2026-08-17 ~22:16
 | Env | Python | Status |
 | --- | --- | --- |
 | `.venv-revision` | 3.9 | **Usable for CPU DFT only.** PySCF 2.14, ASE 3.26, dftd4. Too old for DenSNet / AIMNet2. |
-| `.venv` | 3.12.9 | **PyTorch 2.13.0+cu126 works** (`cuda True`). `pip install -e . -r requirements.txt` was **interrupted** mid “Installing collected packages”. MACE / AIMNet / tblite **not** installed yet. |
+| `.venv` | 3.12.9 | **Done 2026-08-17.** PyTorch 2.13.0+cu126, editable `equiv-dens`, MACE-OFF, AIMNet 0.2, tblite 0.7. AIMNet2 ASE needs `Python.h` for triton. |
 
 **Pending env work**
 
-1. Finish `pip install -e . -r requirements.txt` in `.venv` (resume; do not force-reinstall torch unless broken).
-2. `pip install 'mace-torch>=0.3.0' 'aimnet[ase]' tblite`
-3. Verify: `equiv_dens`, `schnetpack`, `mace.calculators.mace_off`, `aimnet`, `tblite.ase.TBLite`
+1. ~~Finish `pip install -e . -r requirements.txt`~~ done.
+2. ~~`pip install 'mace-torch>=0.3.0' 'aimnet[ase]' tblite`~~ done.
+3. ~~Verify imports~~ done (`from mace.calculators import mace_off`; AIMNet2 runtime compile still broken).
 4. Optional later: `equiv-dens[gpu-cuda12]` / SO3LR from the Crambin JACS 2025 paper. **Do not run GPU jobs on gl056 while tps-cofolding owns the GPUs.**
 
 g-xTB binary is ready: `g-xtb/binary/gxtb` (executable), params in `g-xtb/parameters/`.

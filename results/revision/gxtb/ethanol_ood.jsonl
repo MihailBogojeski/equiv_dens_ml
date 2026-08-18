@@ -16,7 +16,6 @@
 {"index": 15, "comment": "ethanol noise sigma=0.2 parent=0", "n_atoms": 9, "energy_hartree": -154.5319972786244, "returncode": 0}
 {"index": 16, "comment": "ethanol noise sigma=0.2 parent=0", "n_atoms": 9, "energy_hartree": -154.7131830261385, "returncode": 0}
 {"index": 17, "comment": "ethanol noise sigma=0.2 parent=0", "n_atoms": 9, "energy_hartree": -153.15970047846034, "returncode": 0}
-{"index": 18, "comment": "ethanol noise sigma=0.2 parent=0", "n_atoms": 9, "energy_hartree": null, "returncode": 0}
 {"index": 19, "comment": "ethanol parent 1 Properties=species:S:1:pos:R:3 pbc=\"F F F\"", "n_atoms": 9, "energy_hartree": -155.01702163349424, "returncode": 0}
 {"index": 20, "comment": "ethanol strain 0.9 parent=1", "n_atoms": 9, "energy_hartree": -154.9394407569884, "returncode": 0}
 {"index": 21, "comment": "ethanol strain 1.1 parent=1", "n_atoms": 9, "energy_hartree": -154.9484123497299, "returncode": 0}
@@ -144,7 +143,6 @@
 {"index": 143, "comment": "ethanol noise sigma=0.12 parent=7", "n_atoms": 9, "energy_hartree": -154.87945723625006, "returncode": 0}
 {"index": 144, "comment": "ethanol noise sigma=0.2 parent=7", "n_atoms": 9, "energy_hartree": -154.77135663675807, "returncode": 0}
 {"index": 145, "comment": "ethanol noise sigma=0.2 parent=7", "n_atoms": 9, "energy_hartree": -149.56472300287078, "returncode": 0}
-{"index": 146, "comment": "ethanol noise sigma=0.2 parent=7", "n_atoms": 9, "energy_hartree": null, "returncode": 0}
 {"index": 147, "comment": "ethanol noise sigma=0.2 parent=7", "n_atoms": 9, "energy_hartree": -154.78687524649396, "returncode": 0}
 {"index": 148, "comment": "ethanol noise sigma=0.2 parent=7", "n_atoms": 9, "energy_hartree": -154.73453094511362, "returncode": 0}
 {"index": 149, "comment": "ethanol noise sigma=0.2 parent=7", "n_atoms": 9, "energy_hartree": -154.56253308660655, "returncode": 0}
@@ -188,3 +186,5 @@
 {"index": 187, "comment": "ethanol noise sigma=0.2 parent=9", "n_atoms": 9, "energy_hartree": -154.22989385393527, "returncode": 0}
 {"index": 188, "comment": "ethanol noise sigma=0.2 parent=9", "n_atoms": 9, "energy_hartree": -154.8434509279467, "returncode": 0}
 {"index": 189, "comment": "ethanol noise sigma=0.2 parent=9", "n_atoms": 9, "energy_hartree": -154.15978487845385, "returncode": 0}
+{"index": 18, "comment": "ethanol noise sigma=0.2 parent=0", "n_atoms": 9, "energy_hartree": -154.21857404449818, "returncode": 0}
+{"index": 146, "comment": "ethanol noise sigma=0.2 parent=7", "n_atoms": 9, "energy_hartree": null, "returncode": 0}

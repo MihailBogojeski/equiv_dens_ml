@@ -1,0 +1,41 @@
+# Revision campaign status (2026-08-17, OMol25 skipped)
+
+## Environment
+
+`.venv` (Python 3.12.9) is complete. Do not force-reinstall torch.
+
+| Import | Status |
+| --- | --- |
+| `equiv_dens` | OK |
+| `schnetpack` | OK |
+| `from mace.calculators import mace_off` | OK (`mace.calculators.mace_off` is a function, not a module) |
+| `aimnet` | OK; AIMNet2 ASE compile fails without `Python.h` / triton |
+| `tblite.ase.TBLite` | OK |
+
+`.venv-revision` remains the CPU-DFT fallback. Node GPUs are still owned by `gpu_burn` + tps-cofolding; all new work used `CUDA_VISIBLE_DEVICES=""`.
+
+## Running (tmux on gl056)
+
+| Session | Job |
+| --- | --- |
+| `dft-pbe-train` | PBE+D4+DF water `train.xyz` (1250) |
+| `dft-pbe-rest` | PBE+D4+DF ethanol OOD → water val → id_test → ood_size |
+| `dft-pbe0` | PBE0+D4+DF 70-frame ethanol+water subset |
+
+Resume with `bash scripts/revision/run_dft_campaign.sh {pbe-train,pbe-rest,pbe0}`.
+
+## Computed
+
+- g-xTB single points for all water splits + ethanol OOD (1 ethanol failure, index 146). Leftover-`energy` reuse bug fixed.
+- Ethanol OOD overlap vs 10 parents; water ID overlap (too tight: all <0.2 Å).
+- Water H-bond histograms (geometry-only).
+- PBE / PBE0 SAD priors.
+- Water-dimer PBE+D4+DF smoke + PBE BFGS geo-opt.
+- CPU Figure 2 timings on ethanol.
+
+## Blocked (need owner / free GPU)
+
+- Paper ethanol/ethanethiol/resorcinol/thiophene densities and DenSNet checkpoints.
+- DenSNet train/eval, 3-seed uncertainty, cutoff sweep, 200–500 ps IR, NVE with the density model.
+- AIMNet2 timings until `python3-devel` or `TORCHINDUCTOR` is disabled cleanly.
+- OMol25 (explicitly skipped this pass).

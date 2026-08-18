@@ -271,7 +271,7 @@ class GxTBCalculator(Calculator):
         **kwargs,
     ):
         super().__init__(**kwargs)
-        repo = Path(__file__).resolve().parents[2]
+        repo = Path(__file__).resolve().parents[3]
         cmd = Path(gxtb_command)
         self.gxtb_command = str(cmd.resolve()) if cmd.exists() else gxtb_command
         if params_dir is None:
