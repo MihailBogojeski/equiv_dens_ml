@@ -14,7 +14,9 @@ Commands and status live in [docs/jacs_revision_todo.md](../../docs/jacs_revisio
 | `optimize_densnet.py` | DenSNet vs DFT geometry optimization |
 | `nve_energy_drift.py` | NVE total-energy drift |
 | `ir_vs_length.py` | IR vs trajectory window |
-| `benchmark_figure2.py` | Timing table for Figure 2 |
+| `benchmark_figure2.py` | Timing table for Figure 2 (includes `densnet` via ASE wrapper) |
+| `run_gpu_campaign.sh` | Wave C train/IR/geo-opt on a **free** GPU node (refuses `gl056`) |
+| `submit_gpu_campaign.sbatch` | Slurm wrapper for `run_gpu_campaign.sh` |
 
 | `run_dft_campaign.sh` | Resume-safe CPU PBE / PBE0 queue (`smoke`, `pbe-train`, `pbe-rest`, `pbe0`) |
 | `run_gxtb_labels.py` | g-xTB single points (deletes leftover `energy`/`gradient` each frame) |

@@ -20,7 +20,13 @@ from ase.optimize import BFGS
 from ase import units
 
 
-def _make_calc(method: str, gxtb_bin: str, device: str = "cpu"):
+def _make_calc(
+    method: str,
+    gxtb_bin: str,
+    device: str = "cpu",
+    densnet_model: str = "paper/models/ethanol/2024-03-22_96w7KyGG",
+    densnet_args: str = "config/md/nn/ethanol_500ps.txt",
+):
     if method == "gxtb":
         from equiv_dens.md.gxtb_calculator import GxTBCalculator
 
@@ -42,6 +48,14 @@ def _make_calc(method: str, gxtb_bin: str, device: str = "cpu"):
             from aimnet.calculators.ase import AIMNet2ASE
 
             return AIMNet2ASE("aimnet2")
+    if method == "densnet":
+        from equiv_dens.md.dft_network_calculator import load_densnet_calculator
+
+        return load_densnet_calculator(
+            densnet_model,
+            args_file=densnet_args,
+            use_gpu=device == "cuda",
+        )
     raise ValueError(f"unknown method {method}")
 
 
@@ -98,6 +112,8 @@ def main():
     parser.add_argument("--dt-fs", type=float, default=0.5)
     parser.add_argument("--temperature", type=float, default=300.0)
     parser.add_argument("--gxtb-bin", default="g-xtb/binary/gxtb")
+    parser.add_argument("--densnet-model", default="paper/models/ethanol/2024-03-22_96w7KyGG")
+    parser.add_argument("--densnet-args", default="config/md/nn/ethanol_500ps.txt")
     parser.add_argument("--out-dir", type=Path, default=Path("results/revision/mlip_cpu"))
     parser.add_argument("--skip-geoopt", action="store_true")
     parser.add_argument("--skip-nve", action="store_true")
@@ -115,7 +131,13 @@ def main():
     for method in methods:
         rec = {"method": method}
         try:
-            calc = _make_calc(method, args.gxtb_bin, device="cpu")
+            calc = _make_calc(
+                method,
+                args.gxtb_bin,
+                device="cpu",
+                densnet_model=args.densnet_model,
+                densnet_args=args.densnet_args,
+            )
             if not args.skip_geoopt:
                 atoms = atoms0.copy()
                 atoms.calc = calc
@@ -128,7 +150,13 @@ def main():
                 opt_atoms.calc = calc
             if not args.skip_nve and args.nve_steps > 0:
                 nve_atoms = opt_atoms.copy()
-                nve_atoms.calc = _make_calc(method, args.gxtb_bin, device="cpu")
+                nve_atoms.calc = _make_calc(
+                    method,
+                    args.gxtb_bin,
+                    device="cpu",
+                    densnet_model=args.densnet_model,
+                    densnet_args=args.densnet_args,
+                )
                 records, wall = _nve(
                     nve_atoms,
                     args.nve_steps,
@@ -153,7 +181,13 @@ def main():
                 }
             if args.nvt_steps > 0:
                 nvt_atoms = opt_atoms.copy()
-                nvt_atoms.calc = _make_calc(method, args.gxtb_bin, device="cpu")
+                nvt_atoms.calc = _make_calc(
+                    method,
+                    args.gxtb_bin,
+                    device="cpu",
+                    densnet_model=args.densnet_model,
+                    densnet_args=args.densnet_args,
+                )
                 rng = np.random.RandomState(17)
                 MaxwellBoltzmannDistribution(nvt_atoms, temperature_K=args.temperature, rng=rng)
                 dyn = Langevin(

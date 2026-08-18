@@ -1,4 +1,5 @@
 # !/usr/bin/env python3
+import glob
 import os
 import torch
 import torch.nn as nn
@@ -325,12 +326,25 @@ def load_model(args, dataset, train=False):
         directory = args.restart  # load directory name
     # load latest checkpoint
         checkpoint_path = os.path.join(directory, 'checkpoints')  # checkpoint directory
-        checkpoint = torch.load(
-            os.path.join(checkpoint_path, 'latest_checkpoint.pth'),
-            map_location='cpu',
-            weights_only=False,
-        )
-        model_code = checkpoint['ID']
+        latest_path = os.path.join(checkpoint_path, 'latest_checkpoint.pth')
+        if os.path.isfile(latest_path):
+            checkpoint = torch.load(
+                latest_path,
+                map_location='cpu',
+                weights_only=False,
+            )
+            model_code = checkpoint['ID']
+        else:
+            # Recovered paper models often have only best_<id>.pth at the run root.
+            root_bests = sorted(glob.glob(os.path.join(directory, 'best_*.pth')))
+            if not root_bests:
+                root_bests = sorted(glob.glob(os.path.join(checkpoint_path, 'best_*.pth')))
+            if not root_bests:
+                raise FileNotFoundError(
+                    f"No latest_checkpoint.pth or best_*.pth under {directory}"
+                )
+            model_code = os.path.basename(root_bests[0])[len('best_'):-len('.pth')]
+            checkpoint = {'ID': model_code}
         best_model_path = 'best_' + model_code + '.pth'
         if train:
             state_dict = checkpoint['model_state_dict']

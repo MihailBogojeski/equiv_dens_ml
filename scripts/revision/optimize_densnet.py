@@ -38,83 +38,84 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--structure", required=True)
     parser.add_argument("--model", default=None)
+    parser.add_argument("--args-file", default=None)
     parser.add_argument("--dft-xc", default="pbe")
     parser.add_argument("--fmax", type=float, default=0.05)
+    parser.add_argument("--skip-dft", action="store_true")
+    parser.add_argument("--use-gpu", action="store_true")
     parser.add_argument("--out", type=Path, default=Path("results/revision/geoopt.json"))
     args = parser.parse_args()
 
     atoms0 = read(args.structure, index=0)
     dft_atoms = atoms0.copy()
-    try:
-        from ase.calculators.emt import EMT
-
-        # Placeholder if PySCF AIMD calculator signature differs; prefer PySCF.
-        raise ImportError
-    except ImportError:
-        pass
-
-    try:
-        from pyscf import gto, dft
-        import ase.units
-
-        class _RKS(object):
-            def __init__(self, xc):
-                self.xc = xc
-
-            def get_potential_energy(self, atoms):
-                mol = gto.M(
-                    atom=[(s, t) for s, t in zip(atoms.get_chemical_symbols(), atoms.get_positions())],
-                    basis="augccpvdz",
-                )
-                mf = dft.RKS(mol)
-                mf.xc = self.xc
-                e = mf.kernel()
-                self._mf = mf
-                return e * ase.units.Hartree
-
-            def get_forces(self, atoms):
-                g = self._mf.nuc_grad_method().kernel()
-                return -np.asarray(g) / ase.units.Bohr * ase.units.Hartree
-
-        from ase.calculators.calculator import Calculator, all_changes
-
-        class PySCFAse(Calculator):
-            implemented_properties = ["energy", "forces"]
-
-            def __init__(self, xc="pbe"):
-                super().__init__()
-                self._rks = _RKS(xc)
-
-            def calculate(self, atoms=None, properties=("energy", "forces"), system_changes=all_changes):
-                super().calculate(atoms, properties, system_changes)
-                e = self._rks.get_potential_energy(atoms)
-                f = self._rks.get_forces(atoms)
-                self.results = {"energy": e, "forces": f}
-
-        dft_atoms.calc = PySCFAse(xc=args.dft_xc)
-        BFGS(dft_atoms, logfile=None).run(fmax=args.fmax)
-        dft_pos = dft_atoms.get_positions()
-        dft_e = float(dft_atoms.get_potential_energy())
-    except Exception as exc:
+    if args.skip_dft:
         dft_pos = atoms0.get_positions()
         dft_e = None
-        dft_err = str(exc)
+        dft_err = "skipped"
     else:
-        dft_err = None
+        try:
+            from pyscf import gto, dft
+            import ase.units
+            from ase.calculators.calculator import Calculator, all_changes
+
+            class _RKS(object):
+                def __init__(self, xc):
+                    self.xc = xc
+
+                def get_potential_energy(self, atoms):
+                    mol = gto.M(
+                        atom=[(s, t) for s, t in zip(atoms.get_chemical_symbols(), atoms.get_positions())],
+                        basis="augccpvdz",
+                    )
+                    mf = dft.RKS(mol)
+                    mf.xc = self.xc
+                    e = mf.kernel()
+                    self._mf = mf
+                    return e * ase.units.Hartree
+
+                def get_forces(self, atoms):
+                    g = self._mf.nuc_grad_method().kernel()
+                    return -np.asarray(g) / ase.units.Bohr * ase.units.Hartree
+
+            class PySCFAse(Calculator):
+                implemented_properties = ["energy", "forces"]
+
+                def __init__(self, xc="pbe"):
+                    super().__init__()
+                    self._rks = _RKS(xc)
+
+                def calculate(self, atoms=None, properties=("energy", "forces"), system_changes=all_changes):
+                    super().calculate(atoms, properties, system_changes)
+                    e = self._rks.get_potential_energy(atoms)
+                    f = self._rks.get_forces(atoms)
+                    self.results = {"energy": e, "forces": f}
+
+            dft_atoms.calc = PySCFAse(xc=args.dft_xc)
+            BFGS(dft_atoms, logfile=None).run(fmax=args.fmax)
+            dft_pos = dft_atoms.get_positions()
+            dft_e = float(dft_atoms.get_potential_energy())
+            dft_err = None
+        except Exception as exc:
+            dft_pos = atoms0.get_positions()
+            dft_e = None
+            dft_err = str(exc)
 
     dens_pos = None
     dens_e = None
     dens_err = None
     if args.model:
         try:
-            from equiv_dens.training.model_loader import load_model
-            from equiv_dens.md.dft_network_calculator import DFTNetworkCalculator
+            from equiv_dens.md.dft_network_calculator import load_densnet_calculator
 
-            raise RuntimeError(
-                "Wire DFTNetworkCalculator through run.py md internals; "
-                "use `python run.py md` with max_steps=0 + ASE BFGS once the "
-                f"checkpoint at {args.model} is restored."
+            dens_atoms = atoms0.copy()
+            dens_atoms.calc = load_densnet_calculator(
+                args.model,
+                args_file=args.args_file,
+                use_gpu=args.use_gpu,
             )
+            BFGS(dens_atoms, logfile=None).run(fmax=args.fmax)
+            dens_pos = dens_atoms.get_positions()
+            dens_e = float(dens_atoms.get_potential_energy())
         except Exception as exc:
             dens_err = str(exc)
 

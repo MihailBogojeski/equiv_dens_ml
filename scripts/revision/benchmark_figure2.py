@@ -64,6 +64,9 @@ def main():
     parser.add_argument("--gxtb-bin", default="g-xtb/binary/gxtb")
     parser.add_argument("--out", type=Path, default=Path("results/revision/figure2_timing.json"))
     parser.add_argument("--n-rep", type=int, default=3)
+    parser.add_argument("--densnet-model", default="paper/models/ethanol/2024-03-22_96w7KyGG")
+    parser.add_argument("--densnet-args", default="config/md/nn/ethanol_500ps.txt")
+    parser.add_argument("--use-gpu", action="store_true")
     args = parser.parse_args()
 
     atoms = _load_atoms(args.structure)
@@ -134,9 +137,25 @@ def main():
                     "note": "Use scripts/md/aimd_gpu4pyscf.py --steps 20 and divide wall time",
                 }
             elif method == "densnet":
-                results["methods"][method] = {
-                    "note": "Restore paper checkpoint then time run.py infer --dpm-intor on one frame",
-                }
+                import os
+                import sys
+
+                os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
+                sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "src"))
+                from equiv_dens.md.dft_network_calculator import load_densnet_calculator
+
+                atoms.calc = load_densnet_calculator(
+                    args.densnet_model,
+                    args_file=args.densnet_args,
+                    use_gpu=args.use_gpu,
+                )
+
+                def _run():
+                    atoms.get_potential_energy()
+                    atoms.get_forces()
+
+                results["methods"][method] = _time_call(_run, atoms=atoms, n_rep=args.n_rep)
+                results["methods"][method]["model"] = args.densnet_model
             elif method == "aimnet2":
                 import os
 

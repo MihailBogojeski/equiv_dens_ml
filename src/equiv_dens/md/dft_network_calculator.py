@@ -1,5 +1,6 @@
 import equiv_dens.compat  # noqa: F401 - apply T_co patch before schnetpack import
 
+import os
 import time
 import torch
 import torch.nn as nn
@@ -8,6 +9,8 @@ import equiv_dens.utils.orbitals as orbitals
 from schnetpack.md.calculators import MDCalculator, MDCalculatorError
 from schnetpack import properties
 import numpy as np
+from ase.calculators.calculator import Calculator, all_changes
+import ase.units
 from pyscf import gto, dft
 
 try:
@@ -337,3 +340,221 @@ def get_pyscf_coords(grid_spec, density_n_samp, atom_numbers, positions):
     pad_coords = nn.utils.rnn.pad_sequence(all_coords, batch_first=True, padding_value=0) * utils.to_angstrom
     pad_weights = nn.utils.rnn.pad_sequence(all_weights, batch_first=True, padding_value=0)
     return pad_coords, pad_weights
+
+
+def ase_atoms_to_model_inputs(atoms, cutoff, use_gpu=False):
+    """Build DenSNet energy/force inputs from an ASE Atoms object."""
+    atom_numbers = np.asarray(atoms.get_atomic_numbers(), dtype=np.int64)[None, :]
+    positions = torch.tensor(atoms.get_positions(), dtype=torch.float32).unsqueeze(0)
+    if use_gpu:
+        positions = positions.cuda()
+    inputs = {
+        "positions": positions,
+        "atom_numbers_first_positions": utils.get_atom_num_first_positions(atom_numbers),
+        "atom_numbers": torch.tensor(atom_numbers, dtype=torch.long, device=positions.device),
+    }
+    inputs["atom_mask"] = inputs["atom_numbers"] > 0
+    nl = utils.TorchNeighborList(cutoff)
+    idx_is, idx_js, _ = nl.get_neighbors(inputs)
+    prev_max = 0
+    for i in range(len(idx_is)):
+        idx_is[i] += prev_max
+        idx_js[i] += prev_max
+        max_i = torch.max(idx_is[i]).item() if idx_is[i].numel() > 0 else prev_max
+        max_j = torch.max(idx_js[i]).item() if idx_js[i].numel() > 0 else prev_max
+        prev_max = max(max_i, max_j) + 1
+    atom_batch_idx = np.zeros_like(atom_numbers)
+    for i in range(len(atom_numbers)):
+        atom_batch_idx[i, :] = i
+    atom_batch_idx = torch.tensor(atom_batch_idx, dtype=torch.long, device=positions.device)
+    empty = torch.tensor([], dtype=torch.long, device=positions.device)
+    idx_is = torch.cat(idx_is, dim=0) if idx_is else empty
+    idx_js = torch.cat(idx_js, dim=0) if idx_js else empty
+    inputs["idx_i"] = idx_is
+    inputs["idx_j"] = idx_js
+    inputs["batch_atom_numbers"] = inputs["atom_numbers"] * 1
+    inputs["batch_atom_mask"] = inputs["atom_mask"].to(torch.bool)
+    inputs["batch_positions"] = inputs["positions"] * 1
+    inputs["positions"] = positions.view(1, -1, *inputs["positions"].shape[2:])
+    inputs["atom_numbers"] = inputs["batch_atom_numbers"].flatten()
+    inputs["atom_mask"] = inputs["batch_atom_mask"].flatten()
+    batch_nz = inputs["atom_mask"].to(inputs["positions"])
+    batch_idx_pos = batch_nz * torch.arange(len(batch_nz), device=batch_nz.device)
+    inputs["batch_idx_pos"] = batch_idx_pos[inputs["atom_mask"]].to(torch.long)
+    inputs["atom_numbers"] = inputs["atom_numbers"][inputs["atom_mask"]].view(1, -1)
+    inputs["atom_batch_idx"] = atom_batch_idx.flatten()
+    inputs["atom_batch_idx"] = inputs["atom_batch_idx"][inputs["atom_mask"]].view(1, -1)
+    inputs["positions"] = inputs["positions"][:, inputs["atom_mask"]]
+    return inputs
+
+
+class DenSNetCalculator(Calculator):
+    """ASE energy+force calculator wrapping a loaded DenSNet model.
+
+    Model energies are interpreted as ``energy_unit`` (paper default kcal/mol)
+    and converted to eV / eV/Å for ASE.
+    """
+
+    implemented_properties = ["energy", "forces"]
+
+    def __init__(
+        self,
+        model,
+        cutoff=7.937658158457616,
+        use_gpu=False,
+        energy_unit="kcal/mol",
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.use_gpu = bool(use_gpu and torch.cuda.is_available())
+        self.model = model.cuda() if self.use_gpu else model.cpu()
+        self.model.eval()
+        self.cutoff = float(cutoff)
+        self.energy_unit = energy_unit
+
+    def calculate(self, atoms=None, properties=("energy", "forces"), system_changes=all_changes):
+        super().calculate(atoms, properties, system_changes)
+        inputs = ase_atoms_to_model_inputs(atoms, self.cutoff, self.use_gpu)
+        results = self.model(inputs)
+        energy = results["energy"].detach().cpu().numpy().reshape(-1)[0]
+        forces = np.asarray(results["forces"].detach().cpu().numpy()).reshape(len(atoms), 3)
+        if str(self.energy_unit).startswith("kcal"):
+            factor = float(ase.units.kcal / ase.units.mol)
+            energy = float(energy) * factor
+            forces = forces * factor
+        self.results = {"energy": float(energy), "forces": forces}
+
+
+def load_densnet_calculator(
+    restart,
+    args_file=None,
+    np_dataset=None,
+    use_gpu=False,
+    repo=None,
+):
+    """Load a paper DenSNet run directory and return an ASE calculator.
+
+    ``use_gpu`` defaults to False so revision CPU jobs do not touch occupied
+    node GPUs.
+    """
+    import tempfile
+    from pathlib import Path
+
+    from equiv_dens.data.density_dataset import AtomsDensityData
+    from equiv_dens.training.model_loader import load_model
+    from equiv_dens.training.parse_command_line_arguments import parse_command_line_arguments
+
+    repo = Path(repo) if repo is not None else Path(__file__).resolve().parents[3]
+    restart = Path(restart)
+    if np_dataset is None:
+        np_dataset = repo / "datasets" / "ethanol_train_10.npy"
+
+    candidates = [restart / "args.txt", repo / "config" / "training" / "ethanol_all_001.txt"]
+    if args_file is not None:
+        candidates.append(Path(args_file))
+    candidates.append(repo / "config" / "md" / "nn" / "ethanol_500ps.txt")
+
+    def _is_arch_file(path):
+        if not path.is_file():
+            return False
+        text = path.read_text()
+        return "--order" in text or "--num_features" in text
+
+    args_path = next((p for p in candidates if _is_arch_file(p)), None)
+    if args_path is None:
+        args_path = next((p for p in candidates if p.is_file()), None)
+    if args_path is None:
+        raise FileNotFoundError(f"No DenSNet args file found next to {restart}")
+
+    raw = args_path.read_text()
+    lines = []
+    for line in raw.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=None" in stripped:
+            continue
+        lines.append(stripped)
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as tmp:
+        tmp.write("\n".join(lines) + "\n")
+        tmp_path = tmp.name
+    try:
+        args, _ = parse_command_line_arguments(arg_file=tmp_path)
+    finally:
+        os.unlink(tmp_path)
+
+    latest = restart / "checkpoints" / "latest_checkpoint.pth"
+    if latest.is_file():
+        blob = torch.load(str(latest), map_location="cpu", weights_only=False)
+        ckpt_args = blob.get("args") if isinstance(blob, dict) else None
+        if ckpt_args is not None:
+            for key, value in vars(ckpt_args).items():
+                if key in {
+                    "order",
+                    "order_en",
+                    "num_features",
+                    "num_energy_features",
+                    "num_basis_functions",
+                    "num_radial_components",
+                    "num_modules",
+                    "num_en_modules",
+                    "num_residual_pre_x",
+                    "num_residual_post_x",
+                    "num_residual_pre_vi",
+                    "num_residual_pre_vj",
+                    "num_residual_post_v",
+                    "num_residual_output",
+                    "cutoff",
+                    "activation",
+                    "energy_model",
+                    "remove_atom_density",
+                    "append_atom_density",
+                    "atom_dens_type",
+                    "normalize",
+                    "normalize_en",
+                    "output_scaling",
+                }:
+                    setattr(args, key, value)
+
+    args.restart = str(restart)
+    args.use_gpu = bool(use_gpu)
+    args.np_dataset = str(np_dataset)
+    args.dens_dataset = None
+    args.np_dataset_test = str(np_dataset)
+    args.dens_dataset_test = None
+    for attr, rel in (
+        ("orbitals_file", "datasets/augccpvqzjkfit_orbital_basis_df.npy"),
+        ("radial_coeffs_file", "datasets/augccpvqzjkfit_radial_coeffs_libcint_df.npy"),
+        ("atom_dens_path", "datasets/free_atom_densities_augccpvdz_augccpvqzjkfit_pyscf_minimized.npy"),
+        ("pseudo_pot_path", "pseudo_potentials"),
+    ):
+        path = repo / rel
+        if path.exists():
+            setattr(args, attr, str(path))
+
+    dataset = AtomsDensityData(
+        np_path=args.np_dataset,
+        density_path=args.dens_dataset,
+        orbitals_path=args.orbitals_file,
+        density_n_samp=getattr(args, "density_subsamples", 10000),
+        radial_coeffs_file=args.radial_coeffs_file,
+        L0_coeffs_file=getattr(args, "L0_coeffs_file", None),
+        pyscf_grid=getattr(args, "pyscf_grid", False),
+        atom_dens_path=args.atom_dens_path,
+        atom_dens_type=getattr(args, "atom_dens_type", "spline"),
+        cutoff=args.cutoff,
+        verbose=getattr(args, "verbose", 0),
+        timing=False,
+        use_gpu=args.use_gpu,
+        projected_density=getattr(args, "projected_density", False),
+        df_loss_weights=getattr(args, "df_loss_weights", False),
+        density_grad=getattr(args, "density_grad", False),
+        calc_basis_path=getattr(args, "calc_basis_file", None),
+        dtype=args.dtype,
+    )
+    model = load_model(args, dataset, train=False)
+    model.eval()
+    return DenSNetCalculator(
+        model,
+        cutoff=args.cutoff,
+        use_gpu=args.use_gpu,
+        energy_unit=getattr(args, "energy_unit_out", "kcal/mol"),
+    )
