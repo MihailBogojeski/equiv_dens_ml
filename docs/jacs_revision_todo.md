@@ -42,7 +42,7 @@ Recovered checkpoints/datasets stay untracked (`.git/info/exclude`). Sibling `/s
 | ID | Request | Action | Status | Deliverable |
 | --- | --- | --- | --- | --- |
 | R1.1 | H-bond / size extrapolation (water clusters; NMA/MeOH/AcAc optional) | `new DFT` + train | `running` | [Calculation 1](#calculation-1--water-clusters); CPU PBE+D4 DFT in tmux `dft-pbe-train` |
-| R1.2 | Intentional OOD conformations | `new DFT` | `running` | [Calculation 2](#calculation-2--ood-conformations); ethanol OOD DFT in `dft-pbe-rest`; overlap vs 10 parents computed; GPU force scoring of `96w7KyGG` on labeled frames launched |
+| R1.2 | Intentional OOD conformations | `new DFT` | `running` | ethanol OOD DFT ~80/190; overlap vs 10 parents computed; **80-frame `96w7KyGG` force MAE 5.01 eV/Å** (energy MAE meaningless until energy head is restored) |
 | R1.3 | Shorten polythiophene; move Fig. 6 | `manuscript` | `written` | outline §R1.3 |
 | R1.4 | Move Fig. 7 to SI | `manuscript` | `written` | outline §R1.4 |
 | R1.5 | SI S2.2 details + train/test overlap evidence | `analysis` + `recover` | `computed` | resorcinol median min-RMSD 0.093 Å (1000/1000 <0.2 Å); ethanethiol 0.600 Å (0/1000 <0.2 Å); thiophene-4mer 1.15 Å; thiophene-6mer 0.53 Å; 12-mer is size-OOD. SI already has PINY_MD / NHC / 1 fs; FF/SHAKE/length not recovered |

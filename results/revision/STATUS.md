@@ -38,7 +38,8 @@ PBE0 labels **70/70**. Water / ethanol-OOD PBE still running. Do not start water
 | GPU 0 Figure 2 | DenSNet **467 ms/step** (0.093 ns/day). MACE-OFF/AIMNet2 still fail Triton/`Python.h`; SO3LR not installed |
 | GPU 0 geo-opt | RMSD 0.0 Å; energy 0.224 eV (not physical until energy head is restored) |
 | GPU 0 NVE 0.1 ps | std 8.4 meV, drift 0.18 eV/ps, 0.069 ns/day |
-| GPU 0 OOD forces | scoring 80 labeled ethanol OOD frames, then PBE0 train |
+| GPU 0 OOD forces | **80 frames**: force MAE 5.01 eV/Å, energy MAE ~4206 eV (not physical) |
+| GPU 0 PBE0 train | `run.py train @config/training/ethanol_pbe0_001.txt` started |
 | GPU 1 | ethanol 500 ps `run.py md` (SAD `mo_basis` patched; ASE Langevin fallback if it dies) |
 
 Slurm (qos `gpu48`, Priority): `dens-pbe0` 15934887, `dens-ethanol-md` 15934889, `dens-thiophene-md` 15934890.

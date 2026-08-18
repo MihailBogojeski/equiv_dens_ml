@@ -1,0 +1,13 @@
+{
+  "model": "paper/models/ethanol/2024-03-22_96w7KyGG",
+  "dens": "datasets/revision/ood/ethanol_ood_pyscf_augccpvdz_pbe.npy",
+  "n_frames": 80,
+  "energy_mae_eV": 4206.446296609511,
+  "energy_mae_kcalmol": 97002.95678315555,
+  "energy_mean_signed_eV": 4206.446296609511,
+  "force_mae_eV_A": 5.010970077372697,
+  "force_rmse_eV_A": 8.334432484280526,
+  "force_max_eV_A": 289.1252677340902,
+  "force_mae_kcalmol_A": 115.55571605629667,
+  "note": "Energy errors are not physical until the 2024 energy head is restored. Force MAE is the OOD number to quote, with that caveat."
+}
