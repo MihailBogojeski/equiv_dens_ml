@@ -1,0 +1,220 @@
+[
+  {
+    "name": "aniBB_010_194018_0_1",
+    "subset": "ani1xbb",
+    "natoms": 10,
+    "elements": [
+      1,
+      6,
+      8,
+      9
+    ],
+    "charge": 0,
+    "multiplicity": 1,
+    "nao_stored": 270,
+    "nao_pyscf": 270,
+    "basis_match": true,
+    "nelectron": 50,
+    "candidates": [
+      {
+        "source": "pyscf",
+        "flip_high_m": false,
+        "corr_abs_hcore": 0.5640870305503628,
+        "eps_min": -2687.5080902756226,
+        "eps_homo": -0.6590328206002032,
+        "eps_lumo": 4.010988772163863e-05,
+        "gap_ev": 17.93428807578212
+      },
+      {
+        "source": "orca",
+        "flip_high_m": false,
+        "corr_abs_hcore": 0.571593380209265,
+        "eps_min": -1751.0094177163737,
+        "eps_homo": -0.5820020447011167,
+        "eps_lumo": 8.259042365790622e-05,
+        "gap_ev": 15.839329834235235
+      },
+      {
+        "source": "orca",
+        "flip_high_m": true,
+        "corr_abs_hcore": 0.571593380209265,
+        "eps_min": -1749.261147310287,
+        "eps_homo": -0.552567613544837,
+        "eps_lumo": 8.350247562272849e-05,
+        "gap_ev": 15.038402977309055
+      },
+      {
+        "source": "m_ascending",
+        "flip_high_m": false,
+        "corr_abs_hcore": 0.5693754956117011,
+        "eps_min": -2470.2524854051,
+        "eps_homo": -0.7177724009275503,
+        "eps_lumo": 5.768592585509704e-05,
+        "gap_ev": 19.533151752359128
+      },
+      {
+        "source": "m_ascending",
+        "flip_high_m": true,
+        "corr_abs_hcore": 0.5693754956117011,
+        "eps_min": -2472.595813273672,
+        "eps_homo": -0.7067147583135471,
+        "eps_lumo": 5.774212691279271e-05,
+        "gap_ev": 19.232259497528077
+      }
+    ],
+    "best": {
+      "source": "orca",
+      "flip_high_m": false,
+      "corr_abs_hcore": 0.571593380209265,
+      "eps_min": -1751.0094177163737,
+      "eps_homo": -0.5820020447011167,
+      "eps_lumo": 8.259042365790622e-05,
+      "gap_ev": 15.839329834235235
+    }
+  },
+  {
+    "name": "aniBB_010_424294_0_1",
+    "subset": "ani1xbb",
+    "natoms": 10,
+    "elements": [
+      1,
+      6,
+      8,
+      17
+    ],
+    "charge": 0,
+    "multiplicity": 1,
+    "nao_stored": 282,
+    "nao_pyscf": 282,
+    "basis_match": true,
+    "nelectron": 66,
+    "candidates": [
+      {
+        "source": "pyscf",
+        "flip_high_m": false,
+        "corr_abs_hcore": 0.594559692143467,
+        "eps_min": -8707.44765395309,
+        "eps_homo": -0.558815386723752,
+        "eps_lumo": 2.1633501627615616e-05,
+        "gap_ev": 15.206730005909812
+      },
+      {
+        "source": "orca",
+        "flip_high_m": false,
+        "corr_abs_hcore": 0.601010586033972,
+        "eps_min": -8143.325075400806,
+        "eps_homo": -0.5051306069405298,
+        "eps_lumo": 2.0603295503655083e-05,
+        "gap_ev": 13.745864694360995
+      },
+      {
+        "source": "orca",
+        "flip_high_m": true,
+        "corr_abs_hcore": 0.601010586033972,
+        "eps_min": -8138.999521957896,
+        "eps_homo": -0.5110466426164268,
+        "eps_lumo": 2.089253443383765e-05,
+        "gap_ev": 13.906856096775119
+      },
+      {
+        "source": "m_ascending",
+        "flip_high_m": false,
+        "corr_abs_hcore": 0.5970798567021176,
+        "eps_min": -13139.229986653449,
+        "eps_homo": -0.5659909528384226,
+        "eps_lumo": 2.0421042017337594e-05,
+        "gap_ev": 15.401954114282976
+      },
+      {
+        "source": "m_ascending",
+        "flip_high_m": true,
+        "corr_abs_hcore": 0.5970798567021176,
+        "eps_min": -13124.215655033906,
+        "eps_homo": -0.5677943822365724,
+        "eps_lumo": 2.0680081198112794e-05,
+        "gap_ev": 15.451034977018601
+      }
+    ],
+    "best": {
+      "source": "orca",
+      "flip_high_m": false,
+      "corr_abs_hcore": 0.601010586033972,
+      "eps_min": -8143.325075400806,
+      "eps_homo": -0.5051306069405298,
+      "eps_lumo": 2.0603295503655083e-05,
+      "gap_ev": 13.745864694360995
+    }
+  },
+  {
+    "name": "aniBB_010_443619_-1_1",
+    "subset": "ani1xbb",
+    "natoms": 10,
+    "elements": [
+      1,
+      6,
+      8
+    ],
+    "charge": -1,
+    "multiplicity": 1,
+    "nao_stored": 292,
+    "nao_pyscf": 292,
+    "basis_match": true,
+    "nelectron": 50,
+    "candidates": [
+      {
+        "source": "pyscf",
+        "flip_high_m": false,
+        "corr_abs_hcore": 0.5024511556988741,
+        "eps_min": -145749.104942515,
+        "eps_homo": -0.4330289427713676,
+        "eps_lumo": 3.1322018599357706e-06,
+        "gap_ev": 11.783403048998128
+      },
+      {
+        "source": "orca",
+        "flip_high_m": false,
+        "corr_abs_hcore": 0.51957136102365,
+        "eps_min": -1736.2638566431062,
+        "eps_homo": -0.29867972559386174,
+        "eps_lumo": 2.2923699842349654e-05,
+        "gap_ev": 8.128113162630877
+      },
+      {
+        "source": "orca",
+        "flip_high_m": true,
+        "corr_abs_hcore": 0.51957136102365,
+        "eps_min": -1740.15895293511,
+        "eps_homo": -0.3023706702986679,
+        "eps_lumo": 2.279639403008407e-05,
+        "gap_ev": 8.22854542043831
+      },
+      {
+        "source": "m_ascending",
+        "flip_high_m": false,
+        "corr_abs_hcore": 0.5086476955887471,
+        "eps_min": -25751.511761819886,
+        "eps_homo": -0.3406354331275543,
+        "eps_lumo": 4.035405307203505e-06,
+        "gap_ev": 9.26927214887577
+      },
+      {
+        "source": "m_ascending",
+        "flip_high_m": true,
+        "corr_abs_hcore": 0.5086476955887471,
+        "eps_min": -25782.364903385118,
+        "eps_homo": -0.33958515219077373,
+        "eps_lumo": 4.0339736185538076e-06,
+        "gap_ev": 9.240692509680002
+      }
+    ],
+    "best": {
+      "source": "orca",
+      "flip_high_m": false,
+      "corr_abs_hcore": 0.51957136102365,
+      "eps_min": -1736.2638566431062,
+      "eps_homo": -0.29867972559386174,
+      "eps_lumo": 2.2923699842349654e-05,
+      "gap_ev": 8.128113162630877
+    }
+  }
+]
