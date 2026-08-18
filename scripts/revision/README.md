@@ -28,8 +28,8 @@ Commands and status live in [docs/jacs_revision_todo.md](../../docs/jacs_revisio
 | `qm7x_build_shards.py` | JSON shards from DensNet `*_base.npy` or official JSONL |
 | `qm7x_orca_worker.py` | One shard: ORCA PBE0/aug-cc-pVDZ EnGrad → DensNet calc_dict |
 | `qm7x_assemble_npy.py` | Merge shard results into dens + base npy |
-| `submit_qm7x_orca.sbatch` | CPU-only Slurm array (partition `cs`, qos `cpu48`) |
-| `submit_qm7x_orca.sh` | `download` / `smoke` (100) / `train` (20k) / `val` (2.5k) / `assemble` |
+| `submit_qm7x_orca.sbatch` | CPU-only Slurm array: one frame per task (partition `cs`, qos `cpu48`) |
+| `submit_qm7x_orca.sh` | One frame per Slurm task; 250-way throttle; train chunks of 2500 (cpu48 submit cap) |
 
 | `run_dft_campaign.sh` | Resume-safe CPU PBE / PBE0 queue (`smoke`, `pbe-train`, `pbe-rest`, `pbe0`) |
 | `run_gxtb_labels.py` | g-xTB single points (deletes leftover `energy`/`gradient` each frame) |

@@ -81,6 +81,21 @@ def shard_frames(frames: list[dict], frames_per_shard: int) -> list[list[dict]]:
     return [frames[i : i + frames_per_shard] for i in range(0, len(frames), frames_per_shard)]
 
 
+def slurm_array_ranges(n_tasks: int, max_array: int = 10000) -> list[tuple[int, int]]:
+    """Split task indices into Greene-legal Slurm array ranges (max 10,000)."""
+    if n_tasks < 1:
+        return []
+    if max_array < 1:
+        raise ValueError("max_array must be >= 1")
+    ranges = []
+    start = 0
+    while start < n_tasks:
+        end = min(start + max_array, n_tasks) - 1
+        ranges.append((start, end))
+        start = end + 1
+    return ranges
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--split", choices=("train", "valid", "test", "smoke"), default="smoke")
@@ -88,7 +103,7 @@ def main() -> int:
     parser.add_argument("--npy", default=None)
     parser.add_argument("--jsonl", default=None)
     parser.add_argument("--out-dir", default=None)
-    parser.add_argument("--frames-per-shard", type=int, default=20)
+    parser.add_argument("--frames-per-shard", type=int, default=1)
     parser.add_argument("--max-frames", type=int, default=0)
     parser.add_argument("--offset", type=int, default=0)
     parser.add_argument("--include-open-shell", action="store_true")

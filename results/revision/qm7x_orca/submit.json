@@ -3,10 +3,17 @@
   "partition": "cs",
   "qos": "cpu48",
   "account": "torch_pr_283_chemistry",
+  "parallelism": "one frame per Slurm array task, 250 concurrent, 2500-task chunks (cpu48 MaxSubmitPU=3000)",
   "jobs": {
-    "smoke": {"jobid": 15960718, "n_frames": 100, "n_shards": 10},
-    "train": {"jobid": 15960729, "n_frames": 20000, "n_shards": 1000},
-    "valid": {"jobid": 15960732, "n_frames": 2500, "n_shards": 125}
+    "smoke": {"jobid": 15961049, "n_frames": 100, "n_tasks": 100},
+    "train": {
+      "driver": "tmux qm7x-orca-train",
+      "first_chunk_jobid": 15961768,
+      "n_frames": 20000,
+      "n_tasks": 20000,
+      "chunks": ["0-2499", "2500-4999", "5000-7499", "7500-9999", "10000-12499", "12500-14999", "15000-17499", "17500-19999"]
+    }
   },
-  "notes": "Official QM7-X Zenodo download runs in tmux qm7x-zenodo-download. Training uses ORCA labels, not official PBE0+MBD."
+  "pending": "valid (2500 one-frame tasks) — submit after a train chunk finishes so cpu48 stay under 3000 jobs",
+  "cancelled_serial_shards": [15960718, 15960729, 15960732]
 }

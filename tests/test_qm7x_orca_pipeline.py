@@ -15,7 +15,7 @@ SCRIPT_DIR = ROOT / "scripts" / "revision"
 sys.path.insert(0, str(SCRIPT_DIR))
 
 from qm7x_assemble_npy import load_shard_results  # noqa: E402
-from qm7x_build_shards import annotate_shell, frames_from_npy, shard_frames  # noqa: E402
+from qm7x_build_shards import annotate_shell, frames_from_npy, shard_frames, slurm_array_ranges  # noqa: E402
 from qm7x_orca_common import (  # noqa: E402
     THEORY_KEYWORDS,
     XC,
@@ -134,6 +134,19 @@ def test_build_shards_from_npy_skips_open_shell(tmp_path):
     assert len(skipped) == 1
     shards = shard_frames(kept, 2)
     assert [len(s) for s in shards] == [2, 2]
+    assert [len(s) for s in shard_frames(kept, 1)] == [1, 1, 1, 1]
+    assert slurm_array_ranges(100) == [(0, 99)]
+    assert slurm_array_ranges(20000) == [(0, 9999), (10000, 19999)]
+    assert slurm_array_ranges(20000, 2500) == [
+        (0, 2499),
+        (2500, 4999),
+        (5000, 7499),
+        (7500, 9999),
+        (10000, 12499),
+        (12500, 14999),
+        (15000, 17499),
+        (17500, 19999),
+    ]
     dest = tmp_path / "shard_0000.json"
     write_shard(dest, 0, "smoke", shards[0])
     loaded = json.loads(dest.read_text())

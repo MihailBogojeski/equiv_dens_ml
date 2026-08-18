@@ -4,8 +4,8 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
-#SBATCH --mem=32G
-#SBATCH --time=24:00:00
+#SBATCH --mem=16G
+#SBATCH --time=04:00:00
 #SBATCH --account=torch_pr_283_chemistry
 #SBATCH --qos=cpu48
 #SBATCH --partition=cs
