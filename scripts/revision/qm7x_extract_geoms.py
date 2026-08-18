@@ -44,8 +44,15 @@ def main() -> int:
         raise SystemExit(f"no HDF5 files in {raw_dir}; run scripts/revision/download_qm7x.sh")
 
     rows = []
+    used = 0
     for path in files:
-        for rec in iter_qm7x_records(path):
+        try:
+            recs = list(iter_qm7x_records(path))
+        except OSError as exc:
+            print(f"skip {path}: {exc}", flush=True)
+            continue
+        used += 1
+        for rec in recs:
             rows.append(rec)
             if args.max_records and len(rows) >= args.max_records:
                 break
@@ -53,7 +60,7 @@ def main() -> int:
             break
 
     write_jsonl(args.out, rows)
-    print(f"wrote {len(rows)} records to {args.out} from {len(files)} files")
+    print(f"wrote {len(rows)} records to {args.out} from {used}/{len(files)} readable files")
     return 0
 
 

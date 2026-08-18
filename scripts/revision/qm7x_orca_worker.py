@@ -33,6 +33,7 @@ from qm7x_orca_common import (  # noqa: E402
     is_closed_shell,
     mos_from_orca_json,
     parse_orca_energy,
+    parse_orca_engrad,
     parse_orca_gradient,
     read_shard,
     write_orca_inp,
@@ -105,12 +106,19 @@ def process_frame(
 
     out_path = job_dir / "job.out"
     run_cmd([orca_bin, str(inp.name)], cwd=job_dir, log=out_path)
-    out_text = out_path.read_text(errors="replace")
-    energy = parse_orca_energy(out_text)
-    gradient = parse_orca_gradient(out_text)
+    engrad_path = job_dir / "job.engrad"
+    if engrad_path.exists():
+        energy, gradient = parse_orca_engrad(engrad_path.read_text())
+    else:
+        out_text = out_path.read_text(errors="replace")
+        energy = parse_orca_energy(out_text)
+        gradient = parse_orca_gradient(out_text)
     forces = forces_from_gradient(gradient)
 
-    run_cmd([orca2json, "job"], cwd=job_dir, log=job_dir / "orca_2json.log")
+    gbw = job_dir / "job.gbw"
+    if not gbw.exists():
+        raise FileNotFoundError(f"ORCA did not write {gbw}")
+    run_cmd([orca2json, str(gbw.name)], cwd=job_dir, log=job_dir / "orca_2json.log")
     json_path = job_dir / "job.json"
     if not json_path.exists():
         # ORCA 6 sometimes writes <basename>.json next to the GBW.

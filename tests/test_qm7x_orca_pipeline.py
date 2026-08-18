@@ -28,7 +28,9 @@ from qm7x_orca_common import (  # noqa: E402
     pad_frames,
     parse_json_labels,
     parse_orca_energy,
+    parse_orca_engrad,
     parse_orca_gradient,
+    pyscf_ao_index,
     unpadded_atoms,
     write_orca_inp,
     write_shard,
@@ -182,6 +184,45 @@ def test_calc_dict_from_orca_without_df():
     assert calc["mo_coeff"].shape == (nao, nao)
     assert calc["dipole"].shape == (3,)
     assert "df_coeff" not in calc
+
+
+def test_parse_orca_engrad():
+    text = """\
+#
+# Number of atoms
+#
+ 2
+#
+# The current total energy in Eh
+#
+   -1.125000000000
+#
+# The current gradient in Eh/bohr
+#
+      0.010000000000
+      0.000000000000
+      0.000000000000
+     -0.010000000000
+      0.000000000000
+      0.000000000000
+#
+# The atomic numbers and current coordinates in Bohr
+#
+   1     0.0 0.0 0.0
+   1     1.4 0.0 0.0
+"""
+    energy, grad = parse_orca_engrad(text)
+    assert energy == pytest.approx(-1.125)
+    assert grad.shape == (2, 3)
+    assert grad[0, 0] == pytest.approx(0.01)
+
+
+def test_pyscf_ao_index_counts_general_contraction():
+    mol = build_pyscf_mol([6], [[0.0, 0.0, 0.0]])
+    lookup = pyscf_ao_index(mol)
+    s_shells = {key[2] for key in lookup if key[0] == 0 and key[1] == 0}
+    assert s_shells == {1, 2, 3, 4}
+    assert len(lookup) == mol.nao
 
 
 def test_parse_json_labels_matches_orca_print():

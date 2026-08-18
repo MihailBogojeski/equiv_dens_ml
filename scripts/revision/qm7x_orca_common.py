@@ -21,14 +21,13 @@ from typing import Any, Iterator
 
 import ase
 import numpy as np
-from pyscf import gto
+from pyscf import df, gto
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
 if str(_SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPT_DIR))
 
-from omol_csh_density_fit import fit_density  # noqa: E402
-from omol_csh_orca_labels import pyscf_ao_index  # noqa: E402
+import scipy.linalg
 
 _L_OF_LETTER = {"s": 0, "p": 1, "d": 2, "f": 3, "g": 4, "h": 5, "i": 6}
 _COMPONENT_M = {
@@ -55,6 +54,30 @@ def parse_json_labels(labels: list[str]) -> list[tuple[int, int, int, int]]:
         mq = _COMPONENT_M[ang][rest] if ang <= 2 else int(rest[1:])
         out.append((atom, ang, shell, mq))
     return out
+
+
+def pyscf_ao_index(mol) -> dict[tuple[int, int, int, int], int]:
+    """Map (atom, l, shell_index, m) -> PySCF AO index.
+
+    Counts generally contracted functions (``nctr > 1``), which Dunning
+    bases such as aug-cc-pVDZ use. Segmented bases (def2) keep nctr=1.
+    Shell index is 1-based per angular momentum on each atom.
+    """
+    ao_loc = mol.ao_loc_nr()
+    counters: dict[tuple[int, int], int] = {}
+    index: dict[tuple[int, int, int, int], int] = {}
+    for shell in range(mol.nbas):
+        atom = mol.bas_atom(shell)
+        ang = mol.bas_angular(shell)
+        nctr = mol.bas_nctr(shell)
+        n_comp = 2 * ang + 1
+        ms = [1, -1, 0] if ang == 1 else list(range(-ang, ang + 1))
+        for ictr in range(nctr):
+            counters[(atom, ang)] = counters.get((atom, ang), 0) + 1
+            n = counters[(atom, ang)]
+            for j, m in enumerate(ms):
+                index[(atom, ang, n, m)] = ao_loc[shell] + ictr * n_comp + j
+    return index
 
 
 def orca_to_pyscf(mol, labels) -> tuple[np.ndarray, np.ndarray]:
@@ -162,6 +185,44 @@ def write_orca_inp(
     return dest
 
 
+_ENGRAD_FLOAT_RE = re.compile(r"^\s*([+-]?\d+\.\d+(?:[Ee][+-]?\d+)?)\s*$")
+
+
+def parse_orca_engrad(text: str) -> tuple[float, np.ndarray]:
+    """Parse an ORCA ``.engrad`` file -> (energy Hartree, gradient Hartree/Bohr)."""
+    lines = [ln.strip() for ln in text.splitlines()]
+    natoms = None
+    energy = None
+    grads: list[float] = []
+    mode = None
+    for line in lines:
+        if line.startswith("#"):
+            if "Number of atoms" in line:
+                mode = "natoms"
+            elif "current total energy" in line:
+                mode = "energy"
+            elif "current gradient" in line:
+                mode = "grad"
+            elif "atomic numbers" in line:
+                mode = None
+            continue
+        if not line:
+            continue
+        if mode == "natoms" and natoms is None:
+            natoms = int(line)
+        elif mode == "energy" and energy is None:
+            energy = float(line)
+        elif mode == "grad":
+            match = _ENGRAD_FLOAT_RE.match(line)
+            if match:
+                grads.append(float(match.group(1)))
+            elif natoms is not None and len(grads) >= 3 * natoms:
+                break
+    if energy is None or natoms is None or len(grads) < 3 * natoms:
+        raise ValueError("incomplete ORCA engrad file")
+    return float(energy), np.asarray(grads[: 3 * natoms], dtype=float).reshape(natoms, 3)
+
+
 def parse_orca_energy(out_text: str) -> float:
     matches = _ENERGY_RE.findall(out_text)
     if not matches:
@@ -254,10 +315,21 @@ def calc_dict_from_orca(
         dip_ints = mol.intor("int1e_r", comp=3)
     calc["dipole"] = np.einsum("xij,ji->x", dip_ints, dm1)
     if fit_df:
-        coeffs, _, info = fit_density(mol, dm1, AUXBASIS)
-        calc["df_coeff"] = np.asarray(coeffs, dtype=float)
-        calc["df_info"] = info
+        calc["df_coeff"] = density_fit_coeffs(mol, dm1, AUXBASIS)
+        calc["auxbasis"] = AUXBASIS
     return calc
+
+
+def density_fit_coeffs(mol, dm1: np.ndarray, auxbasis: str = AUXBASIS) -> np.ndarray:
+    """Project an AO density onto auxiliary coefficients (paper / generate_dft_labels)."""
+    auxmol = df.addons.make_auxmol(mol, auxbasis)
+    ints_3c2e = df.incore.aux_e2(mol, auxmol, intor="int3c2e")
+    ints_2c2e = auxmol.intor("int2c2e")
+    nao = mol.nao
+    naux = auxmol.nao
+    df_coef = scipy.linalg.solve(ints_2c2e, ints_3c2e.reshape(nao * nao, naux).T)
+    df_coef = df_coef.reshape(naux, nao, nao)
+    return np.einsum("Pij,ij->P", df_coef, dm1)
 
 
 def load_base_npy(path: str | Path) -> dict:
