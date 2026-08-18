@@ -56,6 +56,27 @@ def density_fit_rhs(mol: gto.Mole, auxmol: gto.Mole, dm: np.ndarray, block: int 
     return rhs
 
 
+def density_fit_rhs_gpu(mol: gto.Mole, auxmol: gto.Mole, dm: np.ndarray) -> np.ndarray:
+    """Same contraction on the GPU, for systems whose 3-centre tensor fits.
+
+    gpu4pyscf builds the whole (nao, nao, naux) tensor at once, which is only
+    viable for the smaller structures; the caller is responsible for the memory
+    guard and for falling back to the blocked CPU path.
+    """
+    import cupy
+    from gpu4pyscf.df import int3c2e
+
+    ints = int3c2e.get_int3c2e(mol, auxmol)
+    rhs = cupy.einsum("ijP,ij->P", ints, cupy.asarray(dm))
+    del ints
+    cupy.get_default_memory_pool().free_all_blocks()
+    return cupy.asnumpy(rhs)
+
+
+def gpu_tensor_bytes(mol: gto.Mole, auxmol: gto.Mole) -> int:
+    return mol.nao * mol.nao * auxmol.nao * 8
+
+
 def solve_df_coeffs(auxmol: gto.Mole, rhs: np.ndarray, lindep: float = 1e-10):
     """Solve (A|B) c = b, falling back to a truncated eigendecomposition."""
     j2c = auxmol.intor("int2c2e")
@@ -68,26 +89,41 @@ def solve_df_coeffs(auxmol: gto.Mole, rhs: np.ndarray, lindep: float = 1e-10):
     return coeffs, j2c
 
 
-def aux_charges(auxmol: gto.Mole) -> np.ndarray:
-    """Integral of each auxiliary function; only l=0 shells carry charge."""
-    out = np.zeros(auxmol.nao)
-    ao_loc = auxmol.ao_loc_nr()
-    for shell in range(auxmol.nbas):
-        if auxmol.bas_angular(shell) != 0:
-            continue
-        exps = auxmol.bas_exp(shell)
-        coeffs = auxmol.bas_ctr_coeff(shell)
-        integrals = (np.pi / exps) ** 1.5 @ coeffs
-        start = ao_loc[shell]
-        out[start : start + coeffs.shape[1]] = integrals
-    # PySCF's l=0 AOs carry the real solid harmonic factor 1/sqrt(4 pi).
-    return out / np.sqrt(4.0 * np.pi)
+def aux_charges(auxmol: gto.Mole, exponent: float = 1e-8) -> np.ndarray:
+    """Integral of each auxiliary function over all space.
+
+    Writing this analytically means committing to PySCF's internal contraction
+    and solid-harmonic normalisation, which is easy to get wrong by a constant.
+    Instead take the overlap with a single s Gaussian so diffuse it is
+    effectively constant everywhere, and divide out its normalisation: as the
+    exponent goes to zero the overlap tends to the plain integral of each
+    auxiliary function, independently of where the probe is centred.
+    """
+    probe = gto.M(atom=[("H", (0.0, 0.0, 0.0))], basis={"H": [[0, [exponent, 1.0]]]}, spin=1)
+    cross = gto.mole.intor_cross("int1e_ovlp", auxmol, probe).ravel()
+    return cross / (2.0 * exponent / np.pi) ** 0.75
 
 
-def fit_density(mol, dm, auxbasis: str, block: int = 40, coulomb_reference=None):
+def fit_density(
+    mol,
+    dm,
+    auxbasis: str,
+    block: int = 40,
+    coulomb_reference=None,
+    device: str = "cpu",
+    gpu_budget_bytes: int = 8_000_000_000,
+):
     """Return DF coefficients plus fit diagnostics."""
     auxmol = auxmol_for(mol, auxbasis)
-    rhs = density_fit_rhs(mol, auxmol, dm, block=block)
+    used_gpu = False
+    if device == "gpu" and gpu_tensor_bytes(mol, auxmol) <= gpu_budget_bytes:
+        try:
+            rhs = density_fit_rhs_gpu(mol, auxmol, dm)
+            used_gpu = True
+        except Exception:
+            rhs = density_fit_rhs(mol, auxmol, dm, block=block)
+    else:
+        rhs = density_fit_rhs(mol, auxmol, dm, block=block)
     coeffs, _ = solve_df_coeffs(auxmol, rhs)
 
     charges = aux_charges(auxmol)
@@ -102,6 +138,7 @@ def fit_density(mol, dm, auxbasis: str, block: int = 40, coulomb_reference=None)
         "n_elec_exact": n_elec_exact,
         "n_elec_df": n_elec_fit,
         "n_elec_error": n_elec_fit - n_elec_exact,
+        "used_gpu": used_gpu,
     }
     if coulomb_reference is not None:
         # (rho|rho) from the exact density; dE is the residual Coulomb error.
