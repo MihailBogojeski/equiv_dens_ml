@@ -87,7 +87,7 @@ Align the title page and SI. Confirm with Tuckerman/Burke/Müller before resubmi
 ## Reviewer 3
 
 **R3.1 Hybrid DFT.**  
-No limitation in the architecture. PBE0+D4 / aug-cc-pVDZ labels for the 70-frame ethanol+water subset are **complete** (`datasets/revision/pbe0/`). PBE0 SAD is written. A 70-frame PBE0 DenSNet train is running (local GPU + Slurm backup). ωB97M-V / OMol25 not opened this pass.
+No limitation in the architecture. In-house PBE0+D4 / aug-cc-pVDZ (70 frames) is the fallback. **Preferred:** OMol25 ωB97M-V/def2-TZVPD electronic structure on the 4M split (not 4M-wide training). Access: HF `train_4M` index + MDF/Globus group approval, then filter and convert `density_mat.npz`.
 
 **R3.2 SOTA MLFFs and biomolecule IR benchmarks.**  
 We compare MACE-OFF, AIMNet2, GFN2-xTB, and g-xTB on ethanol, ethanethiol, resorcinol, and thiophene 2-mer, and expand Figure 2.  

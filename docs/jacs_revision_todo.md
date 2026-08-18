@@ -71,7 +71,7 @@ Recovered checkpoints/datasets stay untracked (`.git/info/exclude`). Sibling `/s
 
 | ID | Request | Action | Status | Deliverable |
 | --- | --- | --- | --- | --- |
-| R3.1 | Hybrid DFT densities (PBE0+MBD / ωB97M-V) | `new DFT` | `running` | PBE0+D4+DF 70/70 frames written; PBE0 DenSNet train launched on local GPU 0 and submitted to Slurm |
+| R3.1 | Hybrid DFT densities (PBE0+MBD / ωB97M-V) | `new DFT` | `running` | In-house PBE0 70/70 labels done (train blocked on energy-head/DF-SAD). **OMol25 ωB97M-V 4M-elec is back on the live path**; waiting on HF + Globus/MDF human access |
 | R3.2 | Compare SO3LR, MACE-OFF, GFN-xTB, DFTB; expand Fig. 2 | `new MD` | `running` | CPU Figure 2 includes DenSNet 1.62 s; GPU Figure 2 (DenSNet/MACE-OFF/AIMNet2/SO3LR) launched; DFTB binary still missing |
 | R3.3 | Relative density errors + uncertainty | `analysis` | `computed` | DF-coeff / SAD diagnostics; 3-seed DenSNet ensemble still needs training |
 | R3.4 | Direct vs delta cost and correction magnitude | `analysis` | `scripts_ready` | SAD timing in `benchmark_figure2.py`; Δρ histograms in `analyze_density_metrics.py` |

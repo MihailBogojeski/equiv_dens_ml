@@ -29,6 +29,10 @@ Resume DFT with `bash scripts/revision/run_dft_campaign.sh {pbe-train,pbe-rest,p
 
 PBE0 labels **70/70**. Water / ethanol-OOD PBE still running. Do not start water DenSNet until train 1250 + val 250 + ood 300 exist.
 
+## OMol25 (back on the live list)
+
+Preferred R3.1 path: ωB97M-V/def2-TZVPD densities from the **4M electronic-structure split**, then train 5k–30k filtered frames. Blocked on human HF + Globus/MDF group approval. Do **not** pull the 500 TB dump.
+
 ## Wave C (launched)
 
 `ALLOW_GL056=1` now permits sharing this allocation.
