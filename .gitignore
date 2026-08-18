@@ -78,7 +78,13 @@ test_runs/
 # Scratch/output directory - all generated run outputs (training, MD, dipole, etc.)
 # Safe to delete entirely when cleaning up
 scratch/
-results/
+results/*
+!results/revision/
+results/revision/**
+!results/revision/**/
+!results/revision/**/*.json
+!results/revision/**/*.jsonl
+!results/revision/**/*.md
 
 # Specific large file patterns (legacy - dirs above now ignored)
 20*_*/checkpoints/*.pth

@@ -1,19 +1,22 @@
-"""SchNetPack MD calculator backed by g-xtb (subprocess, parse energy/gradient)."""
+"""g-xTB calculators: ASE single-points and SchNetPack MD."""
 
 import equiv_dens.compat  # noqa: F401 - apply T_co patch before schnetpack import
 
 import os
 import re
 import subprocess
+import tempfile
 from pathlib import Path
 
+import ase.io
+import ase.units
 import numpy as np
 import torch
-import ase.io
+from ase.calculators.calculator import Calculator, all_changes
 
 import equiv_dens.utils.base as utils
-from schnetpack.md.calculators import MDCalculator, MDCalculatorError
 from schnetpack import properties
+from schnetpack.md.calculators import MDCalculator
 
 
 class GxtbMDCalculator(MDCalculator):
@@ -70,7 +73,9 @@ class GxtbMDCalculator(MDCalculator):
         # Positions from _get_system_molecules are in position_unit (Angstrom)
         atoms = _atoms_from_arrays(atom_types_flat, positions_flat)
 
-        energy_hartree, gradient_eh_bohr = self._run_gxtb(atoms)
+        energy_hartree, gradient_eh_bohr = _run_gxtb_binary(
+            atoms, self.gxtb_path, self.gxtb_params_dir, self.workdir
+        )
 
         # Convert: energy Eh -> kcal/mol; gradient Eh/bohr -> forces kcal/mol/Å
         energy_kcal = utils.hartree_to_kcal(energy_hartree)
@@ -178,3 +183,106 @@ def _atoms_from_arrays(atom_numbers: np.ndarray, positions: np.ndarray) -> "ase.
         atom_numbers[nonzero].astype(int),
         positions=positions[nonzero],
     )
+
+
+def _run_gxtb_binary(atoms, gxtb_path: str, params_dir: str, workdir: Path):
+    """Run ``gxtb -grad`` and return (energy_Eh, gradient_Eh_bohr)."""
+    workdir.mkdir(parents=True, exist_ok=True)
+    coord_path = workdir / "coord.xyz"
+    ase.io.write(coord_path, atoms, format="xyz")
+
+    env = os.environ.copy()
+    env["GXTBHOME"] = str(params_dir)
+    gxtb_dir = str(Path(gxtb_path).resolve().parent)
+    env["PATH"] = gxtb_dir + os.pathsep + env.get("PATH", "")
+
+    result = subprocess.run(
+        [gxtb_path, "-grad", "-c", "coord.xyz"],
+        cwd=str(workdir),
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=600,
+    )
+    if result.returncode != 0:
+        tail = (result.stdout or "")[-2000:] if result.stdout else ""
+        raise RuntimeError(f"g-xtb failed (exit {result.returncode}). Output:\n{tail}")
+
+    energy = None
+    energy_path = workdir / "energy"
+    if energy_path.exists():
+        with open(energy_path) as f:
+            for line in f:
+                if line.strip().startswith("$"):
+                    continue
+                parts = line.split()
+                if len(parts) >= 2:
+                    energy = float(parts[1])
+                    break
+    if energy is None:
+        grad_path = workdir / "gradient"
+        if grad_path.exists():
+            with open(grad_path) as f:
+                for line in f:
+                    if "SCF energy" in line:
+                        match = re.search(r"SCF energy\s*=\s*([-\d.]+)", line)
+                        if match:
+                            energy = float(match.group(1))
+                            break
+    if energy is None:
+        raise FileNotFoundError("Could not parse energy from g-xtb output")
+
+    n = len(atoms)
+    gradient = np.zeros((n, 3), dtype=np.float64)
+    grad_path = workdir / "gradient"
+    if not grad_path.exists():
+        raise FileNotFoundError(f"g-xtb did not produce {grad_path}")
+    idx = 0
+    with open(grad_path) as f:
+        for line in f:
+            if "cycle" in line.lower() or line.strip().startswith("$"):
+                continue
+            parts = line.split()
+            if len(parts) >= 3:
+                try:
+                    gx, gy, gz = float(parts[0]), float(parts[1]), float(parts[2])
+                    if idx < n:
+                        gradient[idx] = [gx, gy, gz]
+                        idx += 1
+                except ValueError:
+                    continue
+            if idx >= n:
+                break
+    if idx != n:
+        raise ValueError(f"Expected {n} gradient rows, got {idx}")
+    return energy, gradient
+
+
+class GxTBCalculator(Calculator):
+    """ASE energy+force calculator wrapping the g-xTB binary."""
+
+    implemented_properties = ["energy", "forces"]
+
+    def __init__(
+        self,
+        gxtb_command: str = "gxtb",
+        params_dir=None,
+        workdir=None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        repo = Path(__file__).resolve().parents[2]
+        cmd = Path(gxtb_command)
+        self.gxtb_command = str(cmd.resolve()) if cmd.exists() else gxtb_command
+        if params_dir is None:
+            params_dir = repo / "g-xtb" / "parameters"
+        self.params_dir = str(Path(params_dir).resolve())
+        self._workdir = Path(workdir) if workdir else None
+
+    def calculate(self, atoms=None, properties=("energy", "forces"), system_changes=all_changes):
+        super().calculate(atoms, properties, system_changes)
+        workdir = self._workdir or Path(tempfile.mkdtemp(prefix="gxtb_ase_"))
+        energy_h, grad = _run_gxtb_binary(atoms, self.gxtb_command, self.params_dir, workdir)
+        energy_ev = float(energy_h) * ase.units.Hartree
+        forces = -np.asarray(grad) * (ase.units.Hartree / ase.units.Bohr)
+        self.results = {"energy": energy_ev, "forces": forces}
