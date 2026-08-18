@@ -1,0 +1,218 @@
+[
+  {
+    "m_order": "ascending",
+    "layout": "shell",
+    "shell_rev": true,
+    "flip_f": true,
+    "eps_min": -155074.21911363417,
+    "max_abs_charge": 1.0971613432730067,
+    "core_err": 155049.51911363416
+  },
+  {
+    "m_order": "ascending",
+    "layout": "shell",
+    "shell_rev": true,
+    "flip_f": false,
+    "eps_min": -155132.91187774748,
+    "max_abs_charge": 1.1197981370657342,
+    "core_err": 155108.21187774747
+  },
+  {
+    "m_order": "pyscf",
+    "layout": "shell",
+    "shell_rev": true,
+    "flip_f": true,
+    "eps_min": -155828.04383075266,
+    "max_abs_charge": 1.554017100486707,
+    "core_err": 155803.34383075265
+  },
+  {
+    "m_order": "pyscf",
+    "layout": "shell",
+    "shell_rev": true,
+    "flip_f": false,
+    "eps_min": -155876.67090592664,
+    "max_abs_charge": 1.6095354394722756,
+    "core_err": 155851.97090592663
+  },
+  {
+    "m_order": "pyscf",
+    "layout": "component",
+    "shell_rev": true,
+    "flip_f": false,
+    "eps_min": -153673.79093134022,
+    "max_abs_charge": 1.6413469213674858,
+    "core_err": 153649.0909313402
+  },
+  {
+    "m_order": "pyscf",
+    "layout": "component",
+    "shell_rev": true,
+    "flip_f": true,
+    "eps_min": -153614.34790650802,
+    "max_abs_charge": 1.6575225848382953,
+    "core_err": 153589.647906508
+  },
+  {
+    "m_order": "orca",
+    "layout": "component",
+    "shell_rev": true,
+    "flip_f": false,
+    "eps_min": -154485.93616237864,
+    "max_abs_charge": 1.6653436403124777,
+    "core_err": 154461.23616237863
+  },
+  {
+    "m_order": "orca",
+    "layout": "shell",
+    "shell_rev": true,
+    "flip_f": false,
+    "eps_min": -152392.2729384869,
+    "max_abs_charge": 1.7601222322492953,
+    "core_err": 152367.57293848688
+  },
+  {
+    "m_order": "orca",
+    "layout": "shell",
+    "shell_rev": true,
+    "flip_f": true,
+    "eps_min": -152376.47548691384,
+    "max_abs_charge": 1.7917614568481404,
+    "core_err": 152351.77548691383
+  },
+  {
+    "m_order": "orca",
+    "layout": "component",
+    "shell_rev": true,
+    "flip_f": true,
+    "eps_min": -154470.42370435369,
+    "max_abs_charge": 1.808229459873715,
+    "core_err": 154445.72370435367
+  },
+  {
+    "m_order": "ascending",
+    "layout": "component",
+    "shell_rev": true,
+    "flip_f": false,
+    "eps_min": -154383.8177311606,
+    "max_abs_charge": 2.093294858702773,
+    "core_err": 154359.1177311606
+  },
+  {
+    "m_order": "ascending",
+    "layout": "component",
+    "shell_rev": true,
+    "flip_f": true,
+    "eps_min": -154325.6348845544,
+    "max_abs_charge": 2.144241184951854,
+    "core_err": 154300.9348845544
+  },
+  {
+    "m_order": "pyscf",
+    "layout": "shell",
+    "shell_rev": false,
+    "flip_f": true,
+    "eps_min": -2664.6699781981974,
+    "max_abs_charge": 7.503933094130732,
+    "core_err": 2639.9699781981976
+  },
+  {
+    "m_order": "pyscf",
+    "layout": "shell",
+    "shell_rev": false,
+    "flip_f": false,
+    "eps_min": -2687.508090309012,
+    "max_abs_charge": 7.595517876098082,
+    "core_err": 2662.808090309012
+  },
+  {
+    "m_order": "ascending",
+    "layout": "shell",
+    "shell_rev": false,
+    "flip_f": true,
+    "eps_min": -2472.595813273329,
+    "max_abs_charge": 7.796924643197311,
+    "core_err": 2447.895813273329
+  },
+  {
+    "m_order": "ascending",
+    "layout": "shell",
+    "shell_rev": false,
+    "flip_f": false,
+    "eps_min": -2470.2524854047583,
+    "max_abs_charge": 8.360952986394947,
+    "core_err": 2445.5524854047585
+  },
+  {
+    "m_order": "ascending",
+    "layout": "component",
+    "shell_rev": false,
+    "flip_f": true,
+    "eps_min": -2739.6240495056636,
+    "max_abs_charge": 8.938459251505357,
+    "core_err": 2714.924049505664
+  },
+  {
+    "m_order": "orca",
+    "layout": "component",
+    "shell_rev": false,
+    "flip_f": true,
+    "eps_min": -3164.8647118598587,
+    "max_abs_charge": 8.948211070052961,
+    "core_err": 3140.164711859859
+  },
+  {
+    "m_order": "orca",
+    "layout": "shell",
+    "shell_rev": false,
+    "flip_f": true,
+    "eps_min": -1749.26114732264,
+    "max_abs_charge": 9.075098101084325,
+    "core_err": 1724.56114732264
+  },
+  {
+    "m_order": "ascending",
+    "layout": "component",
+    "shell_rev": false,
+    "flip_f": false,
+    "eps_min": -2742.8648435970563,
+    "max_abs_charge": 9.07619680259885,
+    "core_err": 2718.1648435970565
+  },
+  {
+    "m_order": "orca",
+    "layout": "shell",
+    "shell_rev": false,
+    "flip_f": false,
+    "eps_min": -1751.0094177284636,
+    "max_abs_charge": 9.118980473951865,
+    "core_err": 1726.3094177284636
+  },
+  {
+    "m_order": "orca",
+    "layout": "component",
+    "shell_rev": false,
+    "flip_f": false,
+    "eps_min": -3165.5591079997407,
+    "max_abs_charge": 9.122657703358602,
+    "core_err": 3140.859107999741
+  },
+  {
+    "m_order": "pyscf",
+    "layout": "component",
+    "shell_rev": false,
+    "flip_f": true,
+    "eps_min": -1858.5928057965277,
+    "max_abs_charge": 9.360003732203078,
+    "core_err": 1833.8928057965277
+  },
+  {
+    "m_order": "pyscf",
+    "layout": "component",
+    "shell_rev": false,
+    "flip_f": false,
+    "eps_min": -1859.9095098224918,
+    "max_abs_charge": 9.449754999306625,
+    "core_err": 1835.2095098224918
+  }
+]
