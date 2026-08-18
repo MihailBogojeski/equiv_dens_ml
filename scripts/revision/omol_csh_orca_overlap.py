@@ -47,17 +47,27 @@ def main() -> int:
     parser.add_argument("path")
     parser.add_argument("--subset", default="ani1xbb")
     parser.add_argument("--entry", default=None)
+    parser.add_argument("--h5-path", default=None, help="full HDF5 path to a leaf group")
+    parser.add_argument("--charge", type=int, default=None)
+    parser.add_argument("--mult", type=int, default=1)
     parser.add_argument("--outdir", default="results/revision/orca_overlap")
     args = parser.parse_args()
 
     with h5py.File(args.path, "r") as fh:
-        group = fh[args.subset]
-        name = args.entry or sorted(group.keys())[0]
-        node = group[name]
+        if args.h5_path:
+            node = fh[args.h5_path]
+            name = args.h5_path
+        else:
+            group = fh[args.subset]
+            name = args.entry or sorted(group.keys())[0]
+            node = group[name]
         elements = np.asarray(node["elements"][()])
         coords = np.asarray(node["coords"][()])
 
-    charge, mult = parse_charge_mult(name)
+    if args.charge is not None:
+        charge, mult = args.charge, args.mult
+    else:
+        charge, mult = parse_charge_mult(name)
     lines = []
     for z, xyz in zip(elements, coords):
         symbol = SYMBOLS.get(int(z))

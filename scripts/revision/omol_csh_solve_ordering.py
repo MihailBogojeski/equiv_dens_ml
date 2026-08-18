@@ -257,19 +257,29 @@ def main() -> int:
     parser.add_argument("--h5", required=True)
     parser.add_argument("--subset", default="ani1xbb")
     parser.add_argument("--entry", default=None)
+    parser.add_argument("--h5-path", default=None, help="full HDF5 path to a leaf group")
+    parser.add_argument("--charge", type=int, default=None)
+    parser.add_argument("--mult", type=int, default=1)
     parser.add_argument("--out", default=None)
     args = parser.parse_args()
 
     data = json.loads(Path(args.json).read_text())
     with h5py.File(args.h5, "r") as fh:
-        group = fh[args.subset]
-        name = args.entry or sorted(group.keys())[0]
-        node = group[name]
+        if args.h5_path:
+            node = fh[args.h5_path]
+            name = args.h5_path
+        else:
+            group = fh[args.subset]
+            name = args.entry or sorted(group.keys())[0]
+            node = group[name]
         elements = np.asarray(node["elements"][()])
         coords = np.asarray(node["coords"][()])
         fock_flat = np.asarray(node["fock"][()])
 
-    charge, mult = parse_charge_mult(name)
+    if args.charge is not None:
+        charge, mult = args.charge, args.mult
+    else:
+        charge, mult = parse_charge_mult(name)
     mol = build_mol(elements, coords, charge, mult - 1)
     fock_stored = inflate_triangle(fock_flat)
 

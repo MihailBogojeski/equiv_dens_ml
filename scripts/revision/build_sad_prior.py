@@ -38,7 +38,11 @@ def main():
 
     symbols = [s.strip() for s in args.elements.split(",") if s.strip()]
     atom_str = "; ".join(f"{el} 0 0 {3 * i}" for i, el in enumerate(symbols))
-    mol = gto.M(atom=atom_str, basis=args.basis, charge=0, spin=0)
+    # The atoms are only a carrier for the per-element basis; the combined
+    # electron count is odd whenever the element list happens to sum odd, so the
+    # spin has to follow it rather than being pinned to zero.
+    n_elec = sum(int(utils.symbols_to_numbers([el])[0]) for el in symbols)
+    mol = gto.M(atom=atom_str, basis=args.basis, charge=0, spin=n_elec % 2)
     mf_elems = get_atm_nrks(mol, xc=args.xc)
 
     result = {}
