@@ -7,7 +7,7 @@
 #SBATCH --mem=64G
 #SBATCH --time=48:00:00
 #SBATCH --account=torch_pr_283_chemistry
-#SBATCH --qos=gpu168
+#SBATCH --qos=gpu48
 #SBATCH --partition=l40s_public
 #SBATCH --output=results/revision/gpu_campaign/slurm-%x-%j.out
 # TASK=pbe0|ethanol-md|thiophene-md|water|quick|all
