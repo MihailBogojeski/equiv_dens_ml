@@ -1,0 +1,25 @@
+{
+  "orca_version": "6.1.1",
+  "orca_energy_hartree": -428.648497578678,
+  "pyscf_energy_hartree": -428.648347035072,
+  "energy_agreement_hartree": 0.00015,
+  "orca_to_pyscf_transform_validated_on_overlap_max_abs_err": 5.008e-07,
+  "orca_sign_flips_l_m": [
+    [
+      3,
+      -3
+    ],
+    [
+      3,
+      3
+    ]
+  ],
+  "orca_ao_order": "def2-TZVP shells first (m=0,+1,-1,+2,-2), diffuse augmentation appended at end of atom block",
+  "stored_is_pyscf_order": false,
+  "stored_is_orca_order": false,
+  "stored_is_permutation_of_truth": true,
+  "evidence_per_atom_sorted_diag_match": 0.003,
+  "structured_layout_families_tested": 12,
+  "best_structured_residual_hartree": 7.07,
+  "conclusion": "OMol_CSH HDF5 uses a third AO ordering from the HELM preprocessing, neither PySCF nor ORCA"
+}
