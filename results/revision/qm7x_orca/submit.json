@@ -1,0 +1,12 @@
+{
+  "theory": "PBE0 aug-cc-pVDZ TightSCF EnGrad",
+  "partition": "cs",
+  "qos": "cpu48",
+  "account": "torch_pr_283_chemistry",
+  "jobs": {
+    "smoke": {"jobid": 15960718, "n_frames": 100, "n_shards": 10},
+    "train": {"jobid": 15960729, "n_frames": 20000, "n_shards": 1000},
+    "valid": {"jobid": 15960732, "n_frames": 2500, "n_shards": 125}
+  },
+  "notes": "Official QM7-X Zenodo download runs in tmux qm7x-zenodo-download. Training uses ORCA labels, not official PBE0+MBD."
+}
