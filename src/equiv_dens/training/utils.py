@@ -565,10 +565,10 @@ def prepare_optimizers(args, model, phase=None):
 
     # learning rate scheduler (decays learning rate if validation loss plateaus)
     schedulers = [torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizers[0], mode='min', factor=args.decay_factor, patience=args.decay_patience, verbose=args.verbose)]
+        optimizers[0], mode='min', factor=args.decay_factor, patience=args.decay_patience)]
     if args.energy_offset:
         schedulers.append(torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizers[1], mode='min', factor=args.decay_factor, patience=args.decay_patience, verbose=args.verbose))
+            optimizers[1], mode='min', factor=args.decay_factor, patience=args.decay_patience))
 
     return optimizers, schedulers, ema_params
 

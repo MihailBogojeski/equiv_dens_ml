@@ -119,6 +119,7 @@ class AtomsDensityData(Dataset):
             self.calc_dpm = False
         self.centered_positions = center_positions
         self.atoms = np.load(np_path, allow_pickle=True).item()
+        self._pad_ragged_atoms()
         if self.atoms["atom_numbers"].ndim == 1:
             self.atoms["atom_numbers"] = self.atoms["atom_numbers"][None, :]
         if self.atoms["atom_numbers"].shape[0] != self.atoms["positions"].shape[0]:
@@ -283,6 +284,36 @@ class AtomsDensityData(Dataset):
         if self.verbose > 0:
             print("finished init")
 
+    def _pad_ragged_atoms(self):
+        """Pad object-array positions / numbers (mixed molecule sizes) to a rectangle."""
+        pos = self.atoms.get("positions")
+        anum = self.atoms.get("atom_numbers")
+        if pos is None or anum is None:
+            return
+        pos = np.asarray(pos, dtype=object) if getattr(pos, "dtype", None) == object else np.asarray(pos)
+        if pos.dtype != object and pos.ndim >= 2:
+            return
+        frames = list(pos)
+        numbers = list(np.asarray(anum, dtype=object))
+        n = len(frames)
+        max_a = max(len(np.asarray(p)) for p in frames)
+        P = np.zeros((n, max_a, 3), dtype=np.float64)
+        Z = np.zeros((n, max_a), dtype=np.int64)
+        for i, (p, z) in enumerate(zip(frames, numbers)):
+            p = np.asarray(p, dtype=np.float64)
+            z = np.asarray(z)
+            P[i, : len(p)] = p
+            Z[i, : len(z)] = z
+        self.atoms["positions"] = P
+        self.atoms["atom_numbers"] = Z
+        forces = self.atoms.get("forces")
+        if forces is not None and getattr(forces, "dtype", None) == object:
+            F = np.zeros((n, max_a, 3), dtype=np.float64)
+            for i, f in enumerate(forces):
+                f = np.asarray(f, dtype=np.float64)
+                F[i, : len(f)] = f
+            self.atoms["forces"] = F
+
     def _ensure_sad_mo_basis(self, basis="augccpvdz"):
         """Revision SAD files store mo_coeff/mo_occ but not PySCF mo_basis."""
         if not isinstance(self.atom_dens, dict):
@@ -413,7 +444,8 @@ class AtomsDensityData(Dataset):
         mol_props = {}
         for pname in self.required_properties:
             if pname in self.atoms.keys():
-                if self.atoms[pname][0].shape[0] > 1:
+                first = np.asarray(self.atoms[pname][0])
+                if first.ndim >= 1 and first.shape[0] > 1:
                     atom_props[pname] = self.atoms[pname][idx]
                 else:
                     mol_props[pname] = self.atoms[pname][idx]
@@ -636,7 +668,8 @@ class AtomsDensityData(Dataset):
         mol_props = {}
         for pname in self.required_properties:
             if pname in self.atoms.keys():
-                if self.atoms[pname][0].shape[0] > 1:
+                first = np.asarray(self.atoms[pname][0])
+                if first.ndim >= 1 and first.shape[0] > 1:
                     atom_props[pname] = self.atoms[pname][idx]
                 else:
                     mol_props[pname] = self.atoms[pname][idx]
