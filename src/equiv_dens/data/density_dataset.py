@@ -128,6 +128,7 @@ class AtomsDensityData(Dataset):
 
         if atom_dens_path is not None:
             self.atom_dens = np.load(atom_dens_path, allow_pickle=True).item()
+            self._ensure_sad_mo_basis()
         else:
             self.atom_dens = None
         if all_atom_numbers is None:
@@ -281,6 +282,19 @@ class AtomsDensityData(Dataset):
 
         if self.verbose > 0:
             print("finished init")
+
+    def _ensure_sad_mo_basis(self, basis="augccpvdz"):
+        """Revision SAD files store mo_coeff/mo_occ but not PySCF mo_basis."""
+        if not isinstance(self.atom_dens, dict):
+            return
+        for z, rec in self.atom_dens.items():
+            if not isinstance(rec, dict) or "mo_coeff" not in rec:
+                continue
+            if rec.get("mo_basis") and int(z) in rec["mo_basis"]:
+                continue
+            symbol = rec.get("symbol") or utils.numbers_to_symbols([int(z)])[0]
+            mol = gto.M(atom=[[int(z), [0.0, 0.0, 0.0]]], basis=basis, spin=int(z) % 2)
+            rec["mo_basis"] = {int(z): mol._basis[symbol]}
 
     def create_subset(self, idx):
         """

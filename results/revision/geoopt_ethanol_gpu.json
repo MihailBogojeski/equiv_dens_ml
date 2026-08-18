@@ -1,0 +1,11 @@
+{
+  "structure": "datasets/ethanol_train_10.xyz",
+  "model": "paper/models/ethanol/2024-03-22_96w7KyGG",
+  "dft_xc": "pbe",
+  "dft_energy_eV": null,
+  "dft_error": "skipped",
+  "densnet_energy_eV": 0.2239832043550692,
+  "densnet_error": null,
+  "rmsd_angstrom": 0.0,
+  "n_atoms": 9
+}

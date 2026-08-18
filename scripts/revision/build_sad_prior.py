@@ -45,12 +45,14 @@ def main():
     for key, mf_elem in mf_elems.items():
         el = "".join(c for c in key if c.isalpha())
         anum = int(utils.symbols_to_numbers([el])[0])
+        atom_mol = gto.M(atom=[[anum, [0, 0, 0]]], basis=args.basis, spin=anum % 2)
         result[anum] = {
             "symbol": el,
             "xc": args.xc,
             "mo_coeff": np.asarray(mf_elem.mo_coeff),
             "mo_occ": np.asarray(mf_elem.mo_occ),
             "spline_interp": free_atom_spline(mf_elem),
+            "mo_basis": {anum: atom_mol._basis[el]},
         }
         print(f"{el} Z={anum} mo_coeff={result[anum]['mo_coeff'].shape}")
 

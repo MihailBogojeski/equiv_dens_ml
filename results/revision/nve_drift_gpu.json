@@ -1,0 +1,13 @@
+{
+  "hdf5": "results/revision/mlip_gpu_densnet/densnet_nve.jsonl",
+  "n_steps": 201,
+  "dt_fs": 0.5,
+  "duration_ps": 0.1,
+  "energy_mean": 0.20716213877156775,
+  "energy_std": 0.008437977480248396,
+  "drift_per_ps": 0.17868204692001488,
+  "drift_per_atom_per_ps": 0.01985356076889054,
+  "max_abs_deviation": 0.044219454167026884,
+  "unit_note": "native_energy_per_ps",
+  "n_atoms": 9
+}

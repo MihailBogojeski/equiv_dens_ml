@@ -1,0 +1,18 @@
+{
+  "structure": "datasets/ethanol_train_10.xyz",
+  "n_atoms": 9,
+  "methods": {
+    "densnet": {
+      "method": "densnet",
+      "nve": {
+        "n_steps": 201,
+        "duration_ps": 0.1,
+        "energy_std_eV": 0.008437977480248396,
+        "drift_eV_per_ps": 0.17868204692001488,
+        "max_abs_dev_eV": 0.044219454167026884,
+        "wall_s": 124.64324552984908,
+        "ns_per_day": 0.0693178355816395
+      }
+    }
+  }
+}

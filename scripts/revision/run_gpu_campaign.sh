@@ -61,16 +61,31 @@ run_quick() {
     | tee "$LOGDIR/eval_ethanol_ood.log"
 }
 
+ensure_sad_basis() {
+  python scripts/revision/patch_sad_mo_basis.py \
+    datasets/revision/sad_pbe_augccpvdz.npy \
+    datasets/revision/sad_pbe0_augccpvdz.npy
+}
+
 run_pbe0() {
   echo "== PBE0 ethanol/water subset train =="
+  ensure_sad_basis
   python run.py train @config/training/ethanol_pbe0_001.txt \
     | tee "$LOGDIR/ethanol_pbe0_001.log"
 }
 
 run_ethanol_md() {
   echo "== ethanol 500 ps MD =="
-  python run.py md @config/md/nn/ethanol_500ps.txt \
-    | tee "$LOGDIR/ethanol_500ps.log"
+  ensure_sad_basis
+  if python run.py md @config/md/nn/ethanol_500ps.txt \
+    | tee "$LOGDIR/ethanol_500ps.log"; then
+    return 0
+  fi
+  echo "schnetpack MD failed; falling back to ASE Langevin" | tee -a "$LOGDIR/ethanol_500ps.log"
+  python scripts/revision/ase_densnet_md.py \
+    --use-gpu --steps 1000000 \
+    --out-dir results/revision/md_ethanol_ase \
+    | tee -a "$LOGDIR/ethanol_500ps.log"
 }
 
 run_thiophene_md() {

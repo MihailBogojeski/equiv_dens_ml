@@ -46,7 +46,7 @@ Recovered checkpoints/datasets stay untracked (`.git/info/exclude`). Sibling `/s
 | R1.3 | Shorten polythiophene; move Fig. 6 | `manuscript` | `written` | outline §R1.3 |
 | R1.4 | Move Fig. 7 to SI | `manuscript` | `written` | outline §R1.4 |
 | R1.5 | SI S2.2 details + train/test overlap evidence | `analysis` + `recover` | `computed` | resorcinol median min-RMSD 0.093 Å (1000/1000 <0.2 Å); ethanethiol 0.600 Å (0/1000 <0.2 Å); thiophene-4mer 1.15 Å; thiophene-6mer 0.53 Å; 12-mer is size-OOD. SI already has PINY_MD / NHC / 1 fs; FF/SHAKE/length not recovered |
-| R1.6 | Deduplicate 755 ms vs 5 min | `manuscript` | `computed` | CPU Figure 2 ethanol: DenSNet 1.62 s, g-xTB 0.70 s, GFN2-xTB 3.05 s, MACE-OFF 4.48 s; AIMNet2 still broken |
+| R1.6 | Deduplicate 755 ms vs 5 min | `manuscript` | `computed` | CPU Figure 2 ethanol: DenSNet 1.62 s, g-xTB 0.70 s, GFN2-xTB 3.05 s, MACE-OFF 4.48 s; **GPU DenSNet 467 ms/step** (0.093 ns/day). AIMNet2/MACE GPU still fail Triton/`Python.h` |
 | R1.7 | Retract unsupported dielectric / H-bond-network claims | `manuscript` | `written` | retracted in `scratch/recovered_manuscript/main/nat_manuscript.tex` Discussion |
 
 ### Reviewer 2
@@ -56,7 +56,7 @@ Recovered checkpoints/datasets stay untracked (`.git/info/exclude`). Sibling `/s
 | R2.1 | Cite Hazra–Sanvito JCP 2025 density→IR workflow | `manuscript` | `written` | outline citations |
 | R2.2 | Compare general IR methods (MACE4IR, AIMNet2, TranSpec, AIQM) | `new MD` + `manuscript` | `running` | CPU timings include DenSNet 1.62 s/step (~0.027 ns/day); ethanol 500 ps MD launched on GPU 1; GPU Figure 2 + AIMNet2 retry launched |
 | R2.3 | Tougher extrapolation than hexamer-trained oligomers | `manuscript` | `written` | water-cluster size hold-out is the new experiment |
-| R2.4 | Companion network: embedding, autodiff, energy conservation | `new MD` + `manuscript` | `computed` | 20 fs CPU NVE: energy std 5.4 meV, drift 0.30 eV/ps (architecture mismatch caveat); production NVE waits for GPU + matching energy head |
+| R2.4 | Companion network: embedding, autodiff, energy conservation | `new MD` + `manuscript` | `computed` | 20 fs CPU NVE: std 5.4 meV, drift 0.30 eV/ps; **GPU 0.1 ps NVE**: std 8.4 meV, drift 0.18 eV/ps (same energy-head caveat) |
 | R2.5 | Who produces dipoles vs energy/forces | `manuscript` | `written` | outline §R2.5 |
 | R2.6 | One framework vs two networks at MD time | `manuscript` | `written` | outline §R2.6 |
 | R2.7 | Electron-count normalization vs delta-learning | `manuscript` | `written` | outline §R2.7 |
@@ -291,7 +291,8 @@ Record each production job here.
 | 2026-08-17 | ethanol+water PBE0 subset | PBE0+D4+DF | 70/70 | `run_dft_campaign.sh pbe0` | `datasets/revision/pbe0/` | labels complete |
 | 2026-08-18 | ethanol PBE0 train | DenSNet | 70 | `run_gpu_campaign.sh pbe0` | `results/revision/ethanol_pbe0_001/` | local GPU 0 after quick tests; also `sbatch` `dens-pbe0` |
 | 2026-08-18 | ethanol 500 ps MD | DenSNet NVT/NVE | 1e6 steps | `run_gpu_campaign.sh ethanol-md` | MD logs | local GPU 1; energy-head caveat |
-| 2026-08-18 | thiophene 2-mer 500 ps + water train | DenSNet | pending labels / queue | `submit_revision_gpu_jobs.sh` | Slurm `dens-thio2`, `dens-water` | will pend if qos gpu=4 is full |
+| 2026-08-18 | thiophene 2-mer 500 ps | DenSNet | queued | Slurm `dens-thiophene-md` 15934890 | l40s_public | Priority behind current 2-GPU wrap |
+| 2026-08-18 | ethanol | GPU Figure 2 + 0.1 ps NVE | 1 geom | `run_gpu_campaign.sh quick` | `figure2_timing_gpu.json`, `nve_drift_gpu.json` | DenSNet 467 ms/step; NVE drift 0.18 eV/ps |
 
 ---
 

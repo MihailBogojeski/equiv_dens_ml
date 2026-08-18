@@ -1,0 +1,23 @@
+{
+  "structure": "datasets/ethanol_train_10.xyz",
+  "n_atoms": 9,
+  "methods": {
+    "densnet": {
+      "mean_s": 0.46678625904023646,
+      "std_s": 0.09031057731679468,
+      "n": 5,
+      "model": "paper/models/ethanol/2024-03-22_96w7KyGG",
+      "ms_per_step": 466.7862590402365,
+      "ns_per_day_0.5fs": 0.092547711427547
+    },
+    "maceoff": {
+      "error": "Command '['/usr/bin/gcc', '/tmp/tmp3bxhymj4/cuda_utils.c', '-O3', '-shared', '-fPIC', '-Wno-psabi', '-o', '/tmp/tmp3bxhymj4/cuda_utils.cpython-312-x86_64-linux-gnu.so', '-l:libcuda.so.1', '-L/scratch/mh7373/projects/equiv_dens_ml/.venv/lib/python3.12/site-packages/triton/backends/nvidia/lib', '-L/lib64', '-I/scratch/mh7373/projects/equiv_dens_ml/.venv/lib/python3.12/site-packages/triton/backends/nvidia/include', '-I/tmp/tmp3bxhymj4', '-I/usr/include/python3.12']' returned non-zero exit status 1."
+    },
+    "aimnet2": {
+      "error": "Command '['/usr/bin/gcc', '/tmp/tmppkfw3u14/cuda_utils.c', '-O3', '-shared', '-fPIC', '-Wno-psabi', '-o', '/tmp/tmppkfw3u14/cuda_utils.cpython-312-x86_64-linux-gnu.so', '-l:libcuda.so.1', '-L/scratch/mh7373/projects/equiv_dens_ml/.venv/lib/python3.12/site-packages/triton/backends/nvidia/lib', '-L/lib64', '-I/scratch/mh7373/projects/equiv_dens_ml/.venv/lib/python3.12/site-packages/triton/backends/nvidia/include', '-I/tmp/tmppkfw3u14', '-I/usr/include/python3.12']' returned non-zero exit status 1."
+    },
+    "so3lr": {
+      "error": "No module named 'so3lr'"
+    }
+  }
+}

@@ -14,7 +14,9 @@ from pathlib import Path
 
 import numpy as np
 from ase import Atoms
-from ase.units import Hartree, kcal / mol as KCALMOL
+from ase.units import Hartree, kcal, mol
+
+KCALMOL = kcal / mol
 
 
 _REPO = Path(__file__).resolve().parents[2]
