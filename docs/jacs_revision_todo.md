@@ -20,18 +20,18 @@ Searched this checkout, `paper/`, `datasets/`, and `/home/ml-dft/equiv_dens/data
 
 | Asset | Status | Path |
 | --- | --- | --- |
-| Ethanol / ethanethiol / resorcinol / thiophene paper densities | **Missing** | expected `datasets/ethanol_dft_*.npy`, `ethanethiol_*`, `resorcinol_*`, `thiophene_all_*_d4.npy` |
-| Ethanol / resorcinol / polythiophene paper models | **Missing** | `paper/models/{ethanol,resorcinol,polythiophene}/` empty |
-| Ethanethiol checkpoints | **Partial** | `paper/models/ethanethiol/2024-02-29_NUmID4hT_ext4/checkpoints/` (`.pth.bak` only) |
+| Ethanol paper-split densities `ethanol_dft_*.npy` | **Still missing** by that name | not found on scratch, LFS, or the Hasyim clone |
+| Ethanethiol / resorcinol / thiophene extras | **Local only** | `datasets/{ethanethiol_*,resorcinol_*,thiophene_*}` (excluded from this branch) |
+| Published DenSNet checkpoints | **Local only** (103 `*.pth`, 12G) | `paper/models/` including ethanol `2024-03-22_96w7KyGG` |
 | Water-monomer DFT (dev set, not H-bond study) | Present | `datasets/h2o_small_{train,valid,test}_augccpvdz*.npy` |
 | SAD prior (PBE) | Present | `datasets/free_atom_densities_augccpvdz_augccpvqzjkfit_pyscf_minimized.npy` |
 | Ethanol geometry stub | Present | `datasets/ethanol_train_10.{npy,xyz}` (10 frames) |
 | Ethanol AIMD | Present | `results/aimd_benchmark/aimd_ethanol_rep0_10ps.traj` (**10 ps**) |
 | g-xTB binary | Present | `g-xtb/binary/gxtb` |
-| Manuscript / SI TeX | **Missing** | not in repo |
+| Manuscript / SI TeX | **Local only** | `scratch/recovered_manuscript/` (copied from sibling before delete) |
 | Classical-MD logs (FF, length, SHAKE) | **Missing** | cannot recover SI S2.2 from git |
 
-**Owner action:** copy paper densities and models from the original `/home/ml-dft` machine (or LFS/Zenodo) into `datasets/` and `paper/models/` before training or overlap analysis on the published splits.
+Recovered checkpoints/datasets stay untracked (`.git/info/exclude`). Sibling `/scratch/mh7373/projects/equiv-paper` and the Hasyim clone were deleted after copy.
 
 ---
 
@@ -63,7 +63,7 @@ Searched this checkout, `paper/`, `datasets/`, and `/home/ml-dft/equiv_dens/data
 | R2.8 | Softplus vs signed delta-density | `manuscript` + `analysis` | `computed` | h2o_small_test: 46.7% negative DF coeffs; SAD e-counts H/C/N/O/S = 1/6/7/8/16 |
 | R2.9 | State max AIMD time in main text | `manuscript` | `written` | recovered: ethanol AIMD **10 ps** on disk |
 | R2.10 | Units for density errors | `manuscript` | `written` | use **e/a0³** and relative MAE |
-| R2.11 | Numerical evidence DenSNet ≈ DFT equilibria | `new MD` | `running` | Water-dimer PBE BFGS done (`geoopt_water_dimer_dft.json`, −4155.66 eV); DenSNet opt blocked (no checkpoint) |
+| R2.11 | Numerical evidence DenSNet ≈ DFT equilibria | `new MD` | `running` | Water-dimer PBE BFGS done (`geoopt_water_dimer_dft.json`, −4155.66 eV); DenSNet opt unblocked locally (weights in `paper/models/`) but still needs a free GPU |
 | R2.12 | Cite Cuevas-Zuviría / Pacios JCIM 2020 | `manuscript` | `written` | outline citations |
 | R2.13 | Corresponding authors MS vs SI | `manuscript` | `written` | outline §R2.13 |
 
