@@ -22,6 +22,7 @@ Commands and status live in [docs/jacs_revision_todo.md](../../docs/jacs_revisio
 | `score_ood_forces.py` | Force/energy MAE of `96w7KyGG` vs labeled OOD frames |
 | `slice_labeled_pair.py` | Align geometry NPY length to a partial DFT NPY |
 | `wait_and_train_water.sh` | Poll water PBE labels, then train + cutoff/seed sweeps |
+| `download_omol25_index.sh` | Public 19 GB `train_4M` ASE-DB index (no HF token). Densities still need Globus |
 
 | `run_dft_campaign.sh` | Resume-safe CPU PBE / PBE0 queue (`smoke`, `pbe-train`, `pbe-rest`, `pbe0`) |
 | `run_gxtb_labels.py` | g-xTB single points (deletes leftover `energy`/`gradient` each frame) |

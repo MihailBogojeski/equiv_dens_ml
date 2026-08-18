@@ -31,7 +31,7 @@ PBE0 labels **70/70**. Water / ethanol-OOD PBE still running. Do not start water
 
 ## OMol25 (back on the live list)
 
-Preferred R3.1 path: ωB97M-V/def2-TZVPD densities from the **4M electronic-structure split**, then train 5k–30k filtered frames. Blocked on human HF + Globus/MDF group approval. Do **not** pull the 500 TB dump.
+Preferred R3.1 path: ωB97M-V/def2-TZVPD densities from the **4M electronic-structure split**, then train 5k–30k filtered frames. **Index:** public `train_4M.tar.gz` (19 GB) downloading to `datasets/revision/omol25/` (tmux `omol25-index`). **Densities:** still need Globus/MDF group approval. Do **not** pull the 500 TB dump. No HF token required for the index.
 
 ## Wave C (launched)
 
