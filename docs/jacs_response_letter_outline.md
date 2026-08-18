@@ -48,13 +48,13 @@ Jacobi–Legendre cluster expansion of the DFT density, then energy/forces/dipol
 - AIQM chemRxiv [10.26434/chemrxiv-2024-604wb](https://doi.org/10.26434/chemrxiv-2024-604wb).  
 - MACE4IRmol, AIMNet2 (already cited).  
 
-We compare transferable MLIPs and xTB **on our molecules** (Calculation 4). CPU ethanol single-points: DenSNet 1.62 s, g-xTB 0.70 s, GFN2-xTB 3.05 s, MACE-OFF 4.48 s (~0.01 ns/day). DenSNet is system-specific; the return is a DFT-quality density and analytic dipoles from one trained model. 200–500 ps IR bake-off waits for a free GPU.
+We compare transferable MLIPs and xTB **on our molecules** (Calculation 4). CPU ethanol single-points: DenSNet 1.62 s, g-xTB 0.70 s, GFN2-xTB 3.05 s, MACE-OFF 4.48 s (~0.01 ns/day). GPU Figure 2 and a 500 ps ethanol DenSNet trajectory are running; fill GPU ms/step and IR-vs-length when those jobs finish. DenSNet is system-specific; the return is a DFT-quality density and analytic dipoles from one trained model.
 
 **R2.3 Extrapolation.**  
 Acknowledge hexamer-trained oligomer spectra. The new water-cluster hold-out is a harder H-bond size test. Soften polymer-limit language where errors grow.
 
 **R2.4 Companion network, autodiff, energy conservation.**  
-The energy/force head consumes the frozen (or jointly trained) equivariant density features. Forces are −∇_R E through automatic differentiation of the energy head, including the coordinate dependence of the density features. A 20 fs CPU NVE on ethanol (`mlip_cpu_densnet/`) has energy std 5.4 meV and a raw drift of 0.30 eV/ps; this is **not** a production conservation number because the current energy head has extra untrained layers versus the 2024 `96w7KyGG` checkpoint. Production NVE waits for a matching code/checkpoint pair on a free GPU.
+The energy/force head consumes the frozen (or jointly trained) equivariant density features. Forces are −∇_R E through automatic differentiation of the energy head, including the coordinate dependence of the density features. A 20 fs CPU NVE on ethanol (`mlip_cpu_densnet/`) has energy std 5.4 meV and a raw drift of 0.30 eV/ps; this is **not** a production conservation number because the current energy head has extra untrained layers versus the 2024 `96w7KyGG` checkpoint. A longer GPU NVE is running under the same caveat; quote production conservation only after the energy head is restored.
 
 **R2.5 Dipoles vs “electronic observables”.**  
 Dipoles are computed from the **density network** (analytic `int1e_r` / `--dpm-intor`), not from the energy companion head. The companion head outputs energy and forces. Page 4 wording will be corrected.
@@ -87,7 +87,7 @@ Align the title page and SI. Confirm with Tuckerman/Burke/Müller before resubmi
 ## Reviewer 3
 
 **R3.1 Hybrid DFT.**  
-No limitation in the architecture. PBE0+D4 / aug-cc-pVDZ labels for the 70-frame ethanol+water subset are **complete** (`datasets/revision/pbe0/`). PBE0 SAD is written. Training the hybrid subset waits for a free GPU. ωB97M-V / OMol25 not opened this pass.
+No limitation in the architecture. PBE0+D4 / aug-cc-pVDZ labels for the 70-frame ethanol+water subset are **complete** (`datasets/revision/pbe0/`). PBE0 SAD is written. A 70-frame PBE0 DenSNet train is running (local GPU + Slurm backup). ωB97M-V / OMol25 not opened this pass.
 
 **R3.2 SOTA MLFFs and biomolecule IR benchmarks.**  
 We compare MACE-OFF, AIMNet2, GFN2-xTB, and g-xTB on ethanol, ethanethiol, resorcinol, and thiophene 2-mer, and expand Figure 2.  

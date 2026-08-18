@@ -117,6 +117,12 @@ def main():
     parser.add_argument("--out-dir", type=Path, default=Path("results/revision/mlip_cpu"))
     parser.add_argument("--skip-geoopt", action="store_true")
     parser.add_argument("--skip-nve", action="store_true")
+    parser.add_argument(
+        "--device",
+        default="cpu",
+        choices=("cpu", "cuda"),
+        help="Calculator device. Use cuda for local L40S tests.",
+    )
     args = parser.parse_args()
 
     atoms0 = read(args.structure, index=0)
@@ -134,7 +140,7 @@ def main():
             calc = _make_calc(
                 method,
                 args.gxtb_bin,
-                device="cpu",
+                device=args.device,
                 densnet_model=args.densnet_model,
                 densnet_args=args.densnet_args,
             )
@@ -153,7 +159,7 @@ def main():
                 nve_atoms.calc = _make_calc(
                     method,
                     args.gxtb_bin,
-                    device="cpu",
+                    device=args.device,
                     densnet_model=args.densnet_model,
                     densnet_args=args.densnet_args,
                 )
@@ -184,7 +190,7 @@ def main():
                 nvt_atoms.calc = _make_calc(
                     method,
                     args.gxtb_bin,
-                    device="cpu",
+                    device=args.device,
                     densnet_model=args.densnet_model,
                     densnet_args=args.densnet_args,
                 )

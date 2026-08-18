@@ -124,7 +124,8 @@ def main():
             elif method == "maceoff":
                 from mace.calculators import mace_off
 
-                atoms.calc = mace_off(model="medium", device="cpu")
+                device = "cuda" if args.use_gpu else "cpu"
+                atoms.calc = mace_off(model="medium", device=device)
 
                 def _run():
                     atoms.get_potential_energy()
@@ -140,7 +141,8 @@ def main():
                 import os
                 import sys
 
-                os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
+                if not args.use_gpu:
+                    os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
                 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "src"))
                 from equiv_dens.md.dft_network_calculator import load_densnet_calculator
 
@@ -156,10 +158,22 @@ def main():
 
                 results["methods"][method] = _time_call(_run, atoms=atoms, n_rep=args.n_rep)
                 results["methods"][method]["model"] = args.densnet_model
+            elif method == "so3lr":
+                from so3lr import So3lrCalculator
+
+                device = "cuda" if args.use_gpu else "cpu"
+                atoms.calc = So3lrCalculator(device=device)
+
+                def _run():
+                    atoms.get_potential_energy()
+                    atoms.get_forces()
+
+                results["methods"][method] = _time_call(_run, atoms=atoms, n_rep=args.n_rep)
             elif method == "aimnet2":
                 import os
 
                 os.environ.setdefault("TORCHDYNAMO_DISABLE", "1")
+                os.environ.setdefault("TORCHINDUCTOR_DISABLE", "1")
                 try:
                     from aimnet.calculators import AIMNet2ASE
 

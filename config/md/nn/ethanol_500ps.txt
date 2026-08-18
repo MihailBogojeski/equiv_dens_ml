@@ -5,10 +5,11 @@
 --np_dataset_test=datasets/ethanol_train_10.npy
 --orbitals_file=datasets/augccpvqzjkfit_orbital_basis_df.npy
 --radial_coeffs_file=datasets/augccpvqzjkfit_radial_coeffs_libcint_df.npy
---atom_dens_path=datasets/free_atom_densities_augccpvdz_augccpvqzjkfit_pyscf_minimized.npy
---atom_dens_type=spline
+--atom_dens_path=datasets/revision/sad_pbe_augccpvdz.npy
+--atom_dens_type=mo_coeffs
 --energy_weight=0.01
 --forces_weight=0.99
+--use_gpu=True
 --temperature=300
 --langevin=False
 --md_steps=1000000

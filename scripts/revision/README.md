@@ -15,8 +15,13 @@ Commands and status live in [docs/jacs_revision_todo.md](../../docs/jacs_revisio
 | `nve_energy_drift.py` | NVE total-energy drift |
 | `ir_vs_length.py` | IR vs trajectory window |
 | `benchmark_figure2.py` | Timing table for Figure 2 (includes `densnet` via ASE wrapper) |
-| `run_gpu_campaign.sh` | Wave C train/IR/geo-opt on a **free** GPU node (refuses `gl056`) |
-| `submit_gpu_campaign.sbatch` | Slurm wrapper for `run_gpu_campaign.sh` |
+| `run_gpu_campaign.sh` | Wave C tasks: `quick`, `pbe0`, `ethanol-md`, `thiophene-md`, `water`, `all`. Set `ALLOW_GL056=1` to share this allocation |
+| `submit_gpu_campaign.sbatch` | One Slurm GPU job; `TASK=` selects the campaign |
+| `submit_revision_gpu_jobs.sh` | Queue PBE0, ethanol MD, thiophene MD, and water-wait train |
+| `launch_local_gpu.sh` | tmux: GPU0 quick+PBE0, GPU1 ethanol 500 ps |
+| `score_ood_forces.py` | Force/energy MAE of `96w7KyGG` vs labeled OOD frames |
+| `slice_labeled_pair.py` | Align geometry NPY length to a partial DFT NPY |
+| `wait_and_train_water.sh` | Poll water PBE labels, then train + cutoff/seed sweeps |
 
 | `run_dft_campaign.sh` | Resume-safe CPU PBE / PBE0 queue (`smoke`, `pbe-train`, `pbe-rest`, `pbe0`) |
 | `run_gxtb_labels.py` | g-xTB single points (deletes leftover `energy`/`gradient` each frame) |

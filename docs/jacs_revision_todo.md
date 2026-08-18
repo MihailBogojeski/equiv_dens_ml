@@ -42,7 +42,7 @@ Recovered checkpoints/datasets stay untracked (`.git/info/exclude`). Sibling `/s
 | ID | Request | Action | Status | Deliverable |
 | --- | --- | --- | --- | --- |
 | R1.1 | H-bond / size extrapolation (water clusters; NMA/MeOH/AcAc optional) | `new DFT` + train | `running` | [Calculation 1](#calculation-1--water-clusters); CPU PBE+D4 DFT in tmux `dft-pbe-train` |
-| R1.2 | Intentional OOD conformations | `new DFT` | `running` | [Calculation 2](#calculation-2--ood-conformations); ethanol OOD DFT in `dft-pbe-rest`; overlap vs 10 parents computed |
+| R1.2 | Intentional OOD conformations | `new DFT` | `running` | [Calculation 2](#calculation-2--ood-conformations); ethanol OOD DFT in `dft-pbe-rest`; overlap vs 10 parents computed; GPU force scoring of `96w7KyGG` on labeled frames launched |
 | R1.3 | Shorten polythiophene; move Fig. 6 | `manuscript` | `written` | outline §R1.3 |
 | R1.4 | Move Fig. 7 to SI | `manuscript` | `written` | outline §R1.4 |
 | R1.5 | SI S2.2 details + train/test overlap evidence | `analysis` + `recover` | `computed` | resorcinol median min-RMSD 0.093 Å (1000/1000 <0.2 Å); ethanethiol 0.600 Å (0/1000 <0.2 Å); thiophene-4mer 1.15 Å; thiophene-6mer 0.53 Å; 12-mer is size-OOD. SI already has PINY_MD / NHC / 1 fs; FF/SHAKE/length not recovered |
@@ -54,7 +54,7 @@ Recovered checkpoints/datasets stay untracked (`.git/info/exclude`). Sibling `/s
 | ID | Request | Action | Status | Deliverable |
 | --- | --- | --- | --- | --- |
 | R2.1 | Cite Hazra–Sanvito JCP 2025 density→IR workflow | `manuscript` | `written` | outline citations |
-| R2.2 | Compare general IR methods (MACE4IR, AIMNet2, TranSpec, AIQM) | `new MD` + `manuscript` | `running` | CPU timings include DenSNet 1.62 s/step (~0.027 ns/day); 200–500 ps IR still needs a free GPU |
+| R2.2 | Compare general IR methods (MACE4IR, AIMNet2, TranSpec, AIQM) | `new MD` + `manuscript` | `running` | CPU timings include DenSNet 1.62 s/step (~0.027 ns/day); ethanol 500 ps MD launched on GPU 1; GPU Figure 2 + AIMNet2 retry launched |
 | R2.3 | Tougher extrapolation than hexamer-trained oligomers | `manuscript` | `written` | water-cluster size hold-out is the new experiment |
 | R2.4 | Companion network: embedding, autodiff, energy conservation | `new MD` + `manuscript` | `computed` | 20 fs CPU NVE: energy std 5.4 meV, drift 0.30 eV/ps (architecture mismatch caveat); production NVE waits for GPU + matching energy head |
 | R2.5 | Who produces dipoles vs energy/forces | `manuscript` | `written` | outline §R2.5 |
@@ -71,12 +71,12 @@ Recovered checkpoints/datasets stay untracked (`.git/info/exclude`). Sibling `/s
 
 | ID | Request | Action | Status | Deliverable |
 | --- | --- | --- | --- | --- |
-| R3.1 | Hybrid DFT densities (PBE0+MBD / ωB97M-V) | `new DFT` | `computed` | PBE0+D4+DF 70/70 frames written (`ethanol_water_pbe0_pyscf_augccpvdz_pbe0.npy`); train waits for a free GPU |
-| R3.2 | Compare SO3LR, MACE-OFF, GFN-xTB, DFTB; expand Fig. 2 | `new MD` | `running` | CPU Figure 2 now includes DenSNet 1.62 s; AIMNet2/`Python.h`; SO3LR/DFTB not installed; no GPU IR |
+| R3.1 | Hybrid DFT densities (PBE0+MBD / ωB97M-V) | `new DFT` | `running` | PBE0+D4+DF 70/70 frames written; PBE0 DenSNet train launched on local GPU 0 and submitted to Slurm |
+| R3.2 | Compare SO3LR, MACE-OFF, GFN-xTB, DFTB; expand Fig. 2 | `new MD` | `running` | CPU Figure 2 includes DenSNet 1.62 s; GPU Figure 2 (DenSNet/MACE-OFF/AIMNet2/SO3LR) launched; DFTB binary still missing |
 | R3.3 | Relative density errors + uncertainty | `analysis` | `computed` | DF-coeff / SAD diagnostics; 3-seed DenSNet ensemble still needs training |
 | R3.4 | Direct vs delta cost and correction magnitude | `analysis` | `scripts_ready` | SAD timing in `benchmark_figure2.py`; Δρ histograms in `analyze_density_metrics.py` |
-| R3.5 | Hyperparameter / cutoff optimization | `analysis` | `scripts_ready` | `config/training/water_clusters_cutoff_*.txt` |
-| R3.6 | IR convergence vs trajectory length | `new MD` | `scripts_ready` | [Calculation 5](#calculation-5--ir-length) |
+| R3.5 | Hyperparameter / cutoff optimization | `analysis` | `running` | `wait_and_train_water.sh` + Slurm `dens-water` will run cutoff `{4,5,6,8}` and seeds after labels finish |
+| R3.6 | IR convergence vs trajectory length | `new MD` | `running` | ethanol 500 ps MD on GPU 1; thiophene 2-mer 500 ps submitted; `ir_vs_length.py` after HDF5 exists |
 | R3.7 | General-purpose density model / active learning | `manuscript` | `written` | discussion only; outline §R3.7 |
 | R3.8 | Soften “spectra match across the full range” | `manuscript` | `written` | wording updated in recovered `nat_manuscript.tex` |
 | R3.m1 | Two-stage training cost | `analysis` | `scripts_ready` | log GPU-hours in calculation log when jobs run |
@@ -288,7 +288,10 @@ Record each production job here.
 | 2026-08-17 | water dimer | PBE BFGS geo-opt | 1 | `optimize_densnet.py` | `results/revision/geoopt_water_dimer_dft.json` | −4155.66 eV; DenSNet skipped |
 | 2026-08-17 | resorcinol / ethanethiol / thiophene | train–test overlap | 1000–5000 | `analyze_train_test_overlap.py` | `results/revision/overlap_{resorcinol,ethanethiol,thiophene*}.json` | resorcinol all test frames <0.2 Å; ethanethiol/thiophene tests are farther |
 | 2026-08-17 | ethanol | CPU DenSNet timing + 20 fs NVE | 1 geom | `benchmark_figure2.py`, `cpu_mlip_suite.py` | `figure2_timing.json`, `mlip_cpu_densnet/` | 1.62 s/step; NVE drift 0.30 eV/ps; energy head mismatch vs 2024 ckpt |
-| 2026-08-17 | ethanol+water PBE0 subset | PBE0+D4+DF | 70/70 | `run_dft_campaign.sh pbe0` | `datasets/revision/pbe0/` | labels complete; train not started on gl056 |
+| 2026-08-17 | ethanol+water PBE0 subset | PBE0+D4+DF | 70/70 | `run_dft_campaign.sh pbe0` | `datasets/revision/pbe0/` | labels complete |
+| 2026-08-18 | ethanol PBE0 train | DenSNet | 70 | `run_gpu_campaign.sh pbe0` | `results/revision/ethanol_pbe0_001/` | local GPU 0 after quick tests; also `sbatch` `dens-pbe0` |
+| 2026-08-18 | ethanol 500 ps MD | DenSNet NVT/NVE | 1e6 steps | `run_gpu_campaign.sh ethanol-md` | MD logs | local GPU 1; energy-head caveat |
+| 2026-08-18 | thiophene 2-mer 500 ps + water train | DenSNet | pending labels / queue | `submit_revision_gpu_jobs.sh` | Slurm `dens-thio2`, `dens-water` | will pend if qos gpu=4 is full |
 
 ---
 

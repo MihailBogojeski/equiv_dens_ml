@@ -37,7 +37,7 @@
 --dens_dataset_test=datasets/revision/water_clusters/water_ood_size_pyscf_augccpvdz_pbe.npy
 --orbitals_file=datasets/augccpvqzjkfit_orbital_basis_df.npy
 --radial_coeffs_file=datasets/augccpvqzjkfit_radial_coeffs_libcint_df.npy
---atom_dens_path=datasets/free_atom_densities_augccpvdz_augccpvqzjkfit_pyscf_minimized.npy
+--atom_dens_path=datasets/revision/sad_pbe_augccpvdz.npy
 --atom_dens_type=mo_coeffs
 --remove_atom_density=True
 --append_atom_density=True

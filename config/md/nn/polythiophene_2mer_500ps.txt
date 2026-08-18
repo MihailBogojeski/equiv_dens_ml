@@ -32,7 +32,7 @@
 --radial_coeffs_file=datasets/augccpvqzjkfit_radial_coeffs_df.npy
 --pseudo_pot_path=pseudo_potentials
 --atomic_energies=datasets/atomization_energy_augccpvdz.npy
---atom_dens_path=datasets/free_atom_densities_augccpvdz_augccpvqzjkfit_pyscf_minimized.npy
+--atom_dens_path=datasets/revision/sad_pbe_augccpvdz.npy
 --atom_dens_type=mo_coeffs
 --remove_atom_density=True
 --center_energy=True

@@ -1,0 +1,111 @@
+#!/usr/bin/env python3
+"""Score a DenSNet checkpoint on labeled OOD frames (R1.2).
+
+Compares ASE energy/forces to PySCF+D4 labels. Energy is reported with the
+known 2024 energy-head mismatch caveat; forces are the useful number.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+
+import numpy as np
+from ase import Atoms
+from ase.units import Hartree, kcal / mol as KCALMOL
+
+
+_REPO = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(_REPO / "src"))
+
+
+def _load_frames(dens_path: Path, max_frames: int):
+    dens = np.load(dens_path, allow_pickle=True)
+    frames = []
+    for item in dens[: max_frames or None]:
+        mol, calc = item[0], item[1]
+        if not isinstance(mol, dict) or mol.get("atom") is None:
+            continue
+        numbers = []
+        pos = []
+        for spec, xyz in mol["atom"]:
+            numbers.append(int(spec) if not isinstance(spec, str) else spec)
+            pos.append(xyz)
+        pos = np.asarray(pos, dtype=float)
+        unit = str(mol.get("unit", "angstrom")).lower()
+        if unit.startswith("bohr"):
+            pos = pos * 0.529177210903
+        energy_h = float(calc["energy"])
+        forces = np.asarray(calc["forces"], dtype=float)
+        frames.append(
+            {
+                "numbers": numbers,
+                "positions": pos,
+                "energy_eV": energy_h * Hartree,
+                "forces_eV_A": forces * Hartree,  # labels are Eh / Ang from generate_dft_labels
+            }
+        )
+    return frames
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--dens", default="datasets/revision/ood/ethanol_ood_pyscf_augccpvdz_pbe.npy")
+    parser.add_argument("--model", default="paper/models/ethanol/2024-03-22_96w7KyGG")
+    parser.add_argument("--args-file", default="config/md/nn/ethanol_500ps.txt")
+    parser.add_argument("--max-frames", type=int, default=0)
+    parser.add_argument("--use-gpu", action="store_true")
+    parser.add_argument("--out", type=Path, default=Path("results/revision/eval_ethanol_ood_forces.json"))
+    args = parser.parse_args()
+
+    from equiv_dens.md.dft_network_calculator import load_densnet_calculator
+
+    frames = _load_frames(Path(args.dens), args.max_frames)
+    if not frames:
+        raise SystemExit(f"No frames in {args.dens}")
+
+    calc = load_densnet_calculator(args.model, args_file=args.args_file, use_gpu=args.use_gpu)
+    e_err = []
+    f_mae = []
+    f_rmse = []
+    f_max = []
+    for i, fr in enumerate(frames):
+        atoms = Atoms(numbers=fr["numbers"], positions=fr["positions"])
+        atoms.calc = calc
+        e = float(atoms.get_potential_energy())
+        f = np.asarray(atoms.get_forces())
+        de = e - fr["energy_eV"]
+        df = f - fr["forces_eV_A"]
+        e_err.append(de)
+        f_mae.append(float(np.mean(np.abs(df))))
+        f_rmse.append(float(np.sqrt(np.mean(df**2))))
+        f_max.append(float(np.max(np.abs(df))))
+        if (i + 1) % 10 == 0:
+            print(f"  [{i+1}/{len(frames)}] force MAE={f_mae[-1]:.4f} eV/A", flush=True)
+
+    e_err = np.asarray(e_err)
+    summary = {
+        "model": args.model,
+        "dens": args.dens,
+        "n_frames": len(frames),
+        "energy_mae_eV": float(np.mean(np.abs(e_err))),
+        "energy_mae_kcalmol": float(np.mean(np.abs(e_err)) / KCALMOL),
+        "energy_mean_signed_eV": float(np.mean(e_err)),
+        "force_mae_eV_A": float(np.mean(f_mae)),
+        "force_rmse_eV_A": float(np.mean(f_rmse)),
+        "force_max_eV_A": float(np.max(f_max)),
+        "force_mae_kcalmol_A": float(np.mean(f_mae) / KCALMOL),
+        "note": (
+            "Energy errors are not physical until the 2024 energy head is restored. "
+            "Force MAE is the OOD number to quote, with that caveat."
+        ),
+    }
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    args.out.write_text(json.dumps(summary, indent=2))
+    print(json.dumps(summary, indent=2))
+
+
+if __name__ == "__main__":
+    main()
