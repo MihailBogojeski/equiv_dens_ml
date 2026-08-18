@@ -1,0 +1,21 @@
+{
+  "train": "datasets/ethanethiol_combo_Aidx-1000.npy",
+  "test": "datasets/ethanethiol_rand-1000.npy",
+  "n_train": 1000,
+  "n_test": 1000,
+  "rmsd_min_mean": 0.6132366957730635,
+  "rmsd_min_median": 0.5996023247788799,
+  "rmsd_min_p10": 0.56625590645264,
+  "rmsd_min_p90": 0.6848836765543577,
+  "pairdesc_min_mean": 0.2438053983089904,
+  "pairdesc_min_median": 0.23886808110276112,
+  "n_test_rmsd_below_0.2A": 0,
+  "per_group": {
+    "n_atoms=9": {
+      "n_train": 1000,
+      "n_test": 1000,
+      "rmsd_min_mean": 0.6132366957730635,
+      "rmsd_min_median": 0.5996023247788799
+    }
+  }
+}

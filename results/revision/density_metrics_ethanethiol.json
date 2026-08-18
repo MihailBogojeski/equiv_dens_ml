@@ -1,0 +1,16 @@
+{
+  "dens_ref": "datasets/ethanethiol_combo_Aidx-1000_pyscf_augccpvdz.npy",
+  "n_frames": 50,
+  "df_l1_mean": 0.06729401662831283,
+  "fraction_negative_df_coeff": 0.5101298701298702,
+  "sad_electron_counts": {
+    "1": 1.0,
+    "6": 6.0,
+    "7": 7.0,
+    "8": 8.0,
+    "16": 16.0
+  },
+  "density_error_unit": "e/a0^3 (report grid MAE in this unit in the paper)",
+  "relative_mae_definition": "int |rho-rho_ref| dV / N_elec",
+  "note": "Full grid relative MAE requires a trained model + evaluate_density_errors.py. This script records SAD magnitudes and the signed DF-coefficient fraction as a cheap delta-learning diagnostic."
+}

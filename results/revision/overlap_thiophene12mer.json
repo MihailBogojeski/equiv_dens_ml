@@ -1,0 +1,6 @@
+{
+  "train": "datasets/thiophene_all_train_d4.npy",
+  "test": "datasets/thiophene12mer_test.xyz",
+  "note": "No same-n_atoms group: train is 1\u20136 mer, 12-mer test is size-OOD by construction.",
+  "n_test_rmsd_below_0.2A": null
+}

@@ -1,0 +1,21 @@
+{
+  "train": "datasets/thiophene_all_train_d4.npy",
+  "test": "datasets/thiophene4mer_test_d4.npy",
+  "n_train": 5000,
+  "n_test": 500,
+  "rmsd_min_mean": 1.1542198154691277,
+  "rmsd_min_median": 1.1505595259470995,
+  "rmsd_min_p10": 1.1118840392312501,
+  "rmsd_min_p90": 1.2020315873058167,
+  "pairdesc_min_mean": 5.890895956636116,
+  "pairdesc_min_median": 5.876248604371284,
+  "n_test_rmsd_below_0.2A": 0,
+  "per_group": {
+    "n_atoms=30": {
+      "n_train": 1000,
+      "n_test": 500,
+      "rmsd_min_mean": 1.1542198154691277,
+      "rmsd_min_median": 1.1505595259470995
+    }
+  }
+}

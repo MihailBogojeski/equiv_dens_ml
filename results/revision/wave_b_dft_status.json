@@ -1,0 +1,28 @@
+{
+  "water_train_pbe": {
+    "n": 275,
+    "target": 1250,
+    "complete": false
+  },
+  "water_val_pbe": {
+    "n": null,
+    "target": 250,
+    "complete": false
+  },
+  "ethanol_ood_pbe": {
+    "n": 80,
+    "target": 190,
+    "complete": false
+  },
+  "pbe0_subset": {
+    "n": 70,
+    "target": 70,
+    "complete": true
+  },
+  "water_geoms_npy": true,
+  "ood_geoms_npy": true,
+  "pbe0_geoms_npy": true,
+  "scored_ood": false,
+  "trained_on_gl056": false,
+  "note": "OOD 80/190 and water train incomplete. PBE0 70/70 done. No train on gl056."
+}

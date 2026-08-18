@@ -1,0 +1,21 @@
+{
+  "train": "datasets/resorcinol_combo_kmeansidx-1000_train.npy",
+  "test": "datasets/resorcinol_augccpvdz_test.npy",
+  "n_train": 1004,
+  "n_test": 1000,
+  "rmsd_min_mean": 0.09390697014257107,
+  "rmsd_min_median": 0.09258761770484508,
+  "rmsd_min_p10": 0.07707163346875698,
+  "rmsd_min_p90": 0.11253990455591119,
+  "pairdesc_min_mean": 0.2846156724103804,
+  "pairdesc_min_median": 0.2788066467427436,
+  "n_test_rmsd_below_0.2A": 1000,
+  "per_group": {
+    "n_atoms=14": {
+      "n_train": 1004,
+      "n_test": 1000,
+      "rmsd_min_mean": 0.09390697014257107,
+      "rmsd_min_median": 0.09258761770484508
+    }
+  }
+}

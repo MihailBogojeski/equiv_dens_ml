@@ -1,0 +1,14 @@
+{
+  "structure": "datasets/ethanol_train_10.xyz",
+  "n_atoms": 9,
+  "methods": {
+    "densnet": {
+      "mean_s": 1.6172044470440596,
+      "std_s": 0.028473321115598083,
+      "n": 2,
+      "model": "paper/models/ethanol/2024-03-22_96w7KyGG",
+      "ms_per_step": 1617.2044470440596,
+      "ns_per_day_0.5fs": 0.026712763546353914
+    }
+  }
+}

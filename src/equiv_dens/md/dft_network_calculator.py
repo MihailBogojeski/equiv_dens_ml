@@ -486,33 +486,24 @@ def load_densnet_calculator(
         blob = torch.load(str(latest), map_location="cpu", weights_only=False)
         ckpt_args = blob.get("args") if isinstance(blob, dict) else None
         if ckpt_args is not None:
+            skip = {
+                "restart",
+                "use_gpu",
+                "np_dataset",
+                "dens_dataset",
+                "np_dataset_valid",
+                "dens_dataset_valid",
+                "np_dataset_test",
+                "dens_dataset_test",
+                "atom_dens_path",
+                "orbitals_file",
+                "radial_coeffs_file",
+                "pseudo_pot_path",
+            }
             for key, value in vars(ckpt_args).items():
-                if key in {
-                    "order",
-                    "order_en",
-                    "num_features",
-                    "num_energy_features",
-                    "num_basis_functions",
-                    "num_radial_components",
-                    "num_modules",
-                    "num_en_modules",
-                    "num_residual_pre_x",
-                    "num_residual_post_x",
-                    "num_residual_pre_vi",
-                    "num_residual_pre_vj",
-                    "num_residual_post_v",
-                    "num_residual_output",
-                    "cutoff",
-                    "activation",
-                    "energy_model",
-                    "remove_atom_density",
-                    "append_atom_density",
-                    "atom_dens_type",
-                    "normalize",
-                    "normalize_en",
-                    "output_scaling",
-                }:
+                if key not in skip:
                     setattr(args, key, value)
+    args.ignore_unexpected_keywords = True
 
     args.restart = str(restart)
     args.use_gpu = bool(use_gpu)
@@ -523,7 +514,7 @@ def load_densnet_calculator(
     for attr, rel in (
         ("orbitals_file", "datasets/augccpvqzjkfit_orbital_basis_df.npy"),
         ("radial_coeffs_file", "datasets/augccpvqzjkfit_radial_coeffs_libcint_df.npy"),
-        ("atom_dens_path", "datasets/free_atom_densities_augccpvdz_augccpvqzjkfit_pyscf_minimized.npy"),
+        ("atom_dens_path", "datasets/revision/sad_pbe_augccpvdz.npy"),
         ("pseudo_pot_path", "pseudo_potentials"),
     ):
         path = repo / rel
