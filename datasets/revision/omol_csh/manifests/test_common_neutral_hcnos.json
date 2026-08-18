@@ -1,0 +1,1591 @@
+{
+  "source": "datasets/revision/omol_csh/omol_csh_1k_test_common.h5",
+  "split": "test_common",
+  "elements_allowed": [
+    1,
+    6,
+    7,
+    8,
+    16
+  ],
+  "charge_filter": 0,
+  "total_entries": 1008,
+  "selected": 117,
+  "entries": [
+    {
+      "path": "/ani1xbb/aniBB_014_321273_0_1",
+      "subset": "ani1xbb",
+      "natoms": 14,
+      "nao": 306,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/ani1xbb/aniBB_014_421675_0_1",
+      "subset": "ani1xbb",
+      "natoms": 14,
+      "nao": 306,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/ani1xbb/aniBB_014_698115_0_1",
+      "subset": "ani1xbb",
+      "natoms": 14,
+      "nao": 306,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/ani1xbb/aniBB_011_347267_0_1",
+      "subset": "ani1xbb",
+      "natoms": 11,
+      "nao": 319,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/ani1xbb/aniBB_014_108089_0_1",
+      "subset": "ani1xbb",
+      "natoms": 14,
+      "nao": 353,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/ani1xbb/aniBB_012_817326_0_1",
+      "subset": "ani1xbb",
+      "natoms": 12,
+      "nao": 380,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/ani1xbb/aniBB_013_223698_0_1",
+      "subset": "ani1xbb",
+      "natoms": 13,
+      "nao": 387,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        16
+      ]
+    },
+    {
+      "path": "/ani1xbb/aniBB_015_544500_0_1",
+      "subset": "ani1xbb",
+      "natoms": 15,
+      "nao": 405,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/ani1xbb/aniBB_015_116166_0_1",
+      "subset": "ani1xbb",
+      "natoms": 15,
+      "nao": 414,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/ani1xbb/aniBB_015_73216_0_1",
+      "subset": "ani1xbb",
+      "natoms": 15,
+      "nao": 467,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/ani1xbb/aniBB_017_17041_0_1",
+      "subset": "ani1xbb",
+      "natoms": 17,
+      "nao": 479,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        16
+      ]
+    },
+    {
+      "path": "/ani1xbb/aniBB_019_30823_0_1",
+      "subset": "ani1xbb",
+      "natoms": 19,
+      "nao": 544,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        16
+      ]
+    },
+    {
+      "path": "/ani1xbb/aniBB_023_158889_0_1",
+      "subset": "ani1xbb",
+      "natoms": 23,
+      "nao": 645,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/ani1xbb/aniBB_025_206305_0_1",
+      "subset": "ani1xbb",
+      "natoms": 25,
+      "nao": 663,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/ani1xbb/aniBB_025_70809_0_1",
+      "subset": "ani1xbb",
+      "natoms": 25,
+      "nao": 663,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/ani1xbb/aniBB_027_113609_0_1",
+      "subset": "ani1xbb",
+      "natoms": 27,
+      "nao": 665,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/ani1xbb/aniBB_025_56146_0_1",
+      "subset": "ani1xbb",
+      "natoms": 25,
+      "nao": 666,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/ani1xbb/aniBB_029_95540_0_1",
+      "subset": "ani1xbb",
+      "natoms": 29,
+      "nao": 696,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/ani1xbb/aniBB_031_40858_0_1",
+      "subset": "ani1xbb",
+      "natoms": 31,
+      "nao": 705,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/pmechdb/pmechdb_69465_step1_0_1",
+      "subset": "pmechdb",
+      "natoms": 29,
+      "nao": 833,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/omol/electrolytes/solvated_090624/maleic_anhydride_mol905_dimer1_0_1/step1",
+      "subset": "omol",
+      "natoms": 35,
+      "nao": 1023,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/protein_interface/3asn_ifaceS3_frame0_0_1",
+      "subset": "protein_interface",
+      "natoms": 54,
+      "nao": 1266,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/ml_elytes/elytes_md_eqv2_electro_338_H2O_3_group_23_shell_0_0_1_1164",
+      "subset": "ml_elytes",
+      "natoms": 67,
+      "nao": 1287,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/ml_elytes/elytes_md_eqv2_electro_3344_H3O+_3_group_1_shell_0_0_1_496",
+      "subset": "ml_elytes",
+      "natoms": 65,
+      "nao": 1424,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/geom_orca6/geom_95308208_0_1",
+      "subset": "geom_orca6",
+      "natoms": 58,
+      "nao": 1569,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/ml_protein_interface/protein_interface_md_eqv2_bio_4xgi_ifaceF188_0_1_1119",
+      "subset": "ml_protein_interface",
+      "natoms": 74,
+      "nao": 1623,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/orbnet_denali/orbnet_saltcomplex_53634_CHEMBL4077662_Methionil_f8450ffe157fc996ff6bec90bb16cf7fb7577819084d3b5d3eda2690edd96f18_1772594_0_1",
+      "subset": "orbnet_denali",
+      "natoms": 66,
+      "nao": 1625,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/protein_core/7oen_coreA49_0_1",
+      "subset": "protein_core",
+      "natoms": 71,
+      "nao": 1721,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/pdb_fragments_300K/5nk2_ABS01_state0_1_1_CHEMBL1256340_ligstate0_0_1",
+      "subset": "pdb_fragments_300K",
+      "natoms": 75,
+      "nao": 1732,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/orbnet_denali/orbnet_saltcomplex_29489_CHEMBL259132_Malate_bbcfdaf9f738bd0260563891dd221256c196e966d7bd959f4d18504a23c9bdc7_1919234_0_1",
+      "subset": "orbnet_denali",
+      "natoms": 63,
+      "nao": 1751,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/pdb_fragments_300K/6cse_MBS02_state0_-2_1_98354688_ligstate1_0_1",
+      "subset": "pdb_fragments_300K",
+      "natoms": 73,
+      "nao": 1769,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/protein_interface/3dfy_ifaceP52_frame0_0_1",
+      "subset": "protein_interface",
+      "natoms": 83,
+      "nao": 1816,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/ml_elytes/elytes_md_eqv2_electro_1687_CH4O_3_group_193_shell_0_0_1_0",
+      "subset": "ml_elytes",
+      "natoms": 83,
+      "nao": 1822,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/scaled_separations_exp/1817_CH4N2O_3_shell_1897_1.77_0_1",
+      "subset": "scaled_separations_exp",
+      "natoms": 86,
+      "nao": 1886,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/protein_core/6au7_coreB26_0_1",
+      "subset": "protein_core",
+      "natoms": 85,
+      "nao": 1980,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/ml_protein_interface/protein_interface_md_eqv2_bio_1iyi_ifaceA130_0_1_180",
+      "subset": "ml_protein_interface",
+      "natoms": 88,
+      "nao": 1985,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/omol/electrolytes/solvated_090624/pyridinium_mol2524_solv2_0_1/step5",
+      "subset": "omol",
+      "natoms": 97,
+      "nao": 1998,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/omol/electrolytes/solvated_090624/dinitrile_mol1680_solv0_0_1/step0",
+      "subset": "omol",
+      "natoms": 101,
+      "nao": 2004,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/pmechdb/pmechdb_54805_step4_0_1",
+      "subset": "pmechdb",
+      "natoms": 83,
+      "nao": 2006,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/omol/electrolytes/solvated_090624/naphthoquinone_mol912_solv7_0_1/step1",
+      "subset": "omol",
+      "natoms": 90,
+      "nao": 2019,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/droplet/464_C2H6O_3_group_86_shell_0_0_1",
+      "subset": "droplet",
+      "natoms": 106,
+      "nao": 2026,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/omol/electrolytes/solvated_090624/sultone_mol1827_solv1_0_1/step3",
+      "subset": "omol",
+      "natoms": 89,
+      "nao": 2027,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/pdb_fragments_400K/4q23_ABS01_state0_-2_1_91107350_ligstate1_0_1",
+      "subset": "pdb_fragments_400K",
+      "natoms": 85,
+      "nao": 2073,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/omol/electrolytes/solvated_090624/phthalimide_mol763_solv4_0_1/step5",
+      "subset": "omol",
+      "natoms": 83,
+      "nao": 2108,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/droplet/204_C2H6O_3_group_322_shell_19_0_1",
+      "subset": "droplet",
+      "natoms": 109,
+      "nao": 2118,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/omol/electrolytes/solvated_090624/lactam_mol2480_solv3_0_1/step2",
+      "subset": "omol",
+      "natoms": 100,
+      "nao": 2158,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/pdb_fragments_400K/4gsc_ABS02_state0_-1_1_ZINC000301911481_ligstate0_0_1",
+      "subset": "pdb_fragments_400K",
+      "natoms": 87,
+      "nao": 2170,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/ml_protein_interface/protein_interface_md_eqv2_bio_1dbr_ifaceA204_0_1_0",
+      "subset": "ml_protein_interface",
+      "natoms": 96,
+      "nao": 2191,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/5A_elytes/113_H2O_5_shell_1283_0_1",
+      "subset": "5A_elytes",
+      "natoms": 117,
+      "nao": 2202,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        8
+      ]
+    },
+    {
+      "path": "/pdb_fragments_300K/4mue_ABS01_state0_0_1_ZINC000001693802_ligstate1_0_1",
+      "subset": "pdb_fragments_300K",
+      "natoms": 90,
+      "nao": 2274,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/ml_protein_interface/protein_interface_md_eqv2_bio_3q9b_ifaceI88_0_1_0",
+      "subset": "ml_protein_interface",
+      "natoms": 109,
+      "nao": 2327,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/pdb_fragments_400K/5jfs_ABS01_state0_-1_1_104002581_ligstate0_0_1",
+      "subset": "pdb_fragments_400K",
+      "natoms": 98,
+      "nao": 2331,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/pdb_fragments_400K/5nhz_ABS03_state0_-2_1_97427019_ligstate1_0_1",
+      "subset": "pdb_fragments_400K",
+      "natoms": 92,
+      "nao": 2335,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/omol/electrolytes/solvated_090624/carbamate_mol1407_solv6_0_1/step0",
+      "subset": "omol",
+      "natoms": 103,
+      "nao": 2336,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/ml_protein_interface/protein_interface_md_eqv2_bio_2dv4_ifaceB22_0_1_229",
+      "subset": "ml_protein_interface",
+      "natoms": 109,
+      "nao": 2367,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/pdb_fragments_400K/6uo9_ABS01_state0_0_1_CHEMBL396070_ligstate0_0_1",
+      "subset": "pdb_fragments_400K",
+      "natoms": 100,
+      "nao": 2373,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/pdb_fragments_300K/5cu0_BBS03_state0_-1_1_123379279_ligstate0_0_1",
+      "subset": "pdb_fragments_300K",
+      "natoms": 106,
+      "nao": 2384,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/pdb_fragments_300K/5nkc_ABS01_state0_-1_1_CHEMBL220491_ligstate1_0_1",
+      "subset": "pdb_fragments_300K",
+      "natoms": 103,
+      "nao": 2387,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/pdb_fragments_400K/5i3b_ABS03_state0_0_1_113521727_ligstate0_0_1",
+      "subset": "pdb_fragments_400K",
+      "natoms": 100,
+      "nao": 2427,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/omol/electrolytes/md_based/outputs_241029/2312_C6H15N_3_shell_2346_0_1/step1",
+      "subset": "omol",
+      "natoms": 128,
+      "nao": 2480,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/protein_interface/3n99_ifaceJ129_frame9_0_1",
+      "subset": "protein_interface",
+      "natoms": 113,
+      "nao": 2518,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/omol/electrolytes/solvated_090624/thf_mol84_solv9_0_1/step2",
+      "subset": "omol",
+      "natoms": 98,
+      "nao": 2531,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/pdb_fragments_300K/4bnl_BBS02_state0_0_1_ZINC000009421784_ligstate0_0_1",
+      "subset": "pdb_fragments_300K",
+      "natoms": 100,
+      "nao": 2538,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/omol/electrolytes/solvated_090624/methoxyalkylamine_mol2093_solv8_0_1/step1",
+      "subset": "omol",
+      "natoms": 114,
+      "nao": 2558,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/ml_protein_interface/protein_interface_md_eqv2_bio_2bky_ifaceB81_0_1_152",
+      "subset": "ml_protein_interface",
+      "natoms": 115,
+      "nao": 2579,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/omol/electrolytes/solvated_090624/benzothiadizaole_mol2096_solv2_0_1/step0",
+      "subset": "omol",
+      "natoms": 119,
+      "nao": 2584,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/pdb_fragments_400K/4m5h_ABS02_state0_1_1_115789561_ligstate0_0_1",
+      "subset": "pdb_fragments_400K",
+      "natoms": 106,
+      "nao": 2595,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/pdb_fragments_300K/1xap_ABS01_state0_0_1_CHEMBL706_ligstate0_0_1",
+      "subset": "pdb_fragments_300K",
+      "natoms": 125,
+      "nao": 2602,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/protein_interface/4jib_ifaceD720_frame9_0_1",
+      "subset": "protein_interface",
+      "natoms": 115,
+      "nao": 2614,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/ml_protein_interface/protein_interface_md_eqv2_bio_1nd6_ifaceC2232_0_1_777",
+      "subset": "ml_protein_interface",
+      "natoms": 118,
+      "nao": 2619,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/pdb_fragments_300K/1p28_ABS01_state0_0_1_101291324_ligstate1_0_1",
+      "subset": "pdb_fragments_300K",
+      "natoms": 105,
+      "nao": 2639,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/pdb_fragments_400K/5em6_ABS01_state0_0_1_97273314_ligstate0_0_1",
+      "subset": "pdb_fragments_400K",
+      "natoms": 118,
+      "nao": 2650,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/ml_protein_interface/protein_interface_md_eqv2_bio_2rhs_ifaceA108_0_1_0",
+      "subset": "ml_protein_interface",
+      "natoms": 119,
+      "nao": 2656,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/ml_elytes/elytes_md_eqv2_electro_3149_C2H5NO_3_group_66_shell_0_0_1_840",
+      "subset": "ml_elytes",
+      "natoms": 119,
+      "nao": 2681,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/pdb_fragments_300K/2ewb_ABS04_state0_-4_1_ZINC000004831679_ligstate0_0_1",
+      "subset": "pdb_fragments_300K",
+      "natoms": 117,
+      "nao": 2740,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/pdb_fragments_400K/2wly_ABS02_state0_-1_1_113295320_ligstate1_0_1",
+      "subset": "pdb_fragments_400K",
+      "natoms": 109,
+      "nao": 2749,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/protein_interface/1cnt_iface419_frame0_0_1",
+      "subset": "protein_interface",
+      "natoms": 121,
+      "nao": 2752,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/pdb_fragments_400K/4ocz_ABS02_state0_-1_1_103764851_ligstate0_0_1",
+      "subset": "pdb_fragments_400K",
+      "natoms": 109,
+      "nao": 2778,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/protein_interface/4htf_ifaceB243_frame9_0_1",
+      "subset": "protein_interface",
+      "natoms": 124,
+      "nao": 2788,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/ml_protein_interface/protein_interface_md_eqv2_bio_3fau_ifaceC30_0_1_0",
+      "subset": "ml_protein_interface",
+      "natoms": 120,
+      "nao": 2789,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/pdb_fragments_300K/7jws_ABS01_state0_0_1_110099891_ligstate1_0_1",
+      "subset": "pdb_fragments_300K",
+      "natoms": 115,
+      "nao": 2800,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/ml_protein_interface/protein_interface_md_eqv2_bio_3cky_ifaceD291_0_1_1239",
+      "subset": "ml_protein_interface",
+      "natoms": 128,
+      "nao": 2817,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/omol/electrolytes/solvated_090624/phenothiazine_mol2167_solv0_0_1/step0",
+      "subset": "omol",
+      "natoms": 115,
+      "nao": 2823,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/omol/electrolytes/solvated_090624/quinoxaline_mol1939_solv4_0_1/step0",
+      "subset": "omol",
+      "natoms": 106,
+      "nao": 2823,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/pdb_fragments_300K/4mkt_ABS03_state0_1_1_97049187_ligstate0_0_1",
+      "subset": "pdb_fragments_300K",
+      "natoms": 121,
+      "nao": 2842,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/pdb_fragments_400K/3qcl_ABS01_state0_-1_1_94488084_ligstate1_0_1",
+      "subset": "pdb_fragments_400K",
+      "natoms": 115,
+      "nao": 2853,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/pdb_fragments_300K/4at4_ABS01_state0_-1_1_ZINC001037007058_ligstate0_0_1",
+      "subset": "pdb_fragments_300K",
+      "natoms": 120,
+      "nao": 2883,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/5A_elytes/1256_CH4O_5_shell_328_0_1",
+      "subset": "5A_elytes",
+      "natoms": 128,
+      "nao": 2922,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/pdb_fragments_400K/2h42_CBS03_state0_0_1_ZINC000294117953_ligstate0_0_1",
+      "subset": "pdb_fragments_400K",
+      "natoms": 127,
+      "nao": 2958,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/pdb_fragments_300K/5ddc_ABS01_state0_0_1_118689749_ligstate0_0_1",
+      "subset": "pdb_fragments_300K",
+      "natoms": 125,
+      "nao": 3024,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/ml_protein_interface/protein_interface_md_eqv2_bio_2aml_ifaceA259_0_1_0",
+      "subset": "ml_protein_interface",
+      "natoms": 131,
+      "nao": 3025,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/scaled_separations_exp/3733_C5H5N_3_shell_2609_1.5_0_1",
+      "subset": "scaled_separations_exp",
+      "natoms": 124,
+      "nao": 3067,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/ml_protein_interface/protein_interface_md_eqv2_bio_2vun_ifaceA225_0_1_1189",
+      "subset": "ml_protein_interface",
+      "natoms": 145,
+      "nao": 3092,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/ml_protein_interface/protein_interface_md_eqv2_bio_4jnk_ifaceB243_0_1_1822",
+      "subset": "ml_protein_interface",
+      "natoms": 143,
+      "nao": 3111,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/omol/electrolytes/solvated_090624/sulfite_ester_mol674_solv0_0_1/step4",
+      "subset": "omol",
+      "natoms": 133,
+      "nao": 3114,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/pdb_fragments_300K/5cfb_ABS01_state0_BBS01_state0_1_1_92108236_ligstate0_0_1",
+      "subset": "pdb_fragments_300K",
+      "natoms": 136,
+      "nao": 3152,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/ml_protein_interface/protein_interface_md_eqv2_bio_2zny_ifaceC142_0_1_0",
+      "subset": "ml_protein_interface",
+      "natoms": 141,
+      "nao": 3193,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/pdb_fragments_400K/4i8v_BBS02_state0_-1_1_CHEMBL515658_ligstate0_0_1",
+      "subset": "pdb_fragments_400K",
+      "natoms": 145,
+      "nao": 3217,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/ml_protein_interface/protein_interface_md_eqv2_bio_1tz2_ifaceB337_0_1_487",
+      "subset": "ml_protein_interface",
+      "natoms": 143,
+      "nao": 3220,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/ml_protein_interface/protein_interface_md_eqv2_bio_3ou7_ifaceB200_0_1_1905",
+      "subset": "ml_protein_interface",
+      "natoms": 140,
+      "nao": 3221,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/ml_elytes/elytes_md_eqv2_electro_3352_C4H6O3_3_group_48_shell_0_0_1_943",
+      "subset": "ml_elytes",
+      "natoms": 132,
+      "nao": 3244,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/pdb_fragments_300K/6zl5_ABS02_state0_0_1_ZINC000263343741_ligstate0_0_1",
+      "subset": "pdb_fragments_300K",
+      "natoms": 149,
+      "nao": 3253,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/pdb_fragments_300K/4hy4_BBS02_state0_0_1_ZINC000292803066_ligstate1_0_1",
+      "subset": "pdb_fragments_300K",
+      "natoms": 143,
+      "nao": 3255,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/pdb_fragments_400K/6nh8_BBS05_state0_1_1_92511281_ligstate0_0_1",
+      "subset": "pdb_fragments_400K",
+      "natoms": 135,
+      "nao": 3261,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/omol/electrolytes/solvated_090624/cyclic_carbonate_mol571_solv7_0_1/step1",
+      "subset": "omol",
+      "natoms": 122,
+      "nao": 3266,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/5A_elytes/338_CH4O_5_shell_4100_0_1",
+      "subset": "5A_elytes",
+      "natoms": 150,
+      "nao": 3277,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/pdb_fragments_400K/2j14_BBS01_state0_1_1_98809190_ligstate1_0_1",
+      "subset": "pdb_fragments_400K",
+      "natoms": 137,
+      "nao": 3281,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/pdb_fragments_300K/6f3f_ABS01_state0_-2_1_CHEMBL1221722_ligstate1_0_1",
+      "subset": "pdb_fragments_300K",
+      "natoms": 135,
+      "nao": 3297,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/pdb_fragments_400K/4yv1_CBS02_state0_DBS02_state0_0_1_92688764_ligstate0_0_1",
+      "subset": "pdb_fragments_400K",
+      "natoms": 139,
+      "nao": 3302,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/pdb_fragments_300K/3n5y_BBS05_state0_0_1_132131411_ligstate0_0_1",
+      "subset": "pdb_fragments_300K",
+      "natoms": 137,
+      "nao": 3332,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/pdb_fragments_300K/4xwy_CBS02_state0_-1_1_ZINC000020573525_ligstate0_0_1",
+      "subset": "pdb_fragments_300K",
+      "natoms": 141,
+      "nao": 3348,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/ml_protein_interface/protein_interface_md_eqv2_bio_4pp8_ifaceA111_0_1_1571",
+      "subset": "ml_protein_interface",
+      "natoms": 145,
+      "nao": 3356,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/pdb_fragments_400K/6llz_BBS01_state0_atecharge_-3_1_ZINC000967110998_ligstate0_0_1",
+      "subset": "pdb_fragments_400K",
+      "natoms": 138,
+      "nao": 3406,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/pdb_fragments_300K/7jv8_CBS04_state0_-2_1_ZINC000004922815_ligstate1_0_1",
+      "subset": "pdb_fragments_300K",
+      "natoms": 139,
+      "nao": 3436,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/ml_elytes/elytes_md_eqv2_electro_2293_CH3NO2_3_group_136_shell_0_0_1_731",
+      "subset": "ml_elytes",
+      "natoms": 148,
+      "nao": 3466,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "path": "/pdb_fragments_400K/3gen_ABS01_state0_0_1_101848482_ligstate0_0_1",
+      "subset": "pdb_fragments_400K",
+      "natoms": 148,
+      "nao": 3548,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8,
+        16
+      ]
+    },
+    {
+      "path": "/pdb_fragments_300K/6rgu_ABS05_state0_0_1_90910221_ligstate0_0_1",
+      "subset": "pdb_fragments_300K",
+      "natoms": 149,
+      "nao": 3673,
+      "charge": 0,
+      "elements": [
+        1,
+        6,
+        7,
+        8
+      ]
+    }
+  ]
+}
