@@ -1,7 +1,8 @@
 #!/bin/bash
 #SBATCH --job-name=csh_df_cpu
-#SBATCH --partition=cpu_short
+#SBATCH --partition=cs
 #SBATCH --account=torch_pr_283_chemistry
+#SBATCH --qos=cpu48
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=32G
 #SBATCH --time=03:00:00
