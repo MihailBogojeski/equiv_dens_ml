@@ -41,7 +41,7 @@ Recovered checkpoints/datasets stay untracked (`.git/info/exclude`). Sibling `/s
 
 | ID | Request | Action | Status | Deliverable |
 | --- | --- | --- | --- | --- |
-| R1.1 | H-bond / size extrapolation (water clusters; NMA/MeOH/AcAc optional) | `new DFT` + train | `running` | [Calculation 7](#calculation-7--water-ood-ladder-and-hybrid-labels); 513 ORCA shards at ωB97M-V and PBE-D4 on n=2–24 water, labelling live after the partition pin was removed |
+| R1.1 | H-bond / size extrapolation (water clusters; NMA/MeOH/AcAc optional) | `new DFT` + train | `running` | [Calculation 7](#calculation-7--water-ood-ladder-and-hybrid-labels); 513 ORCA shards at ωB97M-V and PBE-D4 on n=2–24 water. Labelling live; the in-distribution test set is complete at both levels and the PBE-D4 training set is most of the way there. The chain from labels to the figure has been rehearsed end to end on the retired serial loop's PBE frames |
 | R1.2 | Intentional OOD conformations | `new DFT` | `running` | Four-tier OOD ladder built and its separation quantified ([Calculation 7](#calculation-7--water-ood-ladder-and-hybrid-labels)). Distance from training, in units of the training set's own width: ID test 0.01, size-OOD 0.36, ice 1.90, droplets 2.79. Ethanol OOD DFT ~80/190 as before |
 | R1.3 | Shorten polythiophene; move Fig. 6 | `manuscript` | `written` | outline §R1.3 |
 | R1.4 | Move Fig. 7 to SI | `manuscript` | `written` | outline §R1.4 |
@@ -346,9 +346,42 @@ scripts/revision/watch_water_campaign.sh
 # progress at any time
 python scripts/revision/campaign_status.py --root datasets/revision/shards
 
-# everything downstream; safe to re-run, stops where the inputs run out
+# everything downstream; safe to re-run, stops where the inputs run out.
+# skips a split evaluated within the last 6 h; FORCE_EVAL=1 for a final pass
 scripts/revision/run_ood_analysis.sh wb97mv_def2tzvpd
 ```
+
+### What actually limits the throughput
+
+The binding constraint is memory, not cores. The `cpu48` QOS allows
+`cpu=3000,mem=6000G`, and at the original flat `--mem=48G` per 8-core task the
+account hit the memory cap at 125 tasks — 1000 cores of the 3000 it was entitled
+to. The calibration measures ≤6.8 GB for the largest n=6 frame at ωB97M-V and
+far less for malonaldehyde, so memory is now requested per split (12 G for
+malonaldehyde, 16 G for n=2–6, 32 G for n=8–10, 96 G for the large tier). ORCA's
+`%maxcore` is derived from `SLURM_MEM_PER_NODE` rather than fixed, because it is
+a *per-process* ceiling: a flat 3000 MB across 8 ranks promises ORCA 24 GB, which
+was consistent with the old 48 G request and would OOM inside the new 16 G one.
+
+Two things were costing more than any of that, though, and neither was visible
+in a per-job log:
+
+- **Partition pinning.** `--partition=cs` looked harmless and was not. The site
+  submit filter chooses the partition list from the walltime, and under 6 h it
+  returns `cs,cpu_short`; naming `cs` discards the alternative. With this
+  account's fair-share factor of 0.006 that is decisive — a matched pair of probe
+  jobs had the unpinned one running within a second while the pinned one was
+  still pending forty minutes later.
+- **Submission order.** Under a memory cap, whichever split is offered first gets
+  the memory, since Slurm breaks ties by age. Walking the shard tree
+  alphabetically put `water_train_small` ninth of ten. The result was 0 of its 65
+  ωB97M-V shards labelled while 75 tasks of the tier the plan itself calls the
+  weakest held 3600 GB — and no model at the end of it, which makes every OOD
+  number unobtainable, since each is the error of a model that needs that split
+  to exist. `split_rank` in the watchdog now orders them: train and validation,
+  then malonaldehyde and its scan, then the ID control, then the OOD tiers
+  cheapest first. Re-ranking took `water_train_small` from 0 to 25 of 32 done at
+  PBE-D4 within ninety minutes.
 
 **Deliverable:** `results/revision/figures/error_vs_distance_*.png` — relative
 density error against distance from training, one series per tier, beside the
@@ -358,9 +391,16 @@ soon as the first model has a checkpoint and refreshes as the rest arrive.
 
 ### What makes the figure trustworthy
 
-The deliverable joins two things computed in different places — a per-structure
-density error and a per-structure descriptor — and the ways that join can go
-wrong are all silent. Three were found and closed:
+The whole chain — labels, training, checkpoint, evaluation, figure — was run end
+to end before the campaign's own labels were ready, on the 1110 PySCF PBE frames
+the retired serial loop had already produced. That was worth doing on its own:
+the chain had never executed, and it does not execute until days into a campaign,
+unattended, with any traceback going to a watchdog log. It found a fault that
+nothing else could have (see the last entry below).
+
+The deliverable also joins two things computed in different places — a
+per-structure density error and a per-structure descriptor — and the ways that
+join can go wrong are all silent. Four faults were found and closed:
 
 - **Frame identity.** `csh_evaluate.py` reported a structure's row in the
   assembled dataset, while the collective variables are numbered over the source
@@ -377,6 +417,17 @@ wrong are all silent. Three were found and closed:
   the analysis now resolve the run directory via `latest_run_dir.sh`.
 - **Distance units.** Reported in training-set widths (median pairwise distance)
   rather than nearest-neighbour spacings; see the ladder table above.
+- **Evaluating a model that predicts forces.** `csh_evaluate.py` ran the forward
+  pass under `torch.no_grad()`. A model with an energy head gets its forces by
+  differentiating the energy with respect to the positions, so under `no_grad`
+  it raises `element 0 of tensors does not require grad` and returns no density
+  at all. Every CSH model is density-only, which is why this had never shown;
+  every model in this campaign has the head. This one is not subtle — it is a
+  hard failure — but it would have surfaced only once the labels finished. Both
+  it and the obvious wrong fix (pre-marking the positions, which makes
+  `DFTNetwork`'s internal clone a non-leaf and fails on the way back out) are
+  pinned in `tests/test_evaluate_forward.py` against a stub, so the check costs
+  milliseconds and needs no checkpoint.
 
 The malonaldehyde tier deliberately does *not* clear the `BC < 0.05` bar set for
 tiers 2–4 (whole-scan overlap 0.43). The scan starts inside the training basin
@@ -450,6 +501,10 @@ Record each production job here.
 | 2026-08-19 | — | claim protocol: a requeued task may retake its own shard | — | `shard_claim.py` | — | a preempted task is killed outright, so its claim survives; the restarted incarnation read it as another worker's and exited, and the scheduler still listed the id as live, so nothing else took the shard either |
 | 2026-08-19 | — | join correctness for the headline figure | — | `qm7x_orca_common.py`, `csh_evaluate.py`, `error_vs_distance.py` | — | errors were keyed to dataset row, descriptors to source frame; any ORCA failure shifted every later point along the x-axis. `source_index` now travels from assembler to report |
 | 2026-08-19 | — | training restart and analysis paths | — | `latest_run_dir.sh`, `submit_water_train.sbatch`, `run_ood_analysis.sh` | — | run.py writes into a timestamped dir inside `--save_dir`; the restart check and the analysis both looked one level too high, so training restarted from step 0 each window and the error curves would never have been produced |
+| 2026-08-19 | water n=2–6 (PBE/aug-cc-pVDZ, the retired serial loop's 1110 frames) | end-to-end rehearsal of the whole downstream chain | 1110 train / 250 test / 45 size-OOD | `run.py`, `csh_evaluate.py`, `error_vs_distance.py` | `results/revision/smoke_water_pbe/`, `figures/error_vs_distance_pilot_pbe_pyscf.png` | 30-step CPU model, so the numbers mean nothing; the point was that the chain had never run. Found the `no_grad` fault below, and confirmed `latest_run_dir.sh` skips the two launches that died before their first checkpoint |
+| 2026-08-19 | — | evaluation of models with an energy head | — | `csh_evaluate.py`, `tests/test_evaluate_forward.py` | — | the forward pass ran under `torch.no_grad()`, under which a force head raises before returning any density. CSH models are density-only so this had never shown; every model here has the head. Would have failed days in, in a watchdog log |
+| 2026-08-19 | — | per-run peak RSS in the calibration | — | `calibrate_theory.py` | `results/revision/calibration/` | `getrusage`'s `ru_maxrss` is a high-water mark that only rises, so each record reported the largest run so far — hence ORCA and PySCF coming back byte-identical at every size. It also misses ORCA entirely, which is a subprocess. Now sampled from `/proc` over the process tree |
+| 2026-08-19 | — | submission order and per-split memory | — | `watch_water_campaign.sh`, `submit_water_orca*.sbatch` | — | memory, not cores, caps the account (6000 GB); alphabetical order put `water_train_small` ninth of ten and it sat at 0/65 while the weakest OOD tier held 3600 GB. Ranked explicitly; `%maxcore` now derived from the allocation. 0 → 25/32 done at PBE-D4 in 90 min |
 
 ---
 
