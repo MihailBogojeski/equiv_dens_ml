@@ -1,0 +1,2081 @@
+{
+  "splits": {
+    "ood_order": {
+      "xyz": "/scratch/mh7373/projects/equiv_dens_ml/datasets/revision/water_ood/ood_order.xyz",
+      "n_frames": 192,
+      "meta": [
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 12,
+          "T": 50.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 12,
+          "T": 50.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 12,
+          "T": 50.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 12,
+          "T": 50.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 12,
+          "T": 50.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 12,
+          "T": 50.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 12,
+          "T": 150.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 12,
+          "T": 150.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 12,
+          "T": 150.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 12,
+          "T": 150.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 12,
+          "T": 150.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 12,
+          "T": 150.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 16,
+          "T": 50.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 16,
+          "T": 50.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 16,
+          "T": 50.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 16,
+          "T": 50.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 16,
+          "T": 50.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 16,
+          "T": 50.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 16,
+          "T": 150.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 16,
+          "T": 150.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 16,
+          "T": 150.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 16,
+          "T": 150.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 16,
+          "T": 150.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 16,
+          "T": 150.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 20,
+          "T": 50.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 20,
+          "T": 50.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 20,
+          "T": 50.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 20,
+          "T": 50.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 20,
+          "T": 50.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 20,
+          "T": 50.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 20,
+          "T": 150.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 20,
+          "T": 150.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 20,
+          "T": 150.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 20,
+          "T": 150.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 20,
+          "T": 150.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 20,
+          "T": 150.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 24,
+          "T": 50.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 24,
+          "T": 50.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 24,
+          "T": 50.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 24,
+          "T": 50.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 24,
+          "T": 50.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 24,
+          "T": 50.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 24,
+          "T": 150.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 24,
+          "T": 150.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 24,
+          "T": 150.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 24,
+          "T": 150.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 24,
+          "T": 150.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ih",
+          "n": 24,
+          "T": 150.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 12,
+          "T": 50.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 12,
+          "T": 50.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 12,
+          "T": 50.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 12,
+          "T": 50.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 12,
+          "T": 50.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 12,
+          "T": 50.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 12,
+          "T": 150.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 12,
+          "T": 150.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 12,
+          "T": 150.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 12,
+          "T": 150.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 12,
+          "T": 150.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 12,
+          "T": 150.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 16,
+          "T": 50.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 16,
+          "T": 50.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 16,
+          "T": 50.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 16,
+          "T": 50.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 16,
+          "T": 50.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 16,
+          "T": 50.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 16,
+          "T": 150.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 16,
+          "T": 150.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 16,
+          "T": 150.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 16,
+          "T": 150.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 16,
+          "T": 150.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 16,
+          "T": 150.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 20,
+          "T": 50.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 20,
+          "T": 50.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 20,
+          "T": 50.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 20,
+          "T": 50.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 20,
+          "T": 50.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 20,
+          "T": 50.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 20,
+          "T": 150.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 20,
+          "T": 150.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 20,
+          "T": 150.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 20,
+          "T": 150.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 20,
+          "T": 150.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 20,
+          "T": 150.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 24,
+          "T": 50.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 24,
+          "T": 50.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 24,
+          "T": 50.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 24,
+          "T": 50.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 24,
+          "T": 50.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 24,
+          "T": 50.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 24,
+          "T": 150.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 24,
+          "T": 150.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 24,
+          "T": 150.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 24,
+          "T": 150.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 24,
+          "T": 150.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "XI",
+          "n": 24,
+          "T": 150.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 12,
+          "T": 50.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 12,
+          "T": 50.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 12,
+          "T": 50.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 12,
+          "T": 50.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 12,
+          "T": 50.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 12,
+          "T": 50.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 12,
+          "T": 150.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 12,
+          "T": 150.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 12,
+          "T": 150.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 12,
+          "T": 150.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 12,
+          "T": 150.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 12,
+          "T": 150.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 16,
+          "T": 50.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 16,
+          "T": 50.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 16,
+          "T": 50.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 16,
+          "T": 50.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 16,
+          "T": 50.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 16,
+          "T": 50.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 16,
+          "T": 150.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 16,
+          "T": 150.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 16,
+          "T": 150.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 16,
+          "T": 150.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 16,
+          "T": 150.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 16,
+          "T": 150.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 20,
+          "T": 50.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 20,
+          "T": 50.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 20,
+          "T": 50.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 20,
+          "T": 50.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 20,
+          "T": 50.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 20,
+          "T": 50.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 20,
+          "T": 150.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 20,
+          "T": 150.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 20,
+          "T": 150.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 20,
+          "T": 150.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 20,
+          "T": 150.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 20,
+          "T": 150.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 24,
+          "T": 50.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 24,
+          "T": 50.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 24,
+          "T": 50.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 24,
+          "T": 50.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 24,
+          "T": 50.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 24,
+          "T": 50.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 24,
+          "T": 150.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 24,
+          "T": 150.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 24,
+          "T": 150.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 24,
+          "T": 150.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 24,
+          "T": 150.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "Ic",
+          "n": 24,
+          "T": 150.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 12,
+          "T": 50.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 12,
+          "T": 50.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 12,
+          "T": 50.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 12,
+          "T": 50.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 12,
+          "T": 50.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 12,
+          "T": 50.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 12,
+          "T": 150.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 12,
+          "T": 150.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 12,
+          "T": 150.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 12,
+          "T": 150.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 12,
+          "T": 150.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 12,
+          "T": 150.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 16,
+          "T": 50.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 16,
+          "T": 50.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 16,
+          "T": 50.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 16,
+          "T": 50.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 16,
+          "T": 50.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 16,
+          "T": 50.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 16,
+          "T": 150.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 16,
+          "T": 150.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 16,
+          "T": 150.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 16,
+          "T": 150.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 16,
+          "T": 150.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 16,
+          "T": 150.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 20,
+          "T": 50.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 20,
+          "T": 50.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 20,
+          "T": 50.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 20,
+          "T": 50.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 20,
+          "T": 50.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 20,
+          "T": 50.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 20,
+          "T": 150.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 20,
+          "T": 150.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 20,
+          "T": 150.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 20,
+          "T": 150.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 20,
+          "T": 150.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 20,
+          "T": 150.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 24,
+          "T": 50.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 24,
+          "T": 50.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 24,
+          "T": 50.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 24,
+          "T": 50.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 24,
+          "T": 50.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 24,
+          "T": 50.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 24,
+          "T": 150.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 24,
+          "T": 150.0,
+          "intra_sigma": 0.04
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 24,
+          "T": 150.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 24,
+          "T": 150.0,
+          "intra_sigma": 0.08
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 24,
+          "T": 150.0,
+          "intra_sigma": 0.06
+        },
+        {
+          "tier": "ood_order",
+          "polymorph": "II",
+          "n": 24,
+          "T": 150.0,
+          "intra_sigma": 0.06
+        }
+      ]
+    },
+    "ood_density": {
+      "xyz": "/scratch/mh7373/projects/equiv_dens_ml/datasets/revision/water_ood/ood_density.xyz",
+      "n_frames": 120,
+      "meta": [
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.8,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.6,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.4,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.2,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.997,
+          "kind": "evaporation"
+        },
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.8,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.6,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.4,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.2,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.997,
+          "kind": "evaporation"
+        },
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.8,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.6,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.4,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.2,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.997,
+          "kind": "evaporation"
+        },
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.8,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.6,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.4,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.2,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.997,
+          "kind": "evaporation"
+        },
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.8,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.6,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.4,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.2,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.997,
+          "kind": "evaporation"
+        },
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.8,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.6,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.4,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.2,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.997,
+          "kind": "evaporation"
+        },
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.8,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.6,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.4,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.2,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.997,
+          "kind": "evaporation"
+        },
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.8,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.6,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.4,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.2,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 16,
+          "density": 0.997,
+          "kind": "evaporation"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.8,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.6,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.4,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.2,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.997,
+          "kind": "evaporation"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.8,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.6,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.4,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.2,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.997,
+          "kind": "evaporation"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.8,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.6,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.4,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.2,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.997,
+          "kind": "evaporation"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.8,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.6,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.4,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.2,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.997,
+          "kind": "evaporation"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.8,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.6,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.4,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.2,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.997,
+          "kind": "evaporation"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.8,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.6,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.4,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.2,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.997,
+          "kind": "evaporation"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.8,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.6,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.4,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.2,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.997,
+          "kind": "evaporation"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.8,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.6,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.4,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.2,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 20,
+          "density": 0.997,
+          "kind": "evaporation"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.8,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.6,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.4,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.2,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.997,
+          "kind": "evaporation"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.8,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.6,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.4,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.2,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.997,
+          "kind": "evaporation"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.8,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.6,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.4,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.2,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.997,
+          "kind": "evaporation"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.8,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.6,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.4,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.2,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.997,
+          "kind": "evaporation"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.8,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.6,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.4,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.2,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.997,
+          "kind": "evaporation"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.8,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.6,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.4,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.2,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.997,
+          "kind": "evaporation"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.8,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.6,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.4,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.2,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.997,
+          "kind": "evaporation"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.8,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.6,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.4,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.2,
+          "kind": "expanded"
+        },
+        {
+          "tier": "ood_density",
+          "n": 24,
+          "density": 0.997,
+          "kind": "evaporation"
+        }
+      ]
+    }
+  },
+  "seed": 2026
+}

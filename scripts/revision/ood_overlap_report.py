@@ -46,12 +46,18 @@ DEFAULT_CVS = ("q_tetrahedral", "n_hbond", "ring_6_frac", "local_density", "surf
 OVERLAP_THRESHOLD = 0.05
 
 
-def load_cvs(path: Path, names: tuple[str, ...]) -> tuple[np.ndarray, list[str]]:
+def load_cvs(path: Path, names: tuple[str, ...]) -> tuple[np.ndarray, str]:
+    """Raw CV matrix, NaNs preserved.
+
+    Tetrahedral order is undefined for a molecule without four neighbours, so
+    it is missing for the n=2-4 training clusters. Dropping whole rows on that
+    basis would throw away most of the training set, so NaNs are kept here and
+    each analysis masks only the columns it actually uses.
+    """
     payload = json.loads(Path(path).read_text())
     rows = payload["frames"]
     matrix = np.array([[float(r.get(n, np.nan)) for n in names] for r in rows], dtype=float)
-    keep = np.isfinite(matrix).all(axis=1)
-    return matrix[keep], [payload.get("label", Path(path).stem)] * int(keep.sum())
+    return matrix, payload.get("label", Path(path).stem)
 
 
 def bhattacharyya_1d(a: np.ndarray, b: np.ndarray, grid_points: int = 512) -> float:
@@ -62,6 +68,16 @@ def bhattacharyya_1d(a: np.ndarray, b: np.ndarray, grid_points: int = 512) -> fl
         return float("nan")
     if np.std(a) < 1e-12 and np.std(b) < 1e-12:
         return 1.0 if abs(np.mean(a) - np.mean(b)) < 1e-9 else 0.0
+    # A CV that is constant across a split (every ice frame having no
+    # five-membered rings, say) has no KDE bandwidth. Widening it to a small
+    # fraction of the other sample's spread keeps such a split comparable
+    # instead of dropping it as NaN, which would quietly hide a hard separation.
+    spread = max(np.std(a), np.std(b))
+    rng = np.random.default_rng(0)
+    if np.std(a) < 1e-12:
+        a = a + rng.normal(0.0, 1e-3 * spread, size=len(a))
+    if np.std(b) < 1e-12:
+        b = b + rng.normal(0.0, 1e-3 * spread, size=len(b))
 
     lo = min(a.min(), b.min())
     hi = max(a.max(), b.max())
@@ -102,6 +118,22 @@ def bhattacharyya_2d(a: np.ndarray, b: np.ndarray, grid_points: int = 96) -> flo
     return float(np.sqrt(pa * pb).sum() * cell)
 
 
+def fraction_outside_train_range(train: np.ndarray, test: np.ndarray, low_pct=1.0, high_pct=99.0) -> float:
+    """Fraction of test values outside the training set's central 98 percent.
+
+    Sharper and easier to read than an overlap coefficient: "94 percent of ice
+    frames are more tetrahedral than 99 percent of the training set" is a claim
+    a reader can check against the histogram, and unlike a KDE it does not
+    depend on a bandwidth choice.
+    """
+    a = train[np.isfinite(train)]
+    b = test[np.isfinite(test)]
+    if len(a) < 2 or len(b) == 0:
+        return float("nan")
+    lo, hi = np.percentile(a, low_pct), np.percentile(a, high_pct)
+    return float(((b < lo) | (b > hi)).mean())
+
+
 def nearest_neighbour_distances(train: np.ndarray, test: np.ndarray) -> np.ndarray:
     """Distance from each test row to the closest training row, standardised."""
     from sklearn.neighbors import NearestNeighbors
@@ -136,7 +168,7 @@ def main() -> int:
     parser.add_argument("--train", required=True, type=Path)
     parser.add_argument("--test", required=True, type=Path, nargs="+")
     parser.add_argument("--cvs", default=",".join(DEFAULT_CVS))
-    parser.add_argument("--joint", default="q_tetrahedral,local_density")
+    parser.add_argument("--joint", default="n_hbond,local_density")
     parser.add_argument("--threshold", type=float, default=OVERLAP_THRESHOLD)
     parser.add_argument("--out", required=True, type=Path)
     args = parser.parse_args()
@@ -146,14 +178,19 @@ def main() -> int:
     joint_idx = [names.index(v) for v in joint if v in names]
 
     train, _ = load_cvs(args.train, names)
-    if len(train) == 0:
-        raise SystemExit(f"no finite training rows in {args.train}")
-    reference = train_internal_scale(train)
+    # Columns used for the multivariate measures have to be finite in both sets,
+    # so restrict them to the CVs that every frame actually defines.
+    dense_cols = [i for i in range(len(names)) if np.isfinite(train[:, i]).all()]
+    train_dense = train[:, dense_cols]
+    if len(train_dense) == 0:
+        raise SystemExit(f"no training rows in {args.train}")
+    reference = train_internal_scale(train_dense)
 
     report: dict = {
         "train": str(args.train),
         "n_train": int(len(train)),
         "cvs": list(names),
+        "distance_cvs": [names[i] for i in dense_cols],
         "joint_cvs": list(joint),
         "threshold": args.threshold,
         "train_internal_nn_distance": reference,
@@ -161,25 +198,37 @@ def main() -> int:
     }
 
     for path in args.test:
-        test, _ = load_cvs(path, names)
-        label = json.loads(path.read_text()).get("label", path.stem)
+        test, label = load_cvs(path, names)
         if len(test) == 0:
-            report["splits"][label] = {"error": "no finite rows"}
+            report["splits"][label] = {"error": "no rows"}
             continue
 
-        per_cv = {
-            name: bhattacharyya_1d(train[:, i], test[:, i]) for i, name in enumerate(names)
-        }
-        joint_bc = (
-            bhattacharyya_2d(train[:, joint_idx], test[:, joint_idx]) if len(joint_idx) == 2 else float("nan")
-        )
-        dist = nearest_neighbour_distances(train, test)
+        per_cv = {}
+        outside = {}
+        for i, name in enumerate(names):
+            a = train[:, i][np.isfinite(train[:, i])]
+            b = test[:, i][np.isfinite(test[:, i])]
+            per_cv[name] = bhattacharyya_1d(a, b)
+            outside[name] = fraction_outside_train_range(a, b)
+
+        joint_bc = float("nan")
+        if len(joint_idx) == 2:
+            a = train[:, joint_idx]
+            b = test[:, joint_idx]
+            a = a[np.isfinite(a).all(axis=1)]
+            b = b[np.isfinite(b).all(axis=1)]
+            joint_bc = bhattacharyya_2d(a, b)
+
+        test_dense = test[:, dense_cols]
+        test_dense = test_dense[np.isfinite(test_dense).all(axis=1)]
+        dist = nearest_neighbour_distances(train_dense, test_dense)
         finite = [v for v in per_cv.values() if np.isfinite(v)]
 
         entry = {
             "path": str(path),
             "n_test": int(len(test)),
             "bhattacharyya_per_cv": per_cv,
+            "frac_outside_train_p01_p99": outside,
             "bhattacharyya_joint": joint_bc,
             "max_bhattacharyya": float(max(finite)) if finite else float("nan"),
             "min_bhattacharyya": float(min(finite)) if finite else float("nan"),
@@ -195,8 +244,9 @@ def main() -> int:
         report["splits"][label] = entry
 
         print(f"\n{label}  (n={len(test)})")
+        print(f"  {'collective variable':18s} {'overlap':>8s}  {'outside train p1-p99':>20s}")
         for name, value in per_cv.items():
-            print(f"  BC {name:16s} {value:.4f}")
+            print(f"  {name:18s} {value:8.4f}  {outside[name] * 100:19.1f}%")
         print(f"  BC joint({','.join(joint)}) = {joint_bc:.4f}")
         print(
             f"  nearest-training distance: median {np.median(dist):.2f} "

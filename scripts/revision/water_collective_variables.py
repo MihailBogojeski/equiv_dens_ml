@@ -176,10 +176,13 @@ def frame_cvs(z: np.ndarray, xyz: np.ndarray) -> dict[str, float]:
     coordination = (dist <= HB_OO_MAX).sum(axis=1)
     surface_frac = float((coordination < 4).mean())
 
-    # Density inside the sphere of the radius of gyration, which is a size
-    # invariant way to say "how tightly packed is this cluster".
-    volume_a3 = 4.0 / 3.0 * math.pi * max(r_gyr, 1e-6) ** 3
-    local_density = float(n * M_WATER_G / (volume_a3 * 1e-24)) if volume_a3 > 0 else float("nan")
+    # Density of the equivalent uniform sphere. A solid sphere of radius R has
+    # radius of gyration sqrt(3/5) R, so using r_gyr directly as the radius
+    # would overstate the density by a factor of about 2.2; the conversion makes
+    # the number comparable to a real density in g/cm^3.
+    radius = math.sqrt(5.0 / 3.0) * max(r_gyr, 1e-6)
+    volume_a3 = 4.0 / 3.0 * math.pi * radius**3
+    local_density = float(n * M_WATER_G / (volume_a3 * 1e-24))
 
     owner = assign_owner(oxygens, hydrogens) if len(hydrogens) else np.zeros(0, dtype=int)
     bonds = hydrogen_bonds(oxygens, hydrogens, owner) if len(hydrogens) else []

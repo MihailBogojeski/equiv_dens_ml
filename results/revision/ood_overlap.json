@@ -1,0 +1,120 @@
+{
+  "train": "results/revision/cv/water_train.json",
+  "n_train": 1250,
+  "cvs": [
+    "q_tetrahedral",
+    "n_hbond",
+    "ring_6_frac",
+    "local_density",
+    "surface_frac",
+    "mean_nn_oo"
+  ],
+  "distance_cvs": [
+    "n_hbond",
+    "ring_6_frac",
+    "local_density",
+    "surface_frac",
+    "mean_nn_oo"
+  ],
+  "joint_cvs": [
+    "q_tetrahedral",
+    "local_density"
+  ],
+  "threshold": 0.05,
+  "train_internal_nn_distance": 0.011635886631847161,
+  "splits": {
+    "water_id_test": {
+      "path": "results/revision/cv/water_id_test.json",
+      "n_test": 250,
+      "bhattacharyya_per_cv": {
+        "q_tetrahedral": 0.9576622549942424,
+        "n_hbond": 0.9782514673419087,
+        "ring_6_frac": 0.9835366652664927,
+        "local_density": 0.9978427820662379,
+        "surface_frac": 0.9847338958361125,
+        "mean_nn_oo": 0.9947062066965161
+      },
+      "frac_outside_train_p01_p99": {
+        "q_tetrahedral": 0.08333333333333333,
+        "n_hbond": 0.0,
+        "ring_6_frac": 0.0,
+        "local_density": 0.02,
+        "surface_frac": 0.0,
+        "mean_nn_oo": 0.024
+      },
+      "bhattacharyya_joint": 0.9346880065673626,
+      "max_bhattacharyya": 0.9978427820662379,
+      "min_bhattacharyya": 0.9576622549942424,
+      "nn_distance": {
+        "median": 0.011414172097042343,
+        "p05": 0.00097343346041686,
+        "min": 8.218726035573598e-05,
+        "median_in_train_units": 0.9809456260773467,
+        "frac_within_train_scale": 0.52
+      },
+      "verdict_joint_below_threshold": false
+    },
+    "water_ood_size": {
+      "path": "results/revision/cv/water_ood_size.json",
+      "n_test": 300,
+      "bhattacharyya_per_cv": {
+        "q_tetrahedral": 0.6265802001054906,
+        "n_hbond": 0.6854355202930794,
+        "ring_6_frac": 0.11269827247101702,
+        "local_density": 0.6942981346906348,
+        "surface_frac": 0.981158365691043,
+        "mean_nn_oo": 0.7096093194463162
+      },
+      "frac_outside_train_p01_p99": {
+        "q_tetrahedral": 0.0,
+        "n_hbond": 0.2633333333333333,
+        "ring_6_frac": 0.0,
+        "local_density": 0.0,
+        "surface_frac": 0.013333333333333334,
+        "mean_nn_oo": 0.03333333333333333
+      },
+      "bhattacharyya_joint": 0.1990873159724223,
+      "max_bhattacharyya": 0.981158365691043,
+      "min_bhattacharyya": 0.11269827247101702,
+      "nn_distance": {
+        "median": 0.6396296678173375,
+        "p05": 0.02248008974224859,
+        "min": 0.00445552733505912,
+        "median_in_train_units": 54.97042795747816,
+        "frac_within_train_scale": 0.013333333333333334
+      },
+      "verdict_joint_below_threshold": false
+    },
+    "ood_order": {
+      "path": "results/revision/cv/ood_order.json",
+      "n_test": 192,
+      "bhattacharyya_per_cv": {
+        "q_tetrahedral": 0.28040451441894976,
+        "n_hbond": 0.7188004155671339,
+        "ring_6_frac": 0.7406139636510126,
+        "local_density": 0.44176949206519733,
+        "surface_frac": 0.0902960314481224,
+        "mean_nn_oo": 0.8663587450912255
+      },
+      "frac_outside_train_p01_p99": {
+        "q_tetrahedral": 0.9479166666666666,
+        "n_hbond": 0.0,
+        "ring_6_frac": 0.0,
+        "local_density": 0.0,
+        "surface_frac": 0.8125,
+        "mean_nn_oo": 0.0
+      },
+      "bhattacharyya_joint": 0.20072710421993986,
+      "max_bhattacharyya": 0.8663587450912255,
+      "min_bhattacharyya": 0.0902960314481224,
+      "nn_distance": {
+        "median": 3.4242091198826166,
+        "p05": 1.6058612331633257,
+        "min": 1.5916722762008604,
+        "median_in_train_units": 294.28003453648586,
+        "frac_within_train_scale": 0.0
+      },
+      "verdict_joint_below_threshold": false
+    }
+  }
+}

@@ -108,6 +108,13 @@ def main() -> int:
     parser.add_argument("--safety", type=float, default=0.7)
     parser.add_argument("--max-frames-per-shard", type=int, default=64)
     parser.add_argument("--max-frames", type=int, default=0)
+    parser.add_argument("--min-atoms", type=int, default=0)
+    parser.add_argument(
+        "--max-atoms",
+        type=int,
+        default=0,
+        help="carve a size tier out of the input so it can be given its own walltime and core count",
+    )
     parser.add_argument("--include-open-shell", action="store_true")
     args = parser.parse_args()
 
@@ -120,6 +127,10 @@ def main() -> int:
             frame["index"] = len(frames)
             frame["source"] = str(path)
             frames.append(frame)
+
+    if args.min_atoms or args.max_atoms:
+        upper = args.max_atoms or 10**9
+        frames = [f for f in frames if args.min_atoms <= len(f["atom_numbers"]) <= upper]
 
     skipped = []
     if not args.include_open_shell:
@@ -152,6 +163,9 @@ def main() -> int:
         "sources": [str(p) for p in args.xyz],
         "n_frames": len(frames),
         "n_shards": len(shards),
+        "min_atoms": args.min_atoms,
+        "max_atoms": args.max_atoms,
+        "atom_counts": sorted({len(f["atom_numbers"]) for f in frames}),
         "walltime_budget_s": budget,
         "max_frames_per_shard": args.max_frames_per_shard,
         "skipped_open_shell": skipped,
