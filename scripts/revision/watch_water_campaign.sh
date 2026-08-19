@@ -53,6 +53,29 @@ for ((round = 1; round <= MAX_ROUNDS; round++)); do
       scripts/revision/watch_and_resubmit.sh "$shard_dir" "$outdir" "$theory" || true
   done
 
+  # Training is launched from here rather than by --dependency on the labelling
+  # arrays: the arrays alive at submission time are not the ones that finish the
+  # campaign, so a dependency on them fires while most shards are still
+  # unlabelled. The marker makes this fire exactly once per level of theory.
+  for theory_dir in "$SHARD_ROOT"/*/*/; do
+    theory=$(basename "${theory_dir%/}")
+    marker="${OUT_ROOT}/.train_submitted_${theory}"
+    [[ -e "$marker" ]] && continue
+    outstanding=$(./.venv/bin/python scripts/revision/campaign_status.py \
+      --root "$SHARD_ROOT" --out-root "$OUT_ROOT" --json 2>/dev/null |
+      ./.venv/bin/python -c "
+import json, sys
+rows = json.load(sys.stdin)
+print(sum(len(r['outstanding']) for r in rows if r['theory'] == '${theory}'))
+" 2>/dev/null || echo 1)
+    if [[ "$outstanding" == "0" ]]; then
+      echo "[$(date -Is)] ${theory} labels complete; submitting training"
+      mkdir -p "$OUT_ROOT"
+      THEORY="$theory" sbatch --job-name="train-${theory}" \
+        scripts/revision/submit_water_train.sbatch && touch "$marker"
+    fi
+  done
+
   if [[ "$round" -eq "$MAX_ROUNDS" ]]; then
     break
   fi

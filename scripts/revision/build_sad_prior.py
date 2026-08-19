@@ -29,12 +29,23 @@ def main():
     parser.add_argument("--xc", default="pbe0")
     parser.add_argument("--elements", default="H,C,N,O,S")
     parser.add_argument("--basis", default="augccpvdz")
+    parser.add_argument("--auxbasis-tag", default="augccpvqzjkfit")
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path("datasets/free_atom_densities_augccpvdz_augccpvqzjkfit_pyscf_pbe0.npy"),
+        default=None,
+        help="defaults to a name derived from --basis and --xc",
     )
     args = parser.parse_args()
+
+    if args.output is None:
+        # Deriving the name from the theory keeps a prior built at one level
+        # from silently overwriting another; a delta-learning prior at the wrong
+        # functional is not an error the training run would report.
+        tag = args.basis.replace("-", "").replace("_", "").lower()
+        args.output = Path(
+            f"datasets/free_atom_densities_{tag}_{args.auxbasis_tag}_pyscf_{args.xc}.npy"
+        )
 
     symbols = [s.strip() for s in args.elements.split(",") if s.strip()]
     atom_str = "; ".join(f"{el} 0 0 {3 * i}" for i, el in enumerate(symbols))

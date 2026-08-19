@@ -1,0 +1,9 @@
+--args_file_name=malonaldehyde_pbe_orca_001
+--save_dir=results/revision/malonaldehyde_pbe_orca_001
+--np_dataset=datasets/revision/malonaldehyde_labels/malonaldehyde_train_pbe_d4_avdz_base.npy
+--dens_dataset=datasets/revision/malonaldehyde_labels/malonaldehyde_train_pbe_d4_avdz.npy
+--np_dataset_valid=datasets/revision/malonaldehyde_labels/malonaldehyde_val_pbe_d4_avdz_base.npy
+--dens_dataset_valid=datasets/revision/malonaldehyde_labels/malonaldehyde_val_pbe_d4_avdz.npy
+--np_dataset_test=datasets/revision/malonaldehyde_labels/malonaldehyde_ood_proton_transfer_pbe_d4_avdz_base.npy
+--dens_dataset_test=datasets/revision/malonaldehyde_labels/malonaldehyde_ood_proton_transfer_pbe_d4_avdz.npy
+--atom_dens_path=datasets/revision/sad_pbe_augccpvdz.npy

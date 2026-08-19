@@ -1,0 +1,9 @@
+--args_file_name=water_pbe_orca_001
+--save_dir=results/revision/water_pbe_orca_001
+--np_dataset=datasets/revision/water_labels/water_train_pbe_d4_avdz_base.npy
+--dens_dataset=datasets/revision/water_labels/water_train_pbe_d4_avdz.npy
+--np_dataset_valid=datasets/revision/water_labels/water_val_pbe_d4_avdz_base.npy
+--dens_dataset_valid=datasets/revision/water_labels/water_val_pbe_d4_avdz.npy
+--np_dataset_test=datasets/revision/water_labels/water_ood_order_pbe_d4_avdz_base.npy
+--dens_dataset_test=datasets/revision/water_labels/water_ood_order_pbe_d4_avdz.npy
+--atom_dens_path=datasets/revision/sad_pbe_augccpvdz.npy

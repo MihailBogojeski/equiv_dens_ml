@@ -61,8 +61,14 @@ _LEVELS: dict[str, TheoryLevel] = {
     ),
     # NORI matters: ORCA 6 switches RI-J on by default for pure functionals,
     # which shifts the density by 2.4e-4 relative to PySCF. With NORI+DEFGRID3
-    # the two codes agree to 9.3e-6, which is what lets ORCA extend the PySCF
-    # frames already on disk instead of starting a separate dataset.
+    # the two codes agree on the water dimer to 9.3e-6 in fit-coefficient L2 and
+    # 7.1e-7 in the Coulomb metric, so ORCA can extend the PySCF frames already
+    # on disk instead of starting a separate dataset.
+    #
+    # The residual energy difference, 3.3e-5 Ha, is larger than the density
+    # difference can explain and is the D4 term: ORCA's built-in D4 and the
+    # dftd4 Python package differ slightly. It is a per-frame additive shift
+    # that leaves the density untouched.
     "pbe_d4_avdz": TheoryLevel(
         key="pbe_d4_avdz",
         label="PBE-D4/aug-cc-pVDZ",
@@ -88,12 +94,20 @@ _LEVELS: dict[str, TheoryLevel] = {
     # wB97M-V carries VV10 nonlocal correlation, so no D4 on top.
     #
     # ORCA-only on purpose. RIJCOSX is the only approximation that reaches the
-    # 20-24 water clusters, it shifts the density by 1.5e-4 relative to exact
-    # integrals, and PySCF has no COSX to match it with. RIJK would be accurate
-    # enough but its analytic gradient aborts in ORCA 6.1.1. Since this dataset
-    # is the size-scaling experiment, a size-correlated switch between exact and
-    # approximate integrals would contaminate exactly the trend being measured,
-    # so every frame at this level takes the same approximation from one engine.
+    # 20-24 water clusters, and PySCF has no COSX to match it with; RIJK would
+    # be accurate enough but its analytic gradient aborts in ORCA 6.1.1. Since
+    # this dataset is the size-scaling experiment, a size-correlated switch
+    # between exact and approximate integrals would contaminate exactly the
+    # trend being measured, so every frame here takes the same approximation
+    # from one engine.
+    #
+    # Measured on the water dimer, RIJCOSX against exact integrals: 1.45e-4 in
+    # fit-coefficient L2 but only 2.8e-5 in the Coulomb metric, 1.8e-4 Ha in
+    # energy and 1.1e-4 Ha/bohr in forces. With RI switched off ORCA and PySCF
+    # agree to 3.8e-7 in the Coulomb metric, so RIJCOSX is the whole of the
+    # difference and the codes themselves are consistent. The 2.8e-5 density
+    # floor sits about two orders of magnitude below the errors the model makes,
+    # and being a fixed approximation it largely cancels in relative energies.
     "wb97mv_def2tzvpd": TheoryLevel(
         key="wb97mv_def2tzvpd",
         label="wB97M-V/def2-TZVPD",
