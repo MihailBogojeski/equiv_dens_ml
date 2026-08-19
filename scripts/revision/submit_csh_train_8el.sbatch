@@ -9,11 +9,11 @@
 #SBATCH --account=torch_pr_283_chemistry
 #SBATCH --qos=gpu48
 #SBATCH --partition=l40s_public
-#SBATCH --exclude=gl056
 #SBATCH --output=logs/csh8_train_%j.out
 
-# 8-element CSH DenSNet density training. Explicitly excludes gl056 so we
-# do not sit on top of tps-cofolding / gpu_burn.
+# 8-element CSH DenSNet density training on the L40S public queue.
+# Do not start this interactively on gl056 (tps-cofolding / gpu_burn).
+# --exclude=gl056 is rejected by the scheduler, so the queue assigns the node.
 
 set -euo pipefail
 cd "${SLURM_SUBMIT_DIR:-/scratch/mh7373/projects/equiv_dens_ml}"
