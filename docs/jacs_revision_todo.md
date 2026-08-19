@@ -275,6 +275,27 @@ and RIJK's analytic gradient aborts in ORCA 6.1.1. Since this is the
 size-scaling experiment, a size-correlated switch between exact and approximate
 integrals would contaminate the very trend being measured.
 
+**The approximation error does not grow with cluster size**, which is what
+licenses the size-scaling claim and is the first thing a reviewer will ask.
+Relative L2 over fit coefficients (`calib_n3_n6.json`):
+
+| n water | RIJCOSX vs exact integrals | exact-integral ORCA vs PySCF |
+| --- | --- | --- |
+| 2 | 1.45e-04 | 8.0e-06 |
+| 3 | 1.80e-04 | 2.2e-06 |
+| 6 | 1.74e-04 | 3.8e-06 |
+
+Both are flat while the system triples. The RIJCOSX term is a fixed ~1.7e-04
+offset shared by every frame, not a size-dependent bias that could manufacture
+the trend being measured; and the exact-integral agreement staying at a few
+parts in 10⁶ across sizes confirms the AO mapping holds as the basis grows.
+Max ‖CᵀSC − I‖ over all calibration frames is 9.0e-08.
+
+PBE's ORCA-vs-PySCF energy difference (4.3e-05 Ha at n=3, 8.7e-05 at n=6) sits
+above the 1e-05 gate, but it is entirely the D4 dispersion term: the densities
+agree to 7.3e-06 and 9.7e-06 respectively. The gate reports it, and it does not
+affect the density labels.
+
 ### The OOD ladder
 
 | Tier | Content | Frames | Distance from training |
@@ -419,6 +440,7 @@ Record each production job here.
 | 2026-08-18 | ethanol | GPU Figure 2 + 0.1 ps NVE | 1 geom | `run_gpu_campaign.sh quick` | `figure2_timing_gpu.json`, `nve_drift_gpu.json` | DenSNet 467 ms/step; NVE drift 0.18 eV/ps |
 | 2026-08-19 | water dimer | ORCA vs PySCF, PBE-D4 and ωB97M-V | 1 | `calibrate_theory.py` | `results/revision/calibration/calib_dimer_coulomb.json` | PBE engine-independent (7.1e-07 Coulomb metric); RIJCOSX costs 2.8e-05; AO permutation good to 6.5e-07 |
 | 2026-08-19 | water dimer | PySCF grid convergence, PBE | 1 | `probe_grid_sensitivity.py` | `results/revision/calibration/grid_sensitivity.json` | level 3 → 9 moves the density by 2.8e-07, so the grid is not a cross-code error source |
+| 2026-08-19 | water n=3, n=6, n=8 | ORCA vs PySCF, both levels, size dependence | 3 | `calibrate_theory.py` | `results/revision/calibration/calib_n3_n6.json` | RIJCOSX-vs-exact is flat at 1.5–1.8e-04 from n=2 to n=6 and exact-vs-PySCF flat at a few e-06, so neither approximation can manufacture a size trend; max ‖CᵀSC−I‖ 9.0e-08. n=8 ωB97M-V 1186 s on 8 cores |
 | 2026-08-19 | ice Ih/XI/Ic/II cutouts | geometries (genice2 + rigid-body thermal displacement) | 192 | `generate_ood_water.py` | `datasets/revision/water_ood/ood_order.xyz` | n = 12–24, 50 K and 150 K |
 | 2026-08-19 | water droplets | geometries (ice cutouts melted under a spherical wall, GFN2-xTB) | 120 | `generate_ood_water.py` | `datasets/revision/water_ood/ood_density.xyz` | n = 16–24; packing a droplet directly gave a gas, melting an ice cutout gives an H-bond network |
 | 2026-08-19 | malonaldehyde | geometries (GFN2-xTB basin sampling + relaxed proton-transfer scan) | 400 / 80 / 125 | `generate_malonaldehyde.py` | `datasets/revision/malonaldehyde/` | training filtered to one enol basin, else the scan would not be OOD |
