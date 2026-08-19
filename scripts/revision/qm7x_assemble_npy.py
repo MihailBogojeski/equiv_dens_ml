@@ -24,6 +24,7 @@ _REPO_ROOT = _SCRIPT_DIR.parent.parent
 sys.path.insert(0, str(_SCRIPT_DIR))
 
 from qm7x_orca_common import pad_frames  # noqa: E402
+from shard_claim import atomic_save_npy  # noqa: E402
 
 
 def load_shard_results(shard_dir: Path) -> list[dict]:
@@ -159,9 +160,13 @@ def main() -> int:
         else _REPO_ROOT / f"datasets/qm7x_{args.split}_dft_augccpvdz_orca_base.npy"
     )
     dens_out.parent.mkdir(parents=True, exist_ok=True)
-    np.save(dens_out, np.array(dens, dtype=object), allow_pickle=True)
+    # Written atomically because several training jobs assemble before they
+    # train, so two can be writing the same path at once. A half-written
+    # dens_dataset does not fail loudly -- it comes back as a short or corrupt
+    # pickle, which is a training run silently on the wrong data.
+    atomic_save_npy(dens_out, np.array(dens, dtype=object))
     if frames:
-        np.save(base_out, pad_frames(frames), allow_pickle=True)
+        atomic_save_npy(base_out, pad_frames(frames))
     summary = {
         "split": args.split,
         "n_frames": len(dens),

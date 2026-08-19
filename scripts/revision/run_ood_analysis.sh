@@ -20,8 +20,13 @@ EVAL=results/revision/eval/${THEORY}
 WATER=datasets/revision/water_clusters
 OOD=datasets/revision/water_ood
 MALON=datasets/revision/malonaldehyde
-RUN_DIR=results/revision/water_wb97mv_001
-MALON_RUN_DIR=results/revision/malonaldehyde_pt_001
+# Derived from the theory exactly as submit_water_train.sbatch derives its
+# --save_dir. Hardcoding one run's directory here meant this script looked for a
+# model at a path nothing ever writes, so it reported "no trained model yet" on
+# every run and the error curves would never have been produced -- and, being
+# the expected message early in a campaign, would not have looked wrong.
+RUN_DIR=results/revision/water_${THEORY}
+MALON_RUN_DIR=results/revision/malonaldehyde_${THEORY}
 LABELS=datasets/revision/water_labels
 MALON_LABELS=datasets/revision/malonaldehyde_labels
 
@@ -68,10 +73,16 @@ $PY scripts/revision/ood_overlap_report.py \
 
 echo
 echo "=== density errors ==="
-if [[ ! -d "${RUN_DIR}" || ! -f "${RUN_DIR}/args.txt" ]]; then
-  echo "  no trained water model at ${RUN_DIR} yet; stopping before the error curves"
+# args.txt and the checkpoints live in the timestamped directory run.py creates
+# inside --save_dir, not in --save_dir itself.
+water_run=$(scripts/revision/latest_run_dir.sh "$RUN_DIR" --any)
+malon_run=$(scripts/revision/latest_run_dir.sh "$MALON_RUN_DIR" --any)
+if [[ -z "$water_run" ]]; then
+  echo "  no trained water model under ${RUN_DIR} yet; stopping before the error curves"
   exit 0
 fi
+echo "  water model:         ${water_run}"
+[[ -n "$malon_run" ]] && echo "  malonaldehyde model: ${malon_run}"
 
 evaluate() {
   local label=$1 base=$2 dens=$3 run_dir=$4 elements=$5
@@ -88,13 +99,13 @@ evaluate() {
 for split in water_id_test water_ood_size water_ood_order water_ood_density; do
   evaluate "$split" \
     "${LABELS}/${split}_${THEORY}_base.npy" "${LABELS}/${split}_${THEORY}.npy" \
-    "$RUN_DIR" 1,8
+    "$water_run" 1,8
 done
-if [[ -d "$MALON_RUN_DIR" ]]; then
+if [[ -n "$malon_run" ]]; then
   evaluate malonaldehyde_ood_proton_transfer \
     "${MALON_LABELS}/malonaldehyde_ood_proton_transfer_${THEORY}_base.npy" \
     "${MALON_LABELS}/malonaldehyde_ood_proton_transfer_${THEORY}.npy" \
-    "$MALON_RUN_DIR" 1,6,8
+    "$malon_run" 1,6,8
 fi
 
 echo

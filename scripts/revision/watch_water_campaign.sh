@@ -88,6 +88,16 @@ print(sum(len(r['outstanding']) for r in rows if r['theory'] == '${theory}'))
       THEORY="$theory" RUN="$run" sbatch --job-name="$job" \
         scripts/revision/submit_water_train.sbatch || true
     done
+
+    # The analysis is cheap and incremental -- it skips whatever it has already
+    # produced -- so it runs on every pass rather than waiting for a signal that
+    # everything is finished. That means the error-versus-distance curve appears
+    # as soon as the first model has a checkpoint and refreshes as the rest
+    # arrive, instead of depending on someone remembering to run it at the end.
+    if [[ "${RUN_ANALYSIS:-1}" -ne 0 ]]; then
+      scripts/revision/run_ood_analysis.sh "$theory" \
+        >> "logs/ood_analysis_${theory}.log" 2>&1 || true
+    fi
   done
 
   if [[ "$round" -eq "$MAX_ROUNDS" ]]; then

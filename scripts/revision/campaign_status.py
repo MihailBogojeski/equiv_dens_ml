@@ -136,6 +136,12 @@ def main() -> int:
     parser.add_argument("--out-root", type=Path, default=Path("results/revision/water_orca"))
     parser.add_argument("--stale-s", type=float, default=DEFAULT_STALE_S)
     parser.add_argument("--array-spec", action="store_true", help="print only the Slurm spec")
+    parser.add_argument(
+        "--summary-and-spec",
+        action="store_true",
+        help="one whitespace-free summary token and the Slurm spec, on one line, "
+        "so the watchdog gets both from a single scheduler query",
+    )
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
 
@@ -145,7 +151,11 @@ def main() -> int:
         if args.outdir is None:
             parser.error("--outdir is required with --shard-dir")
         info = survey(args.shard_dir, args.outdir, args.stale_s, live)
-        if args.array_spec:
+        if args.summary_and_spec:
+            bits = ",".join(f"{k}={v}" for k, v in sorted(info["counts"].items()))
+            summary = f"{info['n_done']}/{info['n_shards']}_done_[{bits}]"
+            print(f"{summary} {array_spec(info['outstanding'])}")
+        elif args.array_spec:
             print(array_spec(info["outstanding"]))
         elif args.json:
             print(json.dumps(info, indent=2))
