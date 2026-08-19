@@ -23,6 +23,7 @@ MANIFEST=${MANIFEST:-datasets/revision/omol_csh/manifests/train_neutral_hcnos.js
 H5=${H5:-datasets/revision/omol_csh/omol_csh_58k_train.h5}
 OUTDIR=${OUTDIR:-datasets/revision/csh_df/train}
 SHARD_SIZE=${SHARD_SIZE:-64}
+TABLE=${TABLE:-datasets/revision/omol_csh/ao_permutation_8el.json}
 
 ./.venv/bin/python scripts/revision/csh_shard_to_df.py \
   --manifest "$MANIFEST" \
@@ -30,4 +31,5 @@ SHARD_SIZE=${SHARD_SIZE:-64}
   --outdir "$OUTDIR" \
   --shard "${SLURM_ARRAY_TASK_ID}" \
   --shard-size "$SHARD_SIZE" \
+  --table "$TABLE" \
   --device gpu

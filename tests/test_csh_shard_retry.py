@@ -1,0 +1,233 @@
+"""Unit tests for the CSH shard retry / stale-claim logic (no live HDF5, no Slurm).
+
+`process()` is heavy (builds a PySCF mol, solves the Fock equation, runs the
+density fit), so every test here mocks it out and only exercises the
+bookkeeping around it: which recorded failures are eligible for a retry, and
+how the npz/.done files are rewritten.
+"""
+
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+from unittest.mock import MagicMock
+
+import h5py
+import numpy as np
+import pytest
+
+ROOT = Path(__file__).resolve().parents[1]
+SCRIPT_DIR = ROOT / "scripts" / "revision"
+sys.path.insert(0, str(SCRIPT_DIR))
+
+import csh_shard_to_df as shard_mod  # noqa: E402
+from csh_shard_to_df import (  # noqa: E402
+    is_claim_stale,
+    is_missing_element_failure,
+    missing_element_z,
+    retry_failed_shard,
+)
+
+TABLE = {1: "H", 6: "C", 17: "Cl", 35: "Br"}
+
+
+def make_args(**overrides):
+    args = MagicMock()
+    args.shard = 0
+    args.n_elec_tol = 1e-3
+    args.s_thresh = 1e-5
+    args.auxbasis = "augccpvqzjkfit"
+    args.block = 40
+    args.gpu_budget = 8_000_000_000
+    for k, v in overrides.items():
+        setattr(args, k, v)
+    return args
+
+
+def make_h5(tmp_path) -> Path:
+    """A tiny, valid, but otherwise-empty HDF5 file (never actually read)."""
+    path = tmp_path / "fake.h5"
+    with h5py.File(path, "w"):
+        pass
+    return path
+
+
+def write_npz(out: Path, records, failures) -> None:
+    np.savez_compressed(
+        out,
+        records=np.array(records, dtype=object),
+        failures=np.array(failures, dtype=object),
+        allow_pickle=True,
+    )
+
+
+# --------------------------------------------------------------------------
+# missing_element_z / is_missing_element_failure
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "error,expected",
+    [
+        ("KeyError: 17", 17),
+        ("KeyError: 35", 35),
+        ("KeyError: 6", 6),
+        ("n_elec drift -1.97e-03", None),
+        ("ValueError: Z=17: table width 4 != 5", None),
+        ("KeyError: not-an-int", None),
+        ("", None),
+    ],
+)
+def test_missing_element_z_parses_keyerror_integer(error, expected):
+    assert missing_element_z(error) == expected
+
+
+def test_is_missing_element_failure_requires_z_in_table():
+    assert is_missing_element_failure("KeyError: 17", TABLE) is True
+    assert is_missing_element_failure("KeyError: 99", TABLE) is False
+    assert is_missing_element_failure("n_elec drift -1.97e-03", TABLE) is False
+
+
+# --------------------------------------------------------------------------
+# retry_failed_shard
+# --------------------------------------------------------------------------
+
+
+def test_retry_failed_shard_reprocesses_only_missing_element_failures(tmp_path, monkeypatch):
+    out = tmp_path / "shard_00000.npz"
+    done = tmp_path / "shard_00000.done"
+    done.write_text(json.dumps({"shard": 0, "n_ok": 1, "n_failed": 3, "device": "cpu", "seconds": 5.0}))
+
+    records = [{"path": "/kept/ok", "n_elec_err": 0.0}]
+    failures = [
+        {"path": "/ani2x/mol_cl", "error": "KeyError: 17"},
+        {"path": "/omol/drift", "error": "n_elec drift -1.97e-03"},
+        {"path": "/other/unknown_elem", "error": "KeyError: 99"},
+    ]
+    write_npz(out, records, failures)
+
+    chunk = [
+        {"path": "/ani2x/mol_cl", "charge": 0},
+        {"path": "/omol/drift", "charge": 0},
+        {"path": "/other/unknown_elem", "charge": 0},
+        {"path": "/not/in/failures", "charge": 0},
+    ]
+
+    fake_rec = {"path": "/ani2x/mol_cl", "n_elec_err": 1e-6, "extra": "ok"}
+    mock_process = MagicMock(return_value=fake_rec)
+    monkeypatch.setattr(shard_mod, "process", mock_process)
+
+    args = make_args(h5=str(make_h5(tmp_path)))
+    retry_failed_shard(out, done, chunk, TABLE, args, "cpu")
+
+    assert mock_process.call_count == 1
+    called_entry = mock_process.call_args[0][0]
+    assert called_entry["path"] == "/ani2x/mol_cl"
+
+    saved = np.load(out, allow_pickle=True)
+    saved_records = list(saved["records"])
+    saved_failures = list(saved["failures"])
+
+    assert records[0] in saved_records
+    assert fake_rec in saved_records
+    assert len(saved_records) == 2
+
+    saved_failure_paths = {f["path"] for f in saved_failures}
+    assert saved_failure_paths == {"/omol/drift", "/other/unknown_elem"}
+
+    done_info = json.loads(done.read_text())
+    assert done_info["n_ok"] == 2
+    assert done_info["n_failed"] == 2
+    assert done_info["retried"] == 1
+
+
+def test_retry_failed_shard_drops_retry_that_still_fails(tmp_path, monkeypatch):
+    out = tmp_path / "shard_00001.npz"
+    done = tmp_path / "shard_00001.done"
+    done.write_text(json.dumps({"shard": 1, "n_ok": 0, "n_failed": 1, "device": "cpu", "seconds": 1.0}))
+
+    write_npz(out, [], [{"path": "/x/y", "error": "KeyError: 35"}])
+    chunk = [{"path": "/x/y", "charge": -1}]
+
+    mock_process = MagicMock(side_effect=RuntimeError("still broken"))
+    monkeypatch.setattr(shard_mod, "process", mock_process)
+
+    args = make_args(h5=str(make_h5(tmp_path)))
+    retry_failed_shard(out, done, chunk, TABLE, args, "cpu")
+
+    assert mock_process.call_count == 1
+    saved = np.load(out, allow_pickle=True)
+    assert len(list(saved["records"])) == 0
+    saved_failures = list(saved["failures"])
+    assert len(saved_failures) == 1
+    assert saved_failures[0]["path"] == "/x/y"
+    assert "RuntimeError" in saved_failures[0]["error"]
+
+
+def test_retry_failed_shard_noop_when_nothing_retryable(tmp_path, monkeypatch):
+    out = tmp_path / "shard_00002.npz"
+    done = tmp_path / "shard_00002.done"
+    done.write_text(json.dumps({"shard": 2, "n_ok": 0, "n_failed": 1, "device": "cpu", "seconds": 1.0}))
+
+    write_npz(out, [], [{"path": "/z", "error": "n_elec drift 5.0e-02"}])
+    chunk = [{"path": "/z", "charge": 0}]
+
+    mock_process = MagicMock()
+    monkeypatch.setattr(shard_mod, "process", mock_process)
+
+    before_npz_bytes = out.read_bytes()
+    before_done_text = done.read_text()
+
+    args = make_args(h5=str(make_h5(tmp_path)))
+    retry_failed_shard(out, done, chunk, TABLE, args, "cpu")
+
+    mock_process.assert_not_called()
+    assert out.read_bytes() == before_npz_bytes
+    assert done.read_text() == before_done_text
+
+
+def test_retry_failed_shard_ignores_failure_not_in_current_chunk(tmp_path, monkeypatch):
+    """A recorded failure whose path is absent from the manifest chunk can't be retried."""
+    out = tmp_path / "shard_00003.npz"
+    done = tmp_path / "shard_00003.done"
+    done.write_text(json.dumps({"shard": 3, "n_ok": 0, "n_failed": 1, "device": "cpu", "seconds": 1.0}))
+
+    write_npz(out, [], [{"path": "/missing/from/chunk", "error": "KeyError: 17"}])
+    chunk = [{"path": "/some/other/entry", "charge": 0}]
+
+    mock_process = MagicMock()
+    monkeypatch.setattr(shard_mod, "process", mock_process)
+
+    args = make_args(h5=str(make_h5(tmp_path)))
+    retry_failed_shard(out, done, chunk, TABLE, args, "cpu")
+
+    mock_process.assert_not_called()
+    saved = np.load(out, allow_pickle=True)
+    assert len(list(saved["failures"])) == 1
+
+
+# --------------------------------------------------------------------------
+# is_claim_stale
+# --------------------------------------------------------------------------
+
+
+def test_is_claim_stale_false_when_no_claim(tmp_path):
+    assert is_claim_stale(tmp_path / "nope.claim", 14400) is False
+
+
+def test_is_claim_stale_false_when_fresh(tmp_path):
+    claim = tmp_path / "shard_00060.claim"
+    claim.write_text("host 123 cpu\n")
+    assert is_claim_stale(claim, 14400) is False
+
+
+def test_is_claim_stale_true_when_old(tmp_path):
+    import os
+    import time
+
+    claim = tmp_path / "shard_00060.claim"
+    claim.write_text("host 123 cpu\n")
+    old = time.time() - 20000
+    os.utime(claim, (old, old))
+    assert is_claim_stale(claim, 14400) is True

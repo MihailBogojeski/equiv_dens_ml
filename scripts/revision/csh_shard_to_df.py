@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -106,6 +107,106 @@ def process(entry, handle, table, args, device):
     }
 
 
+_KEYERROR_RE = re.compile(r"^KeyError:\s*(-?\d+)$")
+
+
+def missing_element_z(error: str) -> int | None:
+    """Atomic number `error` complains about, if it is a bare `KeyError: <int>`."""
+    match = _KEYERROR_RE.match(str(error).strip())
+    return int(match.group(1)) if match else None
+
+
+def is_missing_element_failure(error: str, table) -> bool:
+    """True if `error` is a KeyError for an element that `table` now covers."""
+    z = missing_element_z(error)
+    return z is not None and z in table
+
+
+def is_claim_stale(claim: Path, stale_s: float) -> bool:
+    """True if `claim` exists and is older than `stale_s` seconds.
+
+    A crashed or killed worker leaves its claim behind forever otherwise
+    (this is what stranded shard 60).
+    """
+    if not claim.exists():
+        return False
+    return (time.time() - claim.stat().st_mtime) > stale_s
+
+
+def retry_failed_shard(out: Path, done: Path, chunk, table, args, device) -> None:
+    """Reprocess only the recorded failures that a wider AO `table` can now fix.
+
+    Successful records are never touched; failures that are not a
+    now-fixable missing-element KeyError (n_elec drift rejects, unrelated
+    exceptions, or paths no longer present in this shard's manifest chunk)
+    are carried over unchanged.
+    """
+    data = np.load(out, allow_pickle=True)
+    records = list(data["records"])
+    failures = list(data["failures"])
+    path_to_entry = {e["path"]: e for e in chunk}
+
+    retryable, kept_failures = [], []
+    for f in failures:
+        if is_missing_element_failure(f.get("error", ""), table) and f["path"] in path_to_entry:
+            retryable.append(f)
+        else:
+            kept_failures.append(f)
+
+    if not retryable:
+        print(
+            f"shard {args.shard}: --retry-failures found nothing retryable "
+            f"({len(failures)} failures recorded)"
+        )
+        return
+
+    print(f"shard {args.shard}: retrying {len(retryable)}/{len(failures)} recorded failures", flush=True)
+    began = time.time()
+    new_records = list(records)
+    still_failed = list(kept_failures)
+    with h5py.File(args.h5, "r") as handle:
+        for f in retryable:
+            entry = path_to_entry[f["path"]]
+            try:
+                rec = process(entry, handle, table, args, device)
+            except Exception as exc:  # keep the shard alive; log and continue
+                still_failed.append({"path": entry["path"], "error": f"{type(exc).__name__}: {exc}"})
+                print(f"  retry FAIL {entry['path']}: {exc}", flush=True)
+                continue
+            if abs(rec["n_elec_err"]) > args.n_elec_tol:
+                still_failed.append(
+                    {"path": entry["path"], "error": f"n_elec drift {rec['n_elec_err']:.2e}"}
+                )
+                print(f"  retry REJECT {entry['path']}", flush=True)
+                continue
+            new_records.append(rec)
+            print(f"  retry OK {entry['path']}", flush=True)
+
+    np.savez_compressed(
+        out,
+        records=np.array(new_records, dtype=object),
+        failures=np.array(still_failed, dtype=object),
+        allow_pickle=True,
+    )
+    prior = json.loads(done.read_text()) if done.exists() else {}
+    done.write_text(
+        json.dumps(
+            {
+                "shard": args.shard,
+                "n_ok": len(new_records),
+                "n_failed": len(still_failed),
+                "device": device,
+                "seconds": prior.get("seconds", 0.0) + (time.time() - began),
+                "retried": len(retryable),
+            }
+        )
+    )
+    print(
+        f"shard {args.shard}: retry done - {len(new_records)} ok, {len(still_failed)} failed "
+        f"({len(retryable)} retried)"
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest", required=True)
@@ -121,6 +222,17 @@ def main() -> int:
     parser.add_argument("--gpu-budget", type=int, default=8_000_000_000)
     parser.add_argument("--max-atoms", type=int, default=0, help="0 = no cap")
     parser.add_argument("--n-elec-tol", type=float, default=1e-3)
+    parser.add_argument(
+        "--retry-failures",
+        action="store_true",
+        help="On an already-done shard, reprocess missing-element KeyError failures.",
+    )
+    parser.add_argument(
+        "--claim-stale-s",
+        type=float,
+        default=14400,
+        help="Unlink and reclaim a .claim older than this if no .done exists.",
+    )
     args = parser.parse_args()
 
     device = args.device
@@ -148,10 +260,23 @@ def main() -> int:
     done = outdir / f"shard_{args.shard:05d}.done"
     claim = outdir / f"shard_{args.shard:05d}.claim"
     out = outdir / f"shard_{args.shard:05d}.npz"
+    table = table_cache(args.table)
 
     if done.exists():
-        print(f"shard {args.shard}: already done")
+        if args.retry_failures:
+            retry_failed_shard(out, done, chunk, table, args, device)
+        else:
+            print(f"shard {args.shard}: already done")
         return 0
+
+    if claim.exists():
+        if is_claim_stale(claim, args.claim_stale_s):
+            age = time.time() - claim.stat().st_mtime
+            print(f"shard {args.shard}: claim stale ({age:.0f}s > {args.claim_stale_s:.0f}s), reclaiming")
+            claim.unlink(missing_ok=True)
+        else:
+            print(f"shard {args.shard}: claimed by another worker")
+            return 0
     try:
         fd = os.open(claim, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
         os.write(fd, f"{os.uname().nodename} {os.getpid()} {device}\n".encode())
@@ -168,7 +293,7 @@ def main() -> int:
             for i, entry in enumerate(chunk):
                 t0 = time.time()
                 try:
-                    rec = process(entry, handle, table_cache(args.table), args, device)
+                    rec = process(entry, handle, table, args, device)
                 except Exception as exc:  # keep the shard alive; log and continue
                     failures.append({"path": entry["path"], "error": f"{type(exc).__name__}: {exc}"})
                     print(f"  [{i+1}/{len(chunk)}] FAIL {entry['path']}: {exc}", flush=True)
