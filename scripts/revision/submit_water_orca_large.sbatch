@@ -32,8 +32,14 @@ unset LD_PRELOAD
 SHARD_DIR=${SHARD_DIR:?set SHARD_DIR}
 OUTDIR=${OUTDIR:?set OUTDIR}
 THEORY=${THEORY:-wb97mv_def2tzvpd}
-MAXCORE_MB=${MAXCORE_MB:-5000}
 RETRY_ERRORS=${RETRY_ERRORS:-0}
+
+# Derived from the allocation for the same reason as in the small tier: ORCA's
+# %maxcore is per process, so a fixed value silently stops matching --mem the
+# moment either is tuned. See submit_water_orca.sbatch for the 75 %.
+MEM_MB=${SLURM_MEM_PER_NODE:-98304}
+MAXCORE_MB=${MAXCORE_MB:-$((MEM_MB * 3 / 4 / ${SLURM_CPUS_PER_TASK:-16}))}
+echo "allocation ${MEM_MB} MB over ${SLURM_CPUS_PER_TASK:-16} cores -> ORCA maxcore ${MAXCORE_MB} MB"
 
 SHARD=$(printf "%s/shard_%04d.json" "$SHARD_DIR" "${SLURM_ARRAY_TASK_ID}")
 if [[ ! -f "$SHARD" ]]; then

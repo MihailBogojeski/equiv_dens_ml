@@ -15,6 +15,7 @@ Hartree/Bohr gradient -> Hartree/Angstrom via ``-grad / ase.units.Bohr``.
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -382,12 +383,29 @@ def density_fit_coeffs(mol, dm1: np.ndarray, auxbasis: str = AUXBASIS) -> np.nda
     return np.einsum("Pij,ij->P", df_coef, dm1)
 
 
+def _clean_env() -> dict[str, str]:
+    """The current environment without the login node's CUDA preload.
+
+    The login shell exports LD_PRELOAD pointing at a CUDA runtime that is not
+    installed on the CPU partition, so every process ORCA starts prints a loader
+    error before doing anything. Unsetting it in the submit script is not enough:
+    ORCA re-launches itself through its MPI wrapper, which rebuilds the child
+    environment from the job's, so the variable comes back. Stripping it here
+    catches every ORCA invocation regardless of how it was started, which matters
+    because a real ORCA failure is a line of text in the same log as tens of
+    thousands of these.
+    """
+    env = dict(os.environ)
+    env.pop("LD_PRELOAD", None)
+    return env
+
+
 def _run_cmd(cmd: list[str], cwd: Path, log: Path) -> None:
     import subprocess
 
     with log.open("ab") as fh:
         fh.write(("+ " + " ".join(cmd) + "\n").encode())
-        proc = subprocess.run(cmd, cwd=cwd, stdout=fh, stderr=subprocess.STDOUT)
+        proc = subprocess.run(cmd, cwd=cwd, stdout=fh, stderr=subprocess.STDOUT, env=_clean_env())
     if proc.returncode != 0:
         raise RuntimeError(f"command failed ({proc.returncode}): {' '.join(cmd)}")
 

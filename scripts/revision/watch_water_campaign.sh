@@ -52,14 +52,54 @@ mem_for() {
   esac
 }
 
+# The order splits are offered to the scheduler.
+#
+# This is not cosmetic. The QOS caps the account at 6000 GB, which the campaign
+# reaches long before its 3000-core limit, so at any moment only some splits fit
+# and the rest wait. Slurm breaks ties by job age, so whichever split is
+# submitted first in a round is the one that gets the memory.
+#
+# Iterating the shard tree alphabetically put `water_train_small` ninth of ten,
+# behind every OOD tier. The result was the campaign's one indispensable split --
+# nothing can be trained without it, and every OOD number is an error of a model
+# that does not otherwise exist -- sitting at 0 of 65 shards while 75 tasks of
+# the tier the plan itself calls the weakest held 3600 GB.
+#
+# So: train and validation first, then the malonaldehyde pair and its scan
+# (nine atoms, nearly free, and the physically interpretable axis of the headline
+# figure), then the in-distribution control, then the OOD tiers cheapest first.
+split_rank() {
+  case "$1" in
+    water_train_small) echo 0 ;;
+    water_val_small) echo 1 ;;
+    malonaldehyde_train) echo 2 ;;
+    malonaldehyde_val) echo 3 ;;
+    malonaldehyde_ood_proton_transfer) echo 4 ;;
+    water_id_test_small) echo 5 ;;
+    water_ood_size_small) echo 6 ;;
+    water_ood_size_large) echo 7 ;;
+    water_ood_order) echo 8 ;;
+    water_ood_density) echo 9 ;;
+    *) echo 99 ;;
+  esac
+}
+
 for ((round = 1; round <= MAX_ROUNDS; round++)); do
   echo "=========== [$(date -Is)] campaign round ${round} ==========="
   ./.venv/bin/python scripts/revision/campaign_status.py \
     --root "$SHARD_ROOT" --out-root "$OUT_ROOT" || true
 
+  # Sorted by rank rather than taken in glob order; see split_rank above for why
+  # the order decides which splits get the account's memory.
+  ordered=()
   for shard_dir in "$SHARD_ROOT"/*/*/; do
     shard_dir=${shard_dir%/}
     compgen -G "${shard_dir}/shard_*.json" > /dev/null || continue
+    ordered+=("$(split_rank "$(basename "$(dirname "$shard_dir")")") ${shard_dir}")
+  done
+
+  while read -r _rank shard_dir; do
+    [[ -n "$shard_dir" ]] || continue
     theory=$(basename "$shard_dir")
     split=$(basename "$(dirname "$shard_dir")")
     outdir="${OUT_ROOT}/${split}/${theory}"
@@ -76,7 +116,7 @@ for ((round = 1; round <= MAX_ROUNDS; round++)); do
     ONESHOT=1 SBATCH_FILE="$sbatch_file" CONCURRENT="$concurrent" \
       SBATCH_EXTRA="${mem:+--mem=$mem}" \
       scripts/revision/watch_and_resubmit.sh "$shard_dir" "$outdir" "$theory" || true
-  done
+  done < <(printf '%s\n' "${ordered[@]+"${ordered[@]}"}" | sort -n -k1,1)
 
   # Training is launched from here rather than by --dependency on the labelling
   # arrays: the arrays alive at submission time are not the ones that finish the

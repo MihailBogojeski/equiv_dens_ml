@@ -37,8 +37,21 @@ unset LD_PRELOAD
 SHARD_DIR=${SHARD_DIR:?set SHARD_DIR to the directory holding shard_*.json}
 OUTDIR=${OUTDIR:?set OUTDIR to the results directory for this split}
 THEORY=${THEORY:-wb97mv_def2tzvpd}
-MAXCORE_MB=${MAXCORE_MB:-3000}
 RETRY_ERRORS=${RETRY_ERRORS:-0}
+
+# ORCA's %maxcore is per MPI process, so the ceiling it implies is maxcore x
+# nprocs. A fixed value is only safe for a fixed --mem, and the campaign now
+# sizes --mem per split -- a flat 3000 MB here would have let ORCA believe it had
+# 24 GB inside a 16 GB allocation and be OOM-killed mid-frame. Deriving it from
+# what Slurm actually granted keeps the two in step whatever the split asks for.
+#
+# The 75 % leaves room for the worker's own Python process. It does not have to
+# cover both stages at once: ORCA has exited by the time the density fit runs, so
+# the peaks do not overlap, and the fit is the larger of the two only for the
+# biggest clusters, which run in the large tier.
+MEM_MB=${SLURM_MEM_PER_NODE:-16384}
+MAXCORE_MB=${MAXCORE_MB:-$((MEM_MB * 3 / 4 / ${SLURM_CPUS_PER_TASK:-8}))}
+echo "allocation ${MEM_MB} MB over ${SLURM_CPUS_PER_TASK:-8} cores -> ORCA maxcore ${MAXCORE_MB} MB"
 
 SHARD=$(printf "%s/shard_%04d.json" "$SHARD_DIR" "${SLURM_ARRAY_TASK_ID}")
 if [[ ! -f "$SHARD" ]]; then
