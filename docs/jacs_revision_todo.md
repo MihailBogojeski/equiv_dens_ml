@@ -41,7 +41,7 @@ Recovered checkpoints/datasets stay untracked (`.git/info/exclude`). Sibling `/s
 
 | ID | Request | Action | Status | Deliverable |
 | --- | --- | --- | --- | --- |
-| R1.1 | H-bond / size extrapolation (water clusters; NMA/MeOH/AcAc optional) | `new DFT` + train | `running` | [Calculation 7](#calculation-7--water-ood-ladder-and-hybrid-labels); 513 ORCA shards queued at ωB97M-V and PBE-D4 on n=2–24 water |
+| R1.1 | H-bond / size extrapolation (water clusters; NMA/MeOH/AcAc optional) | `new DFT` + train | `running` | [Calculation 7](#calculation-7--water-ood-ladder-and-hybrid-labels); 513 ORCA shards at ωB97M-V and PBE-D4 on n=2–24 water, labelling live after the partition pin was removed |
 | R1.2 | Intentional OOD conformations | `new DFT` | `running` | Four-tier OOD ladder built and its separation quantified ([Calculation 7](#calculation-7--water-ood-ladder-and-hybrid-labels)). Distance from training, in units of the training set's own width: ID test 0.01, size-OOD 0.36, ice 1.90, droplets 2.79. Ethanol OOD DFT ~80/190 as before |
 | R1.3 | Shorten polythiophene; move Fig. 6 | `manuscript` | `written` | outline §R1.3 |
 | R1.4 | Move Fig. 7 to SI | `manuscript` | `written` | outline §R1.4 |
@@ -332,6 +332,36 @@ scripts/revision/run_ood_analysis.sh wb97mv_def2tzvpd
 **Deliverable:** `results/revision/figures/error_vs_distance_*.png` — relative
 density error against distance from training, one series per tier, beside the
 same error against the malonaldehyde proton-transfer coordinate.
+`run_ood_analysis.sh` now runs on every watchdog pass, so the figure appears as
+soon as the first model has a checkpoint and refreshes as the rest arrive.
+
+### What makes the figure trustworthy
+
+The deliverable joins two things computed in different places — a per-structure
+density error and a per-structure descriptor — and the ways that join can go
+wrong are all silent. Three were found and closed:
+
+- **Frame identity.** `csh_evaluate.py` reported a structure's row in the
+  assembled dataset, while the collective variables are numbered over the source
+  geometry file. Assembly drops frames ORCA failed on (deliberately:
+  `--min-complete` tolerates up to 40% of a size bucket missing), so every error
+  after the first gap belonged to a different structure than its position
+  implied. Frames now carry `source_index` from the assembler through to the
+  evaluation report, and the join uses it. Nothing about the old behaviour
+  failed; the points were simply in the wrong places along the x-axis.
+- **Restart.** Training writes into a timestamped directory *inside*
+  `--save_dir`, so the restart check found no checkpoint and every 24 h window began
+  again at step zero. At 300k steps a run does not fit one window, so the
+  campaign would have re-trained from scratch indefinitely. Both the restart and
+  the analysis now resolve the run directory via `latest_run_dir.sh`.
+- **Distance units.** Reported in training-set widths (median pairwise distance)
+  rather than nearest-neighbour spacings; see the ladder table above.
+
+The malonaldehyde tier deliberately does *not* clear the `BC < 0.05` bar set for
+tiers 2–4 (whole-scan overlap 0.43). The scan starts inside the training basin
+on purpose so the error curve has an in-distribution anchor, and the separation
+lives in the tail: 78% of scan frames beyond the training maximum in δ,
+overlapping at 0.085.
 
 ---
 
@@ -393,7 +423,11 @@ Record each production job here.
 | 2026-08-19 | water droplets | geometries (ice cutouts melted under a spherical wall, GFN2-xTB) | 120 | `generate_ood_water.py` | `datasets/revision/water_ood/ood_density.xyz` | n = 16–24; packing a droplet directly gave a gas, melting an ice cutout gives an H-bond network |
 | 2026-08-19 | malonaldehyde | geometries (GFN2-xTB basin sampling + relaxed proton-transfer scan) | 400 / 80 / 125 | `generate_malonaldehyde.py` | `datasets/revision/malonaldehyde/` | training filtered to one enol basin, else the scan would not be OOD |
 | 2026-08-19 | all water + malonaldehyde splits | train/test separation in CV space | 2237 | `water_collective_variables.py`, `malonaldehyde_collective_variables.py`, `ood_overlap_report.py` | `results/revision/ood_overlap*.json` | ladder is monotone: ID 0.01, size 0.36, ice 1.90, droplets 2.79 training widths |
-| 2026-08-19 | water n=2–24 + malonaldehyde | ωB97M-V/def2-TZVPD and PBE-D4/aug-cc-pVDZ, EnGrad + DF | 513 shards queued | `launch_water_campaign.sh`, `watch_water_campaign.sh` | `results/revision/water_orca/` | 20 arrays on `cs`/`cpu48`; small tier 8 cores/4 h, large tier 16 cores/24 h; serial PySCF loop retired |
+| 2026-08-19 | water n=2–24 + malonaldehyde | ωB97M-V/def2-TZVPD and PBE-D4/aug-cc-pVDZ, EnGrad + DF | 513 shards | `launch_water_campaign.sh`, `watch_water_campaign.sh` | `results/revision/water_orca/` | 20 arrays; small tier 8 cores/4 h, large tier 16 cores/24 h; serial PySCF loop retired |
+| 2026-08-19 | — | scheduling: stopped pinning the arrays to `cs` | — | `submit_water_orca*.sbatch` | — | the whole campaign sat on `Priority` (fair-share 0.006). The site filter derives a partition list from the walltime, and under 6 h returns `cs,cpu_short`; two identical probe jobs differing only in the pin had the unpinned one running in 1 s and the pinned one still queued 40 min later. 0 → 123 tasks running |
+| 2026-08-19 | — | claim protocol: a requeued task may retake its own shard | — | `shard_claim.py` | — | a preempted task is killed outright, so its claim survives; the restarted incarnation read it as another worker's and exited, and the scheduler still listed the id as live, so nothing else took the shard either |
+| 2026-08-19 | — | join correctness for the headline figure | — | `qm7x_orca_common.py`, `csh_evaluate.py`, `error_vs_distance.py` | — | errors were keyed to dataset row, descriptors to source frame; any ORCA failure shifted every later point along the x-axis. `source_index` now travels from assembler to report |
+| 2026-08-19 | — | training restart and analysis paths | — | `latest_run_dir.sh`, `submit_water_train.sbatch`, `run_ood_analysis.sh` | — | run.py writes into a timestamped dir inside `--save_dir`; the restart check and the analysis both looked one level too high, so training restarted from step 0 each window and the error curves would never have been produced |
 
 ---
 
