@@ -52,6 +52,16 @@ from ood_overlap_report import (  # noqa: E402
 )
 
 
+#: Axis labels for the physical-coordinate panel. The whole point of that panel
+#: is that a chemist can read the x-axis, which "abs_delta_pt (A)" defeats.
+AXIS_LABELS = {
+    "abs_delta_pt": "|δ|  =  |r(O–H) − r(H···O)|   (Å)",
+    "delta_pt": "δ  =  r(O–H) − r(H···O)   (Å)",
+    "r_oo": "r(O···O)   (Å)",
+    "co_alternation": "C–O bond-length alternation   (Å)",
+}
+
+
 def train_extent_scale(train: np.ndarray, max_rows: int = 400, seed: int = 0) -> float:
     """Median pairwise distance within the training set, in standardised units.
 
@@ -315,7 +325,7 @@ def make_figure(series, report: dict, path: Path) -> None:
             capsize=3,
             color="crimson",
         )
-        ax.set_xlabel(f"{entry['coordinate']} (A)")
+        ax.set_xlabel(AXIS_LABELS.get(entry["coordinate"], f"{entry['coordinate']} (Å)"))
         ax.set_ylabel("absolute fractional density error")
         ax.set_yscale("log")
         ax.set_title(f"{entry['tier']}: error along the reaction coordinate")
