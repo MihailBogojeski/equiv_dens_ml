@@ -1,0 +1,354 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{amsmath,amssymb}
+\usepackage[colorlinks,linkcolor=black,citecolor=black,urlcolor=blue]{hyperref}
+\usepackage[T1]{fontenc}
+
+\setlist[itemize]{leftmargin=1.4em, itemsep=0.25em, topsep=0.3em, parsep=0pt}
+
+\newcommand{\revpoint}[1]{\textit{#1}\par\nopagebreak\vspace{0.35em}}
+\newcommand{\revhead}[1]{\subsection*{#1}}
+
+\title{Response plan for ja-2026-12808m}
+\author{Internal note (not the letter to Coley)}
+\date{19 August 2026}
+
+\begin{document}
+\maketitle
+
+\noindent
+Coley rejected the manuscript; resubmission is invited by 13~February~2027.
+Reviewer~1 asked for minor revision and put novelty in the top~5\%.
+Reviewer~3 asked for major revision and put significance in the top~5\%.
+Reviewer~2 said publish elsewhere, on impact, not on correctness.
+
+We will not run every requested calculation.
+From the co-author note we keep five jobs: a constructed out-of-distribution test,
+one hydrogen-bonded system, one comparison with a modern ML potential,
+one density above PBE, and a rewrite of the Abstract, the last paragraph of the
+Introduction, and the first paragraph of the Discussion so the paper argues that
+$n(\mathbf{r})$ is available at every MD step.
+
+This note walks every numbered comment in reviewer order.
+The italic sentence is their point.
+The bullets are what we will do, or have already done.
+The table at the end is the work list.
+
+\section{Reviewer 1}
+
+\revhead{R1.1 Hydrogen-bonded size extrapolation}
+\revpoint{The systems are still simple; how does this work when hydrogen bonds matter?}
+\begin{itemize}
+  \item Train on water clusters $n=2$--$6$, test on $n=8,10,12$ (the protocol they named).
+  \item Label the same geometries at PBE-D4 and $\omega$B97M-V so the H-bond figure
+        and the hybrid table share a dataset. Labelling is running: PBE train is done,
+        $\omega$B97M-V train is in flight.
+  \item Skip NMA, methanol--water, and AcAc. Malonaldehyde covers the intramolecular
+        proton-transfer motif they also listed.
+\end{itemize}
+
+\revhead{R1.2 Out-of-distribution conformations}
+\revpoint{OOD conformations are missing, and a second MD trajectory is not proof of non-overlap.}
+\begin{itemize}
+  \item Built a ladder and measured it: in-distribution test (control), size hold-out
+        (weak, and we say so), ice cutouts, low-density droplets, malonaldehyde
+        proton-transfer scan.
+  \item Separation: Bhattacharyya overlap plus nearest-neighbour distance in CV space,
+        in units of the training set's own spacing. The figure is density error versus
+        that distance.
+  \item Ethanol high-$T$ / strain OOD stays as a cheap extra, not the panel we lead with.
+\end{itemize}
+
+\revhead{R1.3 Polythiophene length and Figure 6}
+\revpoint{The polythiophene discussion is too long, and Figure 6 carries little.}
+\begin{itemize}
+  \item Shorten the section. Move most of Figure~6 to the SI. Keep one oligomer IR
+        comparison in the main text. Manuscript only.
+\end{itemize}
+
+\revhead{R1.4 Figure 7}
+\revpoint{Figure 7 is standard and belongs in the SI.}
+\begin{itemize}
+  \item Move it. Manuscript only.
+\end{itemize}
+
+\revhead{R1.5 Dataset documentation and train/test overlap}
+\revpoint{SI S2.2 is thin, and ``a separate MD run'' does not prove the test set is non-overlapping.}
+\begin{itemize}
+  \item Print the RMSD numbers we have: resorcinol test frames sit inside the training
+        basin (median min-RMSD 0.093~\AA, all 1000 below 0.2~\AA); ethanethiol and
+        thiophene tests do not.
+  \item If we find the force field, SHAKE, and trajectory length, we add them; if not,
+        we say they were not recovered. The new water splits already have the same
+        overlap treatment.
+\end{itemize}
+
+\revhead{R1.6 Duplicated timing}
+\revpoint{The 755~ms versus 5~min timing appears twice.}
+\begin{itemize}
+  \item Keep one instance. Ethanol CPU: 1.62~s/step. GPU: 467~ms/step.
+\end{itemize}
+
+\revhead{R1.7 Unsupported dielectric claim}
+\revpoint{The dielectric / hydrogen-bond-network sentence on p.~25 is not supported.}
+\begin{itemize}
+  \item Delete it. If the water-cluster results later support a narrower claim about
+        H-bonds, that claim goes next to those results, not in the Discussion as a
+        promise.
+\end{itemize}
+
+\section{Reviewer 2}
+
+\revhead{R2.1 Hazra--Sanvito density-to-IR workflow}
+\revpoint{Hazra, Patil, and Sanvito already go density to energy, forces, and IR.}
+\begin{itemize}
+  \item Cite \textit{J.\ Chem.\ Phys.}\ 2025, 163, 174104.
+  \item Their density is a Jacobi--Legendre cluster expansion on uracil. Ours is an
+        equivariant network with density fitting and a SAD correction, plus size, OOD,
+        and H-bond tests they did not. Citation only.
+\end{itemize}
+
+\revhead{R2.2 Faster general IR methods}
+\revpoint{MACE4IR, AIMNet-2, TranSpec, and AIQM are faster and work across chemical space.}
+\begin{itemize}
+  \item Compare transferable MLIPs and xTB on the molecules we already trained
+        (expand Figure~2).
+  \item We will not retrain on Crambin, paracetamol, or FGG. TranSpec maps SMILES to
+        a spectrum; that is a different task and we say so.
+\end{itemize}
+
+\revhead{R2.3 Oligomer size extrapolation}
+\revpoint{Training through the hexamer and testing longer oligomers is a weak extrapolation, and the error grows.}
+\begin{itemize}
+  \item Agree that this test is weak.
+  \item Harder tests: ice, droplets, malonaldehyde scan. Size-OOD overlap is about
+        0.20, above the 0.05 bar we set for ice and droplets, and we report that.
+\end{itemize}
+
+\revhead{R2.4 Companion network and energy conservation}
+\revpoint{How does the companion network work, and is the AIMD energy conserving?}
+\begin{itemize}
+  \item Figure~1: $\{\mathbf{R}_I\}\to\mathrm{DenSNet}\to n(\mathbf{r})\to\mathrm{EnergyNet}\to E$,
+        with $F_I=-\partial E/\partial\mathbf{R}_I$. Gradients pass through the density
+        features.
+  \item Quote NVE drift only after the energy head matches the 2024 checkpoint
+        (\texttt{96w7KyGG}). Current 0.18--0.30~eV/ps numbers are from a mismatched
+        head and stay out of the paper.
+\end{itemize}
+
+\revhead{R2.5 Who produces dipoles}
+\revpoint{Page 4 implies the companion network produces electronic observables.}
+\begin{itemize}
+  \item Dipoles come from the density (\texttt{int1e\_r}). The companion head outputs
+        energy and forces. Fix page~4.
+\end{itemize}
+
+\revhead{R2.6 One framework or two networks}
+\revpoint{The text says one framework; there are two networks.}
+\begin{itemize}
+  \item Both modules run at every MD step. IR does not need a post-processed trajectory
+        if the dipole integrator is on. Drop ``single network''.
+\end{itemize}
+
+\revhead{R2.7 Electron-count normalization versus delta-learning}
+\revpoint{If normalizing by electron count already weighted core and valence, why delta-learning?}
+\begin{itemize}
+  \item Normalization is a loss weight so raw grid errors in the core do not dominate.
+        SAD changes the target to $\rho-\rho_{\mathrm{SAD}}$. They are not substitutes.
+        Keep both.
+\end{itemize}
+
+\revhead{R2.8 Softplus and signed $\Delta n$}
+\revpoint{Delta-density is negative in places; how does that sit with a softplus?}
+\begin{itemize}
+  \item Softplus is applied so the reconstructed total density stays non-negative.
+        $\Delta n$ itself is signed.
+  \item About half of the DF coefficients on water and ethanethiol tests are already
+        negative (46.7\% and 51.0\%).
+\end{itemize}
+
+\revhead{R2.9 AIMD length}
+\revpoint{State the AIMD length in the main text.}
+\begin{itemize}
+  \item Ethanol AIMD on disk is 10~ps. Put every trajectory length in the main text
+        (same job as R3.6).
+\end{itemize}
+
+\revhead{R2.10 Density-error units}
+\revpoint{Density errors have no units.}
+\begin{itemize}
+  \item MAE in $e/a_0^3$ and relative MAE $\int|\Delta\rho|\,\mathrm{d}V/N_e$.
+  \item We will not invent a density analogue of 1~kcal/mol. Tie density error to
+        dipole error and then to IR intensity.
+\end{itemize}
+
+\revhead{R2.11 Equilibrium structures}
+\revpoint{The manuscript claims DFT-like equilibria without numbers.}
+\begin{itemize}
+  \item After the energy head is restored, report geometry RMSD versus DFT on a few
+        small molecules.
+  \item Do not quote the current ethanol energy of ${\sim}0.24$~eV; that is an
+        architecture mismatch.
+\end{itemize}
+
+\revhead{R2.12 Missing density ML citation}
+\revpoint{Cuevas-Zuvir\'ia and Pacios, \textit{J.\ Chem.\ Inf.\ Model.}\ 2020, is missing.}
+\begin{itemize}
+  \item Add it to the introduction.
+\end{itemize}
+
+\revhead{R2.13 Corresponding authors}
+\revpoint{Corresponding authors disagree between the manuscript and the SI.}
+\begin{itemize}
+  \item Make them match. Confirm the list with Tuckerman, Burke, and M\"uller before
+        resubmission.
+\end{itemize}
+
+\section{Reviewer 3}
+
+\revhead{R3.1 Hybrid DFT densities}
+\revpoint{All reference densities are PBE; try PBE0+MBD or $\omega$B97M-V/def2-TZVPD.}
+\begin{itemize}
+  \item Nothing in the architecture is PBE-specific.
+  \item Label the same water and malonaldehyde geometries at $\omega$B97M-V/def2-TZVPD
+        and at PBE-D4; one table. No hybrid MD, no hybrid IR, no retraining of ethanol
+        or thiophene at hybrid.
+\end{itemize}
+
+\revhead{R3.2 Comparisons with ML force fields}
+\revpoint{Compare SO3LR, MACE-OFF, GFN-xTB, DFTB, and the Crambin / paracetamol / FGG IR suites.}
+\begin{itemize}
+  \item Expand Figure~2 on our molecules.
+  \item Decline Crambin, paracetamol, and FGG: those papers test transferable MLIPs,
+        and DenSNet is fitted per system.
+\end{itemize}
+
+\revhead{R3.3 Interpreting density errors}
+\revpoint{A density MAE of order $10^{-3}$ is hard to interpret; add relative errors and uncertainty.}
+\begin{itemize}
+  \item Relative MAE, plus density error against dipole error and IR intensity error.
+  \item A three-seed ensemble on water if it is cheap. Uncertainty quantification is
+        not a separate project.
+\end{itemize}
+
+\revhead{R3.4 Cost and magnitude of delta-learning}
+\revpoint{Delta-learning needs a cost and a magnitude, not just a lower MAE.}
+\begin{itemize}
+  \item Time the SAD lookup. Histogram $|\Delta\rho|/\rho$.
+  \item Train direct and delta models on water and compare them with relative errors
+        (configs already exist).
+\end{itemize}
+
+\revhead{R3.5 Hyperparameters and cutoff}
+\revpoint{Architecture parameters look un-optimized, and cutoff is known to matter.}
+\begin{itemize}
+  \item Write down the paper cutoffs (5.0~\AA\ thiophene, 15~Bohr small molecules).
+  \item Sweep cutoff $\{4,5,6,8\}$~\AA\ on water at PBE only. No grid search.
+\end{itemize}
+
+\revhead{R3.6 IR convergence with trajectory length}
+\revpoint{``Sufficient duration'' is not a number.}
+\begin{itemize}
+  \item State the lengths. Plot IR versus 50, 100, 200, 500~ps on ethanol and
+        thiophene 2-mer (those jobs exist). Report peak position and integrated area
+        as a function of length.
+\end{itemize}
+
+\revhead{R3.7 General-purpose density model}
+\revpoint{Could DenSNet become a general-purpose density model, perhaps with active learning?}
+\begin{itemize}
+  \item Discussion only. Present models are system-specific. A later path is large
+        density datasets, pretraining, fine-tuning, and active learning.
+  \item We will not build that model in this revision. OMol/CSH can be mentioned as
+        work already running, not as a result of the paper.
+\end{itemize}
+
+\revhead{R3.8 Spectral language}
+\revpoint{Peak positions agree better than intensities; stop saying the spectra match across the full range.}
+\begin{itemize}
+  \item Peak positions in named windows. Intensities and areas agree less evenly.
+        The recovered \TeX\ already has this wording; keep it.
+\end{itemize}
+
+\revhead{R3.m1 Two-stage training cost}
+\revpoint{Training cost for the two-stage procedure, especially on the larger systems.}
+\begin{itemize}
+  \item GPU-hours in the SI.
+\end{itemize}
+
+\revhead{R3.m2 Architecture in Figure 1}
+\revpoint{Figure 1 should include the architecture, not only the workflow.}
+\begin{itemize}
+  \item Same figure as R2.4.
+\end{itemize}
+
+\revhead{R3.m3 Other density-derived properties}
+\revpoint{Which other electronic properties could come from the predicted density?}
+\begin{itemize}
+  \item Hirshfeld charges, ESP, polarizability: list as future observables. No new
+        calculations.
+\end{itemize}
+
+\section{To-do}
+
+\noindent
+Columns: ID, task, kind, status, depends on.
+
+{\small
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{
+  >{\raggedright\arraybackslash}p{0.10\textwidth}
+  >{\raggedright\arraybackslash}p{0.36\textwidth}
+  >{\raggedright\arraybackslash}p{0.11\textwidth}
+  >{\raggedright\arraybackslash}p{0.15\textwidth}
+  >{\raggedright\arraybackslash}p{0.16\textwidth}}
+\caption{Work list for the resubmission.}\\
+\toprule
+ID & Task & Kind & Status & Depends on \\
+\midrule
+\endfirsthead
+\midrule
+ID & Task & Kind & Status & Depends on \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+
+\multicolumn{5}{l}{\emph{Compute}} \\
+\midrule
+R1.1 & Water PBE labels, train, ID and size-OOD metrics & DFT & running & -- \\
+R3.1 & Water $\omega$B97M-V labels, same-geometry hybrid table & DFT & running & R1.1 geometries \\
+R1.2, R2.3 & Ice, droplet, malonaldehyde labels, then error versus distance & DFT & running & train checkpoint \\
+(ops) & Watchdog running so training actually starts & ops & down & -- \\
+R3.5 & Cutoff sweep at PBE & analysis & waiting & water PBE train \\
+R2.4, R2.11 & Restore energy head, then NVE and geo-opt RMSD & MD & blocked & 2024 checkpoint \\
+R3.6 & Ethanol and thiophene IR versus length & MD & jobs exist & trajectories \\
+R2.2, R3.2 & Figure~2 GPU timings versus MACE-OFF, AIMNet2, xTB & MD & partial & GPU QOS \\
+R2.10, R3.3, R3.4 & Relative density error, $\Delta\rho$ histograms, SAD timing & analysis & scripts ready & trained water model \\
+\midrule
+\multicolumn{5}{l}{\emph{Manuscript (can start now)}} \\
+\midrule
+-- & Abstract, last Intro paragraph, first Discussion paragraph: $n(\mathbf{r})$ at every MD step & manuscript & not started & -- \\
+R1.3, R1.4 & Shorten polythiophene; move Figures~6 and~7 & manuscript & outlined & -- \\
+R1.7, R3.8 & Delete dielectric sentence; keep softer spectral wording & manuscript & TeX already edited & -- \\
+R2.4--R2.6, R3.m2 & Architecture in Figure~1; dipoles versus energy head; two modules & manuscript & outlined & -- \\
+R1.5, R2.9, R2.10 & SI S2.2, overlap table, AIMD lengths, units & manuscript & overlap computed & -- \\
+R2.1, R2.12, R2.2 & Cite Hazra--Sanvito, Cuevas-Zuvir\'ia, Pracht, TranSpec, AIQM & manuscript & not started & -- \\
+R2.13, R3.m1 & Corresponding authors; two-stage GPU-hours in SI & manuscript & not started & names from PIs \\
+\midrule
+\multicolumn{5}{l}{\emph{Decline}} \\
+\midrule
+R3.2 & Crambin, paracetamol, FGG & decline & -- & -- \\
+R3.1 & Retrain ethanol, thiophene, or polythiophene at hybrid & decline & -- & -- \\
+R3.7 & Universal DenSNet or active-learning campaign as a paper result & decline & -- & -- \\
+R3.5 & Full hyperparameter search & decline & -- & -- \\
+R1.3 & New polythiophene experiment & decline & -- & -- \\
+\end{longtable}
+}
+
+\end{document}
