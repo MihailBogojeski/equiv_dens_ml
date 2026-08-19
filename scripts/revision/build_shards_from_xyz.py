@@ -31,15 +31,28 @@ sys.path.insert(0, str(_SCRIPT_DIR))
 from qm7x_orca_common import is_closed_shell, write_shard  # noqa: E402
 from theory_levels import DEFAULT_LEVEL, get_level, level_keys  # noqa: E402
 
-# Wall-clock seconds for one frame, as a(n_atoms)^b fitted to the calibration
-# runs. Only used to pack shards, so being within a factor of two is enough;
-# the worker's per-frame resume makes an over-full shard recoverable anyway.
+# Wall-clock seconds for one frame on 8 cores, as a(n_atoms)^b. Only used to
+# pack shards, so being within a factor of two is enough; the worker's per-frame
+# resume makes an over-full shard recoverable anyway.
+#
+# wB97M-V and PBE-D4 are fitted to measured ORCA times rather than guessed
+# (results/revision/calibration/slurm-water-calib-*.out): wB97M-V ran 134 s at
+# n=3, 608 s at n=6 and 1186 s at n=8, which is N^2.2, not the N^2.6 first
+# assumed. The difference matters at the top of the range -- N^2.6 predicts 12 h
+# for a 24-water frame and N^2.2 predicts under 4 h -- and only the second fits
+# a 24 h task. PBE-D4 with NORI is steeper, N^2.8, because nothing approximates
+# its Coulomb build, but it starts an order of magnitude cheaper.
 COST_MODEL = {
-    "wb97mv_def2tzvpd": (0.55, 2.6),
+    "wb97mv_def2tzvpd": (1.12, 2.22),
     "pbe0_avdz": (0.30, 2.4),
     "pbe0_d4_avdz": (0.30, 2.4),
-    "pbe_d4_avdz": (0.20, 2.4),
+    "pbe_d4_avdz": (0.058, 2.77),
 }
+
+#: Small frames are dominated by start-up rather than by the SCF, so the power
+#: law alone underestimates them by an order of magnitude and would pack
+#: thousands of dimers into one shard.
+MIN_FRAME_COST_S = 60.0
 
 
 def read_xyz_frames(path: Path) -> list[dict]:
@@ -75,7 +88,7 @@ def read_xyz_frames(path: Path) -> list[dict]:
 
 def predicted_cost_s(n_atoms: int, theory: str) -> float:
     a, b = COST_MODEL.get(theory, COST_MODEL["pbe0_avdz"])
-    return a * float(n_atoms) ** b
+    return max(MIN_FRAME_COST_S, a * float(n_atoms) ** b)
 
 
 def pack_shards(frames: list[dict], theory: str, budget_s: float, max_frames: int) -> list[list[dict]]:
