@@ -9,9 +9,10 @@ quantified rather than claimed. This produces the number.
 Two complementary measures, because either alone is easy to argue with:
 
 - Bhattacharyya overlap coefficient, BC = integral sqrt(p q), per collective
-  variable and for the (order, density) pair jointly. BC = 1 means the
+  variable and jointly in each 2-D plane given by --joint. BC = 1 means the
   distributions are identical, 0 means they share no support. Being a
   distribution-level measure, it cannot be satisfied by a handful of outliers.
+  The reported verdict uses the *worst* plane; see DEFAULT_JOINTS.
 - Nearest-neighbour distance in standardised collective-variable space, from
   each test frame to the closest *training* frame, reported against the spread
   of the training set's own internal nearest-neighbour distances. This is a
@@ -42,6 +43,17 @@ sys.path.insert(0, str(_SCRIPT_DIR))
 # out-of-distribution the reviewers already rejected, and including it would let
 # a split look separated purely by being bigger.
 DEFAULT_CVS = ("q_tetrahedral", "n_hbond", "ring_6_frac", "local_density", "surface_frac", "mean_nn_oo")
+
+#: The 2-D planes the joint overlap is measured in. More than one because the
+#: answer depends on the plane and there is no principled way to pick a single
+#: one: the ice tier reads 0.20 in (order, density) and 0.31 in (H-bonds,
+#: density), and quoting whichever came out lower would be choosing the
+#: conclusion. Both planes are the ones the campaign was designed around --
+#: tetrahedral order is what the crystalline tier changes and local density is
+#: what the droplet tier changes -- and the verdict below takes the worst of
+#: them, so a split counts as separated only if it is separated in every plane
+#: examined.
+DEFAULT_JOINTS = (("q_tetrahedral", "local_density"), ("n_hbond", "local_density"))
 
 OVERLAP_THRESHOLD = 0.05
 
@@ -168,14 +180,21 @@ def main() -> int:
     parser.add_argument("--train", required=True, type=Path)
     parser.add_argument("--test", required=True, type=Path, nargs="+")
     parser.add_argument("--cvs", default=",".join(DEFAULT_CVS))
-    parser.add_argument("--joint", default="n_hbond,local_density")
+    parser.add_argument(
+        "--joint",
+        action="append",
+        metavar="CV_X,CV_Y",
+        help="plane to measure the joint overlap in; repeatable, and the verdict "
+        f"uses the worst plane. Default: {' and '.join('(' + ','.join(j) + ')' for j in DEFAULT_JOINTS)}",
+    )
     parser.add_argument("--threshold", type=float, default=OVERLAP_THRESHOLD)
     parser.add_argument("--out", required=True, type=Path)
     args = parser.parse_args()
 
     names = tuple(v.strip() for v in args.cvs.split(",") if v.strip())
-    joint = tuple(v.strip() for v in args.joint.split(",") if v.strip())
-    joint_idx = [names.index(v) for v in joint if v in names]
+    joints = [tuple(v.strip() for v in spec.split(",") if v.strip()) for spec in (args.joint or [])]
+    joints = joints or [j for j in DEFAULT_JOINTS if all(v in names for v in j)]
+    joints = [j for j in joints if len(j) == 2 and all(v in names for v in j)]
 
     train, _ = load_cvs(args.train, names)
     # Columns used for the multivariate measures have to be finite in both sets,
@@ -191,7 +210,7 @@ def main() -> int:
         "n_train": int(len(train)),
         "cvs": list(names),
         "distance_cvs": [names[i] for i in dense_cols],
-        "joint_cvs": list(joint),
+        "joint_cvs": [list(j) for j in joints],
         "threshold": args.threshold,
         "train_internal_nn_distance": reference,
         "splits": {},
@@ -211,13 +230,18 @@ def main() -> int:
             per_cv[name] = bhattacharyya_1d(a, b)
             outside[name] = fraction_outside_train_range(a, b)
 
-        joint_bc = float("nan")
-        if len(joint_idx) == 2:
-            a = train[:, joint_idx]
-            b = test[:, joint_idx]
+        joint_per_plane = {}
+        for plane in joints:
+            idx = [names.index(v) for v in plane]
+            a = train[:, idx]
+            b = test[:, idx]
             a = a[np.isfinite(a).all(axis=1)]
             b = b[np.isfinite(b).all(axis=1)]
-            joint_bc = bhattacharyya_2d(a, b)
+            joint_per_plane[",".join(plane)] = bhattacharyya_2d(a, b)
+        # The worst plane, so a split is separated only where it is separated
+        # everywhere it was looked at.
+        finite_joint = [v for v in joint_per_plane.values() if np.isfinite(v)]
+        joint_bc = float(max(finite_joint)) if finite_joint else float("nan")
 
         test_dense = test[:, dense_cols]
         test_dense = test_dense[np.isfinite(test_dense).all(axis=1)]
@@ -229,6 +253,7 @@ def main() -> int:
             "n_test": int(len(test)),
             "bhattacharyya_per_cv": per_cv,
             "frac_outside_train_p01_p99": outside,
+            "bhattacharyya_joint_per_plane": joint_per_plane,
             "bhattacharyya_joint": joint_bc,
             "max_bhattacharyya": float(max(finite)) if finite else float("nan"),
             "min_bhattacharyya": float(min(finite)) if finite else float("nan"),
@@ -247,7 +272,8 @@ def main() -> int:
         print(f"  {'collective variable':18s} {'overlap':>8s}  {'outside train p1-p99':>20s}")
         for name, value in per_cv.items():
             print(f"  {name:18s} {value:8.4f}  {outside[name] * 100:19.1f}%")
-        print(f"  BC joint({','.join(joint)}) = {joint_bc:.4f}")
+        for plane, value in joint_per_plane.items():
+            print(f"  BC joint({plane}) = {value:.4f}")
         print(
             f"  nearest-training distance: median {np.median(dist):.2f} "
             f"({entry['nn_distance']['median_in_train_units']:.1f}x the training set's own spacing); "

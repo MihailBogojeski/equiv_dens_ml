@@ -17,8 +17,14 @@
     "mean_nn_oo"
   ],
   "joint_cvs": [
-    "q_tetrahedral",
-    "local_density"
+    [
+      "q_tetrahedral",
+      "local_density"
+    ],
+    [
+      "n_hbond",
+      "local_density"
+    ]
   ],
   "threshold": 0.05,
   "train_internal_nn_distance": 0.011635886631847161,
@@ -42,7 +48,11 @@
         "surface_frac": 0.0,
         "mean_nn_oo": 0.024
       },
-      "bhattacharyya_joint": 0.9346880065673626,
+      "bhattacharyya_joint_per_plane": {
+        "q_tetrahedral,local_density": 0.9346880065673626,
+        "n_hbond,local_density": 0.9821356163616163
+      },
+      "bhattacharyya_joint": 0.9821356163616163,
       "max_bhattacharyya": 0.9978427820662379,
       "min_bhattacharyya": 0.9576622549942424,
       "nn_distance": {
@@ -73,7 +83,11 @@
         "surface_frac": 0.013333333333333334,
         "mean_nn_oo": 0.03333333333333333
       },
-      "bhattacharyya_joint": 0.1990873159724223,
+      "bhattacharyya_joint_per_plane": {
+        "q_tetrahedral,local_density": 0.1990873159724223,
+        "n_hbond,local_density": 0.2497666057757173
+      },
+      "bhattacharyya_joint": 0.2497666057757173,
       "max_bhattacharyya": 0.981158365691043,
       "min_bhattacharyya": 0.11269827247101702,
       "nn_distance": {
@@ -104,7 +118,11 @@
         "surface_frac": 0.8125,
         "mean_nn_oo": 0.0
       },
-      "bhattacharyya_joint": 0.20072710421993986,
+      "bhattacharyya_joint_per_plane": {
+        "q_tetrahedral,local_density": 0.20072710421993986,
+        "n_hbond,local_density": 0.31470721623190717
+      },
+      "bhattacharyya_joint": 0.31470721623190717,
       "max_bhattacharyya": 0.8663587450912255,
       "min_bhattacharyya": 0.0902960314481224,
       "nn_distance": {
@@ -112,6 +130,41 @@
         "p05": 1.6058612331633257,
         "min": 1.5916722762008604,
         "median_in_train_units": 294.28003453648586,
+        "frac_within_train_scale": 0.0
+      },
+      "verdict_joint_below_threshold": false
+    },
+    "ood_density": {
+      "path": "results/revision/cv/ood_density.json",
+      "n_test": 120,
+      "bhattacharyya_per_cv": {
+        "q_tetrahedral": 0.5349208168116523,
+        "n_hbond": 0.6122776598411378,
+        "ring_6_frac": 0.9035929129353939,
+        "local_density": 0.3386909314789976,
+        "surface_frac": 0.3928394442413231,
+        "mean_nn_oo": 0.46438217325140013
+      },
+      "frac_outside_train_p01_p99": {
+        "q_tetrahedral": 0.8333333333333334,
+        "n_hbond": 0.0,
+        "ring_6_frac": 0.0,
+        "local_density": 0.2,
+        "surface_frac": 0.4083333333333333,
+        "mean_nn_oo": 0.4
+      },
+      "bhattacharyya_joint_per_plane": {
+        "q_tetrahedral,local_density": 0.0011521830670708805,
+        "n_hbond,local_density": 0.268244059445747
+      },
+      "bhattacharyya_joint": 0.268244059445747,
+      "max_bhattacharyya": 0.9035929129353939,
+      "min_bhattacharyya": 0.3386909314789976,
+      "nn_distance": {
+        "median": 5.02735251553308,
+        "p05": 0.37775009599706644,
+        "min": 0.1944536713596687,
+        "median_in_train_units": 432.055817884417,
         "frac_within_train_scale": 0.0
       },
       "verdict_joint_below_threshold": false
