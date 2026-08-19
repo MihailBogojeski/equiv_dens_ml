@@ -122,28 +122,92 @@ def is_missing_element_failure(error: str, table) -> bool:
     return z is not None and z in table
 
 
+def _claim_age_s(claim: Path) -> float | None:
+    """Seconds since `claim` was last touched, or None if it does not exist.
+
+    Single-stat helper so callers never need `claim.stat()` more than once.
+    """
+    try:
+        return time.time() - claim.stat().st_mtime
+    except FileNotFoundError:
+        return None
+
+
 def is_claim_stale(claim: Path, stale_s: float) -> bool:
     """True if `claim` exists and is older than `stale_s` seconds.
 
     A crashed or killed worker leaves its claim behind forever otherwise
     (this is what stranded shard 60).
     """
-    if not claim.exists():
+    age = _claim_age_s(claim)
+    return age is not None and age > stale_s
+
+
+def touch_claim(claim: Path) -> None:
+    """Refresh a claim's mtime so `--claim-stale-s` measures liveness, not age.
+
+    Called after each structure completes so a slow-but-alive worker on a
+    large shard is never mistaken for a dead one and reclaimed out from
+    under it.
+    """
+    try:
+        os.utime(claim, None)
+    except FileNotFoundError:
+        pass
+
+
+def acquire_claim(claim: Path, stale_s: float, device: str) -> bool:
+    """Take the exclusive-create claim on `claim`, recovering a stale one.
+
+    Returns False (without raising) if another live worker already holds
+    it. Used identically by the first pass and `--retry-failures`, so two
+    concurrent retries of the same shard can never run at once.
+    """
+    if claim.exists():
+        age = _claim_age_s(claim)
+        if age is not None and age > stale_s:
+            print(f"shard claim stale ({age:.0f}s > {stale_s:.0f}s), reclaiming: {claim}")
+            claim.unlink(missing_ok=True)
+        else:
+            return False
+    try:
+        fd = os.open(claim, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        os.write(fd, f"{os.uname().nodename} {os.getpid()} {device}\n".encode())
+        os.close(fd)
+    except FileExistsError:
         return False
-    return (time.time() - claim.stat().st_mtime) > stale_s
+    return True
 
 
-def retry_failed_shard(out: Path, done: Path, chunk, table, args, device) -> None:
+def atomic_savez_compressed(out: Path, **arrays) -> None:
+    """Write `arrays` to `out` via a temp file + `os.replace`.
+
+    `out` is the only copy of a shard's successful records, so a crash or a
+    second concurrent retry must never be able to observe (or leave behind)
+    a half-written file.
+    """
+    tmp = out.with_name(f"{out.name}.tmp{os.getpid()}.npz")
+    try:
+        np.savez_compressed(tmp, **arrays)
+        os.replace(tmp, out)
+    except Exception:
+        tmp.unlink(missing_ok=True)
+        raise
+
+
+def retry_failed_shard(out: Path, done: Path, chunk, table, args, device, claim: Path | None = None) -> None:
     """Reprocess only the recorded failures that a wider AO `table` can now fix.
 
     Successful records are never touched; failures that are not a
     now-fixable missing-element KeyError (n_elec drift rejects, unrelated
     exceptions, or paths no longer present in this shard's manifest chunk)
-    are carried over unchanged.
+    are carried over unchanged. Caller is responsible for holding `claim`
+    for the duration of this call (see `acquire_claim`); it is only touched
+    here to keep its mtime fresh.
     """
-    data = np.load(out, allow_pickle=True)
-    records = list(data["records"])
-    failures = list(data["failures"])
+    with np.load(out, allow_pickle=True) as data:
+        records = list(data["records"])
+        failures = list(data["failures"])
     path_to_entry = {e["path"]: e for e in chunk}
 
     retryable, kept_failures = [], []
@@ -172,23 +236,28 @@ def retry_failed_shard(out: Path, done: Path, chunk, table, args, device) -> Non
             except Exception as exc:  # keep the shard alive; log and continue
                 still_failed.append({"path": entry["path"], "error": f"{type(exc).__name__}: {exc}"})
                 print(f"  retry FAIL {entry['path']}: {exc}", flush=True)
+                if claim is not None:
+                    touch_claim(claim)
                 continue
             if abs(rec["n_elec_err"]) > args.n_elec_tol:
                 still_failed.append(
                     {"path": entry["path"], "error": f"n_elec drift {rec['n_elec_err']:.2e}"}
                 )
                 print(f"  retry REJECT {entry['path']}", flush=True)
+                if claim is not None:
+                    touch_claim(claim)
                 continue
             new_records.append(rec)
             print(f"  retry OK {entry['path']}", flush=True)
+            if claim is not None:
+                touch_claim(claim)
 
-    np.savez_compressed(
+    atomic_savez_compressed(
         out,
         records=np.array(new_records, dtype=object),
         failures=np.array(still_failed, dtype=object),
-        allow_pickle=True,
     )
-    prior = json.loads(done.read_text()) if done.exists() else {}
+    prior = json.loads(done.read_text())
     done.write_text(
         json.dumps(
             {
@@ -263,25 +332,19 @@ def main() -> int:
     table = table_cache(args.table)
 
     if done.exists():
-        if args.retry_failures:
-            retry_failed_shard(out, done, chunk, table, args, device)
-        else:
+        if not args.retry_failures:
             print(f"shard {args.shard}: already done")
-        return 0
-
-    if claim.exists():
-        if is_claim_stale(claim, args.claim_stale_s):
-            age = time.time() - claim.stat().st_mtime
-            print(f"shard {args.shard}: claim stale ({age:.0f}s > {args.claim_stale_s:.0f}s), reclaiming")
-            claim.unlink(missing_ok=True)
-        else:
+            return 0
+        if not acquire_claim(claim, args.claim_stale_s, device):
             print(f"shard {args.shard}: claimed by another worker")
             return 0
-    try:
-        fd = os.open(claim, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-        os.write(fd, f"{os.uname().nodename} {os.getpid()} {device}\n".encode())
-        os.close(fd)
-    except FileExistsError:
+        try:
+            retry_failed_shard(out, done, chunk, table, args, device, claim=claim)
+        finally:
+            claim.unlink(missing_ok=True)
+        return 0
+
+    if not acquire_claim(claim, args.claim_stale_s, device):
         print(f"shard {args.shard}: claimed by another worker")
         return 0
 
@@ -297,12 +360,14 @@ def main() -> int:
                 except Exception as exc:  # keep the shard alive; log and continue
                     failures.append({"path": entry["path"], "error": f"{type(exc).__name__}: {exc}"})
                     print(f"  [{i+1}/{len(chunk)}] FAIL {entry['path']}: {exc}", flush=True)
+                    touch_claim(claim)
                     continue
                 if abs(rec["n_elec_err"]) > args.n_elec_tol:
                     failures.append(
                         {"path": entry["path"], "error": f"n_elec drift {rec['n_elec_err']:.2e}"}
                     )
                     print(f"  [{i+1}/{len(chunk)}] REJECT {entry['path']}", flush=True)
+                    touch_claim(claim)
                     continue
                 records.append(rec)
                 print(
@@ -311,12 +376,12 @@ def main() -> int:
                     f"dNe={rec['n_elec_err']:+.1e} {time.time()-t0:.1f}s",
                     flush=True,
                 )
+                touch_claim(claim)
 
-        np.savez_compressed(
+        atomic_savez_compressed(
             out,
             records=np.array(records, dtype=object),
             failures=np.array(failures, dtype=object),
-            allow_pickle=True,
         )
         done.write_text(
             json.dumps(

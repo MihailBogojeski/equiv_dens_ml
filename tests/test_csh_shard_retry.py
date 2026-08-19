@@ -23,10 +23,13 @@ sys.path.insert(0, str(SCRIPT_DIR))
 
 import csh_shard_to_df as shard_mod  # noqa: E402
 from csh_shard_to_df import (  # noqa: E402
+    acquire_claim,
+    atomic_savez_compressed,
     is_claim_stale,
     is_missing_element_failure,
     missing_element_z,
     retry_failed_shard,
+    touch_claim,
 )
 
 TABLE = {1: "H", 6: "C", 17: "Cl", 35: "Br"}
@@ -231,3 +234,136 @@ def test_is_claim_stale_true_when_old(tmp_path):
     old = time.time() - 20000
     os.utime(claim, (old, old))
     assert is_claim_stale(claim, 14400) is True
+
+
+# --------------------------------------------------------------------------
+# acquire_claim / touch_claim
+# --------------------------------------------------------------------------
+
+
+def test_acquire_claim_creates_file_when_absent(tmp_path):
+    claim = tmp_path / "shard_00000.claim"
+    assert acquire_claim(claim, 14400, "cpu") is True
+    assert claim.exists()
+    assert "cpu" in claim.read_text()
+
+
+def test_acquire_claim_refuses_live_claim_held_by_another_worker(tmp_path):
+    """A fresh claim (like 15992619_60's live claim) must never be stolen."""
+    claim = tmp_path / "shard_00060.claim"
+    claim.write_text("cs711 123 cpu\n")
+    assert acquire_claim(claim, 14400, "cpu") is False
+    assert claim.read_text() == "cs711 123 cpu\n"
+
+
+def test_acquire_claim_reclaims_stale_claim(tmp_path):
+    import os
+    import time
+
+    claim = tmp_path / "shard_00061.claim"
+    claim.write_text("dead-host 999 cpu\n")
+    old = time.time() - 20000
+    os.utime(claim, (old, old))
+    assert acquire_claim(claim, 14400, "cpu") is True
+    assert "dead-host" not in claim.read_text()
+
+
+def test_touch_claim_advances_mtime(tmp_path):
+    import os
+    import time
+
+    claim = tmp_path / "shard_00000.claim"
+    claim.write_text("host 1 cpu\n")
+    old = time.time() - 5000
+    os.utime(claim, (old, old))
+    touch_claim(claim)
+    assert (time.time() - claim.stat().st_mtime) < 5
+
+
+def test_touch_claim_noop_when_claim_missing(tmp_path):
+    touch_claim(tmp_path / "nope.claim")  # must not raise
+
+
+# --------------------------------------------------------------------------
+# atomic_savez_compressed
+# --------------------------------------------------------------------------
+
+
+def test_atomic_savez_compressed_writes_readable_npz(tmp_path):
+    out = tmp_path / "shard_00000.npz"
+    atomic_savez_compressed(out, records=np.array([1, 2, 3]), failures=np.array([]))
+    assert out.exists()
+    with np.load(out) as data:
+        assert list(data["records"]) == [1, 2, 3]
+    assert list(tmp_path.glob("*.tmp*")) == []
+
+
+def test_atomic_savez_compressed_leaves_original_untouched_on_failure(tmp_path, monkeypatch):
+    """A crash mid-write must not corrupt the only copy of successful records."""
+    out = tmp_path / "shard_00000.npz"
+    write_npz(out, [{"path": "/kept"}], [])
+    before = out.read_bytes()
+
+    def boom(*a, **k):
+        raise RuntimeError("disk full")
+
+    monkeypatch.setattr(shard_mod.np, "savez_compressed", boom)
+    with pytest.raises(RuntimeError):
+        atomic_savez_compressed(out, records=np.array([]), failures=np.array([]))
+
+    assert out.read_bytes() == before
+    assert list(tmp_path.glob("*.tmp*")) == []
+
+
+def test_atomic_savez_compressed_does_not_pollute_npz_with_allow_pickle_key(tmp_path):
+    """np.savez_compressed(..., allow_pickle=True) would save a spurious
+    'allow_pickle' array (kwargs become array names), so it must never be
+    passed through."""
+    out = tmp_path / "shard_00000.npz"
+    atomic_savez_compressed(out, records=np.array([1]), failures=np.array([]))
+    with np.load(out) as data:
+        assert set(data.files) == {"records", "failures"}
+
+
+# --------------------------------------------------------------------------
+# retry_failed_shard + claim integration
+# --------------------------------------------------------------------------
+
+
+def test_retry_failed_shard_touches_claim_after_each_retry(tmp_path, monkeypatch):
+    import os
+    import time
+
+    out = tmp_path / "shard_00000.npz"
+    done = tmp_path / "shard_00000.done"
+    done.write_text(json.dumps({"shard": 0, "n_ok": 0, "n_failed": 1, "device": "cpu", "seconds": 1.0}))
+    write_npz(out, [], [{"path": "/x", "error": "KeyError: 17"}])
+    chunk = [{"path": "/x", "charge": 0}]
+
+    claim = tmp_path / "shard_00000.claim"
+    claim.write_text("host 1 cpu\n")
+    old = time.time() - 5000
+    os.utime(claim, (old, old))
+
+    monkeypatch.setattr(shard_mod, "process", MagicMock(return_value={"path": "/x", "n_elec_err": 0.0}))
+    args = make_args(h5=str(make_h5(tmp_path)))
+    retry_failed_shard(out, done, chunk, TABLE, args, "cpu", claim=claim)
+
+    assert (time.time() - claim.stat().st_mtime) < 5
+
+
+def test_retry_failed_shard_survives_missing_prior_done_key(tmp_path, monkeypatch):
+    """`done` always exists by the time retry_failed_shard runs (checked by
+    the caller); no `else {}` fallback should be needed to read it."""
+    out = tmp_path / "shard_00000.npz"
+    done = tmp_path / "shard_00000.done"
+    done.write_text(json.dumps({"shard": 0, "n_ok": 0, "n_failed": 1, "device": "cpu", "seconds": 2.5}))
+    write_npz(out, [], [{"path": "/x", "error": "KeyError: 17"}])
+    chunk = [{"path": "/x", "charge": 0}]
+
+    monkeypatch.setattr(shard_mod, "process", MagicMock(return_value={"path": "/x", "n_elec_err": 0.0}))
+    args = make_args(h5=str(make_h5(tmp_path)))
+    retry_failed_shard(out, done, chunk, TABLE, args, "cpu")
+
+    updated = json.loads(done.read_text())
+    assert updated["seconds"] >= 2.5
