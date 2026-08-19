@@ -42,8 +42,8 @@
 --projected_density=True
 --pseudo_pot_path=pseudo_potentials
 --center_energy=True
---num_train=1
---num_valid=1
+--num_train=3332
+--num_valid=176
 --num_test=0
 --train_batch_size=4
 --valid_batch_size=4
