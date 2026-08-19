@@ -1,8 +1,15 @@
 #!/usr/bin/env python3
-"""Run one QM7-X shard through ORCA and convert to a DensNet calc_dict.
+"""Run one shard of geometries through ORCA and convert to DensNet calc_dicts.
 
 For each closed-shell frame: write .inp, run orca, orca_2json, map MOs to
-PySCF order, DF-fit onto aug-cc-pVQZ-JKfit, append (mol.pack(), calc_dict).
+PySCF order, DF-fit onto the auxiliary basis, append (mol.pack(), calc_dict).
+
+Restart model. Progress is recorded per frame in ``status.jsonl`` and results
+are re-saved after every success, so a task killed at the walltime resumes at
+the next unfinished frame rather than starting over. Shards are additionally
+claimed with an exclusive-create lock, which lets a CPU array and a GPU array
+drain the same shard directory concurrently; a claim left behind by a killed
+worker goes stale and is reclaimed. Re-running a finished shard is a no-op.
 """
 
 from __future__ import annotations
@@ -11,8 +18,8 @@ import argparse
 import json
 import os
 import shutil
-import subprocess
 import sys
+import time
 from pathlib import Path
 
 import numpy as np
@@ -22,47 +29,35 @@ _REPO_ROOT = _SCRIPT_DIR.parent.parent
 sys.path.insert(0, str(_SCRIPT_DIR))
 
 from qm7x_orca_common import (  # noqa: E402
-    AUXBASIS,
     MAXCORE_MB_DEFAULT,
     NPROCS_DEFAULT,
-    THEORY_KEYWORDS,
-    XC,
-    build_pyscf_mol,
-    calc_dict_from_orca,
-    forces_from_gradient,
     is_closed_shell,
-    mos_from_orca_json,
-    parse_orca_energy,
-    parse_orca_engrad,
-    parse_orca_gradient,
     read_shard,
-    write_orca_inp,
+    run_orca_single,
 )
+from shard_claim import (  # noqa: E402
+    DEFAULT_STALE_S,
+    acquire_claim,
+    atomic_save_npy,
+    atomic_write_json,
+    touch_claim,
+)
+from theory_levels import DEFAULT_LEVEL, get_level, level_keys  # noqa: E402
 
 ORCA_BIN_DEFAULT = os.environ.get("ORCA_BIN", "orca")
 ORCA2JSON_DEFAULT = os.environ.get("ORCA2JSON_BIN", "orca_2json")
 
 
 def _which(name: str) -> str:
-    found = shutil.which(name)
-    if found:
-        return found
-    return name
-
-
-def run_cmd(cmd: list[str], cwd: Path, log: Path) -> None:
-    with log.open("ab") as fh:
-        fh.write(("+ " + " ".join(cmd) + "\n").encode())
-        proc = subprocess.run(cmd, cwd=cwd, stdout=fh, stderr=subprocess.STDOUT)
-    if proc.returncode != 0:
-        raise RuntimeError(f"command failed ({proc.returncode}): {' '.join(cmd)}")
+    return shutil.which(name) or name
 
 
 def cleanup_orca_scratch(job_dir: Path, keep_out: bool) -> None:
     keep_suffix = {".json", ".npy", ".jsonl"}
     if keep_out:
-        keep_suffix.add(".out")
-        keep_suffix.add(".inp")
+        keep_suffix.update({".out", ".inp"})
+    if not job_dir.exists():
+        return
     for path in job_dir.iterdir():
         if path.suffix in keep_suffix or path.name in {"status.jsonl", "results.npy"}:
             continue
@@ -74,6 +69,7 @@ def process_frame(
     frame: dict,
     job_dir: Path,
     *,
+    level,
     orca_bin: str,
     orca2json: str,
     nprocs: int,
@@ -88,71 +84,62 @@ def process_frame(
     if not is_closed_shell(z):
         return {"index": index, "status": "skipped_open_shell", "n_elec": int(sum(z))}
 
-    job_dir.mkdir(parents=True, exist_ok=True)
-    inp = write_orca_inp(
-        job_dir / "job.inp",
-        z,
-        xyz,
-        nprocs=nprocs,
-        maxcore_mb=maxcore_mb,
-    )
     if dry_run:
+        from qm7x_orca_common import write_orca_inp
+
+        job_dir.mkdir(parents=True, exist_ok=True)
+        inp = write_orca_inp(
+            job_dir / "job.inp", z, xyz, nprocs=nprocs, maxcore_mb=maxcore_mb, level=level
+        )
         return {
             "index": index,
             "status": "dry_run",
             "inp": str(inp),
-            "theory": THEORY_KEYWORDS,
+            "theory": level.key,
+            "keywords": level.orca_keywords,
         }
 
-    out_path = job_dir / "job.out"
-    run_cmd([orca_bin, str(inp.name)], cwd=job_dir, log=out_path)
-    engrad_path = job_dir / "job.engrad"
-    if engrad_path.exists():
-        energy, gradient = parse_orca_engrad(engrad_path.read_text())
-    else:
-        out_text = out_path.read_text(errors="replace")
-        energy = parse_orca_energy(out_text)
-        gradient = parse_orca_gradient(out_text)
-    forces = forces_from_gradient(gradient)
-
-    gbw = job_dir / "job.gbw"
-    if not gbw.exists():
-        raise FileNotFoundError(f"ORCA did not write {gbw}")
-    run_cmd([orca2json, str(gbw.name)], cwd=job_dir, log=job_dir / "orca_2json.log")
-    json_path = job_dir / "job.json"
-    if not json_path.exists():
-        # ORCA 6 sometimes writes <basename>.json next to the GBW.
-        candidates = list(job_dir.glob("*.json"))
-        if not candidates:
-            raise FileNotFoundError(f"orca_2json produced no JSON in {job_dir}")
-        json_path = candidates[0]
-    data = json.loads(json_path.read_text())
-    mol = build_pyscf_mol(z, xyz)
-    mo_coeff, mo_occ, _mo_e = mos_from_orca_json(mol, data)
-    calc = calc_dict_from_orca(mol, energy, forces, mo_coeff, mo_occ, fit_df=fit_df)
+    mol, calc, diag = run_orca_single(
+        z,
+        xyz,
+        job_dir,
+        level=level,
+        orca_bin=orca_bin,
+        orca2json_bin=orca2json,
+        nprocs=nprocs,
+        maxcore_mb=maxcore_mb,
+        fit_df=fit_df,
+    )
     if not keep_orca:
         cleanup_orca_scratch(job_dir, keep_out=False)
     return {
         "index": index,
         "status": "ok",
-        "energy": float(energy),
-        "n_atoms": int(len(z)),
-        "nao": int(mol.nao),
-        "naux": int(calc["df_coeff"].shape[0]) if "df_coeff" in calc else 0,
-        "xc": XC,
-        "auxbasis": AUXBASIS,
+        "energy": float(calc["energy"]),
+        "n_atoms": diag["n_atoms"],
+        "nao": diag["nao"],
+        "naux": diag["naux"],
+        "xc": calc["xc"],
+        "auxbasis": calc["auxbasis"],
+        "theory": level.key,
+        "t_scf_s": round(diag["t_scf_s"], 2),
+        "t_df_s": round(diag["t_df_s"], 2),
+        "mo_orthonormality_error": diag["mo_orthonormality_error"],
         "packed": (mol.pack(), calc),
     }
 
 
 def load_done_indices(status_path: Path) -> set[int]:
-    done = set()
+    done: set[int] = set()
     if not status_path.exists():
         return done
     for line in status_path.read_text().splitlines():
         if not line.strip():
             continue
-        rec = json.loads(line)
+        try:
+            rec = json.loads(line)
+        except json.JSONDecodeError:
+            continue
         if rec.get("status") in {"ok", "skipped_open_shell"}:
             done.add(int(rec["index"]))
     return done
@@ -162,6 +149,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--shard", required=True)
     parser.add_argument("--outdir", default=None)
+    parser.add_argument("--theory", default=DEFAULT_LEVEL, choices=level_keys())
     parser.add_argument("--orca-bin", default=ORCA_BIN_DEFAULT)
     parser.add_argument("--orca2json-bin", default=ORCA2JSON_DEFAULT)
     parser.add_argument("--nprocs", type=int, default=int(os.environ.get("SLURM_CPUS_PER_TASK", NPROCS_DEFAULT)))
@@ -171,8 +159,17 @@ def main() -> int:
     parser.add_argument("--keep-orca", action="store_true")
     parser.add_argument("--resume", action="store_true", default=True)
     parser.add_argument("--no-resume", action="store_false", dest="resume")
+    parser.add_argument("--no-claim", action="store_true", help="skip the shard lock (single-pool runs)")
+    parser.add_argument("--claim-stale-s", type=float, default=DEFAULT_STALE_S)
+    parser.add_argument(
+        "--retry-errors",
+        action="store_true",
+        help="reopen a finished shard and re-run only the frames that errored",
+    )
+    parser.add_argument("--ortho-tol", type=float, default=1e-6, help="fail a frame whose AO map looks wrong")
     args = parser.parse_args()
 
+    level = get_level(args.theory)
     shard = read_shard(args.shard)
     shard_id = int(shard["shard_id"])
     split = shard.get("split", "train")
@@ -181,51 +178,105 @@ def main() -> int:
     shard_dir.mkdir(parents=True, exist_ok=True)
     status_path = shard_dir / "status.jsonl"
     results_path = shard_dir / "results.npy"
+    done_path = shard_dir / "shard.done"
+    claim_path = shard_dir / "shard.claim"
 
-    results = []
-    if args.resume and results_path.exists():
-        results = list(np.load(results_path, allow_pickle=True))
-    done = load_done_indices(status_path) if args.resume else set()
+    if done_path.exists():
+        if not args.retry_errors:
+            print(f"shard {shard_id:04d} already done: {done_path}")
+            return 0
+        # Errored frames were never added to the done set, so clearing the
+        # marker is enough to make the normal resume path pick them up again.
+        done_path.unlink(missing_ok=True)
+        print(f"shard {shard_id:04d} reopened for error retry")
 
-    orca_bin = _which(args.orca_bin)
-    orca2json = _which(args.orca2json_bin)
-    if not args.dry_run and shutil.which(Path(orca_bin).name) is None and not Path(orca_bin).exists():
-        raise SystemExit(f"ORCA binary not found: {orca_bin}")
+    holding_claim = False
+    if not args.no_claim:
+        if not acquire_claim(claim_path, args.claim_stale_s, f"{args.theory}/orca"):
+            print(f"shard {shard_id:04d} claimed by another worker; nothing to do")
+            return 0
+        holding_claim = True
 
-    scratch_root = Path(os.environ.get("SLURM_TMPDIR", shard_dir / "scratch"))
-    scratch_root.mkdir(parents=True, exist_ok=True)
+    try:
+        results = []
+        if args.resume and results_path.exists():
+            results = list(np.load(results_path, allow_pickle=True))
+        done = load_done_indices(status_path) if args.resume else set()
 
-    for frame in shard["frames"]:
-        index = int(frame["index"])
-        if index in done:
-            continue
-        job_dir = scratch_root / f"frame_{index:06d}"
-        try:
-            rec = process_frame(
-                frame,
-                job_dir,
-                orca_bin=orca_bin,
-                orca2json=orca2json,
-                nprocs=args.nprocs,
-                maxcore_mb=args.maxcore_mb,
-                fit_df=not args.no_df,
-                dry_run=args.dry_run,
-                keep_orca=args.keep_orca,
-            )
-        except Exception as exc:
-            rec = {"index": index, "status": "error", "error": f"{type(exc).__name__}: {exc}"}
-        packed = rec.pop("packed", None)
-        with status_path.open("a") as fh:
-            fh.write(json.dumps(rec) + "\n")
-        if packed is not None:
-            results.append({"index": index, "mol": packed[0], "calc": packed[1]})
-            np.save(results_path, np.array(results, dtype=object), allow_pickle=True)
-        print(f"shard {shard_id:04d} frame {index} {rec['status']}", flush=True)
+        orca_bin = _which(args.orca_bin)
+        orca2json = _which(args.orca2json_bin)
+        if not args.dry_run and shutil.which(Path(orca_bin).name) is None and not Path(orca_bin).exists():
+            raise SystemExit(f"ORCA binary not found: {orca_bin}")
 
-    if results:
-        np.save(results_path, np.array(results, dtype=object), allow_pickle=True)
-    print(f"done shard {shard_id:04d} results={len(results)} status={status_path}")
-    return 0
+        scratch_root = Path(os.environ.get("SLURM_TMPDIR", shard_dir / "scratch"))
+        scratch_root.mkdir(parents=True, exist_ok=True)
+
+        n_ok = n_err = 0
+        t_start = time.time()
+        for frame in shard["frames"]:
+            index = int(frame["index"])
+            if index in done:
+                continue
+            job_dir = scratch_root / f"frame_{index:06d}"
+            try:
+                rec = process_frame(
+                    frame,
+                    job_dir,
+                    level=level,
+                    orca_bin=orca_bin,
+                    orca2json=orca2json,
+                    nprocs=args.nprocs,
+                    maxcore_mb=args.maxcore_mb,
+                    fit_df=not args.no_df,
+                    dry_run=args.dry_run,
+                    keep_orca=args.keep_orca,
+                )
+                ortho = rec.get("mo_orthonormality_error")
+                if ortho is not None and ortho > args.ortho_tol:
+                    # The AO map is the one silent failure mode here: ORCA's
+                    # energy is fine while the density we store is scrambled.
+                    rec.pop("packed", None)
+                    rec["status"] = "error"
+                    rec["error"] = f"AO map broken: |C^T S C - I| = {ortho:.3e}"
+            except Exception as exc:
+                rec = {"index": index, "status": "error", "error": f"{type(exc).__name__}: {exc}"}
+
+            packed = rec.pop("packed", None)
+            with status_path.open("a") as fh:
+                fh.write(json.dumps(rec, default=float) + "\n")
+            if packed is not None:
+                results.append({"index": index, "mol": packed[0], "calc": packed[1]})
+                atomic_save_npy(results_path, np.array(results, dtype=object))
+                n_ok += 1
+            elif rec["status"] == "error":
+                n_err += 1
+            if holding_claim:
+                touch_claim(claim_path)
+            print(f"shard {shard_id:04d} frame {index} {rec['status']}", flush=True)
+
+        if results:
+            atomic_save_npy(results_path, np.array(results, dtype=object))
+
+        atomic_write_json(
+            done_path,
+            {
+                "shard_id": shard_id,
+                "split": split,
+                "theory": args.theory,
+                "n_frames": len(shard["frames"]),
+                "n_results": len(results),
+                "n_ok_this_pass": n_ok,
+                "n_error_this_pass": n_err,
+                "elapsed_s": round(time.time() - t_start, 1),
+                "host": os.uname().nodename,
+                "finished": time.strftime("%Y-%m-%dT%H:%M:%S"),
+            },
+        )
+        print(f"done shard {shard_id:04d} results={len(results)} errors={n_err} status={status_path}")
+        return 0
+    finally:
+        if holding_claim:
+            claim_path.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":

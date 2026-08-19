@@ -28,6 +28,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from omol_csh_common import build_mol, inflate_triangle  # noqa: E402
 from omol_csh_density_fit import fit_density  # noqa: E402
 from omol_csh_validate_ordering import build_transform, load_table  # noqa: E402
+from shard_claim import (  # noqa: E402,F401
+    acquire_claim,
+    atomic_savez_compressed,
+    claim_age_s,
+    is_claim_stale,
+    touch_claim,
+)
 
 HARTREE_TO_EV = 27.211386245988
 
@@ -122,77 +129,10 @@ def is_missing_element_failure(error: str, table) -> bool:
     return z is not None and z in table
 
 
-def _claim_age_s(claim: Path) -> float | None:
-    """Seconds since `claim` was last touched, or None if it does not exist.
-
-    Single-stat helper so callers never need `claim.stat()` more than once.
-    """
-    try:
-        return time.time() - claim.stat().st_mtime
-    except FileNotFoundError:
-        return None
-
-
-def is_claim_stale(claim: Path, stale_s: float) -> bool:
-    """True if `claim` exists and is older than `stale_s` seconds.
-
-    A crashed or killed worker leaves its claim behind forever otherwise
-    (this is what stranded shard 60).
-    """
-    age = _claim_age_s(claim)
-    return age is not None and age > stale_s
-
-
-def touch_claim(claim: Path) -> None:
-    """Refresh a claim's mtime so `--claim-stale-s` measures liveness, not age.
-
-    Called after each structure completes so a slow-but-alive worker on a
-    large shard is never mistaken for a dead one and reclaimed out from
-    under it.
-    """
-    try:
-        os.utime(claim, None)
-    except FileNotFoundError:
-        pass
-
-
-def acquire_claim(claim: Path, stale_s: float, device: str) -> bool:
-    """Take the exclusive-create claim on `claim`, recovering a stale one.
-
-    Returns False (without raising) if another live worker already holds
-    it. Used identically by the first pass and `--retry-failures`, so two
-    concurrent retries of the same shard can never run at once.
-    """
-    if claim.exists():
-        age = _claim_age_s(claim)
-        if age is not None and age > stale_s:
-            print(f"shard claim stale ({age:.0f}s > {stale_s:.0f}s), reclaiming: {claim}")
-            claim.unlink(missing_ok=True)
-        else:
-            return False
-    try:
-        fd = os.open(claim, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-        os.write(fd, f"{os.uname().nodename} {os.getpid()} {device}\n".encode())
-        os.close(fd)
-    except FileExistsError:
-        return False
-    return True
-
-
-def atomic_savez_compressed(out: Path, **arrays) -> None:
-    """Write `arrays` to `out` via a temp file + `os.replace`.
-
-    `out` is the only copy of a shard's successful records, so a crash or a
-    second concurrent retry must never be able to observe (or leave behind)
-    a half-written file.
-    """
-    tmp = out.with_name(f"{out.name}.tmp{os.getpid()}.npz")
-    try:
-        np.savez_compressed(tmp, **arrays)
-        os.replace(tmp, out)
-    except Exception:
-        tmp.unlink(missing_ok=True)
-        raise
+# The claim protocol now lives in shard_claim.py so the ORCA worker shares this
+# exact implementation rather than a copy of it. Re-exported here because these
+# names are part of this module's surface.
+_claim_age_s = claim_age_s
 
 
 def retry_failed_shard(out: Path, done: Path, chunk, table, args, device, claim: Path | None = None) -> None:
