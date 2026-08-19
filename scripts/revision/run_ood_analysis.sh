@@ -9,11 +9,24 @@
 # fills in.
 #
 # Usage:  scripts/revision/run_ood_analysis.sh [THEORY]
+# Env:
+#   REEVAL_AFTER_S  re-evaluate a split whose result is older than this (default 6 h)
+#   FORCE_EVAL=1    ignore both and evaluate everything
 
 set -uo pipefail
 cd "$(dirname "$0")/../.."
 
 THEORY=${1:-wb97mv_def2tzvpd}
+# The watchdog calls this every pass so the curves appear as soon as a model
+# exists. Evaluating a split is minutes of GPU work per hundred structures and
+# there are roughly nine hundred of them across the tiers, so re-running the lot
+# every half hour would cost more than the training it is watching and would
+# hold up the labelling re-submissions behind it. A run still in progress writes
+# a checkpoint every thousand steps, so "has the model changed" is true almost
+# always and is not on its own a useful test; pair it with a floor on how often
+# the answer is worth acting on.
+REEVAL_AFTER_S=${REEVAL_AFTER_S:-21600}
+FORCE_EVAL=${FORCE_EVAL:-0}
 PY=./.venv/bin/python
 CV=results/revision/cv
 EVAL=results/revision/eval/${THEORY}
@@ -74,9 +87,12 @@ $PY scripts/revision/ood_overlap_report.py \
 echo
 echo "=== density errors ==="
 # args.txt and the checkpoints live in the timestamped directory run.py creates
-# inside --save_dir, not in --save_dir itself.
-water_run=$(scripts/revision/latest_run_dir.sh "$RUN_DIR" --any)
-malon_run=$(scripts/revision/latest_run_dir.sh "$MALON_RUN_DIR" --any)
+# inside --save_dir, not in --save_dir itself. Asked for a directory that holds
+# weights rather than any directory at all: evaluating needs them, and a launch
+# that died before its first save leaves an args.txt behind, which `--any` would
+# hand over as though it were a model.
+water_run=$(scripts/revision/latest_run_dir.sh "$RUN_DIR")
+malon_run=$(scripts/revision/latest_run_dir.sh "$MALON_RUN_DIR")
 if [[ -z "$water_run" ]]; then
   echo "  no trained water model under ${RUN_DIR} yet; stopping before the error curves"
   exit 0
@@ -86,14 +102,22 @@ echo "  water model:         ${water_run}"
 
 evaluate() {
   local label=$1 base=$2 dens=$3 run_dir=$4 elements=$5
+  local out="${EVAL}/${label}.json"
   if [[ ! -f "$base" || ! -f "$dens" ]]; then
     echo "  ${label}: labels not assembled yet"
     return 1
   fi
+  if [[ "$FORCE_EVAL" -eq 0 && -f "$out" ]]; then
+    local age=$(( $(date +%s) - $(stat -c %Y "$out") ))
+    if (( age < REEVAL_AFTER_S )); then
+      echo "  ${label}: evaluated ${age}s ago, keeping it"
+      return 0
+    fi
+  fi
   $PY scripts/revision/csh_evaluate.py \
     --args-file "${run_dir}/args.txt" --run-dir "$run_dir" \
     --np-dataset "$base" --dens-dataset "$dens" \
-    --elements "$elements" --label "$label" --out "${EVAL}/${label}.json"
+    --elements "$elements" --label "$label" --out "$out"
 }
 
 for split in water_id_test water_ood_size water_ood_order water_ood_density; do
