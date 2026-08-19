@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Shared QM7-X ORCA helpers: inputs, parsers, and DensNet calc_dict conversion.
+"""Shared ORCA helpers: inputs, parsers, and DensNet calc_dict conversion.
 
-ORCA labels (energy, forces, MOs, DF coefficients) are produced at one
-consistent level of theory:
-
-    ! PBE0 aug-cc-pVDZ TightSCF EnGrad
+The level of theory comes from scripts/revision/theory_levels.py rather than
+being fixed here, so the same worker serves the QM7-X campaign at
+PBE0/aug-cc-pVDZ and the water campaign at wB97M-V/def2-TZVPD. The module-level
+``THEORY_KEYWORDS``/``BASIS``/``XC`` names remain the QM7-X defaults so runs
+already in flight keep producing identical inputs.
 
 Official QM7-X PBE0+MBD values are kept only as metadata. Training uses the
 ORCA numbers. Forces follow scripts/revision/generate_dft_labels.py:
@@ -28,6 +29,9 @@ if str(_SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPT_DIR))
 
 import scipy.linalg
+
+from omol_csh_density_fit import density_fit_rhs, solve_df_coeffs  # noqa: E402
+from theory_levels import DEFAULT_LEVEL, TheoryLevel, get_level  # noqa: E402
 
 _L_OF_LETTER = {"s": 0, "p": 1, "d": 2, "f": 3, "g": 4, "h": 5, "i": 6}
 _COMPONENT_M = {
@@ -97,14 +101,25 @@ def orca_to_pyscf(mol, labels) -> tuple[np.ndarray, np.ndarray]:
         raise ValueError("ORCA label map is not a permutation")
     return perm, signs
 
-THEORY_KEYWORDS = "PBE0 aug-cc-pVDZ TightSCF EnGrad"
-BASIS = "augccpvdz"
-AUXBASIS = "augccpvqzjkfit"
-XC = "pbe0"
+DEFAULT_THEORY = get_level(DEFAULT_LEVEL)
+THEORY_KEYWORDS = DEFAULT_THEORY.orca_keywords
+BASIS = DEFAULT_THEORY.pyscf_basis
+AUXBASIS = DEFAULT_THEORY.auxbasis
+XC = DEFAULT_THEORY.pyscf_xc
 CHARGE = 0
 MULT = 1
 NPROCS_DEFAULT = 8
 MAXCORE_MB_DEFAULT = 4000
+
+# Above this many AOs the in-core 3-centre tensor stops being affordable
+# (nao^2 * naux * 8 bytes), so the auxiliary-shell-blocked accumulation is used.
+INCORE_DF_MAX_NAO = 400
+
+
+def _as_level(level: TheoryLevel | str | None) -> TheoryLevel:
+    if level is None:
+        return DEFAULT_THEORY
+    return level if isinstance(level, TheoryLevel) else get_level(level)
 
 _ENERGY_RE = re.compile(r"FINAL SINGLE POINT ENERGY\s+([+-]?\d+\.\d+)")
 _GRAD_LINE_RE = re.compile(
@@ -160,12 +175,16 @@ def write_orca_inp(
     mult: int = MULT,
     nprocs: int = NPROCS_DEFAULT,
     maxcore_mb: int = MAXCORE_MB_DEFAULT,
+    level: TheoryLevel | str | None = None,
+    reference: bool = False,
 ) -> Path:
+    theory = _as_level(level)
+    keywords = theory.orca_reference_keywords if reference else theory.orca_keywords
     z, xyz = unpadded_atoms(atom_numbers, positions)
     if not is_closed_shell(z, charge):
         raise ValueError("open-shell (odd electron count); closed-shell singlets only")
     lines = [
-        f"! {THEORY_KEYWORDS}",
+        f"! {keywords}",
         f"%maxcore {int(maxcore_mb)}",
         "%pal",
         f"  nprocs {int(nprocs)}",
@@ -262,11 +281,16 @@ def forces_from_gradient(gradient: np.ndarray) -> np.ndarray:
     return np.asarray(-np.asarray(gradient, dtype=float) / ase.units.Bohr, dtype=float)
 
 
-def build_pyscf_mol(atom_numbers, positions, charge: int = CHARGE) -> gto.Mole:
+def build_pyscf_mol(
+    atom_numbers,
+    positions,
+    charge: int = CHARGE,
+    level: TheoryLevel | str | None = None,
+) -> gto.Mole:
     z, xyz = unpadded_atoms(atom_numbers, positions)
     mol = gto.Mole()
     mol.atom = [(int(anum), tuple(float(x) for x in pos)) for anum, pos in zip(z, xyz)]
-    mol.basis = BASIS
+    mol.basis = _as_level(level).pyscf_basis
     mol.charge = int(charge)
     mol.spin = 0
     mol.unit = "Angstrom"
@@ -293,6 +317,21 @@ def mos_from_orca_json(mol, data: dict) -> tuple[np.ndarray, np.ndarray, np.ndar
     return coeff, occ, energy
 
 
+def mo_orthonormality_error(mol, mo_coeff: np.ndarray) -> float:
+    """max |C^T S C - I|, the self-contained check on the AO permutation.
+
+    A wrong AO index or a wrong solid-harmonic phase breaks orthonormality in
+    the PySCF overlap while leaving the ORCA energy untouched, so this catches
+    a mis-mapped shell without needing a second code to compare against. It
+    matters most for f functions: aug-cc-pVDZ never reaches |m| >= 3, so the
+    ``FLIP_ABS_M`` phase rule is first exercised by def2-TZVPD.
+    """
+    ovlp = mol.intor("int1e_ovlp")
+    coeff = np.asarray(mo_coeff, dtype=float)
+    gram = coeff.T @ ovlp @ coeff
+    return float(np.abs(gram - np.eye(gram.shape[0])).max())
+
+
 def calc_dict_from_orca(
     mol,
     energy: float,
@@ -301,35 +340,139 @@ def calc_dict_from_orca(
     mo_occ: np.ndarray,
     *,
     fit_df: bool = True,
+    level: TheoryLevel | str | None = None,
 ) -> dict[str, Any]:
+    theory = _as_level(level)
     dm1 = np.einsum("pi,i,qi->pq", mo_coeff, mo_occ, mo_coeff)
     calc: dict[str, Any] = {
         "mo_coeff": np.asarray(mo_coeff, dtype=float),
         "mo_occ": np.asarray(mo_occ, dtype=float),
         "energy": float(energy),
         "forces": np.asarray(forces, dtype=float),
-        "xc": XC,
-        "auxbasis": AUXBASIS,
+        "xc": theory.pyscf_xc,
+        "auxbasis": theory.auxbasis,
     }
     with mol.with_common_orig((0.0, 0.0, 0.0)):
         dip_ints = mol.intor("int1e_r", comp=3)
     calc["dipole"] = np.einsum("xij,ji->x", dip_ints, dm1)
     if fit_df:
-        calc["df_coeff"] = density_fit_coeffs(mol, dm1, AUXBASIS)
-        calc["auxbasis"] = AUXBASIS
+        calc["df_coeff"] = density_fit_coeffs(mol, dm1, theory.auxbasis)
     return calc
 
 
 def density_fit_coeffs(mol, dm1: np.ndarray, auxbasis: str = AUXBASIS) -> np.ndarray:
-    """Project an AO density onto auxiliary coefficients (paper / generate_dft_labels)."""
+    """Project an AO density onto auxiliary coefficients.
+
+    Small systems keep the original in-core route from generate_dft_labels.py.
+    Past ``INCORE_DF_MAX_NAO`` the (nao, nao, naux) tensor no longer fits -- a
+    24-water cluster in def2-TZVPD needs tens of GB -- so the right-hand side is
+    accumulated over auxiliary shell blocks instead.
+    """
     auxmol = df.addons.make_auxmol(mol, auxbasis)
-    ints_3c2e = df.incore.aux_e2(mol, auxmol, intor="int3c2e")
-    ints_2c2e = auxmol.intor("int2c2e")
     nao = mol.nao
     naux = auxmol.nao
+    if nao > INCORE_DF_MAX_NAO:
+        rhs = density_fit_rhs(mol, auxmol, np.asarray(dm1, dtype=float))
+        coeffs, _ = solve_df_coeffs(auxmol, rhs)
+        return coeffs
+    ints_3c2e = df.incore.aux_e2(mol, auxmol, intor="int3c2e")
+    ints_2c2e = auxmol.intor("int2c2e")
     df_coef = scipy.linalg.solve(ints_2c2e, ints_3c2e.reshape(nao * nao, naux).T)
     df_coef = df_coef.reshape(naux, nao, nao)
     return np.einsum("Pij,ij->P", df_coef, dm1)
+
+
+def _run_cmd(cmd: list[str], cwd: Path, log: Path) -> None:
+    import subprocess
+
+    with log.open("ab") as fh:
+        fh.write(("+ " + " ".join(cmd) + "\n").encode())
+        proc = subprocess.run(cmd, cwd=cwd, stdout=fh, stderr=subprocess.STDOUT)
+    if proc.returncode != 0:
+        raise RuntimeError(f"command failed ({proc.returncode}): {' '.join(cmd)}")
+
+
+def run_orca_single(
+    atom_numbers,
+    positions,
+    job_dir: Path,
+    *,
+    level: TheoryLevel | str | None = None,
+    orca_bin: str = "orca",
+    orca2json_bin: str = "orca_2json",
+    nprocs: int = NPROCS_DEFAULT,
+    maxcore_mb: int = MAXCORE_MB_DEFAULT,
+    charge: int = CHARGE,
+    fit_df: bool = True,
+    reference: bool = False,
+) -> tuple[gto.Mole, dict[str, Any], dict[str, Any]]:
+    """SCF one geometry in ORCA and return ``(mol, calc_dict, diagnostics)``.
+
+    Shared by the array worker and the calibration harness so a measured cost
+    is always the cost of the code that actually runs in production.
+    """
+    import time
+
+    theory = _as_level(level)
+    job_dir.mkdir(parents=True, exist_ok=True)
+    inp = write_orca_inp(
+        job_dir / "job.inp",
+        atom_numbers,
+        positions,
+        charge=charge,
+        nprocs=nprocs,
+        maxcore_mb=maxcore_mb,
+        level=theory,
+        reference=reference,
+    )
+
+    out_path = job_dir / "job.out"
+    t0 = time.perf_counter()
+    _run_cmd([orca_bin, str(inp.name)], cwd=job_dir, log=out_path)
+    t_scf = time.perf_counter() - t0
+
+    engrad_path = job_dir / "job.engrad"
+    if engrad_path.exists():
+        energy, gradient = parse_orca_engrad(engrad_path.read_text())
+    else:
+        out_text = out_path.read_text(errors="replace")
+        energy = parse_orca_energy(out_text)
+        gradient = parse_orca_gradient(out_text)
+    forces = forces_from_gradient(gradient)
+
+    gbw = job_dir / "job.gbw"
+    if not gbw.exists():
+        raise FileNotFoundError(f"ORCA did not write {gbw}")
+    _run_cmd([orca2json_bin, str(gbw.name)], cwd=job_dir, log=job_dir / "orca_2json.log")
+    json_path = job_dir / "job.json"
+    if not json_path.exists():
+        candidates = list(job_dir.glob("*.json"))
+        if not candidates:
+            raise FileNotFoundError(f"orca_2json produced no JSON in {job_dir}")
+        json_path = candidates[0]
+    data = json.loads(json_path.read_text())
+
+    mol = build_pyscf_mol(atom_numbers, positions, charge=charge, level=theory)
+    mo_coeff, mo_occ, _mo_e = mos_from_orca_json(mol, data)
+    ortho_err = mo_orthonormality_error(mol, mo_coeff)
+
+    t1 = time.perf_counter()
+    calc = calc_dict_from_orca(mol, energy, forces, mo_coeff, mo_occ, fit_df=fit_df, level=theory)
+    t_df = time.perf_counter() - t1
+
+    diagnostics = {
+        "theory": theory.key,
+        "engine": "orca",
+        "reference_keywords": reference,
+        "nao": int(mol.nao),
+        "naux": int(calc["df_coeff"].shape[0]) if "df_coeff" in calc else 0,
+        "n_atoms": int(mol.natm),
+        "n_elec": int(mol.nelectron),
+        "t_scf_s": t_scf,
+        "t_df_s": t_df,
+        "mo_orthonormality_error": ortho_err,
+    }
+    return mol, calc, diagnostics
 
 
 def load_base_npy(path: str | Path) -> dict:

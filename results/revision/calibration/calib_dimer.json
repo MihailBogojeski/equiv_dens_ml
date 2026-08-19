@@ -1,0 +1,272 @@
+{
+  "generated": "2026-08-19T08:42:07",
+  "host": "gl056.hpc.nyu.edu",
+  "nprocs": 4,
+  "gpu_requested": false,
+  "gpu_available": false,
+  "tolerances": {
+    "energy_hartree": 1e-05,
+    "df_rel_l2": 0.0001
+  },
+  "records": [
+    {
+      "theory": "pbe_d4_avdz",
+      "theory_label": "PBE-D4/aug-cc-pVDZ",
+      "geometry": "2",
+      "n_water": 2,
+      "n_atoms": 6,
+      "engine": "orca",
+      "status": "ok",
+      "t_total_s": 33.68103523179889,
+      "peak_rss_mb": 278.21484375,
+      "nao": 82,
+      "naux": 588,
+      "reference_keywords": false,
+      "n_elec": 20,
+      "t_scf_s": 32.530485092662275,
+      "t_df_s": 0.7041497929021716,
+      "mo_orthonormality_error": 1.4208985321201377e-07,
+      "energy": -152.661896294019
+    },
+    {
+      "theory": "pbe_d4_avdz",
+      "theory_label": "PBE-D4/aug-cc-pVDZ",
+      "geometry": "2",
+      "n_water": 2,
+      "n_atoms": 6,
+      "engine": "orca-ref",
+      "status": "ok",
+      "t_total_s": 38.789149979129434,
+      "peak_rss_mb": 278.21484375,
+      "nao": 82,
+      "naux": 588,
+      "reference_keywords": true,
+      "n_elec": 20,
+      "t_scf_s": 37.11482073413208,
+      "t_df_s": 0.5391060179099441,
+      "mo_orthonormality_error": 1.4208985321201377e-07,
+      "energy": -152.661896294019
+    },
+    {
+      "theory": "pbe_d4_avdz",
+      "theory_label": "PBE-D4/aug-cc-pVDZ",
+      "geometry": "2",
+      "n_water": 2,
+      "n_atoms": 6,
+      "engine": "pyscf",
+      "status": "ok",
+      "t_total_s": 11.300163712818176,
+      "peak_rss_mb": 862.6640625,
+      "nao": 82,
+      "naux": 588,
+      "n_elec": 20,
+      "converged": true,
+      "scf_cycles": 8,
+      "t_scf_s": 2.6998550510033965,
+      "t_grad_s": 7.705498455092311,
+      "t_df_s": 0.8114148019813001,
+      "energy": -152.66167390009815
+    },
+    {
+      "theory": "wb97mv_def2tzvpd",
+      "theory_label": "wB97M-V/def2-TZVPD",
+      "geometry": "2",
+      "n_water": 2,
+      "n_atoms": 6,
+      "engine": "orca",
+      "status": "ok",
+      "t_total_s": 113.70435869693756,
+      "peak_rss_mb": 862.6640625,
+      "nao": 116,
+      "naux": 588,
+      "reference_keywords": false,
+      "n_elec": 20,
+      "t_scf_s": 112.50808278424665,
+      "t_df_s": 0.6439008261077106,
+      "mo_orthonormality_error": 6.47555148177209e-07,
+      "energy": -152.804318541246
+    },
+    {
+      "theory": "wb97mv_def2tzvpd",
+      "theory_label": "wB97M-V/def2-TZVPD",
+      "geometry": "2",
+      "n_water": 2,
+      "n_atoms": 6,
+      "engine": "orca-ref",
+      "status": "ok",
+      "t_total_s": 84.40882875304669,
+      "peak_rss_mb": 862.6640625,
+      "nao": 116,
+      "naux": 588,
+      "reference_keywords": true,
+      "n_elec": 20,
+      "t_scf_s": 83.00058237928897,
+      "t_df_s": 0.906642229296267,
+      "mo_orthonormality_error": 6.470721644921001e-07,
+      "energy": -152.804135449307
+    },
+    {
+      "theory": "wb97mv_def2tzvpd",
+      "theory_label": "wB97M-V/def2-TZVPD",
+      "geometry": "2",
+      "n_water": 2,
+      "n_atoms": 6,
+      "engine": "pyscf",
+      "status": "ok",
+      "t_total_s": 76.67825002782047,
+      "peak_rss_mb": 1279.45703125,
+      "nao": 116,
+      "naux": 588,
+      "n_elec": 20,
+      "converged": true,
+      "scf_cycles": 9,
+      "t_scf_s": 59.252136355265975,
+      "t_grad_s": 16.80384871829301,
+      "t_df_s": 0.6066870158538222,
+      "energy": -152.8041331223884
+    }
+  ],
+  "comparisons": [
+    {
+      "d_energy_hartree": 0.00022239392083633902,
+      "df_rel_l2": 0.0002418429331309613,
+      "df_max_abs": 0.0008757553865823414,
+      "d_dipole_max": 1.326195508966066e-08,
+      "d_force_max": 0.00011941785978289432,
+      "theory": "pbe_d4_avdz",
+      "geometry": "2",
+      "pair": "orca_vs_pyscf",
+      "passes_gate": false
+    },
+    {
+      "d_energy_hartree": 0.0,
+      "df_rel_l2": 0.0,
+      "df_max_abs": 0.0,
+      "d_dipole_max": 0.0,
+      "d_force_max": 0.0,
+      "theory": "pbe_d4_avdz",
+      "geometry": "2",
+      "pair": "orca_vs_orca_ref",
+      "passes_gate": true
+    },
+    {
+      "d_energy_hartree": 0.00022239392083633902,
+      "df_rel_l2": 0.0002418429331309613,
+      "df_max_abs": 0.0008757553865823414,
+      "d_dipole_max": 1.326195508966066e-08,
+      "d_force_max": 0.00011941785978289432,
+      "theory": "pbe_d4_avdz",
+      "geometry": "2",
+      "pair": "orca_ref_vs_pyscf",
+      "passes_gate": false
+    },
+    {
+      "d_energy_hartree": 0.0001854188575975968,
+      "df_rel_l2": 0.00014337780181828707,
+      "df_max_abs": 0.0004188653988582147,
+      "d_dipole_max": 7.464118853640141e-08,
+      "d_force_max": 0.00011039935574173008,
+      "theory": "wb97mv_def2tzvpd",
+      "geometry": "2",
+      "pair": "orca_vs_pyscf",
+      "passes_gate": false
+    },
+    {
+      "d_energy_hartree": 0.0001830919389931296,
+      "df_rel_l2": 0.0001451109751850952,
+      "df_max_abs": 0.0004206038304895021,
+      "d_dipole_max": 1.3265245203229007e-08,
+      "d_force_max": 0.0001138420944768407,
+      "theory": "wb97mv_def2tzvpd",
+      "geometry": "2",
+      "pair": "orca_vs_orca_ref",
+      "passes_gate": false
+    },
+    {
+      "d_energy_hartree": 2.3269186044672097e-06,
+      "df_rel_l2": 8.009448132823524e-06,
+      "df_max_abs": 3.132826595632354e-05,
+      "d_dipole_max": 6.972761314077481e-08,
+      "d_force_max": 7.211095939596568e-06,
+      "theory": "wb97mv_def2tzvpd",
+      "geometry": "2",
+      "pair": "orca_ref_vs_pyscf",
+      "passes_gate": true
+    }
+  ],
+  "max_mo_orthonormality_error": 6.47555148177209e-07,
+  "recommendations": {
+    "pbe_d4_avdz|orca": {
+      "sizes": {
+        "2": {
+          "t_total_s": 33.68,
+          "nao": 82,
+          "naux": 588,
+          "peak_rss_mb": 278.2,
+          "frames_per_shard": 299,
+          "mem_request_gb": 8
+        }
+      }
+    },
+    "pbe_d4_avdz|orca-ref": {
+      "sizes": {
+        "2": {
+          "t_total_s": 38.79,
+          "nao": 82,
+          "naux": 588,
+          "peak_rss_mb": 278.2,
+          "frames_per_shard": 259,
+          "mem_request_gb": 8
+        }
+      }
+    },
+    "pbe_d4_avdz|pyscf": {
+      "sizes": {
+        "2": {
+          "t_total_s": 11.3,
+          "nao": 82,
+          "naux": 588,
+          "peak_rss_mb": 862.7,
+          "frames_per_shard": 892,
+          "mem_request_gb": 8
+        }
+      }
+    },
+    "wb97mv_def2tzvpd|orca": {
+      "sizes": {
+        "2": {
+          "t_total_s": 113.7,
+          "nao": 116,
+          "naux": 588,
+          "peak_rss_mb": 862.7,
+          "frames_per_shard": 88,
+          "mem_request_gb": 8
+        }
+      }
+    },
+    "wb97mv_def2tzvpd|orca-ref": {
+      "sizes": {
+        "2": {
+          "t_total_s": 84.41,
+          "nao": 116,
+          "naux": 588,
+          "peak_rss_mb": 862.7,
+          "frames_per_shard": 119,
+          "mem_request_gb": 8
+        }
+      }
+    },
+    "wb97mv_def2tzvpd|pyscf": {
+      "sizes": {
+        "2": {
+          "t_total_s": 76.68,
+          "nao": 116,
+          "naux": 588,
+          "peak_rss_mb": 1279.5,
+          "frames_per_shard": 131,
+          "mem_request_gb": 8
+        }
+      }
+    }
+  }
+}
