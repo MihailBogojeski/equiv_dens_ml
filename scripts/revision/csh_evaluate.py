@@ -118,6 +118,30 @@ def absolute_fractional_error(pred, ref, weights):
     return num / den
 
 
+def batch_absolute_fractional_error(model, props) -> np.ndarray:
+    """Run one batch through `model` and return its per-structure density error.
+
+    Deliberately *not* under `torch.no_grad()`. A model with an energy head gets
+    its forces by differentiating the energy with respect to the positions, so
+    under no_grad that head raises "element 0 of tensors does not require grad"
+    and no density is ever returned. The CSH models are density-only and never
+    hit this; every model in the water campaign has the head, so this is the one
+    path the OOD figure depends on.
+
+    The positions are passed through exactly as the dataset produced them,
+    requiring no grad. DFTNetwork clones them and flips the flag itself, and that
+    only works on a leaf -- handing it a tensor that already requires grad makes
+    the clone a non-leaf and the model fails on the way back out instead.
+
+    The graph is built and discarded per batch and only the density is read from
+    it, so the cost is one batch of activations.
+    """
+    out = model(props)
+    with torch.no_grad():
+        afe = absolute_fractional_error(out["density"], props["density"], props["coord_weights"])
+    return afe.cpu().numpy()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--args-file", required=True, help="args.txt of the trained model")
@@ -192,27 +216,7 @@ def main() -> int:
         props = {
             k: (v.to(device) if torch.is_tensor(v) else v) for k, v in props.items()
         }
-        # Deliberately not `torch.no_grad()`. A model with an energy head gets its
-        # forces by differentiating the energy with respect to the positions, so
-        # under no_grad that head raises "element 0 of tensors does not require
-        # grad" and no density is ever returned. The CSH models are density-only
-        # and never hit it; every model in the water campaign has the head, so
-        # this is the one path that has to work for the OOD figure.
-        #
-        # The positions are left exactly as the dataset produced them, requiring
-        # no grad. DFTNetwork clones them and flips the flag itself, and that only
-        # works on a leaf -- handing it a tensor that already requires grad makes
-        # the clone a non-leaf and the model fails on the way back out.
-        #
-        # The graph is built and discarded per batch and only the density is read
-        # from it, so the cost is one batch of activations.
-        out = model(props)
-
-        ref = props["density"]
-        weights = props["coord_weights"]
-        pred = out["density"]
-        with torch.no_grad():
-            afe = absolute_fractional_error(pred, ref, weights).cpu().numpy()
+        afe = batch_absolute_fractional_error(model, props)
 
         natoms = (props["batch_atom_numbers"] > 0).sum(-1).cpu().numpy()
         n_elec = props["batch_atom_numbers"].sum(-1).cpu().numpy()
