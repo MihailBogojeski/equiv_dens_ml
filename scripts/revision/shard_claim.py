@@ -79,11 +79,23 @@ def acquire_claim(claim: Path, stale_s: float, tag: str = "") -> bool:
 
     Returns False (without raising) when another live worker holds it, so the
     caller can simply move on instead of treating contention as an error.
+
+    A claim recorded by *this* Slurm task is always reclaimed, however fresh it
+    looks. That is the preemption case: on the scavenger partition Slurm requeues
+    a preempted task under the same id, and the SIGKILL means the previous
+    incarnation never reached the `finally` that removes its claim. Without this
+    the restarted task would find its own claim, decide the shard was busy, and
+    exit -- and because the scheduler still lists that id as live, nothing else
+    would touch the shard until the stale timeout. The test is unambiguous: the
+    only process that can be running under this id right now is this one.
     """
     if claim.exists():
         age = claim_age_s(claim)
         if age is not None and age > stale_s:
             print(f"claim stale ({age:.0f}s > {stale_s:.0f}s), reclaiming: {claim}")
+            claim.unlink(missing_ok=True)
+        elif claim_task_id(claim) == slurm_task_id() != "-":
+            print(f"claim left by an earlier run of this task ({slurm_task_id()}), reclaiming: {claim}")
             claim.unlink(missing_ok=True)
         else:
             return False

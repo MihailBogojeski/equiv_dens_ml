@@ -268,6 +268,47 @@ def test_acquire_claim_reclaims_stale_claim(tmp_path):
     assert "dead-host" not in claim.read_text()
 
 
+def test_acquire_claim_retakes_a_claim_left_by_this_same_task(tmp_path, monkeypatch):
+    """The preemption case: a requeued task must be able to retake its own shard.
+
+    A preempted task is killed outright, so the `finally` that removes its claim
+    never runs, and Slurm requeues it under the same id. If the restarted task
+    treated that claim as somebody else's it would exit immediately, and since
+    the scheduler still lists the id as live nothing else would touch the shard
+    either -- it would idle until the stale timeout, which on the large tier is
+    a day.
+    """
+    monkeypatch.setenv("SLURM_ARRAY_JOB_ID", "777")
+    monkeypatch.setenv("SLURM_ARRAY_TASK_ID", "3")
+    claim = tmp_path / "shard_00003.claim"
+    claim.write_text("cs601 4242 wb97mv/orca 777_3\n")
+
+    assert acquire_claim(claim, 14400, "wb97mv/orca") is True
+    assert "4242" not in claim.read_text()
+
+
+def test_acquire_claim_still_refuses_a_fresh_claim_from_a_different_task(tmp_path, monkeypatch):
+    """The reclaim above keys on the Slurm id, so a neighbour's claim is untouched."""
+    monkeypatch.setenv("SLURM_ARRAY_JOB_ID", "777")
+    monkeypatch.setenv("SLURM_ARRAY_TASK_ID", "3")
+    claim = tmp_path / "shard_00004.claim"
+    claim.write_text("cs602 4243 wb97mv/orca 777_4\n")
+
+    assert acquire_claim(claim, 14400, "wb97mv/orca") is False
+    assert claim.read_text() == "cs602 4243 wb97mv/orca 777_4\n"
+
+
+def test_acquire_claim_outside_slurm_does_not_treat_dashes_as_a_match(tmp_path, monkeypatch):
+    """Two interactive runs both record `-`, which must not read as the same task."""
+    monkeypatch.delenv("SLURM_ARRAY_JOB_ID", raising=False)
+    monkeypatch.delenv("SLURM_ARRAY_TASK_ID", raising=False)
+    monkeypatch.delenv("SLURM_JOB_ID", raising=False)
+    claim = tmp_path / "shard_00005.claim"
+    claim.write_text("laptop 111 cpu -\n")
+
+    assert acquire_claim(claim, 14400, "cpu") is False
+
+
 def test_touch_claim_advances_mtime(tmp_path):
     import os
     import time

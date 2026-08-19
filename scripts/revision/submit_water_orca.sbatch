@@ -13,8 +13,16 @@
 #SBATCH --time=04:00:00
 #SBATCH --account=torch_pr_283_chemistry
 #SBATCH --qos=cpu48
-#SBATCH --partition=cs
 #SBATCH --output=logs/water_orca_%A_%a.out
+#
+# No --partition on purpose. The site submit filter picks the partition list
+# from the walltime, and for a request under 6 h it returns `cs,cpu_short`
+# instead of the `cs` alone that naming the partition pins us to. That matters:
+# this account's fair-share factor is 0.006, so on `cs` its tasks queue behind
+# everyone else's, and an identical pair of probe jobs submitted together had the
+# unpinned one running in a second while the `cs`-pinned one was still pending
+# forty minutes later. Pinning the partition can only ever remove somewhere for
+# the job to run.
 
 set -euo pipefail
 cd "${SLURM_SUBMIT_DIR:-$PWD}"

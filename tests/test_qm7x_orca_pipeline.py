@@ -36,6 +36,7 @@ from qm7x_orca_common import (  # noqa: E402
     write_shard,
 )
 from qm7x_orca_worker import process_frame  # noqa: E402
+from theory_levels import DEFAULT_LEVEL, get_level, level_keys  # noqa: E402
 
 SAMPLE_OUT = """\
                               * O   R   C   A *
@@ -249,9 +250,11 @@ def test_parse_json_labels_matches_orca_print():
 
 
 def test_worker_dry_run_and_open_shell_skip(tmp_path):
+    level = get_level(DEFAULT_LEVEL)
     rec = process_frame(
         {"index": 0, "atom_numbers": WATER_Z, "positions": WATER_XYZ},
         tmp_path / "ok",
+        level=level,
         orca_bin="orca",
         orca2json="orca_2json",
         nprocs=8,
@@ -262,11 +265,12 @@ def test_worker_dry_run_and_open_shell_skip(tmp_path):
     )
     assert rec["status"] == "dry_run"
     assert (tmp_path / "ok" / "job.inp").is_file()
-    assert THEORY_KEYWORDS in (tmp_path / "ok" / "job.inp").read_text()
+    assert level.orca_keywords in (tmp_path / "ok" / "job.inp").read_text()
 
     skipped = process_frame(
         {"index": 1, "atom_numbers": [6, 1], "positions": [[0, 0, 0], [1.1, 0, 0]]},
         tmp_path / "skip",
+        level=level,
         orca_bin="orca",
         orca2json="orca_2json",
         nprocs=8,
@@ -276,3 +280,30 @@ def test_worker_dry_run_and_open_shell_skip(tmp_path):
         keep_orca=True,
     )
     assert skipped["status"] == "skipped_open_shell"
+
+
+def test_every_registered_theory_writes_an_orca_input(tmp_path):
+    """The registry is what a --theory flag selects, so each entry must be usable.
+
+    The dry run stops short of calling ORCA, but it exercises the part that a
+    typo in the registry would break: the keyword line reaching the input file.
+    """
+    for key in level_keys():
+        level = get_level(key)
+        if "orca" not in level.engines:
+            continue
+        rec = process_frame(
+            {"index": 0, "atom_numbers": WATER_Z, "positions": WATER_XYZ},
+            tmp_path / key,
+            level=level,
+            orca_bin="orca",
+            orca2json="orca_2json",
+            nprocs=8,
+            maxcore_mb=4000,
+            fit_df=False,
+            dry_run=True,
+            keep_orca=True,
+        )
+        assert rec["status"] == "dry_run"
+        assert rec["theory"] == key
+        assert level.orca_keywords in (tmp_path / key / "job.inp").read_text()

@@ -18,6 +18,8 @@
 #   SBATCH_FILE  submit script (default the small tier)
 #   JOB_NAME     override the derived name
 #   ONESHOT=1    do a single round and exit (used by the campaign driver)
+#   PARTITION/QOS/SBATCH_EXTRA/JOB_PREFIX  send this wave somewhere else
+#                (see the scavenger wave in watch_water_campaign.sh)
 
 set -euo pipefail
 cd "$(dirname "$0")/../.."
@@ -31,12 +33,25 @@ SBATCH_FILE=${SBATCH_FILE:-scripts/revision/submit_water_orca.sbatch}
 STALE_S=${STALE_S:-86400}
 MAX_ROUNDS=${MAX_ROUNDS:-200}
 ONESHOT=${ONESHOT:-0}
+JOB_PREFIX=${JOB_PREFIX:-w}
+
+# Partition and QOS are overrides rather than edits to the submit script because
+# the same shard list is drained by more than one wave at a time: a guaranteed
+# wave on `cs` and a preemptible wave on `cpu_prem`. Options given to sbatch beat
+# the #SBATCH directives in the file, so both waves share one submit script and
+# there is no second copy to keep in sync.
+SBATCH_ARGS=()
+[[ -n "${PARTITION:-}" ]] && SBATCH_ARGS+=(--partition="$PARTITION")
+[[ -n "${QOS:-}" ]] && SBATCH_ARGS+=(--qos="$QOS")
+[[ -n "${SBATCH_EXTRA:-}" ]] && read -r -a extra <<< "$SBATCH_EXTRA" && SBATCH_ARGS+=("${extra[@]}")
 
 # The name has to carry the theory as well as the split: the same geometries are
 # labelled at PBE-D4 and at wB97M-V, and a name that only named the split would
 # make the second level look like it was already queued and silently skip it.
+# The prefix separates the waves for the same reason -- one name across both
+# would let a queued scavenger task suppress the guaranteed submission.
 split=$(basename "$(dirname "$OUTDIR")")
-JOB_NAME=${JOB_NAME:-w-${split}-${THEORY}}
+JOB_NAME=${JOB_NAME:-${JOB_PREFIX}-${split}-${THEORY}}
 
 n_shards=$(find "$SHARD_DIR" -maxdepth 1 -name 'shard_*.json' | wc -l)
 if [[ "$n_shards" -eq 0 ]]; then
@@ -45,11 +60,11 @@ if [[ "$n_shards" -eq 0 ]]; then
 fi
 
 for ((round = 1; round <= MAX_ROUNDS; round++)); do
-  status=$(./.venv/bin/python scripts/revision/campaign_status.py \
-    --shard-dir "$SHARD_DIR" --outdir "$OUTDIR" --stale-s "$STALE_S")
-  spec=$(./.venv/bin/python scripts/revision/campaign_status.py \
-    --shard-dir "$SHARD_DIR" --outdir "$OUTDIR" --stale-s "$STALE_S" --array-spec)
-  echo "[$(date -Is)] ${JOB_NAME} round ${round}: ${status}"
+  # One call, not one per output: each invocation asks the scheduler which
+  # tasks are alive, and on a busy cluster that query alone can take a minute.
+  read -r status spec < <(./.venv/bin/python scripts/revision/campaign_status.py \
+    --shard-dir "$SHARD_DIR" --outdir "$OUTDIR" --stale-s "$STALE_S" --summary-and-spec)
+  echo "[$(date -Is)] ${JOB_NAME} round ${round}: ${status//_/ }"
 
   if [[ -z "$spec" ]]; then
     echo "[$(date -Is)] ${JOB_NAME}: nothing outstanding"
@@ -60,7 +75,8 @@ for ((round = 1; round <= MAX_ROUNDS; round++)); do
   if [[ "$running" -eq 0 ]]; then
     echo "[$(date -Is)] ${JOB_NAME}: submitting ${spec}%${CONCURRENT}"
     SHARD_DIR="$SHARD_DIR" OUTDIR="$OUTDIR" THEORY="$THEORY" \
-      sbatch --job-name="$JOB_NAME" --array="${spec}%${CONCURRENT}" "$SBATCH_FILE" || true
+      sbatch --job-name="$JOB_NAME" --array="${spec}%${CONCURRENT}" \
+      "${SBATCH_ARGS[@]+"${SBATCH_ARGS[@]}"}" "$SBATCH_FILE" || true
   else
     echo "[$(date -Is)] ${JOB_NAME}: ${running} tasks still queued/running"
   fi

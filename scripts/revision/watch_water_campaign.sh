@@ -56,11 +56,11 @@ for ((round = 1; round <= MAX_ROUNDS; round++)); do
   # Training is launched from here rather than by --dependency on the labelling
   # arrays: the arrays alive at submission time are not the ones that finish the
   # campaign, so a dependency on them fires while most shards are still
-  # unlabelled. The marker makes this fire exactly once per level of theory.
-  for theory_dir in "$SHARD_ROOT"/*/*/; do
-    theory=$(basename "${theory_dir%/}")
-    marker="${OUT_ROOT}/.train_submitted_${theory}"
-    [[ -e "$marker" ]] && continue
+  # unlabelled. Training is then kept alive the same way the labelling is -- a
+  # run whose job hit the walltime has no .training_done marker and is
+  # re-submitted, resuming from its checkpoint.
+  theories=$(for d in "$SHARD_ROOT"/*/*/; do basename "${d%/}"; done | sort -u)
+  for theory in $theories; do
     outstanding=$(./.venv/bin/python scripts/revision/campaign_status.py \
       --root "$SHARD_ROOT" --out-root "$OUT_ROOT" --json 2>/dev/null |
       ./.venv/bin/python -c "
@@ -68,12 +68,26 @@ import json, sys
 rows = json.load(sys.stdin)
 print(sum(len(r['outstanding']) for r in rows if r['theory'] == '${theory}'))
 " 2>/dev/null || echo 1)
-    if [[ "$outstanding" == "0" ]]; then
-      echo "[$(date -Is)] ${theory} labels complete; submitting training"
-      mkdir -p "$OUT_ROOT"
-      THEORY="$theory" sbatch --job-name="train-${theory}" \
-        scripts/revision/submit_water_train.sbatch && touch "$marker"
+    [[ "$outstanding" == "0" ]] || continue
+
+    runs=(water malonaldehyde)
+    if [[ "$theory" == "pbe_d4_avdz" ]]; then
+      runs+=(cutoff_4 cutoff_5 cutoff_6 cutoff_8)
     fi
+    for run in "${runs[@]}"; do
+      case "$run" in
+        water) name="water_${theory}" ;;
+        malonaldehyde) name="malonaldehyde_${theory}" ;;
+        cutoff_*) name="water_pbe_orca_cutoff_${run#cutoff_}" ;;
+      esac
+      [[ -e "results/revision/${name}/.training_done" ]] && continue
+      job="tr-${run}-${theory}"
+      queued=$(squeue -h -u "$USER" -n "$job" -o "%i" 2>/dev/null | wc -l)
+      [[ "$queued" -gt 0 ]] && continue
+      echo "[$(date -Is)] submitting ${job}"
+      THEORY="$theory" RUN="$run" sbatch --job-name="$job" \
+        scripts/revision/submit_water_train.sbatch || true
+    done
   done
 
   if [[ "$round" -eq "$MAX_ROUNDS" ]]; then

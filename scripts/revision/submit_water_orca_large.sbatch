@@ -13,8 +13,12 @@
 #SBATCH --time=24:00:00
 #SBATCH --account=torch_pr_283_chemistry
 #SBATCH --qos=cpu48
-#SBATCH --partition=cs
 #SBATCH --output=logs/water_orca_lg_%A_%a.out
+#
+# As in the small tier, the partition is left to the site submit filter. At a
+# 24 h walltime the filter returns `cs` alone -- `cpu_short` caps out at 6 h --
+# so this tier gains nothing today, but naming the partition could only ever
+# cost it somewhere to run if that changes.
 
 set -euo pipefail
 cd "${SLURM_SUBMIT_DIR:-$PWD}"
