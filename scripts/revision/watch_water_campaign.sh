@@ -29,6 +29,29 @@ is_large() {
   esac
 }
 
+# How much memory a task in this split actually needs.
+#
+# Worth getting right because memory, not cores, is what caps the campaign: the
+# cpu48 QOS allows 3000 cores but only 6000 GB, so at the original flat 48 GB the
+# account could hold 125 tasks (1000 cores) and no more, while the CPU limit
+# would have allowed 375. Most of the campaign is small: 1250 of the 2967 frames
+# are n=2-6 clusters, and the calibration measured 6.8 GB peak RSS for the
+# largest of those at wB97M-V, with malonaldehyde far below that. Sizing per
+# split rather than for the worst frame in the campaign roughly triples how many
+# of them fit.
+#
+# The values keep a wide margin over the measured peaks; an underestimate costs
+# an OOM kill, which the per-frame resume recovers from but which wastes the
+# frame in flight.
+mem_for() {
+  case "$1" in
+    malonaldehyde_*) echo 12G ;;                     # 9 atoms, ~250 AO
+    water_train_small | water_val_small | water_id_test_small) echo 16G ;;  # n=2-6, 6.8 GB measured
+    water_ood_size_small) echo 32G ;;                # n=8,10
+    *) echo "" ;;                                    # large tier keeps the script's own 96G
+  esac
+}
+
 for ((round = 1; round <= MAX_ROUNDS; round++)); do
   echo "=========== [$(date -Is)] campaign round ${round} ==========="
   ./.venv/bin/python scripts/revision/campaign_status.py \
@@ -49,7 +72,9 @@ for ((round = 1; round <= MAX_ROUNDS; round++)); do
       concurrent=${CONCURRENT_SMALL:-200}
     fi
 
+    mem=$(mem_for "$split")
     ONESHOT=1 SBATCH_FILE="$sbatch_file" CONCURRENT="$concurrent" \
+      SBATCH_EXTRA="${mem:+--mem=$mem}" \
       scripts/revision/watch_and_resubmit.sh "$shard_dir" "$outdir" "$theory" || true
   done
 
