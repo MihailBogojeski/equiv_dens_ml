@@ -118,7 +118,8 @@ def main() -> int:
         "--elements",
         default="1,6,7,8,16",
         help="element set the model was trained on; the per-element buffers are "
-        "registered from this, so it must match training or the state dict will not load",
+        "registered from this, so it must match training or the state dict will not load "
+        "(e.g. --elements 1,6,7,8,9,16,17,35 for the 8-element model)",
     )
     parser.add_argument("--out", required=True)
     parser.add_argument("--label", default="test")
