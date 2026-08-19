@@ -10,7 +10,7 @@
 # Everything is idempotent: re-running rebuilds the shard lists and re-submits,
 # finished shards exit immediately, and unfinished ones resume mid-shard.
 #
-# Usage:  scripts/revision/launch_water_campaign.sh [THEORY] [--dry-run]
+# Usage:  scripts/revision/launch_water_campaign.sh [THEORY] [--dry-run|--build-only]
 
 set -euo pipefail
 cd "$(dirname "$0")/../.."
@@ -27,6 +27,11 @@ WATER=datasets/revision/water_clusters
 OOD=datasets/revision/water_ood
 MALON=datasets/revision/malonaldehyde
 
+# Submission goes through the watchdog rather than a bare sbatch here, so the
+# first wave and every later recovery wave agree on the job name and on which
+# indices are outstanding. Names have to differ per split: the watchdog decides
+# whether to submit by counting its own queued tasks, and a name shared across
+# splits would let one slow split hold up all the others.
 submit_tier() {
   local split=$1 sbatch_file=$2 concurrency=$3
   local shard_dir="${SHARD_ROOT}/${split}/${THEORY}"
@@ -39,12 +44,12 @@ submit_tier() {
     echo "  ${split}: no shards, skipping"
     return
   fi
-  echo "  ${split}: array 0-$((n - 1))%${concurrency} -> ${outdir}"
-  if [[ "$DRY" == "--dry-run" ]]; then
+  echo "  ${split}: ${n} shards -> ${outdir}"
+  if [[ "$DRY" == "--dry-run" || "$DRY" == "--build-only" ]]; then
     return
   fi
-  SHARD_DIR="$shard_dir" OUTDIR="$outdir" THEORY="$THEORY" \
-    sbatch --array="0-$((n - 1))%${concurrency}" "$sbatch_file"
+  ONESHOT=1 SBATCH_FILE="$sbatch_file" CONCURRENT="$concurrency" \
+    scripts/revision/watch_and_resubmit.sh "$shard_dir" "$outdir" "$THEORY"
 }
 
 build() {
@@ -90,5 +95,5 @@ for split in water_ood_size_large water_ood_order water_ood_density; do
 done
 
 echo
-echo "monitor with: squeue -u $USER -n water-orca,water-orca-lg"
-echo "resubmit with: scripts/revision/watch_and_resubmit.sh <shard_dir> <outdir> ${THEORY}"
+echo "monitor with: ./.venv/bin/python scripts/revision/campaign_status.py --root ${SHARD_ROOT}"
+echo "keep alive with: scripts/revision/watch_water_campaign.sh"

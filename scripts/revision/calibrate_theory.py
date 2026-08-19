@@ -28,6 +28,7 @@ import time
 from pathlib import Path
 
 import numpy as np
+from pyscf import df
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
 _REPO_ROOT = _SCRIPT_DIR.parent.parent
@@ -77,8 +78,22 @@ def peak_rss_mb() -> float:
     return max(self_rss, child_rss) / 1024.0
 
 
-def compare(calc_a: dict, calc_b: dict) -> dict:
-    """Agreement between two calc_dicts for the same geometry and theory."""
+def compare(calc_a: dict, calc_b: dict, j2c: np.ndarray | None = None) -> dict:
+    """Agreement between two calc_dicts for the same geometry and theory.
+
+    Two numbers are reported for the density because they answer different
+    questions. The plain L2 over fit coefficients is a *coefficient*-space
+    distance, and aug-cc-pVQZ-JKFIT is deliberately over-complete, so it has
+    near-null directions in which the coefficients can move a long way while the
+    density they represent barely changes. The Coulomb-metric distance
+
+        sqrt( dc^T J dc / c^T J c ),   J_PQ = (P|Q),
+
+    is the self-interaction energy of the density *difference*, so it is blind to
+    those directions and is the quantity the paper reports. Judging the codes on
+    the coefficient norm alone would reject label sets whose densities are in
+    fact identical to within the SCF convergence.
+    """
     out = {"d_energy_hartree": abs(float(calc_a["energy"]) - float(calc_b["energy"]))}
     if "df_coeff" in calc_a and "df_coeff" in calc_b:
         a = np.asarray(calc_a["df_coeff"], dtype=float)
@@ -87,6 +102,11 @@ def compare(calc_a: dict, calc_b: dict) -> dict:
             denom = np.linalg.norm(a)
             out["df_rel_l2"] = float(np.linalg.norm(a - b) / denom) if denom else float("inf")
             out["df_max_abs"] = float(np.abs(a - b).max())
+            if j2c is not None and j2c.shape[0] == a.shape[0]:
+                delta = a - b
+                num = float(delta @ j2c @ delta)
+                ref = float(a @ j2c @ a)
+                out["density_coulomb_rel"] = float(np.sqrt(max(num, 0.0) / ref)) if ref > 0 else float("inf")
         else:
             out["df_rel_l2"] = float("inf")
             out["df_shape_mismatch"] = [list(a.shape), list(b.shape)]
@@ -139,6 +159,12 @@ def main() -> int:
     parser.add_argument("--safety", type=float, default=0.7, help="fraction of walltime to fill")
     parser.add_argument("--tol-energy", type=float, default=1e-5)
     parser.add_argument("--tol-df-rel-l2", type=float, default=1e-4)
+    parser.add_argument(
+        "--tol-density-rel",
+        type=float,
+        default=1e-4,
+        help="gate on the Coulomb-metric density difference, not the coefficient norm",
+    )
     parser.add_argument("--scratch", type=Path, default=None)
     parser.add_argument("--out", type=Path, default=_REPO_ROOT / "results/revision/calibration/calibration.json")
     args = parser.parse_args()
@@ -166,6 +192,7 @@ def main() -> int:
 
     records: list[dict] = []
     calcs: dict[tuple[str, str, str], dict] = {}
+    mols: dict[tuple[str, str], object] = {}
 
     for theory_key in theories:
         theory = get_level(theory_key)
@@ -221,6 +248,7 @@ def main() -> int:
                     else:
                         rec["energy"] = float(calc["energy"])
                         calcs[(theory_key, tag, name)] = calc
+                        mols.setdefault((theory_key, tag), _mol)
                     records.append(rec)
                     print(
                         f"{theory_key:18s} n={n_water:<3d} {name:10s} {status:5s} "
@@ -232,6 +260,7 @@ def main() -> int:
 
     comparisons = []
     for theory_key in theories:
+        theory = get_level(theory_key)
         for tag, _ in geometries:
             a = calcs.get((theory_key, tag, "orca"))
             b = calcs.get((theory_key, tag, "pyscf"))
@@ -240,19 +269,27 @@ def main() -> int:
             if ref is not None:
                 pairs.append(("orca_vs_orca_ref", a, ref))
                 pairs.append(("orca_ref_vs_pyscf", ref, b))
+
+            j2c = None
+            mol = mols.get((theory_key, tag))
+            if mol is not None:
+                j2c = df.addons.make_auxmol(mol, theory.auxbasis).intor("int2c2e")
+
             for pair_name, ca, cb in pairs:
                 if ca is None or cb is None:
                     continue
-                cmp = compare(ca, cb)
+                cmp = compare(ca, cb, j2c=j2c)
                 cmp.update({"theory": theory_key, "geometry": tag, "pair": pair_name})
                 cmp["passes_gate"] = bool(
                     cmp["d_energy_hartree"] <= args.tol_energy
-                    and cmp.get("df_rel_l2", float("inf")) <= args.tol_df_rel_l2
+                    and cmp.get("density_coulomb_rel", cmp.get("df_rel_l2", float("inf")))
+                    <= args.tol_density_rel
                 )
                 comparisons.append(cmp)
                 print(
                     f"  cmp {theory_key:18s} {tag:>4s} {pair_name:18s} "
                     f"dE={cmp['d_energy_hartree']:.3e} dfL2={cmp.get('df_rel_l2', float('nan')):.3e} "
+                    f"coul={cmp.get('density_coulomb_rel', float('nan')):.3e} "
                     f"{'PASS' if cmp['passes_gate'] else 'FAIL'}",
                     flush=True,
                 )
@@ -264,7 +301,11 @@ def main() -> int:
         "nprocs": args.nprocs,
         "gpu_requested": args.gpu,
         "gpu_available": gpu_available(),
-        "tolerances": {"energy_hartree": args.tol_energy, "df_rel_l2": args.tol_df_rel_l2},
+        "tolerances": {
+            "energy_hartree": args.tol_energy,
+            "df_rel_l2": args.tol_df_rel_l2,
+            "density_coulomb_rel": args.tol_density_rel,
+        },
         "records": records,
         "comparisons": comparisons,
         "max_mo_orthonormality_error": max(ortho) if ortho else None,

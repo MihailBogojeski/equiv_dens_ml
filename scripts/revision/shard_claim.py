@@ -40,6 +40,32 @@ def is_claim_stale(claim: Path, stale_s: float) -> bool:
     return age is not None and age > stale_s
 
 
+def slurm_task_id() -> str:
+    """This task's Slurm id in the form `squeue -o %i` prints, or ``-``.
+
+    Written into the claim so a reader can ask the scheduler whether the owner is
+    still alive, which is a far sharper test than the claim's age: a task killed
+    at the walltime leaves a claim that looks fresh for as long as the stale
+    timeout, and on the 24 h large tier that would idle a shard for a whole day.
+    """
+    array_job = os.environ.get("SLURM_ARRAY_JOB_ID")
+    task = os.environ.get("SLURM_ARRAY_TASK_ID")
+    if array_job and task:
+        return f"{array_job}_{task}"
+    return os.environ.get("SLURM_JOB_ID", "-")
+
+
+def claim_task_id(claim: Path) -> str | None:
+    """The Slurm id recorded in `claim`, or None if it has none."""
+    try:
+        fields = claim.read_text().split()
+    except OSError:
+        return None
+    if len(fields) >= 4 and fields[3] != "-":
+        return fields[3]
+    return None
+
+
 def touch_claim(claim: Path) -> None:
     """Refresh a claim's mtime so staleness measures liveness, not age."""
     try:
@@ -64,7 +90,7 @@ def acquire_claim(claim: Path, stale_s: float, tag: str = "") -> bool:
     claim.parent.mkdir(parents=True, exist_ok=True)
     try:
         fd = os.open(claim, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-        os.write(fd, f"{os.uname().nodename} {os.getpid()} {tag}\n".encode())
+        os.write(fd, f"{os.uname().nodename} {os.getpid()} {tag} {slurm_task_id()}\n".encode())
         os.close(fd)
     except FileExistsError:
         return False
