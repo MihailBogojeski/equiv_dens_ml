@@ -294,8 +294,67 @@ def test_acquire_claim_still_refuses_a_fresh_claim_from_a_different_task(tmp_pat
     claim = tmp_path / "shard_00004.claim"
     claim.write_text("cs602 4243 wb97mv/orca 777_4\n")
 
-    assert acquire_claim(claim, 14400, "wb97mv/orca") is False
+    assert acquire_claim(claim, 14400, "wb97mv/orca", lambda: {"777_3", "777_4"}) is False
     assert claim.read_text() == "cs602 4243 wb97mv/orca 777_4\n"
+
+
+def test_acquire_claim_reclaims_from_an_owner_the_scheduler_has_forgotten(tmp_path):
+    """The livelock: a cancelled array's claims must not hold shards for `stale_s`.
+
+    campaign_status.py already resolved this the same way, so while acquire_claim
+    aged claims out instead, the watchdog re-submitted these shards every pass and
+    every worker refused them -- for four hours on the small tier and a day on the
+    large one, with both logs reading as normal throughout.
+    """
+    claim = tmp_path / "shard_00006.claim"
+    claim.write_text("cs602 4243 pbe_d4_avdz/orca 900_6\n")
+
+    assert acquire_claim(claim, 14400, "pbe_d4_avdz/orca", lambda: {"901_0"}) is True
+    assert "4243" not in claim.read_text()
+
+
+def test_acquire_claim_keeps_a_fresh_claim_when_the_scheduler_cannot_be_reached(tmp_path):
+    """A squeue that times out must not read as "every worker died"."""
+    claim = tmp_path / "shard_00007.claim"
+    claim.write_text("cs602 4243 pbe_d4_avdz/orca 900_7\n")
+
+    assert acquire_claim(claim, 14400, "pbe_d4_avdz/orca", lambda: None) is False
+    assert claim.read_text() == "cs602 4243 pbe_d4_avdz/orca 900_7\n"
+
+
+def test_acquire_claim_does_not_ask_the_scheduler_about_a_claim_with_no_task_id(tmp_path):
+    """Pre-Slurm-id claims still fall back to ageing out, with no squeue call."""
+    calls = []
+
+    def probe():
+        calls.append(1)
+        return set()
+
+    claim = tmp_path / "shard_00008.claim"
+    claim.write_text("laptop 111 cpu\n")
+
+    assert acquire_claim(claim, 14400, "cpu", probe) is False
+    assert calls == []
+
+
+def test_acquire_claim_ages_out_before_asking_the_scheduler(tmp_path):
+    """An old claim is reclaimed on age alone, so squeue is not on the common path."""
+    import os
+    import time
+
+    calls = []
+
+    def probe():
+        calls.append(1)
+        return set()
+
+    claim = tmp_path / "shard_00009.claim"
+    claim.write_text("cs602 4243 pbe_d4_avdz/orca 900_9\n")
+    old = time.time() - 20000
+    os.utime(claim, (old, old))
+
+    assert acquire_claim(claim, 14400, "pbe_d4_avdz/orca", probe) is True
+    assert calls == []
 
 
 def test_acquire_claim_outside_slurm_does_not_treat_dashes_as_a_match(tmp_path, monkeypatch):

@@ -16,13 +16,16 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 import numpy as np
 
 #: Longer than any single frame is expected to take, shorter than the walltime,
-#: so a task killed at the wall is reclaimed on the next pass.
+#: so a task killed at the wall is reclaimed on the next pass. Only the fallback:
+#: when the claim names a Slurm task, `acquire_claim` asks the scheduler instead.
 DEFAULT_STALE_S = 14400.0
 
 
@@ -66,6 +69,40 @@ def claim_task_id(claim: Path) -> str | None:
     return None
 
 
+def live_task_ids(timeout_s: float = 60.0) -> set[str] | None:
+    """Slurm ids of this user's queued and running tasks, or None if unavailable.
+
+    None rather than an empty set on failure, so a transient squeue error is not
+    read as "every worker died" -- which would hand every shard in the campaign
+    to whichever worker asked next, on top of the ones already running them.
+    """
+    try:
+        out = subprocess.run(
+            ["squeue", "-h", "-u", os.environ.get("USER", ""), "-o", "%i"],
+            capture_output=True,
+            text=True,
+            timeout=timeout_s,
+            check=True,
+        )
+    except Exception:
+        return None
+    return {line.strip() for line in out.stdout.splitlines() if line.strip()}
+
+
+def owner_has_exited(owner: str, live_tasks: Callable[[], set[str] | None] | None = None) -> bool:
+    """True only when the scheduler positively says task `owner` is gone.
+
+    Sound without a grace period, because of the order the two facts are read: a
+    task has to be running to have written the claim we just read, so it was in
+    the queue before this snapshot was taken. Absent from the snapshot therefore
+    means exited since, never "has not started yet". For the same reason the
+    snapshot is taken fresh on every call rather than cached -- a cached one
+    could predate the claim, and then absence would prove nothing.
+    """
+    live = (live_tasks or live_task_ids)()
+    return live is not None and owner not in live
+
+
 def touch_claim(claim: Path) -> None:
     """Refresh a claim's mtime so staleness measures liveness, not age."""
     try:
@@ -74,7 +111,12 @@ def touch_claim(claim: Path) -> None:
         pass
 
 
-def acquire_claim(claim: Path, stale_s: float, tag: str = "") -> bool:
+def acquire_claim(
+    claim: Path,
+    stale_s: float,
+    tag: str = "",
+    live_tasks: Callable[[], set[str] | None] | None = None,
+) -> bool:
     """Take the exclusive-create claim on `claim`, recovering a stale one.
 
     Returns False (without raising) when another live worker holds it, so the
@@ -88,14 +130,30 @@ def acquire_claim(claim: Path, stale_s: float, tag: str = "") -> bool:
     exit -- and because the scheduler still lists that id as live, nothing else
     would touch the shard until the stale timeout. The test is unambiguous: the
     only process that can be running under this id right now is this one.
+
+    A claim whose owner the scheduler no longer lists is reclaimed on the same
+    reasoning, one task removed. This has to agree with campaign_status.py, which
+    decides what to re-submit and has always asked the scheduler; while only this
+    side aged claims out, the two halves of the protocol disagreed for up to
+    `stale_s` after any cancellation, and the disagreement was a livelock rather
+    than a delay. The watchdog saw twelve orphaned ood_size shards and submitted
+    twelve tasks; each one read a claim left by an array cancelled ninety minutes
+    earlier, called it live because it was younger than four hours, and exited
+    after six seconds; half an hour later the watchdog counted the same twelve
+    and did it again. Nothing in either log says anything is wrong -- the
+    watchdog reports work dispatched, the workers report a shard already taken.
     """
     if claim.exists():
         age = claim_age_s(claim)
+        owner = claim_task_id(claim)
         if age is not None and age > stale_s:
             print(f"claim stale ({age:.0f}s > {stale_s:.0f}s), reclaiming: {claim}")
             claim.unlink(missing_ok=True)
-        elif claim_task_id(claim) == slurm_task_id() != "-":
+        elif owner == slurm_task_id() != "-":
             print(f"claim left by an earlier run of this task ({slurm_task_id()}), reclaiming: {claim}")
+            claim.unlink(missing_ok=True)
+        elif owner is not None and owner_has_exited(owner, live_tasks):
+            print(f"claim owner {owner} is no longer queued or running, reclaiming: {claim}")
             claim.unlink(missing_ok=True)
         else:
             return False

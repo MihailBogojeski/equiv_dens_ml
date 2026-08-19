@@ -20,8 +20,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
-import subprocess
 import sys
 import time
 from pathlib import Path
@@ -29,30 +27,14 @@ from pathlib import Path
 _SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(_SCRIPT_DIR))
 
-from shard_claim import claim_task_id  # noqa: E402
+# Imported rather than re-implemented: this decides what to re-submit and
+# acquire_claim decides what a worker will accept, so the two answering the same
+# question differently is a livelock, not a discrepancy.
+from shard_claim import claim_task_id, live_task_ids  # noqa: E402
 
 #: Matches the large tier's --claim-stale-s. Only used for claims with no Slurm
 #: id recorded; when there is one, the scheduler is asked directly.
 DEFAULT_STALE_S = 86400.0
-
-
-def live_task_ids() -> set[str] | None:
-    """Slurm ids of this user's queued and running tasks, or None if unavailable.
-
-    None rather than an empty set on failure, so a transient squeue error is not
-    read as "every worker died", which would re-submit the entire campaign.
-    """
-    try:
-        out = subprocess.run(
-            ["squeue", "-h", "-u", os.environ.get("USER", ""), "-o", "%i"],
-            capture_output=True,
-            text=True,
-            timeout=60,
-            check=True,
-        )
-    except Exception:
-        return None
-    return {line.strip() for line in out.stdout.splitlines() if line.strip()}
 
 
 def shard_indices(shard_dir: Path) -> list[int]:
