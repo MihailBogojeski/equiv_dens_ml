@@ -12,6 +12,9 @@
 # Same work as submit_csh_cpu.sbatch on a GPU. Both arrays can be queued
 # simultaneously against the same shard list; the exclusive-create claim
 # prevents duplicated effort, so this is purely a hedge against queue latency.
+#
+# Set RETRY=1 to reprocess an already-done shard's recorded failures instead
+# (e.g. after widening the AO element table).
 
 set -euo pipefail
 cd "${SLURM_SUBMIT_DIR:-/scratch/mh7373/projects/equiv_dens_ml}"
@@ -24,6 +27,12 @@ H5=${H5:-datasets/revision/omol_csh/omol_csh_58k_train.h5}
 OUTDIR=${OUTDIR:-datasets/revision/csh_df/train}
 SHARD_SIZE=${SHARD_SIZE:-64}
 TABLE=${TABLE:-datasets/revision/omol_csh/ao_permutation_8el.json}
+RETRY=${RETRY:-0}
+
+RETRY_FLAGS=()
+if [ "$RETRY" != "0" ]; then
+  RETRY_FLAGS+=(--retry-failures)
+fi
 
 ./.venv/bin/python scripts/revision/csh_shard_to_df.py \
   --manifest "$MANIFEST" \
@@ -32,4 +41,5 @@ TABLE=${TABLE:-datasets/revision/omol_csh/ao_permutation_8el.json}
   --shard "${SLURM_ARRAY_TASK_ID}" \
   --shard-size "$SHARD_SIZE" \
   --table "$TABLE" \
-  --device gpu
+  --device gpu \
+  "${RETRY_FLAGS[@]}"
