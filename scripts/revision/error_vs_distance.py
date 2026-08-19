@@ -81,9 +81,24 @@ def train_extent_scale(train: np.ndarray, max_rows: int = 400, seed: int = 0) ->
 
 
 def load_errors(path: Path) -> dict[int, float]:
-    """Frame index -> absolute fractional error, from a csh_evaluate.py report."""
+    """Frame index -> absolute fractional error, from a csh_evaluate.py report.
+
+    Keyed on `source_index` -- the frame's number in the geometry file -- rather
+    than its row in the evaluated dataset. The two differ whenever a frame failed
+    its ORCA calculation and was dropped during assembly, and since the
+    collective variables are numbered over the geometry file, joining on the row
+    number would pair each error after the first gap with the wrong structure.
+    That would not fail; it would just move points along the x-axis of the
+    headline figure.
+
+    Reports without the key are older and are read positionally, which is what
+    they meant at the time.
+    """
     payload = json.loads(Path(path).read_text())
-    return {int(r["index"]): float(r["afe"]) for r in payload["records"]}
+    records = payload["records"]
+    if any("source_index" not in r for r in records):
+        return {int(r["index"]): float(r["afe"]) for r in records}
+    return {int(r["source_index"]): float(r["afe"]) for r in records}
 
 
 def bin_curve(x: np.ndarray, y: np.ndarray, edges: np.ndarray) -> list[dict]:

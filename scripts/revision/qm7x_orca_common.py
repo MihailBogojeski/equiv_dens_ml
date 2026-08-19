@@ -532,7 +532,17 @@ def read_shard(path: str | Path) -> dict:
 
 
 def pad_frames(frames: list[dict]) -> dict[str, Any]:
-    """Pack unpadded frames into the DensNet base-npy layout."""
+    """Pack unpadded frames into the DensNet base-npy layout.
+
+    Carries each frame's index in the source geometry file through as
+    ``source_index`` when the caller supplies one. Without it the only handle on
+    a structure downstream is its row number here, and that is not the same
+    number: frames ORCA failed on are dropped during assembly, so every row after
+    the first gap refers to a different geometry than its position suggests.
+    Anything that joins per-structure results back to the geometries -- the
+    error-versus-distance curve above all -- would then be quietly misaligned
+    rather than wrong in a way that shows.
+    """
     max_n = max(len(fr["atom_numbers"]) for fr in frames)
     n = len(frames)
     positions = np.zeros((n, max_n, 3), dtype=float)
@@ -540,9 +550,14 @@ def pad_frames(frames: list[dict]) -> dict[str, Any]:
     energy = np.zeros((n,), dtype=float)
     forces = np.zeros((n, max_n, 3), dtype=float)
     dipole = np.zeros((n, 3), dtype=float)
+    source_index = np.full((n,), -1, dtype=int)
     has_energy = False
     has_dipole = False
+    has_source_index = False
     for i, fr in enumerate(frames):
+        if fr.get("index") is not None:
+            source_index[i] = int(fr["index"])
+            has_source_index = True
         z = np.asarray(fr["atom_numbers"], dtype=int)
         xyz = np.asarray(fr["positions"], dtype=float)
         nat = len(z)
@@ -567,6 +582,8 @@ def pad_frames(frames: list[dict]) -> dict[str, Any]:
         out["forces"] = forces
     if has_dipole:
         out["dipole_moment"] = dipole
+    if has_source_index:
+        out["source_index"] = source_index
     return out
 
 

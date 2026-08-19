@@ -92,6 +92,25 @@ def load_training_args(args_file: str):
     return parsed[0] if isinstance(parsed, tuple) else parsed
 
 
+def load_source_index(np_dataset: str, n_total: int) -> np.ndarray | None:
+    """The `source_index` column of a base npy, or None if it has none.
+
+    Returns None rather than raising for datasets assembled before this was
+    recorded, so an older split still evaluates -- it just cannot be joined to
+    geometries safely, and the caller says so.
+    """
+    try:
+        raw = np.load(np_dataset, allow_pickle=True)
+    except Exception:
+        return None
+    data = raw.item() if isinstance(raw, np.ndarray) and raw.dtype == object and raw.shape == () else raw
+    try:
+        values = np.asarray(data["source_index"], dtype=int)
+    except (KeyError, IndexError, TypeError):
+        return None
+    return values if values.shape[0] == n_total else None
+
+
 def absolute_fractional_error(pred, ref, weights):
     """int |rho_pred - rho_ref| dV / int rho_ref dV, per structure."""
     num = torch.sum(torch.abs(pred - ref) * weights, dim=-1)
@@ -151,6 +170,17 @@ def main() -> int:
     indices = list(range(n_total if not cli.limit else min(cli.limit, n_total)))
     print(f"evaluating {len(indices)} of {n_total} structures from {cli.np_dataset}")
 
+    # Row number here is not the frame's number in the geometry file: assembly
+    # drops frames ORCA failed on, so the two agree only for a split that came
+    # back complete. Anything joining these errors to per-geometry quantities
+    # needs the original, which the assembler stores alongside the coordinates.
+    source_index = load_source_index(cli.np_dataset, n_total)
+    if source_index is None:
+        print(
+            "  note: this np_dataset predates source_index, so results are keyed by row "
+            "number; that is only safe to join against geometries if nothing was dropped"
+        )
+
     device = "cuda" if torch.cuda.is_available() and args.use_gpu else "cpu"
     model = load_model(args, dataset, train=False)
     model = model.to(device).eval()
@@ -173,14 +203,15 @@ def main() -> int:
         natoms = (props["batch_atom_numbers"] > 0).sum(-1).cpu().numpy()
         n_elec = props["batch_atom_numbers"].sum(-1).cpu().numpy()
         for j, idx in enumerate(batch):
-            records.append(
-                {
-                    "index": int(idx),
-                    "natoms": int(natoms[j]),
-                    "n_elec": int(n_elec[j]),
-                    "afe": float(afe[j]),
-                }
-            )
+            record = {
+                "index": int(idx),
+                "natoms": int(natoms[j]),
+                "n_elec": int(n_elec[j]),
+                "afe": float(afe[j]),
+            }
+            if source_index is not None and source_index[idx] >= 0:
+                record["source_index"] = int(source_index[idx])
+            records.append(record)
         print(
             f"  [{start + len(batch)}/{len(indices)}] "
             f"AFE batch mean {float(np.mean(afe)):.5f}",

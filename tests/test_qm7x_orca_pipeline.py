@@ -178,6 +178,37 @@ def test_pad_and_assemble_roundtrip(tmp_path):
     assert loaded[0]["calc"]["energy"] == pytest.approx(-76.4)
 
 
+def test_pad_frames_keeps_the_source_frame_number_across_a_gap():
+    """Frames ORCA failed on are dropped, so row number stops meaning frame number.
+
+    Everything that joins per-structure results back to geometries -- the
+    error-versus-distance figure in particular -- needs the original number, and
+    a positional read after a gap silently attributes each error to a different
+    structure than the one it came from.
+    """
+    frames = [
+        {
+            "index": src,
+            "atom_numbers": WATER_Z,
+            "positions": WATER_XYZ,
+            "energy": -76.0 - src,
+            "forces": np.zeros((3, 3)),
+        }
+        # Frames 1 and 2 failed and never reached the assembler.
+        for src in (0, 3, 4)
+    ]
+    packed = pad_frames(frames)
+    assert list(packed["source_index"]) == [0, 3, 4]
+
+
+def test_pad_frames_omits_source_index_when_frames_carry_none():
+    """The QM7-X path builds frames without one, and must not gain a column of -1."""
+    frames = [
+        {"atom_numbers": WATER_Z, "positions": WATER_XYZ, "energy": -76.0, "forces": np.zeros((3, 3))}
+    ]
+    assert "source_index" not in pad_frames(frames)
+
+
 def test_calc_dict_from_orca_without_df():
     mol = build_pyscf_mol(WATER_Z, WATER_XYZ)
     nao = mol.nao

@@ -153,6 +153,68 @@ def test_physical_axis_uses_the_named_coordinate(tmp_path):
     assert entry["spearman_afe_vs_coordinate"] > 0.99
 
 
+def test_errors_join_on_the_source_frame_not_the_dataset_row(tmp_path):
+    """A dropped frame must not shift every later error onto the wrong geometry.
+
+    Frames ORCA fails on never reach the assembled dataset, so the evaluator's
+    row numbers close up over the gaps while the collective variables stay
+    numbered over the geometry file. Joining on the row number would slide the
+    whole tail of the tier along the x-axis, which is invisible in the output --
+    the curve still looks like a curve. Here the labelled frames are the even
+    ones, carrying their true indices as `source_index`, and error is made to
+    track the descriptor exactly, so a positional join breaks the correlation
+    that a correct one recovers perfectly.
+    """
+    rng = np.random.default_rng(13)
+    train = write_cv(tmp_path / "train.json", [cv_row(0.0, rng) for _ in range(80)])
+
+    rows = [cv_row(0.1 * i, rng) for i in range(20)]
+    test_cv = write_cv(tmp_path / "test.json", rows)
+
+    kept = list(range(0, 20, 2))
+    eval_path = tmp_path / "eval.json"
+    eval_path.write_text(
+        json.dumps(
+            {
+                "records": [
+                    # `index` is the row in the assembled dataset, which has closed
+                    # up over the dropped odd frames; `source_index` is the truth.
+                    {"index": row, "source_index": src, "afe": 0.001 * src, "natoms": 6}
+                    for row, src in enumerate(kept)
+                ]
+            }
+        )
+    )
+
+    # The join itself, stated exactly: errors land on frames 0,2,4,... and not on
+    # rows 0,1,2,..., which is what a positional read would have given.
+    assert evd.load_errors(eval_path) == {src: 0.001 * src for src in kept}
+
+    out = tmp_path / "report.json"
+    sys.argv = [
+        "error_vs_distance.py",
+        "--train-cv", str(train),
+        "--tier", f"gappy:{test_cv}:{eval_path}",
+        "--out", str(out),
+    ]
+    assert evd.main() == 0
+
+    entry = json.loads(out.read_text())["tiers"]["gappy"]
+    assert entry["n"] == len(kept)
+    # Error was made to rise with the same offset that drives the descriptor
+    # distance, so a correct join leaves a strong monotone trend. It is not
+    # exactly 1 because the other descriptors carry noise, as real ones do.
+    assert entry["spearman_afe_vs_distance"] > 0.85
+
+
+def test_reports_without_a_source_index_still_join_positionally(tmp_path):
+    """Older reports predate the key and meant the row number when they said index."""
+    errors = evd.load_errors(
+        write_eval(tmp_path / "old.json", {0: 0.1, 1: 0.2, 2: 0.3})
+    )
+    assert errors == {0: 0.1, 1: 0.2, 2: 0.3}
+
+
 def test_missing_inputs_are_reported_not_fatal(tmp_path):
     rng = np.random.default_rng(5)
     train = write_cv(tmp_path / "train.json", [cv_row(0.0, rng) for _ in range(40)])
