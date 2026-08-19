@@ -3,9 +3,7 @@
 
 Primary metric is the paper's absolute fractional error: the integrated density
 error normalised by the electron count, so structures of very different size are
-weighted equally. Alongside it, the density-fitting projection itself is scored
-as the error floor - no model trained on these coefficients can beat it - which
-is the dashed baseline in Figure 1b of the paper.
+weighted equally.
 
 Results are broken down by molecule size because the CSH test splits are much
 larger than the training structures, so the aggregate number would otherwise
