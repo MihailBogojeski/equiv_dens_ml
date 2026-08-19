@@ -1,0 +1,26 @@
+{
+  "theory": "pbe_d4_avdz",
+  "reference_grid_level": 9,
+  "levels": {
+    "3": {
+      "energy": -152.70407848509734,
+      "d_energy_vs_ref": 7.302904805328581e-07,
+      "df_rel_l2_vs_ref": 2.774398249657733e-07
+    },
+    "5": {
+      "energy": -152.70407921933395,
+      "d_energy_vs_ref": -3.946126980736153e-09,
+      "df_rel_l2_vs_ref": 6.309441128398258e-09
+    },
+    "7": {
+      "energy": -152.70407921117146,
+      "d_energy_vs_ref": 4.2163605940004345e-09,
+      "df_rel_l2_vs_ref": 1.1085377039257869e-09
+    },
+    "9": {
+      "energy": -152.70407921538782,
+      "d_energy_vs_ref": 0.0,
+      "df_rel_l2_vs_ref": 0.0
+    }
+  }
+}

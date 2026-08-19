@@ -21,6 +21,10 @@ cd "${SLURM_SUBMIT_DIR:-$PWD}"
 
 module load orca/6.1.1
 export OMP_NUM_THREADS=1
+# The login environment preloads a CUDA runtime that does not exist on the CPU
+# partition, and every ORCA subprocess reports the failure. Dropping it here
+# keeps a real error visible in the log instead of buried under the noise.
+unset LD_PRELOAD
 
 SHARD_DIR=${SHARD_DIR:?set SHARD_DIR to the directory holding shard_*.json}
 OUTDIR=${OUTDIR:?set OUTDIR to the results directory for this split}

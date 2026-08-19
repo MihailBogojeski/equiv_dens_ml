@@ -1,0 +1,84 @@
+{
+  "train": "results/revision/cv/malon_train_pt.json",
+  "n_train": 400,
+  "cvs": [
+    "delta_pt",
+    "r_oo",
+    "co_alternation",
+    "r_donor_h",
+    "r_acceptor_h"
+  ],
+  "distance_cvs": [
+    "delta_pt",
+    "r_oo",
+    "co_alternation",
+    "r_donor_h",
+    "r_acceptor_h"
+  ],
+  "joint_cvs": [
+    "delta_pt",
+    "co_alternation"
+  ],
+  "threshold": 0.05,
+  "train_internal_nn_distance": 0.4411547573938039,
+  "splits": {
+    "malon_val": {
+      "path": "results/revision/cv/malon_val_pt.json",
+      "n_test": 80,
+      "bhattacharyya_per_cv": {
+        "delta_pt": 0.9944189774109087,
+        "r_oo": 0.9940645661311467,
+        "co_alternation": 0.9949022789905427,
+        "r_donor_h": 0.9939434973478365,
+        "r_acceptor_h": 0.9945959306892851
+      },
+      "frac_outside_train_p01_p99": {
+        "delta_pt": 0.025,
+        "r_oo": 0.0625,
+        "co_alternation": 0.025,
+        "r_donor_h": 0.025,
+        "r_acceptor_h": 0.025
+      },
+      "bhattacharyya_joint": 0.9826234385156462,
+      "max_bhattacharyya": 0.9949022789905427,
+      "min_bhattacharyya": 0.9939434973478365,
+      "nn_distance": {
+        "median": 0.40862351779457584,
+        "p05": 0.2327546487471527,
+        "min": 0.1798859205639964,
+        "median_in_train_units": 0.9262588942904938,
+        "frac_within_train_scale": 0.6
+      },
+      "verdict_joint_below_threshold": false
+    },
+    "malon_ood_proton_transfer": {
+      "path": "results/revision/cv/malon_ood_proton_transfer_pt.json",
+      "n_test": 125,
+      "bhattacharyya_per_cv": {
+        "delta_pt": 0.44348103083587254,
+        "r_oo": 0.6370684698951208,
+        "co_alternation": 0.674571990224302,
+        "r_donor_h": 0.46874008106163917,
+        "r_acceptor_h": 0.43220229841245095
+      },
+      "frac_outside_train_p01_p99": {
+        "delta_pt": 0.792,
+        "r_oo": 0.344,
+        "co_alternation": 0.56,
+        "r_donor_h": 0.776,
+        "r_acceptor_h": 0.8
+      },
+      "bhattacharyya_joint": 0.42760466185808854,
+      "max_bhattacharyya": 0.674571990224302,
+      "min_bhattacharyya": 0.43220229841245095,
+      "nn_distance": {
+        "median": 5.789921693732659,
+        "p05": 0.2858434770818272,
+        "min": 0.09341825625599141,
+        "median_in_train_units": 13.124468447167153,
+        "frac_within_train_scale": 0.128
+      },
+      "verdict_joint_below_threshold": false
+    }
+  }
+}

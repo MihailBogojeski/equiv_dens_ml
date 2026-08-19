@@ -21,6 +21,9 @@ cd "${SLURM_SUBMIT_DIR:-$PWD}"
 
 module load orca/6.1.1
 export OMP_NUM_THREADS=1
+# See submit_water_orca.sbatch: the CPU partition has no CUDA runtime and the
+# inherited LD_PRELOAD makes every ORCA subprocess log a failure it survives.
+unset LD_PRELOAD
 
 SHARD_DIR=${SHARD_DIR:?set SHARD_DIR}
 OUTDIR=${OUTDIR:?set OUTDIR}

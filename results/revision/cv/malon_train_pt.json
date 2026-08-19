@@ -1,0 +1,4050 @@
+{
+  "label": "malon_train",
+  "xyz": "datasets/revision/malonaldehyde/train.xyz",
+  "indices": {
+    "donor": 0,
+    "hydrogen": 5,
+    "acceptor": 4
+  },
+  "n_frames": 400,
+  "summary": {
+    "delta_pt": {
+      "mean": -0.7930025857801651,
+      "std": 0.18978850133434297,
+      "min": -1.4296231608786085,
+      "max": -0.4195855694269628
+    },
+    "abs_delta_pt": {
+      "mean": 0.7930025857801651,
+      "std": 0.18978850133434297,
+      "min": 0.4195855694269628,
+      "max": 1.4296231608786085
+    },
+    "r_oo": {
+      "mean": 2.645648478554931,
+      "std": 0.11641342211899082,
+      "min": 2.382991352097992,
+      "max": 3.069478415873415
+    },
+    "co_alternation": {
+      "mean": 0.09368071424481318,
+      "std": 0.0372826048221104,
+      "min": -0.027808205639227035,
+      "max": 0.17681061899749628
+    },
+    "r_donor_h": {
+      "mean": 1.004917628292178,
+      "std": 0.04334597251373343,
+      "min": 0.9057652360830933,
+      "max": 1.1445954909450062
+    },
+    "r_acceptor_h": {
+      "mean": 1.7979202140723434,
+      "std": 0.166627372261074,
+      "min": 1.4663356563783478,
+      "max": 2.3878986212455326
+    }
+  },
+  "frames": [
+    {
+      "delta_pt": -0.563724068243342,
+      "abs_delta_pt": 0.563724068243342,
+      "r_oo": 2.5324141809490515,
+      "co_alternation": 0.12325422676426867,
+      "r_donor_h": 1.025599143808803,
+      "r_acceptor_h": 1.589323212052145,
+      "index": 0,
+      "comment": "malonaldehyde train delta=-0.564"
+    },
+    {
+      "delta_pt": -0.8046632314727831,
+      "abs_delta_pt": 0.8046632314727831,
+      "r_oo": 2.481808780270586,
+      "co_alternation": 0.12995364714055802,
+      "r_donor_h": 0.9419805750237051,
+      "r_acceptor_h": 1.7466438064964882,
+      "index": 1,
+      "comment": "malonaldehyde train delta=-0.805"
+    },
+    {
+      "delta_pt": -0.8132670380538795,
+      "abs_delta_pt": 0.8132670380538795,
+      "r_oo": 2.511576559615146,
+      "co_alternation": 0.04275713790860802,
+      "r_donor_h": 0.94239642420961,
+      "r_acceptor_h": 1.7556634622634895,
+      "index": 2,
+      "comment": "malonaldehyde train delta=-0.813"
+    },
+    {
+      "delta_pt": -0.8649683731858402,
+      "abs_delta_pt": 0.8649683731858402,
+      "r_oo": 2.702090341721374,
+      "co_alternation": 0.09769648662599262,
+      "r_donor_h": 0.9938045536020701,
+      "r_acceptor_h": 1.8587729267879103,
+      "index": 3,
+      "comment": "malonaldehyde train delta=-0.865"
+    },
+    {
+      "delta_pt": -1.0971438360229195,
+      "abs_delta_pt": 1.0971438360229195,
+      "r_oo": 2.7823493658422938,
+      "co_alternation": 0.09269428749401931,
+      "r_donor_h": 0.9795247712115149,
+      "r_acceptor_h": 2.0766686072344345,
+      "index": 4,
+      "comment": "malonaldehyde train delta=-1.097"
+    },
+    {
+      "delta_pt": -0.5340398701852442,
+      "abs_delta_pt": 0.5340398701852442,
+      "r_oo": 2.450044870843383,
+      "co_alternation": 0.134104609739212,
+      "r_donor_h": 0.9941983852474685,
+      "r_acceptor_h": 1.5282382554327127,
+      "index": 5,
+      "comment": "malonaldehyde train delta=-0.534"
+    },
+    {
+      "delta_pt": -0.6585507539502706,
+      "abs_delta_pt": 0.6585507539502706,
+      "r_oo": 2.503681281248497,
+      "co_alternation": 0.10978403413081872,
+      "r_donor_h": 1.0089618003650744,
+      "r_acceptor_h": 1.667512554315345,
+      "index": 6,
+      "comment": "malonaldehyde train delta=-0.659"
+    },
+    {
+      "delta_pt": -0.9944068025007358,
+      "abs_delta_pt": 0.9944068025007358,
+      "r_oo": 2.696269969617128,
+      "co_alternation": 0.053975540926382015,
+      "r_donor_h": 0.9449331853710745,
+      "r_acceptor_h": 1.9393399878718103,
+      "index": 7,
+      "comment": "malonaldehyde train delta=-0.994"
+    },
+    {
+      "delta_pt": -0.7703327216279412,
+      "abs_delta_pt": 0.7703327216279412,
+      "r_oo": 2.6661790299114867,
+      "co_alternation": 0.10133663722772579,
+      "r_donor_h": 1.0052863670742673,
+      "r_acceptor_h": 1.7756190887022085,
+      "index": 8,
+      "comment": "malonaldehyde train delta=-0.770"
+    },
+    {
+      "delta_pt": -0.9742869383823731,
+      "abs_delta_pt": 0.9742869383823731,
+      "r_oo": 2.8321050099819396,
+      "co_alternation": 0.1281890683627258,
+      "r_donor_h": 0.9816718009970582,
+      "r_acceptor_h": 1.9559587393794313,
+      "index": 9,
+      "comment": "malonaldehyde train delta=-0.974"
+    },
+    {
+      "delta_pt": -1.0306084051905504,
+      "abs_delta_pt": 1.0306084051905504,
+      "r_oo": 2.781888029457062,
+      "co_alternation": 0.07602837307479082,
+      "r_donor_h": 0.9920373559818664,
+      "r_acceptor_h": 2.022645761172417,
+      "index": 10,
+      "comment": "malonaldehyde train delta=-1.031"
+    },
+    {
+      "delta_pt": -0.7836600297947767,
+      "abs_delta_pt": 0.7836600297947767,
+      "r_oo": 2.710871366965341,
+      "co_alternation": 0.12691431167054623,
+      "r_donor_h": 1.0513682926602714,
+      "r_acceptor_h": 1.835028322455048,
+      "index": 11,
+      "comment": "malonaldehyde train delta=-0.784"
+    },
+    {
+      "delta_pt": -0.7761058629216488,
+      "abs_delta_pt": 0.7761058629216488,
+      "r_oo": 2.6096385459596787,
+      "co_alternation": 0.08113975894901193,
+      "r_donor_h": 0.9791953579668551,
+      "r_acceptor_h": 1.755301220888504,
+      "index": 12,
+      "comment": "malonaldehyde train delta=-0.776"
+    },
+    {
+      "delta_pt": -0.7058231041050844,
+      "abs_delta_pt": 0.7058231041050844,
+      "r_oo": 2.54093169571264,
+      "co_alternation": 0.07138471772911315,
+      "r_donor_h": 0.9748705060417411,
+      "r_acceptor_h": 1.6806936101468255,
+      "index": 13,
+      "comment": "malonaldehyde train delta=-0.706"
+    },
+    {
+      "delta_pt": -0.7065619755641371,
+      "abs_delta_pt": 0.7065619755641371,
+      "r_oo": 2.583077206434196,
+      "co_alternation": 0.03621742465911959,
+      "r_donor_h": 0.975345307383288,
+      "r_acceptor_h": 1.681907282947425,
+      "index": 14,
+      "comment": "malonaldehyde train delta=-0.707"
+    },
+    {
+      "delta_pt": -0.5964079779179754,
+      "abs_delta_pt": 0.5964079779179754,
+      "r_oo": 2.530268792346778,
+      "co_alternation": 0.05959342146823765,
+      "r_donor_h": 1.028243452520327,
+      "r_acceptor_h": 1.6246514304383024,
+      "index": 15,
+      "comment": "malonaldehyde train delta=-0.596"
+    },
+    {
+      "delta_pt": -0.9260373551353744,
+      "abs_delta_pt": 0.9260373551353744,
+      "r_oo": 2.6969978568443724,
+      "co_alternation": 0.1305109476910975,
+      "r_donor_h": 0.9743579664875905,
+      "r_acceptor_h": 1.900395321622965,
+      "index": 16,
+      "comment": "malonaldehyde train delta=-0.926"
+    },
+    {
+      "delta_pt": -0.55482516659214,
+      "abs_delta_pt": 0.55482516659214,
+      "r_oo": 2.589253710049314,
+      "co_alternation": 0.09031329598459559,
+      "r_donor_h": 1.045053769399157,
+      "r_acceptor_h": 1.599878935991297,
+      "index": 17,
+      "comment": "malonaldehyde train delta=-0.555"
+    },
+    {
+      "delta_pt": -0.9031689504060672,
+      "abs_delta_pt": 0.9031689504060672,
+      "r_oo": 2.7978058130182073,
+      "co_alternation": 0.03626214628933444,
+      "r_donor_h": 1.0367198097019277,
+      "r_acceptor_h": 1.9398887601079948,
+      "index": 18,
+      "comment": "malonaldehyde train delta=-0.903"
+    },
+    {
+      "delta_pt": -1.1456775341667131,
+      "abs_delta_pt": 1.1456775341667131,
+      "r_oo": 2.729404621834059,
+      "co_alternation": 0.08088320182401953,
+      "r_donor_h": 0.980329435390615,
+      "r_acceptor_h": 2.126006969557328,
+      "index": 19,
+      "comment": "malonaldehyde train delta=-1.146"
+    },
+    {
+      "delta_pt": -0.8141806034602659,
+      "abs_delta_pt": 0.8141806034602659,
+      "r_oo": 2.6043283274247395,
+      "co_alternation": 0.12945207628350608,
+      "r_donor_h": 1.0043355797459206,
+      "r_acceptor_h": 1.8185161832061865,
+      "index": 20,
+      "comment": "malonaldehyde train delta=-0.814"
+    },
+    {
+      "delta_pt": -0.8404904143058539,
+      "abs_delta_pt": 0.8404904143058539,
+      "r_oo": 2.658798289373557,
+      "co_alternation": 0.10028255122983576,
+      "r_donor_h": 0.9496220118773385,
+      "r_acceptor_h": 1.7901124261831924,
+      "index": 21,
+      "comment": "malonaldehyde train delta=-0.840"
+    },
+    {
+      "delta_pt": -1.1842170234649902,
+      "abs_delta_pt": 1.1842170234649902,
+      "r_oo": 2.927038879112714,
+      "co_alternation": 0.05739936138482493,
+      "r_donor_h": 0.9786178901524348,
+      "r_acceptor_h": 2.162834913617425,
+      "index": 22,
+      "comment": "malonaldehyde train delta=-1.184"
+    },
+    {
+      "delta_pt": -1.029195823197946,
+      "abs_delta_pt": 1.029195823197946,
+      "r_oo": 2.861013426536383,
+      "co_alternation": 0.06297968821032307,
+      "r_donor_h": 0.9910034198666343,
+      "r_acceptor_h": 2.0201992430645803,
+      "index": 23,
+      "comment": "malonaldehyde train delta=-1.029"
+    },
+    {
+      "delta_pt": -0.7874634328484441,
+      "abs_delta_pt": 0.7874634328484441,
+      "r_oo": 2.602013702291453,
+      "co_alternation": 0.17408916178685696,
+      "r_donor_h": 0.9717665105172094,
+      "r_acceptor_h": 1.7592299433656535,
+      "index": 24,
+      "comment": "malonaldehyde train delta=-0.787"
+    },
+    {
+      "delta_pt": -0.7018319961003436,
+      "abs_delta_pt": 0.7018319961003436,
+      "r_oo": 2.5778448049917992,
+      "co_alternation": 0.10922343407582868,
+      "r_donor_h": 1.0635830148543057,
+      "r_acceptor_h": 1.7654150109546494,
+      "index": 25,
+      "comment": "malonaldehyde train delta=-0.702"
+    },
+    {
+      "delta_pt": -0.7626383926943938,
+      "abs_delta_pt": 0.7626383926943938,
+      "r_oo": 2.6471567801024403,
+      "co_alternation": 0.08683123959647587,
+      "r_donor_h": 0.9925470492875823,
+      "r_acceptor_h": 1.7551854419819761,
+      "index": 26,
+      "comment": "malonaldehyde train delta=-0.763"
+    },
+    {
+      "delta_pt": -0.6825580069011147,
+      "abs_delta_pt": 0.6825580069011147,
+      "r_oo": 2.564943194155689,
+      "co_alternation": 0.0931874782655926,
+      "r_donor_h": 0.9870941154329415,
+      "r_acceptor_h": 1.6696521223340561,
+      "index": 27,
+      "comment": "malonaldehyde train delta=-0.683"
+    },
+    {
+      "delta_pt": -0.7833207018450223,
+      "abs_delta_pt": 0.7833207018450223,
+      "r_oo": 2.639675350023371,
+      "co_alternation": 0.08513919466521225,
+      "r_donor_h": 0.9851816311828525,
+      "r_acceptor_h": 1.7685023330278749,
+      "index": 28,
+      "comment": "malonaldehyde train delta=-0.783"
+    },
+    {
+      "delta_pt": -0.843069118433347,
+      "abs_delta_pt": 0.843069118433347,
+      "r_oo": 2.710060472168035,
+      "co_alternation": 0.11609243169462369,
+      "r_donor_h": 1.036667639207949,
+      "r_acceptor_h": 1.879736757641296,
+      "index": 29,
+      "comment": "malonaldehyde train delta=-0.843"
+    },
+    {
+      "delta_pt": -0.6995530093440341,
+      "abs_delta_pt": 0.6995530093440341,
+      "r_oo": 2.633564719732332,
+      "co_alternation": 0.1085255343290148,
+      "r_donor_h": 1.0176284332335563,
+      "r_acceptor_h": 1.7171814425775904,
+      "index": 30,
+      "comment": "malonaldehyde train delta=-0.700"
+    },
+    {
+      "delta_pt": -0.9939058533167163,
+      "abs_delta_pt": 0.9939058533167163,
+      "r_oo": 2.835216853549736,
+      "co_alternation": 0.1401190337796907,
+      "r_donor_h": 0.9849681931661455,
+      "r_acceptor_h": 1.9788740464828618,
+      "index": 31,
+      "comment": "malonaldehyde train delta=-0.994"
+    },
+    {
+      "delta_pt": -0.6649172636036969,
+      "abs_delta_pt": 0.6649172636036969,
+      "r_oo": 2.5820387499680155,
+      "co_alternation": 0.05354024420249681,
+      "r_donor_h": 1.0519481575311462,
+      "r_acceptor_h": 1.716865421134843,
+      "index": 32,
+      "comment": "malonaldehyde train delta=-0.665"
+    },
+    {
+      "delta_pt": -0.9641725098106354,
+      "abs_delta_pt": 0.9641725098106354,
+      "r_oo": 2.6970963854942736,
+      "co_alternation": 0.13006225300598628,
+      "r_donor_h": 0.9623163513368179,
+      "r_acceptor_h": 1.9264888611474533,
+      "index": 33,
+      "comment": "malonaldehyde train delta=-0.964"
+    },
+    {
+      "delta_pt": -0.7903043014904416,
+      "abs_delta_pt": 0.7903043014904416,
+      "r_oo": 2.4876056412391327,
+      "co_alternation": 0.07725126156923312,
+      "r_donor_h": 0.9998344000871588,
+      "r_acceptor_h": 1.7901387015776005,
+      "index": 34,
+      "comment": "malonaldehyde train delta=-0.790"
+    },
+    {
+      "delta_pt": -0.7158877417725009,
+      "abs_delta_pt": 0.7158877417725009,
+      "r_oo": 2.7051162053405258,
+      "co_alternation": 0.11156254565003576,
+      "r_donor_h": 1.044495693155657,
+      "r_acceptor_h": 1.760383434928158,
+      "index": 35,
+      "comment": "malonaldehyde train delta=-0.716"
+    },
+    {
+      "delta_pt": -0.6482721808568019,
+      "abs_delta_pt": 0.6482721808568019,
+      "r_oo": 2.6044433125449555,
+      "co_alternation": 0.17221495395796227,
+      "r_donor_h": 1.0268143434690449,
+      "r_acceptor_h": 1.6750865243258468,
+      "index": 36,
+      "comment": "malonaldehyde train delta=-0.648"
+    },
+    {
+      "delta_pt": -0.5653404186341311,
+      "abs_delta_pt": 0.5653404186341311,
+      "r_oo": 2.546934280775475,
+      "co_alternation": 0.07815248284586174,
+      "r_donor_h": 1.0117245065626754,
+      "r_acceptor_h": 1.5770649251968065,
+      "index": 37,
+      "comment": "malonaldehyde train delta=-0.565"
+    },
+    {
+      "delta_pt": -0.6793532034409244,
+      "abs_delta_pt": 0.6793532034409244,
+      "r_oo": 2.6076234630557793,
+      "co_alternation": 0.01643507399632793,
+      "r_donor_h": 1.0423800214122845,
+      "r_acceptor_h": 1.721733224853209,
+      "index": 38,
+      "comment": "malonaldehyde train delta=-0.679"
+    },
+    {
+      "delta_pt": -0.8061983138640965,
+      "abs_delta_pt": 0.8061983138640965,
+      "r_oo": 2.666819122309423,
+      "co_alternation": 0.13825857755213322,
+      "r_donor_h": 0.9909713776405997,
+      "r_acceptor_h": 1.7971696915046962,
+      "index": 39,
+      "comment": "malonaldehyde train delta=-0.806"
+    },
+    {
+      "delta_pt": -0.9527352602660442,
+      "abs_delta_pt": 0.9527352602660442,
+      "r_oo": 2.714393459412479,
+      "co_alternation": 0.08732472124708313,
+      "r_donor_h": 0.9787248882350703,
+      "r_acceptor_h": 1.9314601485011145,
+      "index": 40,
+      "comment": "malonaldehyde train delta=-0.953"
+    },
+    {
+      "delta_pt": -0.5948156393999713,
+      "abs_delta_pt": 0.5948156393999713,
+      "r_oo": 2.6118348686998982,
+      "co_alternation": 0.12954294390881804,
+      "r_donor_h": 1.0553926281474912,
+      "r_acceptor_h": 1.6502082675474625,
+      "index": 41,
+      "comment": "malonaldehyde train delta=-0.595"
+    },
+    {
+      "delta_pt": -0.6430745488587108,
+      "abs_delta_pt": 0.6430745488587108,
+      "r_oo": 2.5160480055310357,
+      "co_alternation": 0.12068312199278175,
+      "r_donor_h": 1.0000391337262022,
+      "r_acceptor_h": 1.643113682584913,
+      "index": 42,
+      "comment": "malonaldehyde train delta=-0.643"
+    },
+    {
+      "delta_pt": -0.9135090368410903,
+      "abs_delta_pt": 0.9135090368410903,
+      "r_oo": 2.7673090538999503,
+      "co_alternation": 0.09189851689464756,
+      "r_donor_h": 1.0016805232502086,
+      "r_acceptor_h": 1.915189560091299,
+      "index": 43,
+      "comment": "malonaldehyde train delta=-0.914"
+    },
+    {
+      "delta_pt": -0.8039202617750917,
+      "abs_delta_pt": 0.8039202617750917,
+      "r_oo": 2.5995221950589436,
+      "co_alternation": 0.08915259354442329,
+      "r_donor_h": 0.9582538491072384,
+      "r_acceptor_h": 1.7621741108823301,
+      "index": 44,
+      "comment": "malonaldehyde train delta=-0.804"
+    },
+    {
+      "delta_pt": -1.1561681997257167,
+      "abs_delta_pt": 1.1561681997257167,
+      "r_oo": 2.9154286440665693,
+      "co_alternation": 0.12249900597869101,
+      "r_donor_h": 1.0131217922288338,
+      "r_acceptor_h": 2.1692899919545505,
+      "index": 45,
+      "comment": "malonaldehyde train delta=-1.156"
+    },
+    {
+      "delta_pt": -1.1323482559372589,
+      "abs_delta_pt": 1.1323482559372589,
+      "r_oo": 2.8153861546957177,
+      "co_alternation": 0.15316971905569754,
+      "r_donor_h": 0.9632672628829845,
+      "r_acceptor_h": 2.095615518820243,
+      "index": 46,
+      "comment": "malonaldehyde train delta=-1.132"
+    },
+    {
+      "delta_pt": -0.962444446783431,
+      "abs_delta_pt": 0.962444446783431,
+      "r_oo": 2.757206538627241,
+      "co_alternation": 0.09853217792895497,
+      "r_donor_h": 0.9675184075299996,
+      "r_acceptor_h": 1.9299628543134306,
+      "index": 47,
+      "comment": "malonaldehyde train delta=-0.962"
+    },
+    {
+      "delta_pt": -1.0344670519418877,
+      "abs_delta_pt": 1.0344670519418877,
+      "r_oo": 2.8896158006811214,
+      "co_alternation": 0.044073622158681935,
+      "r_donor_h": 1.0256423084338875,
+      "r_acceptor_h": 2.060109360375775,
+      "index": 48,
+      "comment": "malonaldehyde train delta=-1.034"
+    },
+    {
+      "delta_pt": -0.5385628419455157,
+      "abs_delta_pt": 0.5385628419455157,
+      "r_oo": 2.526440096491558,
+      "co_alternation": 0.112851949176904,
+      "r_donor_h": 1.0383188815717939,
+      "r_acceptor_h": 1.5768817235173096,
+      "index": 49,
+      "comment": "malonaldehyde train delta=-0.539"
+    },
+    {
+      "delta_pt": -0.8767742097170019,
+      "abs_delta_pt": 0.8767742097170019,
+      "r_oo": 2.702284694436048,
+      "co_alternation": 0.05748430850298569,
+      "r_donor_h": 1.000859170471583,
+      "r_acceptor_h": 1.877633380188585,
+      "index": 50,
+      "comment": "malonaldehyde train delta=-0.877"
+    },
+    {
+      "delta_pt": -0.7587506234941674,
+      "abs_delta_pt": 0.7587506234941674,
+      "r_oo": 2.6373688076435537,
+      "co_alternation": 0.14094267879874156,
+      "r_donor_h": 1.0022084553175614,
+      "r_acceptor_h": 1.7609590788117289,
+      "index": 51,
+      "comment": "malonaldehyde train delta=-0.759"
+    },
+    {
+      "delta_pt": -0.8751128079432199,
+      "abs_delta_pt": 0.8751128079432199,
+      "r_oo": 2.6367131588102475,
+      "co_alternation": 0.06636856941386426,
+      "r_donor_h": 0.9812201156099704,
+      "r_acceptor_h": 1.8563329235531902,
+      "index": 52,
+      "comment": "malonaldehyde train delta=-0.875"
+    },
+    {
+      "delta_pt": -0.6839534757275472,
+      "abs_delta_pt": 0.6839534757275472,
+      "r_oo": 2.676655968182678,
+      "co_alternation": 0.058195717032713645,
+      "r_donor_h": 1.0390721898552682,
+      "r_acceptor_h": 1.7230256655828153,
+      "index": 53,
+      "comment": "malonaldehyde train delta=-0.684"
+    },
+    {
+      "delta_pt": -0.8626832570703304,
+      "abs_delta_pt": 0.8626832570703304,
+      "r_oo": 2.6796575776861067,
+      "co_alternation": 0.08005356401504726,
+      "r_donor_h": 1.0312952801744761,
+      "r_acceptor_h": 1.8939785372448066,
+      "index": 54,
+      "comment": "malonaldehyde train delta=-0.863"
+    },
+    {
+      "delta_pt": -0.4195855694269628,
+      "abs_delta_pt": 0.4195855694269628,
+      "r_oo": 2.5942550831906748,
+      "co_alternation": 0.08691101531585099,
+      "r_donor_h": 1.1078011736938214,
+      "r_acceptor_h": 1.5273867431207842,
+      "index": 55,
+      "comment": "malonaldehyde train delta=-0.420"
+    },
+    {
+      "delta_pt": -0.936265119029503,
+      "abs_delta_pt": 0.936265119029503,
+      "r_oo": 2.7754455079205864,
+      "co_alternation": 0.07150127071285861,
+      "r_donor_h": 0.9933443913730582,
+      "r_acceptor_h": 1.9296095104025612,
+      "index": 56,
+      "comment": "malonaldehyde train delta=-0.936"
+    },
+    {
+      "delta_pt": -0.7758522032624384,
+      "abs_delta_pt": 0.7758522032624384,
+      "r_oo": 2.7328273991909273,
+      "co_alternation": 0.08863810232648484,
+      "r_donor_h": 1.0322655080211773,
+      "r_acceptor_h": 1.8081177112836158,
+      "index": 57,
+      "comment": "malonaldehyde train delta=-0.776"
+    },
+    {
+      "delta_pt": -0.8630682968683219,
+      "abs_delta_pt": 0.8630682968683219,
+      "r_oo": 2.735993379607494,
+      "co_alternation": 0.06794207378310091,
+      "r_donor_h": 0.9704554926907498,
+      "r_acceptor_h": 1.8335237895590717,
+      "index": 58,
+      "comment": "malonaldehyde train delta=-0.863"
+    },
+    {
+      "delta_pt": -0.7829833430664753,
+      "abs_delta_pt": 0.7829833430664753,
+      "r_oo": 2.5949972870791864,
+      "co_alternation": 0.1084626118282146,
+      "r_donor_h": 0.9936558056606172,
+      "r_acceptor_h": 1.7766391487270925,
+      "index": 59,
+      "comment": "malonaldehyde train delta=-0.783"
+    },
+    {
+      "delta_pt": -0.7816328945684077,
+      "abs_delta_pt": 0.7816328945684077,
+      "r_oo": 2.6080759561070983,
+      "co_alternation": 0.0570815465470238,
+      "r_donor_h": 1.023559023229732,
+      "r_acceptor_h": 1.8051919177981397,
+      "index": 60,
+      "comment": "malonaldehyde train delta=-0.782"
+    },
+    {
+      "delta_pt": -0.9657322814780018,
+      "abs_delta_pt": 0.9657322814780018,
+      "r_oo": 2.7097522447428584,
+      "co_alternation": 0.10424749703797032,
+      "r_donor_h": 0.9575231892354024,
+      "r_acceptor_h": 1.9232554707134042,
+      "index": 61,
+      "comment": "malonaldehyde train delta=-0.966"
+    },
+    {
+      "delta_pt": -0.5998898898475138,
+      "abs_delta_pt": 0.5998898898475138,
+      "r_oo": 2.53826736788045,
+      "co_alternation": 0.0526710136511801,
+      "r_donor_h": 1.04141786593175,
+      "r_acceptor_h": 1.6413077557792637,
+      "index": 62,
+      "comment": "malonaldehyde train delta=-0.600"
+    },
+    {
+      "delta_pt": -1.073660757583414,
+      "abs_delta_pt": 1.073660757583414,
+      "r_oo": 2.7650861896931556,
+      "co_alternation": 0.04396182877053634,
+      "r_donor_h": 1.0108556594832199,
+      "r_acceptor_h": 2.084516417066634,
+      "index": 63,
+      "comment": "malonaldehyde train delta=-1.074"
+    },
+    {
+      "delta_pt": -0.7819453924759433,
+      "abs_delta_pt": 0.7819453924759433,
+      "r_oo": 2.66369166671636,
+      "co_alternation": 0.17517474060366411,
+      "r_donor_h": 0.9983645740351302,
+      "r_acceptor_h": 1.7803099665110735,
+      "index": 64,
+      "comment": "malonaldehyde train delta=-0.782"
+    },
+    {
+      "delta_pt": -0.49184846847512165,
+      "abs_delta_pt": 0.49184846847512165,
+      "r_oo": 2.5454706509274563,
+      "co_alternation": 0.07309787265444179,
+      "r_donor_h": 1.1200920352629646,
+      "r_acceptor_h": 1.6119405037380863,
+      "index": 65,
+      "comment": "malonaldehyde train delta=-0.492"
+    },
+    {
+      "delta_pt": -0.8768420410760981,
+      "abs_delta_pt": 0.8768420410760981,
+      "r_oo": 2.5996213031359083,
+      "co_alternation": 0.10554566281306754,
+      "r_donor_h": 0.9195462349283202,
+      "r_acceptor_h": 1.7963882760044183,
+      "index": 66,
+      "comment": "malonaldehyde train delta=-0.877"
+    },
+    {
+      "delta_pt": -0.670781147597356,
+      "abs_delta_pt": 0.670781147597356,
+      "r_oo": 2.5730927410081486,
+      "co_alternation": 0.12790990950643066,
+      "r_donor_h": 0.991841846983128,
+      "r_acceptor_h": 1.662622994580484,
+      "index": 67,
+      "comment": "malonaldehyde train delta=-0.671"
+    },
+    {
+      "delta_pt": -0.4498847015178531,
+      "abs_delta_pt": 0.4498847015178531,
+      "r_oo": 2.395139115874671,
+      "co_alternation": 0.037043344749185136,
+      "r_donor_h": 1.0223330279039555,
+      "r_acceptor_h": 1.4722177294218086,
+      "index": 68,
+      "comment": "malonaldehyde train delta=-0.450"
+    },
+    {
+      "delta_pt": -0.652752571336062,
+      "abs_delta_pt": 0.652752571336062,
+      "r_oo": 2.7213994416794938,
+      "co_alternation": 0.10234200602675436,
+      "r_donor_h": 1.0685377496170432,
+      "r_acceptor_h": 1.7212903209531052,
+      "index": 69,
+      "comment": "malonaldehyde train delta=-0.653"
+    },
+    {
+      "delta_pt": -0.6539109578751023,
+      "abs_delta_pt": 0.6539109578751023,
+      "r_oo": 2.569974805831337,
+      "co_alternation": 0.07550818446607654,
+      "r_donor_h": 1.0488062451404327,
+      "r_acceptor_h": 1.702717203015535,
+      "index": 70,
+      "comment": "malonaldehyde train delta=-0.654"
+    },
+    {
+      "delta_pt": -0.774732450443657,
+      "abs_delta_pt": 0.774732450443657,
+      "r_oo": 2.542248728158614,
+      "co_alternation": 0.06775988987601478,
+      "r_donor_h": 0.9620456577593737,
+      "r_acceptor_h": 1.7367781082030307,
+      "index": 71,
+      "comment": "malonaldehyde train delta=-0.775"
+    },
+    {
+      "delta_pt": -0.5068305046011565,
+      "abs_delta_pt": 0.5068305046011565,
+      "r_oo": 2.5811548806729716,
+      "co_alternation": 0.04493769047437435,
+      "r_donor_h": 1.0763968234714294,
+      "r_acceptor_h": 1.583227328072586,
+      "index": 72,
+      "comment": "malonaldehyde train delta=-0.507"
+    },
+    {
+      "delta_pt": -0.5344508816005691,
+      "abs_delta_pt": 0.5344508816005691,
+      "r_oo": 2.5373462755541247,
+      "co_alternation": 0.09835656600680576,
+      "r_donor_h": 1.0736743562523943,
+      "r_acceptor_h": 1.6081252378529634,
+      "index": 73,
+      "comment": "malonaldehyde train delta=-0.534"
+    },
+    {
+      "delta_pt": -0.6859309970313985,
+      "abs_delta_pt": 0.6859309970313985,
+      "r_oo": 2.4966398840364907,
+      "co_alternation": 0.14869159437637514,
+      "r_donor_h": 0.9913786683665538,
+      "r_acceptor_h": 1.6773096653979522,
+      "index": 74,
+      "comment": "malonaldehyde train delta=-0.686"
+    },
+    {
+      "delta_pt": -0.5400458761962912,
+      "abs_delta_pt": 0.5400458761962912,
+      "r_oo": 2.4589096269212503,
+      "co_alternation": 0.13938779514876898,
+      "r_donor_h": 1.0185031707056935,
+      "r_acceptor_h": 1.5585490469019847,
+      "index": 75,
+      "comment": "malonaldehyde train delta=-0.540"
+    },
+    {
+      "delta_pt": -0.578605679902386,
+      "abs_delta_pt": 0.578605679902386,
+      "r_oo": 2.48848154948621,
+      "co_alternation": 0.0827099730736558,
+      "r_donor_h": 1.0596956860358406,
+      "r_acceptor_h": 1.6383013659382266,
+      "index": 76,
+      "comment": "malonaldehyde train delta=-0.579"
+    },
+    {
+      "delta_pt": -0.9495136595537508,
+      "abs_delta_pt": 0.9495136595537508,
+      "r_oo": 2.654616208461207,
+      "co_alternation": 0.10759292602944548,
+      "r_donor_h": 0.9883560162463778,
+      "r_acceptor_h": 1.9378696758001286,
+      "index": 77,
+      "comment": "malonaldehyde train delta=-0.950"
+    },
+    {
+      "delta_pt": -0.7898106301420851,
+      "abs_delta_pt": 0.7898106301420851,
+      "r_oo": 2.5805213131074507,
+      "co_alternation": 0.11538442772989232,
+      "r_donor_h": 0.9715477117183515,
+      "r_acceptor_h": 1.7613583418604366,
+      "index": 78,
+      "comment": "malonaldehyde train delta=-0.790"
+    },
+    {
+      "delta_pt": -0.957206742783831,
+      "abs_delta_pt": 0.957206742783831,
+      "r_oo": 2.7914671680606578,
+      "co_alternation": 0.15308734127514878,
+      "r_donor_h": 0.9452601204452996,
+      "r_acceptor_h": 1.9024668632291306,
+      "index": 79,
+      "comment": "malonaldehyde train delta=-0.957"
+    },
+    {
+      "delta_pt": -0.8276677787809772,
+      "abs_delta_pt": 0.8276677787809772,
+      "r_oo": 2.531684333026343,
+      "co_alternation": 0.1481346228538678,
+      "r_donor_h": 0.9751419947516025,
+      "r_acceptor_h": 1.8028097735325797,
+      "index": 80,
+      "comment": "malonaldehyde train delta=-0.828"
+    },
+    {
+      "delta_pt": -0.7676382482389541,
+      "abs_delta_pt": 0.7676382482389541,
+      "r_oo": 2.6489134942734376,
+      "co_alternation": 0.06858044999627966,
+      "r_donor_h": 1.0846758000615928,
+      "r_acceptor_h": 1.852314048300547,
+      "index": 81,
+      "comment": "malonaldehyde train delta=-0.768"
+    },
+    {
+      "delta_pt": -0.9510891500880422,
+      "abs_delta_pt": 0.9510891500880422,
+      "r_oo": 2.690391392518414,
+      "co_alternation": 0.08839286120410028,
+      "r_donor_h": 0.9422144161829268,
+      "r_acceptor_h": 1.893303566270969,
+      "index": 82,
+      "comment": "malonaldehyde train delta=-0.951"
+    },
+    {
+      "delta_pt": -0.7567600198533823,
+      "abs_delta_pt": 0.7567600198533823,
+      "r_oo": 2.5876881480627785,
+      "co_alternation": 0.06891904103656077,
+      "r_donor_h": 0.9574716997443228,
+      "r_acceptor_h": 1.714231719597705,
+      "index": 83,
+      "comment": "malonaldehyde train delta=-0.757"
+    },
+    {
+      "delta_pt": -0.7904491312962313,
+      "abs_delta_pt": 0.7904491312962313,
+      "r_oo": 2.6208844372667226,
+      "co_alternation": 0.1077196797055231,
+      "r_donor_h": 0.9828356973529028,
+      "r_acceptor_h": 1.773284828649134,
+      "index": 84,
+      "comment": "malonaldehyde train delta=-0.790"
+    },
+    {
+      "delta_pt": -0.5516455715388635,
+      "abs_delta_pt": 0.5516455715388635,
+      "r_oo": 2.490675335672594,
+      "co_alternation": 0.04042617735344978,
+      "r_donor_h": 1.0307867688568804,
+      "r_acceptor_h": 1.5824323403957439,
+      "index": 85,
+      "comment": "malonaldehyde train delta=-0.552"
+    },
+    {
+      "delta_pt": -0.7186537723961408,
+      "abs_delta_pt": 0.7186537723961408,
+      "r_oo": 2.6204747513984503,
+      "co_alternation": 0.028344182195691348,
+      "r_donor_h": 1.027701924739964,
+      "r_acceptor_h": 1.7463556971361047,
+      "index": 86,
+      "comment": "malonaldehyde train delta=-0.719"
+    },
+    {
+      "delta_pt": -0.7819670506974669,
+      "abs_delta_pt": 0.7819670506974669,
+      "r_oo": 2.5134525913145342,
+      "co_alternation": 0.03048517841765963,
+      "r_donor_h": 0.9109511441540293,
+      "r_acceptor_h": 1.6929181948514962,
+      "index": 87,
+      "comment": "malonaldehyde train delta=-0.782"
+    },
+    {
+      "delta_pt": -0.7462143919698471,
+      "abs_delta_pt": 0.7462143919698471,
+      "r_oo": 2.6537957826108185,
+      "co_alternation": 0.12943771563765183,
+      "r_donor_h": 0.9769449073836859,
+      "r_acceptor_h": 1.723159299353533,
+      "index": 88,
+      "comment": "malonaldehyde train delta=-0.746"
+    },
+    {
+      "delta_pt": -0.6585908356448431,
+      "abs_delta_pt": 0.6585908356448431,
+      "r_oo": 2.6120026212681364,
+      "co_alternation": 0.11335235043184122,
+      "r_donor_h": 1.0331408893397902,
+      "r_acceptor_h": 1.6917317249846333,
+      "index": 89,
+      "comment": "malonaldehyde train delta=-0.659"
+    },
+    {
+      "delta_pt": -0.8425213631181444,
+      "abs_delta_pt": 0.8425213631181444,
+      "r_oo": 2.656706142915257,
+      "co_alternation": 0.17313918200726142,
+      "r_donor_h": 0.9870157115466519,
+      "r_acceptor_h": 1.8295370746647963,
+      "index": 90,
+      "comment": "malonaldehyde train delta=-0.843"
+    },
+    {
+      "delta_pt": -0.8200307557160709,
+      "abs_delta_pt": 0.8200307557160709,
+      "r_oo": 2.6172309334476385,
+      "co_alternation": 0.0875114738033691,
+      "r_donor_h": 0.9550886133031051,
+      "r_acceptor_h": 1.775119369019176,
+      "index": 91,
+      "comment": "malonaldehyde train delta=-0.820"
+    },
+    {
+      "delta_pt": -0.9005301345259087,
+      "abs_delta_pt": 0.9005301345259087,
+      "r_oo": 2.6751352219224422,
+      "co_alternation": 0.06206493463285656,
+      "r_donor_h": 0.938626661745066,
+      "r_acceptor_h": 1.8391567962709747,
+      "index": 92,
+      "comment": "malonaldehyde train delta=-0.901"
+    },
+    {
+      "delta_pt": -0.6770968907729735,
+      "abs_delta_pt": 0.6770968907729735,
+      "r_oo": 2.5741242510254843,
+      "co_alternation": 0.11260918278618948,
+      "r_donor_h": 1.005363482438218,
+      "r_acceptor_h": 1.6824603732111916,
+      "index": 93,
+      "comment": "malonaldehyde train delta=-0.677"
+    },
+    {
+      "delta_pt": -0.46422549432498594,
+      "abs_delta_pt": 0.46422549432498594,
+      "r_oo": 2.5356890837103276,
+      "co_alternation": 0.10456451071686912,
+      "r_donor_h": 1.085933586532568,
+      "r_acceptor_h": 1.550159080857554,
+      "index": 94,
+      "comment": "malonaldehyde train delta=-0.464"
+    },
+    {
+      "delta_pt": -0.746012410366109,
+      "abs_delta_pt": 0.746012410366109,
+      "r_oo": 2.6245938472234807,
+      "co_alternation": 0.08403923897468157,
+      "r_donor_h": 1.0170756374836858,
+      "r_acceptor_h": 1.7630880478497948,
+      "index": 95,
+      "comment": "malonaldehyde train delta=-0.746"
+    },
+    {
+      "delta_pt": -0.6971204450906276,
+      "abs_delta_pt": 0.6971204450906276,
+      "r_oo": 2.679836882882757,
+      "co_alternation": 0.10280848500225215,
+      "r_donor_h": 1.0481355014014337,
+      "r_acceptor_h": 1.7452559464920614,
+      "index": 96,
+      "comment": "malonaldehyde train delta=-0.697"
+    },
+    {
+      "delta_pt": -1.0088037023578589,
+      "abs_delta_pt": 1.0088037023578589,
+      "r_oo": 2.682110105285625,
+      "co_alternation": 0.09677515702895367,
+      "r_donor_h": 0.9223534904247305,
+      "r_acceptor_h": 1.9311571927825895,
+      "index": 97,
+      "comment": "malonaldehyde train delta=-1.009"
+    },
+    {
+      "delta_pt": -0.6554586621141263,
+      "abs_delta_pt": 0.6554586621141263,
+      "r_oo": 2.6398733479696057,
+      "co_alternation": 0.10322949662239989,
+      "r_donor_h": 1.0420791045389826,
+      "r_acceptor_h": 1.6975377666531088,
+      "index": 98,
+      "comment": "malonaldehyde train delta=-0.655"
+    },
+    {
+      "delta_pt": -0.4224731265974906,
+      "abs_delta_pt": 0.4224731265974906,
+      "r_oo": 2.4373429725822344,
+      "co_alternation": 0.09340756893401325,
+      "r_donor_h": 1.0438625297808573,
+      "r_acceptor_h": 1.4663356563783478,
+      "index": 99,
+      "comment": "malonaldehyde train delta=-0.422"
+    },
+    {
+      "delta_pt": -0.7606093201198498,
+      "abs_delta_pt": 0.7606093201198498,
+      "r_oo": 2.5666682387251267,
+      "co_alternation": 0.08423392366922777,
+      "r_donor_h": 0.9833631092433797,
+      "r_acceptor_h": 1.7439724293632295,
+      "index": 100,
+      "comment": "malonaldehyde train delta=-0.761"
+    },
+    {
+      "delta_pt": -0.8420103564815522,
+      "abs_delta_pt": 0.8420103564815522,
+      "r_oo": 2.5953204106795726,
+      "co_alternation": 0.0775611975323307,
+      "r_donor_h": 0.9386012136588839,
+      "r_acceptor_h": 1.7806115701404361,
+      "index": 101,
+      "comment": "malonaldehyde train delta=-0.842"
+    },
+    {
+      "delta_pt": -0.6254429334558125,
+      "abs_delta_pt": 0.6254429334558125,
+      "r_oo": 2.5060018828512973,
+      "co_alternation": 0.04969286944307405,
+      "r_donor_h": 1.0253352282231472,
+      "r_acceptor_h": 1.6507781616789596,
+      "index": 102,
+      "comment": "malonaldehyde train delta=-0.625"
+    },
+    {
+      "delta_pt": -0.7256252296489696,
+      "abs_delta_pt": 0.7256252296489696,
+      "r_oo": 2.5700892399510122,
+      "co_alternation": 0.1150277558166608,
+      "r_donor_h": 1.0040642929288184,
+      "r_acceptor_h": 1.729689522577788,
+      "index": 103,
+      "comment": "malonaldehyde train delta=-0.726"
+    },
+    {
+      "delta_pt": -0.7682293866854062,
+      "abs_delta_pt": 0.7682293866854062,
+      "r_oo": 2.658971242930575,
+      "co_alternation": 0.059368733627335635,
+      "r_donor_h": 1.0150781137423806,
+      "r_acceptor_h": 1.7833075004277867,
+      "index": 104,
+      "comment": "malonaldehyde train delta=-0.768"
+    },
+    {
+      "delta_pt": -0.9890733759993539,
+      "abs_delta_pt": 0.9890733759993539,
+      "r_oo": 2.783009528820041,
+      "co_alternation": 0.1174277929981058,
+      "r_donor_h": 0.9975809734574353,
+      "r_acceptor_h": 1.9866543494567892,
+      "index": 105,
+      "comment": "malonaldehyde train delta=-0.989"
+    },
+    {
+      "delta_pt": -0.8288054176668608,
+      "abs_delta_pt": 0.8288054176668608,
+      "r_oo": 2.542201222004288,
+      "co_alternation": 0.08522206668004673,
+      "r_donor_h": 0.9392353575827951,
+      "r_acceptor_h": 1.7680407752496559,
+      "index": 106,
+      "comment": "malonaldehyde train delta=-0.829"
+    },
+    {
+      "delta_pt": -0.6201460346465797,
+      "abs_delta_pt": 0.6201460346465797,
+      "r_oo": 2.6360631897474684,
+      "co_alternation": 0.03032776248417779,
+      "r_donor_h": 1.066248013863059,
+      "r_acceptor_h": 1.6863940485096387,
+      "index": 107,
+      "comment": "malonaldehyde train delta=-0.620"
+    },
+    {
+      "delta_pt": -0.5428184903544062,
+      "abs_delta_pt": 0.5428184903544062,
+      "r_oo": 2.428985737162778,
+      "co_alternation": 0.07963350107763678,
+      "r_donor_h": 1.0597325267859754,
+      "r_acceptor_h": 1.6025510171403816,
+      "index": 108,
+      "comment": "malonaldehyde train delta=-0.543"
+    },
+    {
+      "delta_pt": -1.0989901661512294,
+      "abs_delta_pt": 1.0989901661512294,
+      "r_oo": 2.8959225801003825,
+      "co_alternation": 0.07293714747267743,
+      "r_donor_h": 0.9851923897185627,
+      "r_acceptor_h": 2.084182555869792,
+      "index": 109,
+      "comment": "malonaldehyde train delta=-1.099"
+    },
+    {
+      "delta_pt": -0.6300623111399044,
+      "abs_delta_pt": 0.6300623111399044,
+      "r_oo": 2.644047194728364,
+      "co_alternation": 0.15350782973404486,
+      "r_donor_h": 1.049020754509781,
+      "r_acceptor_h": 1.6790830656496853,
+      "index": 110,
+      "comment": "malonaldehyde train delta=-0.630"
+    },
+    {
+      "delta_pt": -0.7059031348406632,
+      "abs_delta_pt": 0.7059031348406632,
+      "r_oo": 2.598011114748962,
+      "co_alternation": 0.1501577109087846,
+      "r_donor_h": 1.0274890574814717,
+      "r_acceptor_h": 1.733392192322135,
+      "index": 111,
+      "comment": "malonaldehyde train delta=-0.706"
+    },
+    {
+      "delta_pt": -0.8046220453311126,
+      "abs_delta_pt": 0.8046220453311126,
+      "r_oo": 2.61946192328172,
+      "co_alternation": 0.12008499612644563,
+      "r_donor_h": 1.003287385017846,
+      "r_acceptor_h": 1.8079094303489587,
+      "index": 112,
+      "comment": "malonaldehyde train delta=-0.805"
+    },
+    {
+      "delta_pt": -0.8856541306328178,
+      "abs_delta_pt": 0.8856541306328178,
+      "r_oo": 2.7630338510871053,
+      "co_alternation": 0.12024056797510463,
+      "r_donor_h": 1.0498334530612603,
+      "r_acceptor_h": 1.9354875836940781,
+      "index": 113,
+      "comment": "malonaldehyde train delta=-0.886"
+    },
+    {
+      "delta_pt": -0.9032767922125533,
+      "abs_delta_pt": 0.9032767922125533,
+      "r_oo": 2.7059547541715894,
+      "co_alternation": 0.16181677534394856,
+      "r_donor_h": 1.0057853584510459,
+      "r_acceptor_h": 1.9090621506635992,
+      "index": 114,
+      "comment": "malonaldehyde train delta=-0.903"
+    },
+    {
+      "delta_pt": -0.7863348960680095,
+      "abs_delta_pt": 0.7863348960680095,
+      "r_oo": 2.6475078232720533,
+      "co_alternation": 0.08075640739117151,
+      "r_donor_h": 0.9801378462570652,
+      "r_acceptor_h": 1.7664727423250748,
+      "index": 115,
+      "comment": "malonaldehyde train delta=-0.786"
+    },
+    {
+      "delta_pt": -0.8077620924439401,
+      "abs_delta_pt": 0.8077620924439401,
+      "r_oo": 2.7375432802835995,
+      "co_alternation": 0.13242864788067443,
+      "r_donor_h": 1.0785292959059065,
+      "r_acceptor_h": 1.8862913883498467,
+      "index": 116,
+      "comment": "malonaldehyde train delta=-0.808"
+    },
+    {
+      "delta_pt": -0.8735309599343848,
+      "abs_delta_pt": 0.8735309599343848,
+      "r_oo": 2.6654198751244267,
+      "co_alternation": 0.1351361148498873,
+      "r_donor_h": 0.9852146367889827,
+      "r_acceptor_h": 1.8587455967233675,
+      "index": 117,
+      "comment": "malonaldehyde train delta=-0.874"
+    },
+    {
+      "delta_pt": -0.8584188070944758,
+      "abs_delta_pt": 0.8584188070944758,
+      "r_oo": 2.774727715446684,
+      "co_alternation": 0.0982277975296102,
+      "r_donor_h": 1.0421226290835943,
+      "r_acceptor_h": 1.9005414361780701,
+      "index": 118,
+      "comment": "malonaldehyde train delta=-0.858"
+    },
+    {
+      "delta_pt": -1.354248781549511,
+      "abs_delta_pt": 1.354248781549511,
+      "r_oo": 3.0374885335654556,
+      "co_alternation": 0.0643964941110895,
+      "r_donor_h": 1.0021030701065268,
+      "r_acceptor_h": 2.3563518516560378,
+      "index": 119,
+      "comment": "malonaldehyde train delta=-1.354"
+    },
+    {
+      "delta_pt": -1.2538593062599215,
+      "abs_delta_pt": 1.2538593062599215,
+      "r_oo": 2.988447520670265,
+      "co_alternation": 0.054627938215659366,
+      "r_donor_h": 0.9481981952153296,
+      "r_acceptor_h": 2.202057501475251,
+      "index": 120,
+      "comment": "malonaldehyde train delta=-1.254"
+    },
+    {
+      "delta_pt": -1.0199415975999195,
+      "abs_delta_pt": 1.0199415975999195,
+      "r_oo": 2.7730053346685457,
+      "co_alternation": 0.08834714187246262,
+      "r_donor_h": 0.9651201404171073,
+      "r_acceptor_h": 1.9850617380170268,
+      "index": 121,
+      "comment": "malonaldehyde train delta=-1.020"
+    },
+    {
+      "delta_pt": -1.0584145679930357,
+      "abs_delta_pt": 1.0584145679930357,
+      "r_oo": 2.71454312828887,
+      "co_alternation": 0.1326186674425307,
+      "r_donor_h": 0.9289741664715148,
+      "r_acceptor_h": 1.9873887344645504,
+      "index": 122,
+      "comment": "malonaldehyde train delta=-1.058"
+    },
+    {
+      "delta_pt": -0.943414193716715,
+      "abs_delta_pt": 0.943414193716715,
+      "r_oo": 2.6797104438592587,
+      "co_alternation": 0.13996329298804278,
+      "r_donor_h": 0.9637010052294662,
+      "r_acceptor_h": 1.9071151989461812,
+      "index": 123,
+      "comment": "malonaldehyde train delta=-0.943"
+    },
+    {
+      "delta_pt": -1.0389664790946238,
+      "abs_delta_pt": 1.0389664790946238,
+      "r_oo": 2.8272863459285538,
+      "co_alternation": 0.14328946573598866,
+      "r_donor_h": 0.9814281798382282,
+      "r_acceptor_h": 2.020394658932852,
+      "index": 124,
+      "comment": "malonaldehyde train delta=-1.039"
+    },
+    {
+      "delta_pt": -0.7260098509997814,
+      "abs_delta_pt": 0.7260098509997814,
+      "r_oo": 2.516136503766921,
+      "co_alternation": 0.0901300683754016,
+      "r_donor_h": 1.0356880896041092,
+      "r_acceptor_h": 1.7616979406038906,
+      "index": 125,
+      "comment": "malonaldehyde train delta=-0.726"
+    },
+    {
+      "delta_pt": -1.0171673750941064,
+      "abs_delta_pt": 1.0171673750941064,
+      "r_oo": 2.8705099138398658,
+      "co_alternation": 0.08342466649919844,
+      "r_donor_h": 1.004423796897355,
+      "r_acceptor_h": 2.0215911719914614,
+      "index": 126,
+      "comment": "malonaldehyde train delta=-1.017"
+    },
+    {
+      "delta_pt": -0.8222886141875467,
+      "abs_delta_pt": 0.8222886141875467,
+      "r_oo": 2.677321846849589,
+      "co_alternation": 0.056013100674570326,
+      "r_donor_h": 1.0191905242621886,
+      "r_acceptor_h": 1.8414791384497353,
+      "index": 127,
+      "comment": "malonaldehyde train delta=-0.822"
+    },
+    {
+      "delta_pt": -1.0889797315064897,
+      "abs_delta_pt": 1.0889797315064897,
+      "r_oo": 2.800282544944125,
+      "co_alternation": 0.09552276970150086,
+      "r_donor_h": 0.9975602512110443,
+      "r_acceptor_h": 2.086539982717534,
+      "index": 128,
+      "comment": "malonaldehyde train delta=-1.089"
+    },
+    {
+      "delta_pt": -0.719434386445245,
+      "abs_delta_pt": 0.719434386445245,
+      "r_oo": 2.655423733652547,
+      "co_alternation": 0.10418439626556575,
+      "r_donor_h": 1.0597757612851555,
+      "r_acceptor_h": 1.7792101477304005,
+      "index": 129,
+      "comment": "malonaldehyde train delta=-0.719"
+    },
+    {
+      "delta_pt": -0.9006702887539624,
+      "abs_delta_pt": 0.9006702887539624,
+      "r_oo": 2.7354735754824113,
+      "co_alternation": 0.07559068007189218,
+      "r_donor_h": 0.9824839687158473,
+      "r_acceptor_h": 1.8831542574698097,
+      "index": 130,
+      "comment": "malonaldehyde train delta=-0.901"
+    },
+    {
+      "delta_pt": -0.45012546274156584,
+      "abs_delta_pt": 0.45012546274156584,
+      "r_oo": 2.5972186226983207,
+      "co_alternation": 0.054463016010055654,
+      "r_donor_h": 1.104477879713221,
+      "r_acceptor_h": 1.554603342454787,
+      "index": 131,
+      "comment": "malonaldehyde train delta=-0.450"
+    },
+    {
+      "delta_pt": -0.9814301779818474,
+      "abs_delta_pt": 0.9814301779818474,
+      "r_oo": 2.6730241825889482,
+      "co_alternation": 0.07546201245243522,
+      "r_donor_h": 0.9495239226322599,
+      "r_acceptor_h": 1.9309541006141073,
+      "index": 132,
+      "comment": "malonaldehyde train delta=-0.981"
+    },
+    {
+      "delta_pt": -1.2375174062126446,
+      "abs_delta_pt": 1.2375174062126446,
+      "r_oo": 2.9679601392291883,
+      "co_alternation": 0.12364865421597537,
+      "r_donor_h": 0.9763922300700296,
+      "r_acceptor_h": 2.2139096362826742,
+      "index": 133,
+      "comment": "malonaldehyde train delta=-1.238"
+    },
+    {
+      "delta_pt": -0.7122545948072241,
+      "abs_delta_pt": 0.7122545948072241,
+      "r_oo": 2.6125657963730453,
+      "co_alternation": 0.08999044977175585,
+      "r_donor_h": 1.000812440591618,
+      "r_acceptor_h": 1.713067035398842,
+      "index": 134,
+      "comment": "malonaldehyde train delta=-0.712"
+    },
+    {
+      "delta_pt": -0.7285303998705154,
+      "abs_delta_pt": 0.7285303998705154,
+      "r_oo": 2.5876066686499537,
+      "co_alternation": 0.14507839289852686,
+      "r_donor_h": 0.996046824037372,
+      "r_acceptor_h": 1.7245772239078874,
+      "index": 135,
+      "comment": "malonaldehyde train delta=-0.729"
+    },
+    {
+      "delta_pt": -0.948187333171451,
+      "abs_delta_pt": 0.948187333171451,
+      "r_oo": 2.731370295315799,
+      "co_alternation": 0.11262659379724882,
+      "r_donor_h": 0.9668766124910029,
+      "r_acceptor_h": 1.9150639456624539,
+      "index": 136,
+      "comment": "malonaldehyde train delta=-0.948"
+    },
+    {
+      "delta_pt": -0.57488625828285,
+      "abs_delta_pt": 0.57488625828285,
+      "r_oo": 2.511286504753696,
+      "co_alternation": 0.04455892518866067,
+      "r_donor_h": 1.0204823168540622,
+      "r_acceptor_h": 1.5953685751369122,
+      "index": 137,
+      "comment": "malonaldehyde train delta=-0.575"
+    },
+    {
+      "delta_pt": -0.8616542578075782,
+      "abs_delta_pt": 0.8616542578075782,
+      "r_oo": 2.667092009394491,
+      "co_alternation": 0.06021765125596046,
+      "r_donor_h": 0.9399217319149532,
+      "r_acceptor_h": 1.8015759897225314,
+      "index": 138,
+      "comment": "malonaldehyde train delta=-0.862"
+    },
+    {
+      "delta_pt": -0.8109071488665553,
+      "abs_delta_pt": 0.8109071488665553,
+      "r_oo": 2.7044592616648218,
+      "co_alternation": 0.129209191635153,
+      "r_donor_h": 1.0487479588873547,
+      "r_acceptor_h": 1.85965510775391,
+      "index": 139,
+      "comment": "malonaldehyde train delta=-0.811"
+    },
+    {
+      "delta_pt": -0.7325644046102918,
+      "abs_delta_pt": 0.7325644046102918,
+      "r_oo": 2.586004623344008,
+      "co_alternation": 0.08102204214116648,
+      "r_donor_h": 0.9786436980673628,
+      "r_acceptor_h": 1.7112081026776547,
+      "index": 140,
+      "comment": "malonaldehyde train delta=-0.733"
+    },
+    {
+      "delta_pt": -0.9842607703513302,
+      "abs_delta_pt": 0.9842607703513302,
+      "r_oo": 2.794659005128875,
+      "co_alternation": 0.1066843433120408,
+      "r_donor_h": 0.99042132707996,
+      "r_acceptor_h": 1.9746820974312902,
+      "index": 141,
+      "comment": "malonaldehyde train delta=-0.984"
+    },
+    {
+      "delta_pt": -0.9710034803930834,
+      "abs_delta_pt": 0.9710034803930834,
+      "r_oo": 2.734937110622071,
+      "co_alternation": 0.08186650235116577,
+      "r_donor_h": 1.0079069842338877,
+      "r_acceptor_h": 1.978910464626971,
+      "index": 142,
+      "comment": "malonaldehyde train delta=-0.971"
+    },
+    {
+      "delta_pt": -1.1600836359141087,
+      "abs_delta_pt": 1.1600836359141087,
+      "r_oo": 2.895688251548812,
+      "co_alternation": 0.13534448993119952,
+      "r_donor_h": 0.9627268569521105,
+      "r_acceptor_h": 2.1228104928662193,
+      "index": 143,
+      "comment": "malonaldehyde train delta=-1.160"
+    },
+    {
+      "delta_pt": -0.5633515941367242,
+      "abs_delta_pt": 0.5633515941367242,
+      "r_oo": 2.626004485495484,
+      "co_alternation": 0.08631972481308803,
+      "r_donor_h": 1.0912914906324718,
+      "r_acceptor_h": 1.654643084769196,
+      "index": 144,
+      "comment": "malonaldehyde train delta=-0.563"
+    },
+    {
+      "delta_pt": -1.207435794895117,
+      "abs_delta_pt": 1.207435794895117,
+      "r_oo": 2.878720447599195,
+      "co_alternation": 0.06306592663815969,
+      "r_donor_h": 0.9578822296758185,
+      "r_acceptor_h": 2.1653180245709356,
+      "index": 145,
+      "comment": "malonaldehyde train delta=-1.207"
+    },
+    {
+      "delta_pt": -0.5353926958932045,
+      "abs_delta_pt": 0.5353926958932045,
+      "r_oo": 2.608192160722643,
+      "co_alternation": 0.07036701778939847,
+      "r_donor_h": 1.0947893523410286,
+      "r_acceptor_h": 1.630182048234233,
+      "index": 146,
+      "comment": "malonaldehyde train delta=-0.535"
+    },
+    {
+      "delta_pt": -0.5091392903857699,
+      "abs_delta_pt": 0.5091392903857699,
+      "r_oo": 2.53458755336131,
+      "co_alternation": 0.1066023243079477,
+      "r_donor_h": 1.0587637531353662,
+      "r_acceptor_h": 1.567903043521136,
+      "index": 147,
+      "comment": "malonaldehyde train delta=-0.509"
+    },
+    {
+      "delta_pt": -0.594246581775444,
+      "abs_delta_pt": 0.594246581775444,
+      "r_oo": 2.4917008874544795,
+      "co_alternation": 0.03241844215380585,
+      "r_donor_h": 0.9972747933774196,
+      "r_acceptor_h": 1.5915213751528636,
+      "index": 148,
+      "comment": "malonaldehyde train delta=-0.594"
+    },
+    {
+      "delta_pt": -0.7849144295992625,
+      "abs_delta_pt": 0.7849144295992625,
+      "r_oo": 2.594216169959502,
+      "co_alternation": 0.08203244626167616,
+      "r_donor_h": 1.0029251831636168,
+      "r_acceptor_h": 1.7878396127628793,
+      "index": 149,
+      "comment": "malonaldehyde train delta=-0.785"
+    },
+    {
+      "delta_pt": -0.630640154807232,
+      "abs_delta_pt": 0.630640154807232,
+      "r_oo": 2.6273229646259213,
+      "co_alternation": 0.019634671147352067,
+      "r_donor_h": 1.0358293217932082,
+      "r_acceptor_h": 1.6664694766004402,
+      "index": 150,
+      "comment": "malonaldehyde train delta=-0.631"
+    },
+    {
+      "delta_pt": -0.5993971629172659,
+      "abs_delta_pt": 0.5993971629172659,
+      "r_oo": 2.5400358538510264,
+      "co_alternation": 0.03877882832987689,
+      "r_donor_h": 1.0486168535875513,
+      "r_acceptor_h": 1.6480140165048172,
+      "index": 151,
+      "comment": "malonaldehyde train delta=-0.599"
+    },
+    {
+      "delta_pt": -1.077348066587577,
+      "abs_delta_pt": 1.077348066587577,
+      "r_oo": 2.7346719295277038,
+      "co_alternation": 0.11190423698733953,
+      "r_donor_h": 0.9497627747988385,
+      "r_acceptor_h": 2.0271108413864156,
+      "index": 152,
+      "comment": "malonaldehyde train delta=-1.077"
+    },
+    {
+      "delta_pt": -0.7082750221023193,
+      "abs_delta_pt": 0.7082750221023193,
+      "r_oo": 2.631628093552852,
+      "co_alternation": 0.12069480423569678,
+      "r_donor_h": 1.0144802731637432,
+      "r_acceptor_h": 1.7227552952660625,
+      "index": 153,
+      "comment": "malonaldehyde train delta=-0.708"
+    },
+    {
+      "delta_pt": -0.5963238370881361,
+      "abs_delta_pt": 0.5963238370881361,
+      "r_oo": 2.6396673474041847,
+      "co_alternation": -0.027808205639227035,
+      "r_donor_h": 1.0574027704113982,
+      "r_acceptor_h": 1.6537266074995343,
+      "index": 154,
+      "comment": "malonaldehyde train delta=-0.596"
+    },
+    {
+      "delta_pt": -0.6990090598516415,
+      "abs_delta_pt": 0.6990090598516415,
+      "r_oo": 2.5436497534232534,
+      "co_alternation": 0.07283704550735104,
+      "r_donor_h": 0.9679281209355709,
+      "r_acceptor_h": 1.6669371807872124,
+      "index": 155,
+      "comment": "malonaldehyde train delta=-0.699"
+    },
+    {
+      "delta_pt": -0.7510554225957016,
+      "abs_delta_pt": 0.7510554225957016,
+      "r_oo": 2.5356728214580464,
+      "co_alternation": 0.05479922033699891,
+      "r_donor_h": 1.0473794612832767,
+      "r_acceptor_h": 1.7984348838789783,
+      "index": 156,
+      "comment": "malonaldehyde train delta=-0.751"
+    },
+    {
+      "delta_pt": -0.8615828842118477,
+      "abs_delta_pt": 0.8615828842118477,
+      "r_oo": 2.720590984937868,
+      "co_alternation": 0.13878594080064488,
+      "r_donor_h": 0.9871930629001852,
+      "r_acceptor_h": 1.8487759471120329,
+      "index": 157,
+      "comment": "malonaldehyde train delta=-0.862"
+    },
+    {
+      "delta_pt": -0.8485520626609224,
+      "abs_delta_pt": 0.8485520626609224,
+      "r_oo": 2.616459181573184,
+      "co_alternation": 0.12072307896694867,
+      "r_donor_h": 0.9506144624994464,
+      "r_acceptor_h": 1.7991665251603688,
+      "index": 158,
+      "comment": "malonaldehyde train delta=-0.849"
+    },
+    {
+      "delta_pt": -0.8193723706915315,
+      "abs_delta_pt": 0.8193723706915315,
+      "r_oo": 2.833930497297385,
+      "co_alternation": 0.11492494186587376,
+      "r_donor_h": 1.0990501638904198,
+      "r_acceptor_h": 1.9184225345819512,
+      "index": 159,
+      "comment": "malonaldehyde train delta=-0.819"
+    },
+    {
+      "delta_pt": -0.7399351182025232,
+      "abs_delta_pt": 0.7399351182025232,
+      "r_oo": 2.5035944471972753,
+      "co_alternation": 0.09665911703873453,
+      "r_donor_h": 0.9779366639837567,
+      "r_acceptor_h": 1.71787178218628,
+      "index": 160,
+      "comment": "malonaldehyde train delta=-0.740"
+    },
+    {
+      "delta_pt": -0.8331527071227195,
+      "abs_delta_pt": 0.8331527071227195,
+      "r_oo": 2.5568903123879814,
+      "co_alternation": 0.13498125129294336,
+      "r_donor_h": 0.9712980401101406,
+      "r_acceptor_h": 1.8044507472328601,
+      "index": 161,
+      "comment": "malonaldehyde train delta=-0.833"
+    },
+    {
+      "delta_pt": -0.8063109094464078,
+      "abs_delta_pt": 0.8063109094464078,
+      "r_oo": 2.7154184206555407,
+      "co_alternation": 0.08707395328298961,
+      "r_donor_h": 1.0427339548562542,
+      "r_acceptor_h": 1.849044864302662,
+      "index": 162,
+      "comment": "malonaldehyde train delta=-0.806"
+    },
+    {
+      "delta_pt": -0.5794289750994643,
+      "abs_delta_pt": 0.5794289750994643,
+      "r_oo": 2.5378936813424233,
+      "co_alternation": 0.04731080234489338,
+      "r_donor_h": 1.0631957393097529,
+      "r_acceptor_h": 1.6426247144092172,
+      "index": 163,
+      "comment": "malonaldehyde train delta=-0.579"
+    },
+    {
+      "delta_pt": -0.8379016338148565,
+      "abs_delta_pt": 0.8379016338148565,
+      "r_oo": 2.635505964349823,
+      "co_alternation": 0.08211666400554152,
+      "r_donor_h": 0.9483606210549999,
+      "r_acceptor_h": 1.7862622548698563,
+      "index": 164,
+      "comment": "malonaldehyde train delta=-0.838"
+    },
+    {
+      "delta_pt": -0.5059951108527063,
+      "abs_delta_pt": 0.5059951108527063,
+      "r_oo": 2.4611449492330406,
+      "co_alternation": 0.09887098881173761,
+      "r_donor_h": 1.0240882369027553,
+      "r_acceptor_h": 1.5300833477554616,
+      "index": 165,
+      "comment": "malonaldehyde train delta=-0.506"
+    },
+    {
+      "delta_pt": -1.0207321617039857,
+      "abs_delta_pt": 1.0207321617039857,
+      "r_oo": 2.7589614479633995,
+      "co_alternation": 0.08764740940481008,
+      "r_donor_h": 1.0239416637513978,
+      "r_acceptor_h": 2.0446738254553836,
+      "index": 166,
+      "comment": "malonaldehyde train delta=-1.021"
+    },
+    {
+      "delta_pt": -0.889258885189341,
+      "abs_delta_pt": 0.889258885189341,
+      "r_oo": 2.5956170807081853,
+      "co_alternation": 0.10422558780498892,
+      "r_donor_h": 0.9531589903989444,
+      "r_acceptor_h": 1.8424178755882854,
+      "index": 167,
+      "comment": "malonaldehyde train delta=-0.889"
+    },
+    {
+      "delta_pt": -0.7961986726394962,
+      "abs_delta_pt": 0.7961986726394962,
+      "r_oo": 2.696709049366529,
+      "co_alternation": 0.09049537303054134,
+      "r_donor_h": 0.9911776356984495,
+      "r_acceptor_h": 1.7873763083379457,
+      "index": 168,
+      "comment": "malonaldehyde train delta=-0.796"
+    },
+    {
+      "delta_pt": -0.4798540763951664,
+      "abs_delta_pt": 0.4798540763951664,
+      "r_oo": 2.472876563778226,
+      "co_alternation": 0.05549751118867774,
+      "r_donor_h": 1.0586224271382152,
+      "r_acceptor_h": 1.5384765035333816,
+      "index": 169,
+      "comment": "malonaldehyde train delta=-0.480"
+    },
+    {
+      "delta_pt": -0.6142571499415654,
+      "abs_delta_pt": 0.6142571499415654,
+      "r_oo": 2.5266483497572203,
+      "co_alternation": 0.09866903885403633,
+      "r_donor_h": 1.0055071425017044,
+      "r_acceptor_h": 1.6197642924432698,
+      "index": 170,
+      "comment": "malonaldehyde train delta=-0.614"
+    },
+    {
+      "delta_pt": -0.5700417829564606,
+      "abs_delta_pt": 0.5700417829564606,
+      "r_oo": 2.5156969440664145,
+      "co_alternation": 0.023307905308637356,
+      "r_donor_h": 1.0327135630008955,
+      "r_acceptor_h": 1.602755345957356,
+      "index": 171,
+      "comment": "malonaldehyde train delta=-0.570"
+    },
+    {
+      "delta_pt": -0.6038414357018576,
+      "abs_delta_pt": 0.6038414357018576,
+      "r_oo": 2.541566282856345,
+      "co_alternation": 0.11940776424905364,
+      "r_donor_h": 1.0462729621053106,
+      "r_acceptor_h": 1.6501143978071682,
+      "index": 172,
+      "comment": "malonaldehyde train delta=-0.604"
+    },
+    {
+      "delta_pt": -0.7526252576681762,
+      "abs_delta_pt": 0.7526252576681762,
+      "r_oo": 2.621347423070697,
+      "co_alternation": 0.04534316809126704,
+      "r_donor_h": 1.009737481026965,
+      "r_acceptor_h": 1.7623627386951413,
+      "index": 173,
+      "comment": "malonaldehyde train delta=-0.753"
+    },
+    {
+      "delta_pt": -0.8914018803817166,
+      "abs_delta_pt": 0.8914018803817166,
+      "r_oo": 2.6465635055866152,
+      "co_alternation": 0.035381887116214594,
+      "r_donor_h": 0.9788587109368695,
+      "r_acceptor_h": 1.8702605913185861,
+      "index": 174,
+      "comment": "malonaldehyde train delta=-0.891"
+    },
+    {
+      "delta_pt": -0.7266891071096,
+      "abs_delta_pt": 0.7266891071096,
+      "r_oo": 2.6906337039630746,
+      "co_alternation": 0.05256852964678127,
+      "r_donor_h": 1.032255575087613,
+      "r_acceptor_h": 1.758944682197213,
+      "index": 175,
+      "comment": "malonaldehyde train delta=-0.727"
+    },
+    {
+      "delta_pt": -0.7295634734094767,
+      "abs_delta_pt": 0.7295634734094767,
+      "r_oo": 2.591847342444736,
+      "co_alternation": 0.053686473580121685,
+      "r_donor_h": 1.017423496381141,
+      "r_acceptor_h": 1.7469869697906177,
+      "index": 176,
+      "comment": "malonaldehyde train delta=-0.730"
+    },
+    {
+      "delta_pt": -1.1822877421759614,
+      "abs_delta_pt": 1.1822877421759614,
+      "r_oo": 2.8709143712828213,
+      "co_alternation": 0.10508473456065137,
+      "r_donor_h": 0.9641139550868842,
+      "r_acceptor_h": 2.1464016972628457,
+      "index": 177,
+      "comment": "malonaldehyde train delta=-1.182"
+    },
+    {
+      "delta_pt": -0.5166424980307467,
+      "abs_delta_pt": 0.5166424980307467,
+      "r_oo": 2.563013982936988,
+      "co_alternation": 0.1397657100602474,
+      "r_donor_h": 1.051378236324601,
+      "r_acceptor_h": 1.5680207343553476,
+      "index": 178,
+      "comment": "malonaldehyde train delta=-0.517"
+    },
+    {
+      "delta_pt": -0.8186916944850492,
+      "abs_delta_pt": 0.8186916944850492,
+      "r_oo": 2.629683756417758,
+      "co_alternation": 0.10257800763165692,
+      "r_donor_h": 0.9848732009714135,
+      "r_acceptor_h": 1.8035648954564627,
+      "index": 179,
+      "comment": "malonaldehyde train delta=-0.819"
+    },
+    {
+      "delta_pt": -0.8133980969839816,
+      "abs_delta_pt": 0.8133980969839816,
+      "r_oo": 2.5240118133364935,
+      "co_alternation": 0.12355998201222596,
+      "r_donor_h": 0.9353649430735804,
+      "r_acceptor_h": 1.748763040057562,
+      "index": 180,
+      "comment": "malonaldehyde train delta=-0.813"
+    },
+    {
+      "delta_pt": -0.9668256779787373,
+      "abs_delta_pt": 0.9668256779787373,
+      "r_oo": 2.735645003050298,
+      "co_alternation": 0.07908354792833228,
+      "r_donor_h": 0.9907803757791097,
+      "r_acceptor_h": 1.957606053757847,
+      "index": 181,
+      "comment": "malonaldehyde train delta=-0.967"
+    },
+    {
+      "delta_pt": -0.9430919597492204,
+      "abs_delta_pt": 0.9430919597492204,
+      "r_oo": 2.6836330383558162,
+      "co_alternation": 0.15885841841616966,
+      "r_donor_h": 1.015274874566289,
+      "r_acceptor_h": 1.9583668343155094,
+      "index": 182,
+      "comment": "malonaldehyde train delta=-0.943"
+    },
+    {
+      "delta_pt": -0.7650883594818618,
+      "abs_delta_pt": 0.7650883594818618,
+      "r_oo": 2.58869851293736,
+      "co_alternation": 0.08926362962943779,
+      "r_donor_h": 1.0321487068794564,
+      "r_acceptor_h": 1.7972370663613182,
+      "index": 183,
+      "comment": "malonaldehyde train delta=-0.765"
+    },
+    {
+      "delta_pt": -0.9139916213542921,
+      "abs_delta_pt": 0.9139916213542921,
+      "r_oo": 2.675051747213527,
+      "co_alternation": 0.10586152394224957,
+      "r_donor_h": 0.9608382214777887,
+      "r_acceptor_h": 1.8748298428320809,
+      "index": 184,
+      "comment": "malonaldehyde train delta=-0.914"
+    },
+    {
+      "delta_pt": -0.9025088951609819,
+      "abs_delta_pt": 0.9025088951609819,
+      "r_oo": 2.6007143653799947,
+      "co_alternation": 0.0932426060510112,
+      "r_donor_h": 1.0135605842402409,
+      "r_acceptor_h": 1.9160694794012227,
+      "index": 185,
+      "comment": "malonaldehyde train delta=-0.903"
+    },
+    {
+      "delta_pt": -0.9145800389898476,
+      "abs_delta_pt": 0.9145800389898476,
+      "r_oo": 2.7485983242233956,
+      "co_alternation": 0.17681061899749628,
+      "r_donor_h": 0.9659267637513215,
+      "r_acceptor_h": 1.880506802741169,
+      "index": 186,
+      "comment": "malonaldehyde train delta=-0.915"
+    },
+    {
+      "delta_pt": -0.9105032701451801,
+      "abs_delta_pt": 0.9105032701451801,
+      "r_oo": 2.799599177545698,
+      "co_alternation": 0.09212029207668926,
+      "r_donor_h": 1.0027752742312288,
+      "r_acceptor_h": 1.9132785443764089,
+      "index": 187,
+      "comment": "malonaldehyde train delta=-0.911"
+    },
+    {
+      "delta_pt": -0.4467062370259469,
+      "abs_delta_pt": 0.4467062370259469,
+      "r_oo": 2.4929940421438554,
+      "co_alternation": 0.13102854289281152,
+      "r_donor_h": 1.0493758898839733,
+      "r_acceptor_h": 1.4960821269099203,
+      "index": 188,
+      "comment": "malonaldehyde train delta=-0.447"
+    },
+    {
+      "delta_pt": -0.7658466868713137,
+      "abs_delta_pt": 0.7658466868713137,
+      "r_oo": 2.5926052169700067,
+      "co_alternation": 0.16327805012188334,
+      "r_donor_h": 0.9591968704001329,
+      "r_acceptor_h": 1.7250435572714466,
+      "index": 189,
+      "comment": "malonaldehyde train delta=-0.766"
+    },
+    {
+      "delta_pt": -0.48360664542071974,
+      "abs_delta_pt": 0.48360664542071974,
+      "r_oo": 2.5176546485039437,
+      "co_alternation": 0.0828185108945354,
+      "r_donor_h": 1.0644637174145632,
+      "r_acceptor_h": 1.548070362835283,
+      "index": 190,
+      "comment": "malonaldehyde train delta=-0.484"
+    },
+    {
+      "delta_pt": -0.8547528519703145,
+      "abs_delta_pt": 0.8547528519703145,
+      "r_oo": 2.535063595670007,
+      "co_alternation": 0.13573152079996342,
+      "r_donor_h": 0.915406047524898,
+      "r_acceptor_h": 1.7701588994952124,
+      "index": 191,
+      "comment": "malonaldehyde train delta=-0.855"
+    },
+    {
+      "delta_pt": -1.0109003550802957,
+      "abs_delta_pt": 1.0109003550802957,
+      "r_oo": 2.656763460022153,
+      "co_alternation": 0.13381203993307045,
+      "r_donor_h": 0.9832321175520863,
+      "r_acceptor_h": 1.9941324726323821,
+      "index": 192,
+      "comment": "malonaldehyde train delta=-1.011"
+    },
+    {
+      "delta_pt": -0.6900457999352974,
+      "abs_delta_pt": 0.6900457999352974,
+      "r_oo": 2.503768869946509,
+      "co_alternation": 0.06384158015840913,
+      "r_donor_h": 0.9502063018989018,
+      "r_acceptor_h": 1.6402521018341991,
+      "index": 193,
+      "comment": "malonaldehyde train delta=-0.690"
+    },
+    {
+      "delta_pt": -0.6645617140580704,
+      "abs_delta_pt": 0.6645617140580704,
+      "r_oo": 2.5075954656394273,
+      "co_alternation": 0.09278072588873432,
+      "r_donor_h": 1.033069810800391,
+      "r_acceptor_h": 1.6976315248584615,
+      "index": 194,
+      "comment": "malonaldehyde train delta=-0.665"
+    },
+    {
+      "delta_pt": -0.6372102789904628,
+      "abs_delta_pt": 0.6372102789904628,
+      "r_oo": 2.545704129532777,
+      "co_alternation": 0.0527288888946007,
+      "r_donor_h": 1.07575737624658,
+      "r_acceptor_h": 1.7129676552370428,
+      "index": 195,
+      "comment": "malonaldehyde train delta=-0.637"
+    },
+    {
+      "delta_pt": -0.5696324663902059,
+      "abs_delta_pt": 0.5696324663902059,
+      "r_oo": 2.600189819852941,
+      "co_alternation": 0.09966674332498937,
+      "r_donor_h": 1.0447884814787294,
+      "r_acceptor_h": 1.6144209478689353,
+      "index": 196,
+      "comment": "malonaldehyde train delta=-0.570"
+    },
+    {
+      "delta_pt": -0.7744612840249946,
+      "abs_delta_pt": 0.7744612840249946,
+      "r_oo": 2.616633375424787,
+      "co_alternation": 0.09908537735485656,
+      "r_donor_h": 0.9779672110671837,
+      "r_acceptor_h": 1.7524284950921782,
+      "index": 197,
+      "comment": "malonaldehyde train delta=-0.774"
+    },
+    {
+      "delta_pt": -1.0436363695683648,
+      "abs_delta_pt": 1.0436363695683648,
+      "r_oo": 2.677278616014144,
+      "co_alternation": 0.09436716407055501,
+      "r_donor_h": 0.9232388518586825,
+      "r_acceptor_h": 1.9668752214270473,
+      "index": 198,
+      "comment": "malonaldehyde train delta=-1.044"
+    },
+    {
+      "delta_pt": -0.6488957613647441,
+      "abs_delta_pt": 0.6488957613647441,
+      "r_oo": 2.631972893296396,
+      "co_alternation": 0.10815534777256897,
+      "r_donor_h": 1.0803876786222308,
+      "r_acceptor_h": 1.729283439986975,
+      "index": 199,
+      "comment": "malonaldehyde train delta=-0.649"
+    },
+    {
+      "delta_pt": -0.5411648866406586,
+      "abs_delta_pt": 0.5411648866406586,
+      "r_oo": 2.5904343831483994,
+      "co_alternation": 0.11056298080738802,
+      "r_donor_h": 1.0786586345744793,
+      "r_acceptor_h": 1.619823521215138,
+      "index": 200,
+      "comment": "malonaldehyde train delta=-0.541"
+    },
+    {
+      "delta_pt": -0.5060913137473864,
+      "abs_delta_pt": 0.5060913137473864,
+      "r_oo": 2.483007427519079,
+      "co_alternation": 0.04820027373925995,
+      "r_donor_h": 1.0911566312579637,
+      "r_acceptor_h": 1.59724794500535,
+      "index": 201,
+      "comment": "malonaldehyde train delta=-0.506"
+    },
+    {
+      "delta_pt": -0.7890428901397473,
+      "abs_delta_pt": 0.7890428901397473,
+      "r_oo": 2.7321964715040314,
+      "co_alternation": 0.057293851237439464,
+      "r_donor_h": 1.0488877941781245,
+      "r_acceptor_h": 1.8379306843178718,
+      "index": 202,
+      "comment": "malonaldehyde train delta=-0.789"
+    },
+    {
+      "delta_pt": -0.743445229656023,
+      "abs_delta_pt": 0.743445229656023,
+      "r_oo": 2.6957228135774076,
+      "co_alternation": 0.08603383922781394,
+      "r_donor_h": 1.0422430895133252,
+      "r_acceptor_h": 1.7856883191693482,
+      "index": 203,
+      "comment": "malonaldehyde train delta=-0.743"
+    },
+    {
+      "delta_pt": -0.5853924767509877,
+      "abs_delta_pt": 0.5853924767509877,
+      "r_oo": 2.6255012521438865,
+      "co_alternation": 0.11048147930466468,
+      "r_donor_h": 1.0720391121739388,
+      "r_acceptor_h": 1.6574315889249265,
+      "index": 204,
+      "comment": "malonaldehyde train delta=-0.585"
+    },
+    {
+      "delta_pt": -0.7916282566638282,
+      "abs_delta_pt": 0.7916282566638282,
+      "r_oo": 2.6477642472136433,
+      "co_alternation": 0.139613311797381,
+      "r_donor_h": 1.0089641568032803,
+      "r_acceptor_h": 1.8005924134671085,
+      "index": 205,
+      "comment": "malonaldehyde train delta=-0.792"
+    },
+    {
+      "delta_pt": -1.2647407916134528,
+      "abs_delta_pt": 1.2647407916134528,
+      "r_oo": 2.7638764014923267,
+      "co_alternation": 0.11281043782388056,
+      "r_donor_h": 0.9462562086467255,
+      "r_acceptor_h": 2.2109970002601784,
+      "index": 206,
+      "comment": "malonaldehyde train delta=-1.265"
+    },
+    {
+      "delta_pt": -0.7404048362692153,
+      "abs_delta_pt": 0.7404048362692153,
+      "r_oo": 2.6365459080792486,
+      "co_alternation": 0.15703267886473737,
+      "r_donor_h": 1.0170380658417966,
+      "r_acceptor_h": 1.7574429021110118,
+      "index": 207,
+      "comment": "malonaldehyde train delta=-0.740"
+    },
+    {
+      "delta_pt": -1.1040964721222077,
+      "abs_delta_pt": 1.1040964721222077,
+      "r_oo": 2.7885760939489885,
+      "co_alternation": 0.13559606789698408,
+      "r_donor_h": 0.9223775112996128,
+      "r_acceptor_h": 2.0264739834218206,
+      "index": 208,
+      "comment": "malonaldehyde train delta=-1.104"
+    },
+    {
+      "delta_pt": -0.6882103315528105,
+      "abs_delta_pt": 0.6882103315528105,
+      "r_oo": 2.510067155729096,
+      "co_alternation": 0.14678996843312353,
+      "r_donor_h": 0.9603095102732659,
+      "r_acceptor_h": 1.6485198418260765,
+      "index": 209,
+      "comment": "malonaldehyde train delta=-0.688"
+    },
+    {
+      "delta_pt": -1.083566048361599,
+      "abs_delta_pt": 1.083566048361599,
+      "r_oo": 2.748806577237068,
+      "co_alternation": 0.10808349797063621,
+      "r_donor_h": 0.9539169551372201,
+      "r_acceptor_h": 2.037483003498819,
+      "index": 210,
+      "comment": "malonaldehyde train delta=-1.084"
+    },
+    {
+      "delta_pt": -0.8280200010055103,
+      "abs_delta_pt": 0.8280200010055103,
+      "r_oo": 2.7277120360051494,
+      "co_alternation": 0.0931304889508131,
+      "r_donor_h": 1.0009545212314976,
+      "r_acceptor_h": 1.828974522237008,
+      "index": 211,
+      "comment": "malonaldehyde train delta=-0.828"
+    },
+    {
+      "delta_pt": -0.7189917591758461,
+      "abs_delta_pt": 0.7189917591758461,
+      "r_oo": 2.6208597534750973,
+      "co_alternation": 0.13826417585630857,
+      "r_donor_h": 1.02278033827171,
+      "r_acceptor_h": 1.7417720974475561,
+      "index": 212,
+      "comment": "malonaldehyde train delta=-0.719"
+    },
+    {
+      "delta_pt": -0.7191467183678201,
+      "abs_delta_pt": 0.7191467183678201,
+      "r_oo": 2.540068371398682,
+      "co_alternation": 0.043834567566954474,
+      "r_donor_h": 0.9594500064849426,
+      "r_acceptor_h": 1.6785967248527627,
+      "index": 213,
+      "comment": "malonaldehyde train delta=-0.719"
+    },
+    {
+      "delta_pt": -0.6904011359089607,
+      "abs_delta_pt": 0.6904011359089607,
+      "r_oo": 2.579679637102759,
+      "co_alternation": 0.15227759755100356,
+      "r_donor_h": 0.9682690583951375,
+      "r_acceptor_h": 1.6586701943040982,
+      "index": 214,
+      "comment": "malonaldehyde train delta=-0.690"
+    },
+    {
+      "delta_pt": -0.638048572863493,
+      "abs_delta_pt": 0.638048572863493,
+      "r_oo": 2.6483629186998203,
+      "co_alternation": 0.07454884464791256,
+      "r_donor_h": 1.0289919508495875,
+      "r_acceptor_h": 1.6670405237130805,
+      "index": 215,
+      "comment": "malonaldehyde train delta=-0.638"
+    },
+    {
+      "delta_pt": -0.5971814563496365,
+      "abs_delta_pt": 0.5971814563496365,
+      "r_oo": 2.4869197976434463,
+      "co_alternation": 0.027995674012009975,
+      "r_donor_h": 1.0133609609175505,
+      "r_acceptor_h": 1.610542417267187,
+      "index": 216,
+      "comment": "malonaldehyde train delta=-0.597"
+    },
+    {
+      "delta_pt": -0.9725558390914616,
+      "abs_delta_pt": 0.9725558390914616,
+      "r_oo": 2.6081798077646305,
+      "co_alternation": 0.0934911059915362,
+      "r_donor_h": 0.9343668982567123,
+      "r_acceptor_h": 1.9069227373481739,
+      "index": 217,
+      "comment": "malonaldehyde train delta=-0.973"
+    },
+    {
+      "delta_pt": -0.6245417399630917,
+      "abs_delta_pt": 0.6245417399630917,
+      "r_oo": 2.631410587785697,
+      "co_alternation": 0.005284887331659105,
+      "r_donor_h": 1.062928918654599,
+      "r_acceptor_h": 1.6874706586176906,
+      "index": 218,
+      "comment": "malonaldehyde train delta=-0.625"
+    },
+    {
+      "delta_pt": -0.8177222453916182,
+      "abs_delta_pt": 0.8177222453916182,
+      "r_oo": 2.615669657426519,
+      "co_alternation": 0.10391667643020264,
+      "r_donor_h": 1.003121585749367,
+      "r_acceptor_h": 1.8208438311409851,
+      "index": 219,
+      "comment": "malonaldehyde train delta=-0.818"
+    },
+    {
+      "delta_pt": -0.588146732206166,
+      "abs_delta_pt": 0.588146732206166,
+      "r_oo": 2.5836080644265564,
+      "co_alternation": 0.13209074692795397,
+      "r_donor_h": 1.0259249780776434,
+      "r_acceptor_h": 1.6140717102838094,
+      "index": 220,
+      "comment": "malonaldehyde train delta=-0.588"
+    },
+    {
+      "delta_pt": -0.6063241233925708,
+      "abs_delta_pt": 0.6063241233925708,
+      "r_oo": 2.530162567719476,
+      "co_alternation": 0.11011635646098061,
+      "r_donor_h": 0.9989338547092249,
+      "r_acceptor_h": 1.6052579781017957,
+      "index": 221,
+      "comment": "malonaldehyde train delta=-0.606"
+    },
+    {
+      "delta_pt": -1.3096613887579196,
+      "abs_delta_pt": 1.3096613887579196,
+      "r_oo": 2.926655703899347,
+      "co_alternation": 0.06461259764435656,
+      "r_donor_h": 0.9532622011914398,
+      "r_acceptor_h": 2.2629235899493594,
+      "index": 222,
+      "comment": "malonaldehyde train delta=-1.310"
+    },
+    {
+      "delta_pt": -0.6989509596825777,
+      "abs_delta_pt": 0.6989509596825777,
+      "r_oo": 2.5431468296062167,
+      "co_alternation": 0.08099789276530678,
+      "r_donor_h": 0.9980805205076401,
+      "r_acceptor_h": 1.6970314801902178,
+      "index": 223,
+      "comment": "malonaldehyde train delta=-0.699"
+    },
+    {
+      "delta_pt": -0.7435343296600783,
+      "abs_delta_pt": 0.7435343296600783,
+      "r_oo": 2.6789780606610485,
+      "co_alternation": 0.08856837722217015,
+      "r_donor_h": 1.0560080133035339,
+      "r_acceptor_h": 1.7995423429636122,
+      "index": 224,
+      "comment": "malonaldehyde train delta=-0.744"
+    },
+    {
+      "delta_pt": -0.9169160345460138,
+      "abs_delta_pt": 0.9169160345460138,
+      "r_oo": 2.6190016528435964,
+      "co_alternation": 0.13229290823809348,
+      "r_donor_h": 0.9542420483843984,
+      "r_acceptor_h": 1.8711580829304122,
+      "index": 225,
+      "comment": "malonaldehyde train delta=-0.917"
+    },
+    {
+      "delta_pt": -1.004221233451197,
+      "abs_delta_pt": 1.004221233451197,
+      "r_oo": 2.709688406765782,
+      "co_alternation": 0.0990383963587671,
+      "r_donor_h": 0.9848698746782953,
+      "r_acceptor_h": 1.9890911081294924,
+      "index": 226,
+      "comment": "malonaldehyde train delta=-1.004"
+    },
+    {
+      "delta_pt": -0.7460789290532779,
+      "abs_delta_pt": 0.7460789290532779,
+      "r_oo": 2.5604859572754544,
+      "co_alternation": 0.045180169990625796,
+      "r_donor_h": 0.989012876546532,
+      "r_acceptor_h": 1.73509180559981,
+      "index": 227,
+      "comment": "malonaldehyde train delta=-0.746"
+    },
+    {
+      "delta_pt": -0.8663875606381437,
+      "abs_delta_pt": 0.8663875606381437,
+      "r_oo": 2.7194721389441687,
+      "co_alternation": 0.057683369895530134,
+      "r_donor_h": 1.010605781122414,
+      "r_acceptor_h": 1.8769933417605578,
+      "index": 228,
+      "comment": "malonaldehyde train delta=-0.866"
+    },
+    {
+      "delta_pt": -0.7563479846474642,
+      "abs_delta_pt": 0.7563479846474642,
+      "r_oo": 2.4927153211051065,
+      "co_alternation": 0.12982190554161277,
+      "r_donor_h": 0.9800843695813833,
+      "r_acceptor_h": 1.7364323542288476,
+      "index": 229,
+      "comment": "malonaldehyde train delta=-0.756"
+    },
+    {
+      "delta_pt": -0.500321088980969,
+      "abs_delta_pt": 0.500321088980969,
+      "r_oo": 2.596535854779717,
+      "co_alternation": 0.10752784666038373,
+      "r_donor_h": 1.0929001754225962,
+      "r_acceptor_h": 1.5932212644035653,
+      "index": 230,
+      "comment": "malonaldehyde train delta=-0.500"
+    },
+    {
+      "delta_pt": -0.9231746472760516,
+      "abs_delta_pt": 0.9231746472760516,
+      "r_oo": 2.669267428267187,
+      "co_alternation": 0.13203525442130926,
+      "r_donor_h": 0.9413403091257204,
+      "r_acceptor_h": 1.864514956401772,
+      "index": 231,
+      "comment": "malonaldehyde train delta=-0.923"
+    },
+    {
+      "delta_pt": -0.9203299848383403,
+      "abs_delta_pt": 0.9203299848383403,
+      "r_oo": 2.672621108563889,
+      "co_alternation": 0.12529768891867565,
+      "r_donor_h": 0.9265746633066735,
+      "r_acceptor_h": 1.8469046481450138,
+      "index": 232,
+      "comment": "malonaldehyde train delta=-0.920"
+    },
+    {
+      "delta_pt": -0.7312851153254238,
+      "abs_delta_pt": 0.7312851153254238,
+      "r_oo": 2.604746881390404,
+      "co_alternation": 0.10209911374437763,
+      "r_donor_h": 1.0081436935136516,
+      "r_acceptor_h": 1.7394288088390755,
+      "index": 233,
+      "comment": "malonaldehyde train delta=-0.731"
+    },
+    {
+      "delta_pt": -1.0247566199506823,
+      "abs_delta_pt": 1.0247566199506823,
+      "r_oo": 2.6507317363074643,
+      "co_alternation": 0.08739234336738066,
+      "r_donor_h": 0.948568179001587,
+      "r_acceptor_h": 1.9733247989522693,
+      "index": 234,
+      "comment": "malonaldehyde train delta=-1.025"
+    },
+    {
+      "delta_pt": -1.3816184163165652,
+      "abs_delta_pt": 1.3816184163165652,
+      "r_oo": 3.0108957011105284,
+      "co_alternation": 0.05681396118671733,
+      "r_donor_h": 0.968034393837765,
+      "r_acceptor_h": 2.34965281015433,
+      "index": 235,
+      "comment": "malonaldehyde train delta=-1.382"
+    },
+    {
+      "delta_pt": -1.1134250239200378,
+      "abs_delta_pt": 1.1134250239200378,
+      "r_oo": 2.8795189886299526,
+      "co_alternation": 0.06843668637475187,
+      "r_donor_h": 0.9534084452019633,
+      "r_acceptor_h": 2.066833469122001,
+      "index": 236,
+      "comment": "malonaldehyde train delta=-1.113"
+    },
+    {
+      "delta_pt": -0.7912778849940858,
+      "abs_delta_pt": 0.7912778849940858,
+      "r_oo": 2.6633925600114092,
+      "co_alternation": 0.08232800646324212,
+      "r_donor_h": 1.0209271345082649,
+      "r_acceptor_h": 1.8122050195023507,
+      "index": 237,
+      "comment": "malonaldehyde train delta=-0.791"
+    },
+    {
+      "delta_pt": -0.5310451916991301,
+      "abs_delta_pt": 0.5310451916991301,
+      "r_oo": 2.4881688653455503,
+      "co_alternation": 0.027346819370032138,
+      "r_donor_h": 1.0562175437337895,
+      "r_acceptor_h": 1.5872627354329196,
+      "index": 238,
+      "comment": "malonaldehyde train delta=-0.531"
+    },
+    {
+      "delta_pt": -0.8973392824671667,
+      "abs_delta_pt": 0.8973392824671667,
+      "r_oo": 2.70825037577259,
+      "co_alternation": 0.1286649496092993,
+      "r_donor_h": 1.0105505599909168,
+      "r_acceptor_h": 1.9078898424580835,
+      "index": 239,
+      "comment": "malonaldehyde train delta=-0.897"
+    },
+    {
+      "delta_pt": -0.7800075175728414,
+      "abs_delta_pt": 0.7800075175728414,
+      "r_oo": 2.6010008917418723,
+      "co_alternation": 0.06757549707156807,
+      "r_donor_h": 0.9554588834692219,
+      "r_acceptor_h": 1.7354664010420633,
+      "index": 240,
+      "comment": "malonaldehyde train delta=-0.780"
+    },
+    {
+      "delta_pt": -0.5721980885173943,
+      "abs_delta_pt": 0.5721980885173943,
+      "r_oo": 2.4852831577857577,
+      "co_alternation": 0.06402570556597476,
+      "r_donor_h": 1.0711163438527167,
+      "r_acceptor_h": 1.643314432370111,
+      "index": 241,
+      "comment": "malonaldehyde train delta=-0.572"
+    },
+    {
+      "delta_pt": -0.8823029063510831,
+      "abs_delta_pt": 0.8823029063510831,
+      "r_oo": 2.558006860870509,
+      "co_alternation": 0.14640339543742265,
+      "r_donor_h": 0.9550741289257613,
+      "r_acceptor_h": 1.8373770352768444,
+      "index": 242,
+      "comment": "malonaldehyde train delta=-0.882"
+    },
+    {
+      "delta_pt": -0.5568883526395754,
+      "abs_delta_pt": 0.5568883526395754,
+      "r_oo": 2.500753011356516,
+      "co_alternation": 0.07202484255111785,
+      "r_donor_h": 1.0379856381043326,
+      "r_acceptor_h": 1.594873990743908,
+      "index": 243,
+      "comment": "malonaldehyde train delta=-0.557"
+    },
+    {
+      "delta_pt": -1.181153138319606,
+      "abs_delta_pt": 1.181153138319606,
+      "r_oo": 2.9089226101055616,
+      "co_alternation": 0.07582433713903747,
+      "r_donor_h": 0.9451321190408767,
+      "r_acceptor_h": 2.126285257360483,
+      "index": 244,
+      "comment": "malonaldehyde train delta=-1.181"
+    },
+    {
+      "delta_pt": -0.8792351415326658,
+      "abs_delta_pt": 0.8792351415326658,
+      "r_oo": 2.842385977240087,
+      "co_alternation": 0.07961980866868568,
+      "r_donor_h": 1.045103788149072,
+      "r_acceptor_h": 1.9243389296817377,
+      "index": 245,
+      "comment": "malonaldehyde train delta=-0.879"
+    },
+    {
+      "delta_pt": -0.833843988643199,
+      "abs_delta_pt": 0.833843988643199,
+      "r_oo": 2.700825956314249,
+      "co_alternation": 0.10234932003652397,
+      "r_donor_h": 1.0269179592605369,
+      "r_acceptor_h": 1.8607619479037358,
+      "index": 246,
+      "comment": "malonaldehyde train delta=-0.834"
+    },
+    {
+      "delta_pt": -0.494663490416259,
+      "abs_delta_pt": 0.494663490416259,
+      "r_oo": 2.4951771045767885,
+      "co_alternation": 0.08016962369375547,
+      "r_donor_h": 1.0193693298127529,
+      "r_acceptor_h": 1.5140328202290119,
+      "index": 247,
+      "comment": "malonaldehyde train delta=-0.495"
+    },
+    {
+      "delta_pt": -0.9050018944350976,
+      "abs_delta_pt": 0.9050018944350976,
+      "r_oo": 2.7089358238034946,
+      "co_alternation": 0.17162402558737244,
+      "r_donor_h": 0.9751437929200623,
+      "r_acceptor_h": 1.8801456873551599,
+      "index": 248,
+      "comment": "malonaldehyde train delta=-0.905"
+    },
+    {
+      "delta_pt": -0.9292622472995357,
+      "abs_delta_pt": 0.9292622472995357,
+      "r_oo": 2.566162586887439,
+      "co_alternation": 0.03307826412357384,
+      "r_donor_h": 0.9427780088525156,
+      "r_acceptor_h": 1.8720402561520513,
+      "index": 249,
+      "comment": "malonaldehyde train delta=-0.929"
+    },
+    {
+      "delta_pt": -0.7161162676636307,
+      "abs_delta_pt": 0.7161162676636307,
+      "r_oo": 2.505961476135782,
+      "co_alternation": 0.04064078820882577,
+      "r_donor_h": 0.9884623696147498,
+      "r_acceptor_h": 1.7045786372783804,
+      "index": 250,
+      "comment": "malonaldehyde train delta=-0.716"
+    },
+    {
+      "delta_pt": -0.7322334996618807,
+      "abs_delta_pt": 0.7322334996618807,
+      "r_oo": 2.6522959608849592,
+      "co_alternation": 0.11419040069066755,
+      "r_donor_h": 1.0195581660686208,
+      "r_acceptor_h": 1.7517916657305015,
+      "index": 251,
+      "comment": "malonaldehyde train delta=-0.732"
+    },
+    {
+      "delta_pt": -0.9278222082899491,
+      "abs_delta_pt": 0.9278222082899491,
+      "r_oo": 2.710689516498683,
+      "co_alternation": 0.10212301138349944,
+      "r_donor_h": 0.9557816328702814,
+      "r_acceptor_h": 1.8836038411602305,
+      "index": 252,
+      "comment": "malonaldehyde train delta=-0.928"
+    },
+    {
+      "delta_pt": -0.7491956505276072,
+      "abs_delta_pt": 0.7491956505276072,
+      "r_oo": 2.5856857340390205,
+      "co_alternation": 0.14443565581319784,
+      "r_donor_h": 1.0102184475560134,
+      "r_acceptor_h": 1.7594140980836206,
+      "index": 253,
+      "comment": "malonaldehyde train delta=-0.749"
+    },
+    {
+      "delta_pt": -0.8062668229458563,
+      "abs_delta_pt": 0.8062668229458563,
+      "r_oo": 2.6454565369759093,
+      "co_alternation": 0.11299085004374643,
+      "r_donor_h": 1.0193636224121614,
+      "r_acceptor_h": 1.8256304453580177,
+      "index": 254,
+      "comment": "malonaldehyde train delta=-0.806"
+    },
+    {
+      "delta_pt": -0.6109247168190175,
+      "abs_delta_pt": 0.6109247168190175,
+      "r_oo": 2.6307261280706644,
+      "co_alternation": 0.08500990864550895,
+      "r_donor_h": 1.0654583642594901,
+      "r_acceptor_h": 1.6763830810785076,
+      "index": 255,
+      "comment": "malonaldehyde train delta=-0.611"
+    },
+    {
+      "delta_pt": -0.9756173707009339,
+      "abs_delta_pt": 0.9756173707009339,
+      "r_oo": 2.618031688711117,
+      "co_alternation": 0.12486291606286049,
+      "r_donor_h": 0.9614233069150462,
+      "r_acceptor_h": 1.93704067761598,
+      "index": 256,
+      "comment": "malonaldehyde train delta=-0.976"
+    },
+    {
+      "delta_pt": -0.6917707311139696,
+      "abs_delta_pt": 0.6917707311139696,
+      "r_oo": 2.5780786022712388,
+      "co_alternation": 0.07018643546764869,
+      "r_donor_h": 1.0575823817504086,
+      "r_acceptor_h": 1.7493531128643782,
+      "index": 257,
+      "comment": "malonaldehyde train delta=-0.692"
+    },
+    {
+      "delta_pt": -0.7025526094846355,
+      "abs_delta_pt": 0.7025526094846355,
+      "r_oo": 2.4992662696157857,
+      "co_alternation": 0.06365715295930308,
+      "r_donor_h": 1.0103805114765672,
+      "r_acceptor_h": 1.7129331209612026,
+      "index": 258,
+      "comment": "malonaldehyde train delta=-0.703"
+    },
+    {
+      "delta_pt": -0.9493784178573064,
+      "abs_delta_pt": 0.9493784178573064,
+      "r_oo": 2.653309521472177,
+      "co_alternation": 0.11845083611064022,
+      "r_donor_h": 1.0014812545164085,
+      "r_acceptor_h": 1.9508596723737148,
+      "index": 259,
+      "comment": "malonaldehyde train delta=-0.949"
+    },
+    {
+      "delta_pt": -0.8794657302034716,
+      "abs_delta_pt": 0.8794657302034716,
+      "r_oo": 2.797117431347764,
+      "co_alternation": 0.01916591384731392,
+      "r_donor_h": 1.0289588831438115,
+      "r_acceptor_h": 1.908424613347283,
+      "index": 260,
+      "comment": "malonaldehyde train delta=-0.879"
+    },
+    {
+      "delta_pt": -0.5877209441293423,
+      "abs_delta_pt": 0.5877209441293423,
+      "r_oo": 2.548079660887058,
+      "co_alternation": 0.12388716735046246,
+      "r_donor_h": 1.0199347486717358,
+      "r_acceptor_h": 1.6076556928010781,
+      "index": 261,
+      "comment": "malonaldehyde train delta=-0.588"
+    },
+    {
+      "delta_pt": -0.7674825497642157,
+      "abs_delta_pt": 0.7674825497642157,
+      "r_oo": 2.693889994459067,
+      "co_alternation": 0.17427750544852416,
+      "r_donor_h": 0.9863358386123622,
+      "r_acceptor_h": 1.7538183883765779,
+      "index": 262,
+      "comment": "malonaldehyde train delta=-0.767"
+    },
+    {
+      "delta_pt": -0.9925486125498885,
+      "abs_delta_pt": 0.9925486125498885,
+      "r_oo": 2.7858430871732462,
+      "co_alternation": 0.1419648917650702,
+      "r_donor_h": 0.9834047056035761,
+      "r_acceptor_h": 1.9759533181534645,
+      "index": 263,
+      "comment": "malonaldehyde train delta=-0.993"
+    },
+    {
+      "delta_pt": -0.5780512712216392,
+      "abs_delta_pt": 0.5780512712216392,
+      "r_oo": 2.522498673846346,
+      "co_alternation": 0.09097304168722053,
+      "r_donor_h": 1.0122609568188683,
+      "r_acceptor_h": 1.5903122280405075,
+      "index": 264,
+      "comment": "malonaldehyde train delta=-0.578"
+    },
+    {
+      "delta_pt": -0.6948012944798958,
+      "abs_delta_pt": 0.6948012944798958,
+      "r_oo": 2.549791409269918,
+      "co_alternation": 0.07277113164641347,
+      "r_donor_h": 0.9773413558549007,
+      "r_acceptor_h": 1.6721426503347965,
+      "index": 265,
+      "comment": "malonaldehyde train delta=-0.695"
+    },
+    {
+      "delta_pt": -0.49677270881410407,
+      "abs_delta_pt": 0.49677270881410407,
+      "r_oo": 2.57710838479547,
+      "co_alternation": 0.10319938384343175,
+      "r_donor_h": 1.0883706240556381,
+      "r_acceptor_h": 1.5851433328697422,
+      "index": 266,
+      "comment": "malonaldehyde train delta=-0.497"
+    },
+    {
+      "delta_pt": -1.237627242504924,
+      "abs_delta_pt": 1.237627242504924,
+      "r_oo": 2.823575025365302,
+      "co_alternation": 0.10478114856975052,
+      "r_donor_h": 0.9552383973369106,
+      "r_acceptor_h": 2.1928656398418345,
+      "index": 267,
+      "comment": "malonaldehyde train delta=-1.238"
+    },
+    {
+      "delta_pt": -0.6313721414189375,
+      "abs_delta_pt": 0.6313721414189375,
+      "r_oo": 2.451280909600577,
+      "co_alternation": 0.06618594408075817,
+      "r_donor_h": 0.9544595265559677,
+      "r_acceptor_h": 1.5858316679749052,
+      "index": 268,
+      "comment": "malonaldehyde train delta=-0.631"
+    },
+    {
+      "delta_pt": -1.4296231608786085,
+      "abs_delta_pt": 1.4296231608786085,
+      "r_oo": 2.949398472281657,
+      "co_alternation": 0.03889392596628527,
+      "r_donor_h": 0.9582754603669242,
+      "r_acceptor_h": 2.3878986212455326,
+      "index": 269,
+      "comment": "malonaldehyde train delta=-1.430"
+    },
+    {
+      "delta_pt": -0.7514262905362077,
+      "abs_delta_pt": 0.7514262905362077,
+      "r_oo": 2.7583899266246665,
+      "co_alternation": 0.0761926565910227,
+      "r_donor_h": 1.0496881419179005,
+      "r_acceptor_h": 1.8011144324541082,
+      "index": 270,
+      "comment": "malonaldehyde train delta=-0.751"
+    },
+    {
+      "delta_pt": -0.6945485272454339,
+      "abs_delta_pt": 0.6945485272454339,
+      "r_oo": 2.747033459836984,
+      "co_alternation": 0.11746287273044786,
+      "r_donor_h": 1.0828622080746613,
+      "r_acceptor_h": 1.7774107353200952,
+      "index": 271,
+      "comment": "malonaldehyde train delta=-0.695"
+    },
+    {
+      "delta_pt": -1.0604512343303734,
+      "abs_delta_pt": 1.0604512343303734,
+      "r_oo": 2.7804329096084905,
+      "co_alternation": 0.05623684156600817,
+      "r_donor_h": 0.9585136562773129,
+      "r_acceptor_h": 2.0189648906076862,
+      "index": 272,
+      "comment": "malonaldehyde train delta=-1.060"
+    },
+    {
+      "delta_pt": -0.7792591493943273,
+      "abs_delta_pt": 0.7792591493943273,
+      "r_oo": 2.513596998548097,
+      "co_alternation": 0.06921386069722035,
+      "r_donor_h": 0.9769247092539659,
+      "r_acceptor_h": 1.7561838586482932,
+      "index": 273,
+      "comment": "malonaldehyde train delta=-0.779"
+    },
+    {
+      "delta_pt": -0.5197407401381702,
+      "abs_delta_pt": 0.5197407401381702,
+      "r_oo": 2.495541447244815,
+      "co_alternation": 0.049951595306680696,
+      "r_donor_h": 1.0145494701570206,
+      "r_acceptor_h": 1.5342902102951907,
+      "index": 274,
+      "comment": "malonaldehyde train delta=-0.520"
+    },
+    {
+      "delta_pt": -0.887304869360285,
+      "abs_delta_pt": 0.887304869360285,
+      "r_oo": 2.7849075793290474,
+      "co_alternation": 0.08643960702131137,
+      "r_donor_h": 0.9977012487309869,
+      "r_acceptor_h": 1.8850061180912718,
+      "index": 275,
+      "comment": "malonaldehyde train delta=-0.887"
+    },
+    {
+      "delta_pt": -0.9673084767580037,
+      "abs_delta_pt": 0.9673084767580037,
+      "r_oo": 2.724969976928526,
+      "co_alternation": 0.16178286683958443,
+      "r_donor_h": 0.9311127966393317,
+      "r_acceptor_h": 1.8984212733973354,
+      "index": 276,
+      "comment": "malonaldehyde train delta=-0.967"
+    },
+    {
+      "delta_pt": -0.5967026438957674,
+      "abs_delta_pt": 0.5967026438957674,
+      "r_oo": 2.5671416760748245,
+      "co_alternation": 0.1360928299250168,
+      "r_donor_h": 1.0315507158503552,
+      "r_acceptor_h": 1.6282533597461226,
+      "index": 277,
+      "comment": "malonaldehyde train delta=-0.597"
+    },
+    {
+      "delta_pt": -0.4698907106790351,
+      "abs_delta_pt": 0.4698907106790351,
+      "r_oo": 2.5809802646508446,
+      "co_alternation": 0.02715570757025243,
+      "r_donor_h": 1.1445954909450062,
+      "r_acceptor_h": 1.6144862016240413,
+      "index": 278,
+      "comment": "malonaldehyde train delta=-0.470"
+    },
+    {
+      "delta_pt": -0.6432868220969004,
+      "abs_delta_pt": 0.6432868220969004,
+      "r_oo": 2.467675703362495,
+      "co_alternation": 0.11441860904408063,
+      "r_donor_h": 1.0212243296430277,
+      "r_acceptor_h": 1.664511151739928,
+      "index": 279,
+      "comment": "malonaldehyde train delta=-0.643"
+    },
+    {
+      "delta_pt": -0.9597042572845723,
+      "abs_delta_pt": 0.9597042572845723,
+      "r_oo": 2.6682275213951847,
+      "co_alternation": 0.12997296469729136,
+      "r_donor_h": 0.974050459082182,
+      "r_acceptor_h": 1.9337547163667543,
+      "index": 280,
+      "comment": "malonaldehyde train delta=-0.960"
+    },
+    {
+      "delta_pt": -0.8445704088073169,
+      "abs_delta_pt": 0.8445704088073169,
+      "r_oo": 2.6254406616091446,
+      "co_alternation": 0.16556467790553175,
+      "r_donor_h": 0.9562401019329831,
+      "r_acceptor_h": 1.8008105107403,
+      "index": 281,
+      "comment": "malonaldehyde train delta=-0.845"
+    },
+    {
+      "delta_pt": -0.7088706371366142,
+      "abs_delta_pt": 0.7088706371366142,
+      "r_oo": 2.6459195068988848,
+      "co_alternation": 0.0612447949280841,
+      "r_donor_h": 1.0144128229975393,
+      "r_acceptor_h": 1.7232834601341536,
+      "index": 282,
+      "comment": "malonaldehyde train delta=-0.709"
+    },
+    {
+      "delta_pt": -0.8379227933970596,
+      "abs_delta_pt": 0.8379227933970596,
+      "r_oo": 2.6584209135439547,
+      "co_alternation": 0.05900656817837313,
+      "r_donor_h": 0.9873137460765286,
+      "r_acceptor_h": 1.825236539473588,
+      "index": 283,
+      "comment": "malonaldehyde train delta=-0.838"
+    },
+    {
+      "delta_pt": -0.921228096327704,
+      "abs_delta_pt": 0.921228096327704,
+      "r_oo": 2.7210805480612095,
+      "co_alternation": 0.16310224063872325,
+      "r_donor_h": 0.9420431039850619,
+      "r_acceptor_h": 1.8632712003127658,
+      "index": 284,
+      "comment": "malonaldehyde train delta=-0.921"
+    },
+    {
+      "delta_pt": -0.6426823961637489,
+      "abs_delta_pt": 0.6426823961637489,
+      "r_oo": 2.5123552393683557,
+      "co_alternation": 0.059957734473854885,
+      "r_donor_h": 0.9897495575907007,
+      "r_acceptor_h": 1.6324319537544496,
+      "index": 285,
+      "comment": "malonaldehyde train delta=-0.643"
+    },
+    {
+      "delta_pt": -0.7890996576033049,
+      "abs_delta_pt": 0.7890996576033049,
+      "r_oo": 2.6321149360099665,
+      "co_alternation": 0.13999024195093157,
+      "r_donor_h": 0.9889070437197478,
+      "r_acceptor_h": 1.7780067013230527,
+      "index": 286,
+      "comment": "malonaldehyde train delta=-0.789"
+    },
+    {
+      "delta_pt": -0.9376502232369112,
+      "abs_delta_pt": 0.9376502232369112,
+      "r_oo": 2.7055062824820006,
+      "co_alternation": 0.0825239102121289,
+      "r_donor_h": 0.9780947080408237,
+      "r_acceptor_h": 1.9157449312777348,
+      "index": 287,
+      "comment": "malonaldehyde train delta=-0.938"
+    },
+    {
+      "delta_pt": -0.8674389265867103,
+      "abs_delta_pt": 0.8674389265867103,
+      "r_oo": 2.6411756803703623,
+      "co_alternation": 0.11699332059821632,
+      "r_donor_h": 0.9769257533083254,
+      "r_acceptor_h": 1.8443646798950357,
+      "index": 288,
+      "comment": "malonaldehyde train delta=-0.867"
+    },
+    {
+      "delta_pt": -0.8577191029157544,
+      "abs_delta_pt": 0.8577191029157544,
+      "r_oo": 2.6203048393397963,
+      "co_alternation": 0.05416626879434472,
+      "r_donor_h": 0.9806173838538609,
+      "r_acceptor_h": 1.8383364867696153,
+      "index": 289,
+      "comment": "malonaldehyde train delta=-0.858"
+    },
+    {
+      "delta_pt": -0.9521612711748505,
+      "abs_delta_pt": 0.9521612711748505,
+      "r_oo": 2.749660603823842,
+      "co_alternation": 0.09976504788054519,
+      "r_donor_h": 0.9959054301003839,
+      "r_acceptor_h": 1.9480667012752344,
+      "index": 290,
+      "comment": "malonaldehyde train delta=-0.952"
+    },
+    {
+      "delta_pt": -1.1089614991452446,
+      "abs_delta_pt": 1.1089614991452446,
+      "r_oo": 2.9352279340225707,
+      "co_alternation": 0.10835894111299504,
+      "r_donor_h": 0.9943664974399975,
+      "r_acceptor_h": 2.103327996585242,
+      "index": 291,
+      "comment": "malonaldehyde train delta=-1.109"
+    },
+    {
+      "delta_pt": -0.48812065618414446,
+      "abs_delta_pt": 0.48812065618414446,
+      "r_oo": 2.382991352097992,
+      "co_alternation": 0.1371536017112982,
+      "r_donor_h": 1.009421671921623,
+      "r_acceptor_h": 1.4975423281057674,
+      "index": 292,
+      "comment": "malonaldehyde train delta=-0.488"
+    },
+    {
+      "delta_pt": -0.9633360387663028,
+      "abs_delta_pt": 0.9633360387663028,
+      "r_oo": 2.760791474076815,
+      "co_alternation": 0.14680587936012546,
+      "r_donor_h": 1.0095605090425812,
+      "r_acceptor_h": 1.972896547808884,
+      "index": 293,
+      "comment": "malonaldehyde train delta=-0.963"
+    },
+    {
+      "delta_pt": -0.6610914627109856,
+      "abs_delta_pt": 0.6610914627109856,
+      "r_oo": 2.6068751201055145,
+      "co_alternation": 0.021300875832139132,
+      "r_donor_h": 1.051732078989127,
+      "r_acceptor_h": 1.7128235417001125,
+      "index": 294,
+      "comment": "malonaldehyde train delta=-0.661"
+    },
+    {
+      "delta_pt": -0.8317499775942919,
+      "abs_delta_pt": 0.8317499775942919,
+      "r_oo": 2.6384604044284345,
+      "co_alternation": 0.08533909885111668,
+      "r_donor_h": 0.9759520012684882,
+      "r_acceptor_h": 1.8077019788627802,
+      "index": 295,
+      "comment": "malonaldehyde train delta=-0.832"
+    },
+    {
+      "delta_pt": -0.8166168438287627,
+      "abs_delta_pt": 0.8166168438287627,
+      "r_oo": 2.603705595795439,
+      "co_alternation": 0.04119399178328331,
+      "r_donor_h": 0.9666062599769352,
+      "r_acceptor_h": 1.7832231038056978,
+      "index": 296,
+      "comment": "malonaldehyde train delta=-0.817"
+    },
+    {
+      "delta_pt": -0.7808593343967936,
+      "abs_delta_pt": 0.7808593343967936,
+      "r_oo": 2.736469964291617,
+      "co_alternation": 0.038984813345405156,
+      "r_donor_h": 1.057125171498095,
+      "r_acceptor_h": 1.8379845058948885,
+      "index": 297,
+      "comment": "malonaldehyde train delta=-0.781"
+    },
+    {
+      "delta_pt": -0.9739676468845457,
+      "abs_delta_pt": 0.9739676468845457,
+      "r_oo": 2.8184451023143064,
+      "co_alternation": 0.1445365773511229,
+      "r_donor_h": 1.0592543318979215,
+      "r_acceptor_h": 2.0332219787824672,
+      "index": 298,
+      "comment": "malonaldehyde train delta=-0.974"
+    },
+    {
+      "delta_pt": -0.7335967139963179,
+      "abs_delta_pt": 0.7335967139963179,
+      "r_oo": 2.5494450093222762,
+      "co_alternation": 0.14575841518380117,
+      "r_donor_h": 0.9667545168459865,
+      "r_acceptor_h": 1.7003512308423043,
+      "index": 299,
+      "comment": "malonaldehyde train delta=-0.734"
+    },
+    {
+      "delta_pt": -0.6690704606874425,
+      "abs_delta_pt": 0.6690704606874425,
+      "r_oo": 2.591906851510477,
+      "co_alternation": 0.12228665850890597,
+      "r_donor_h": 1.0331121025866807,
+      "r_acceptor_h": 1.7021825632741232,
+      "index": 300,
+      "comment": "malonaldehyde train delta=-0.669"
+    },
+    {
+      "delta_pt": -1.1363754420196113,
+      "abs_delta_pt": 1.1363754420196113,
+      "r_oo": 2.8439555178949836,
+      "co_alternation": 0.059627971059812435,
+      "r_donor_h": 0.9653276440466211,
+      "r_acceptor_h": 2.1017030860662325,
+      "index": 301,
+      "comment": "malonaldehyde train delta=-1.136"
+    },
+    {
+      "delta_pt": -0.8760169863667526,
+      "abs_delta_pt": 0.8760169863667526,
+      "r_oo": 2.701461860625794,
+      "co_alternation": 0.11785903950047438,
+      "r_donor_h": 1.0474102932539284,
+      "r_acceptor_h": 1.923427279620681,
+      "index": 302,
+      "comment": "malonaldehyde train delta=-0.876"
+    },
+    {
+      "delta_pt": -0.8946949339437583,
+      "abs_delta_pt": 0.8946949339437583,
+      "r_oo": 2.627424347639907,
+      "co_alternation": 0.04648093501632711,
+      "r_donor_h": 0.9422825357728212,
+      "r_acceptor_h": 1.8369774697165795,
+      "index": 303,
+      "comment": "malonaldehyde train delta=-0.895"
+    },
+    {
+      "delta_pt": -0.5134502707876323,
+      "abs_delta_pt": 0.5134502707876323,
+      "r_oo": 2.52577910105922,
+      "co_alternation": 0.050959422422945266,
+      "r_donor_h": 1.07362395091949,
+      "r_acceptor_h": 1.5870742217071223,
+      "index": 304,
+      "comment": "malonaldehyde train delta=-0.513"
+    },
+    {
+      "delta_pt": -0.9770002505778934,
+      "abs_delta_pt": 0.9770002505778934,
+      "r_oo": 2.7583707135717423,
+      "co_alternation": 0.07087217825245107,
+      "r_donor_h": 0.9195065980136305,
+      "r_acceptor_h": 1.896506848591524,
+      "index": 305,
+      "comment": "malonaldehyde train delta=-0.977"
+    },
+    {
+      "delta_pt": -0.6764841316624097,
+      "abs_delta_pt": 0.6764841316624097,
+      "r_oo": 2.568079017995988,
+      "co_alternation": 0.040990276151888994,
+      "r_donor_h": 1.0057371454254487,
+      "r_acceptor_h": 1.6822212770878584,
+      "index": 306,
+      "comment": "malonaldehyde train delta=-0.676"
+    },
+    {
+      "delta_pt": -0.69404260091199,
+      "abs_delta_pt": 0.69404260091199,
+      "r_oo": 2.640481922771722,
+      "co_alternation": 0.009621498692148123,
+      "r_donor_h": 1.0213955914176271,
+      "r_acceptor_h": 1.7154381923296171,
+      "index": 307,
+      "comment": "malonaldehyde train delta=-0.694"
+    },
+    {
+      "delta_pt": -0.6220144486757364,
+      "abs_delta_pt": 0.6220144486757364,
+      "r_oo": 2.601528411874443,
+      "co_alternation": 0.10953555307663199,
+      "r_donor_h": 1.045727522688656,
+      "r_acceptor_h": 1.6677419713643924,
+      "index": 308,
+      "comment": "malonaldehyde train delta=-0.622"
+    },
+    {
+      "delta_pt": -0.9043621492254015,
+      "abs_delta_pt": 0.9043621492254015,
+      "r_oo": 2.8016685249172903,
+      "co_alternation": 0.11178587366757275,
+      "r_donor_h": 1.0091074732910492,
+      "r_acceptor_h": 1.9134696225164507,
+      "index": 309,
+      "comment": "malonaldehyde train delta=-0.904"
+    },
+    {
+      "delta_pt": -0.9617488414220119,
+      "abs_delta_pt": 0.9617488414220119,
+      "r_oo": 2.799013754993981,
+      "co_alternation": 0.11217291604939139,
+      "r_donor_h": 1.004973879409435,
+      "r_acceptor_h": 1.9667227208314468,
+      "index": 310,
+      "comment": "malonaldehyde train delta=-0.962"
+    },
+    {
+      "delta_pt": -0.8636321912355367,
+      "abs_delta_pt": 0.8636321912355367,
+      "r_oo": 2.786206189540424,
+      "co_alternation": 0.07813582267329844,
+      "r_donor_h": 1.023053435328178,
+      "r_acceptor_h": 1.8866856265637146,
+      "index": 311,
+      "comment": "malonaldehyde train delta=-0.864"
+    },
+    {
+      "delta_pt": -0.7834297148818998,
+      "abs_delta_pt": 0.7834297148818998,
+      "r_oo": 2.7036454087870867,
+      "co_alternation": 0.0979770507384432,
+      "r_donor_h": 1.0160352157691044,
+      "r_acceptor_h": 1.7994649306510042,
+      "index": 312,
+      "comment": "malonaldehyde train delta=-0.783"
+    },
+    {
+      "delta_pt": -0.7418374566105899,
+      "abs_delta_pt": 0.7418374566105899,
+      "r_oo": 2.5874010162383465,
+      "co_alternation": 0.09295231516719382,
+      "r_donor_h": 1.0540961344697595,
+      "r_acceptor_h": 1.7959335910803493,
+      "index": 313,
+      "comment": "malonaldehyde train delta=-0.742"
+    },
+    {
+      "delta_pt": -0.6102512898906407,
+      "abs_delta_pt": 0.6102512898906407,
+      "r_oo": 2.6018924736023807,
+      "co_alternation": 0.09065800193904439,
+      "r_donor_h": 1.0903169073429508,
+      "r_acceptor_h": 1.7005681972335915,
+      "index": 314,
+      "comment": "malonaldehyde train delta=-0.610"
+    },
+    {
+      "delta_pt": -0.9085135807748512,
+      "abs_delta_pt": 0.9085135807748512,
+      "r_oo": 2.6355978054642777,
+      "co_alternation": 0.11371842148079381,
+      "r_donor_h": 0.9517105395794523,
+      "r_acceptor_h": 1.8602241203543035,
+      "index": 315,
+      "comment": "malonaldehyde train delta=-0.909"
+    },
+    {
+      "delta_pt": -0.8015425354269061,
+      "abs_delta_pt": 0.8015425354269061,
+      "r_oo": 2.595509799930949,
+      "co_alternation": 0.08283221198757018,
+      "r_donor_h": 1.0068947271833164,
+      "r_acceptor_h": 1.8084372626102225,
+      "index": 316,
+      "comment": "malonaldehyde train delta=-0.802"
+    },
+    {
+      "delta_pt": -0.6687230736948124,
+      "abs_delta_pt": 0.6687230736948124,
+      "r_oo": 2.6252503174207003,
+      "co_alternation": 0.10055227098505903,
+      "r_donor_h": 1.0531319978477216,
+      "r_acceptor_h": 1.721855071542534,
+      "index": 317,
+      "comment": "malonaldehyde train delta=-0.669"
+    },
+    {
+      "delta_pt": -0.6558865318541611,
+      "abs_delta_pt": 0.6558865318541611,
+      "r_oo": 2.5941255748976584,
+      "co_alternation": 0.10128268180121269,
+      "r_donor_h": 1.011661255509926,
+      "r_acceptor_h": 1.6675477873640872,
+      "index": 318,
+      "comment": "malonaldehyde train delta=-0.656"
+    },
+    {
+      "delta_pt": -1.102072454862367,
+      "abs_delta_pt": 1.102072454862367,
+      "r_oo": 2.9331114066723885,
+      "co_alternation": 0.07403657282862275,
+      "r_donor_h": 1.0484937970330264,
+      "r_acceptor_h": 2.1505662518953934,
+      "index": 319,
+      "comment": "malonaldehyde train delta=-1.102"
+    },
+    {
+      "delta_pt": -0.9382640333425932,
+      "abs_delta_pt": 0.9382640333425932,
+      "r_oo": 2.7529868138706055,
+      "co_alternation": 0.14607463338894022,
+      "r_donor_h": 0.9768798353442251,
+      "r_acceptor_h": 1.9151438686868183,
+      "index": 320,
+      "comment": "malonaldehyde train delta=-0.938"
+    },
+    {
+      "delta_pt": -0.6078862942380434,
+      "abs_delta_pt": 0.6078862942380434,
+      "r_oo": 2.5218710291651103,
+      "co_alternation": 0.0477471350819465,
+      "r_donor_h": 1.0056245663318455,
+      "r_acceptor_h": 1.613510860569889,
+      "index": 321,
+      "comment": "malonaldehyde train delta=-0.608"
+    },
+    {
+      "delta_pt": -0.8510466149368875,
+      "abs_delta_pt": 0.8510466149368875,
+      "r_oo": 2.610308269997995,
+      "co_alternation": 0.07150503770700922,
+      "r_donor_h": 0.9489804174006465,
+      "r_acceptor_h": 1.800027032337534,
+      "index": 322,
+      "comment": "malonaldehyde train delta=-0.851"
+    },
+    {
+      "delta_pt": -0.4844554295599741,
+      "abs_delta_pt": 0.4844554295599741,
+      "r_oo": 2.5365510451033177,
+      "co_alternation": 0.08680034135352632,
+      "r_donor_h": 1.0475971746722927,
+      "r_acceptor_h": 1.5320526042322669,
+      "index": 323,
+      "comment": "malonaldehyde train delta=-0.484"
+    },
+    {
+      "delta_pt": -0.48510932806364493,
+      "abs_delta_pt": 0.48510932806364493,
+      "r_oo": 2.600835703260118,
+      "co_alternation": 0.10822896800068249,
+      "r_donor_h": 1.0992073202312433,
+      "r_acceptor_h": 1.5843166482948883,
+      "index": 324,
+      "comment": "malonaldehyde train delta=-0.485"
+    },
+    {
+      "delta_pt": -0.6453248459788163,
+      "abs_delta_pt": 0.6453248459788163,
+      "r_oo": 2.479130224538449,
+      "co_alternation": 0.05411587170460441,
+      "r_donor_h": 1.0080837677515473,
+      "r_acceptor_h": 1.6534086137303636,
+      "index": 325,
+      "comment": "malonaldehyde train delta=-0.645"
+    },
+    {
+      "delta_pt": -0.7170869072694239,
+      "abs_delta_pt": 0.7170869072694239,
+      "r_oo": 2.502825689466674,
+      "co_alternation": 0.15976875470349494,
+      "r_donor_h": 0.9391392616313605,
+      "r_acceptor_h": 1.6562261689007844,
+      "index": 326,
+      "comment": "malonaldehyde train delta=-0.717"
+    },
+    {
+      "delta_pt": -0.8514543797545199,
+      "abs_delta_pt": 0.8514543797545199,
+      "r_oo": 2.6791876200628133,
+      "co_alternation": 0.16215583167401793,
+      "r_donor_h": 0.9560381276826707,
+      "r_acceptor_h": 1.8074925074371906,
+      "index": 327,
+      "comment": "malonaldehyde train delta=-0.851"
+    },
+    {
+      "delta_pt": -0.7080745959965872,
+      "abs_delta_pt": 0.7080745959965872,
+      "r_oo": 2.533097301259343,
+      "co_alternation": 0.0947550612292436,
+      "r_donor_h": 0.9827986631177986,
+      "r_acceptor_h": 1.6908732591143858,
+      "index": 328,
+      "comment": "malonaldehyde train delta=-0.708"
+    },
+    {
+      "delta_pt": -0.793044131293091,
+      "abs_delta_pt": 0.793044131293091,
+      "r_oo": 2.613020642051427,
+      "co_alternation": 0.13756455033782444,
+      "r_donor_h": 0.9955868908264708,
+      "r_acceptor_h": 1.7886310221195618,
+      "index": 329,
+      "comment": "malonaldehyde train delta=-0.793"
+    },
+    {
+      "delta_pt": -0.779880547702094,
+      "abs_delta_pt": 0.779880547702094,
+      "r_oo": 2.5070737639625724,
+      "co_alternation": 0.13892480547922648,
+      "r_donor_h": 0.9232871201573949,
+      "r_acceptor_h": 1.703167667859489,
+      "index": 330,
+      "comment": "malonaldehyde train delta=-0.780"
+    },
+    {
+      "delta_pt": -0.7941526981917972,
+      "abs_delta_pt": 0.7941526981917972,
+      "r_oo": 2.601480592655005,
+      "co_alternation": 0.0774807542910052,
+      "r_donor_h": 0.9709751620704616,
+      "r_acceptor_h": 1.7651278602622589,
+      "index": 331,
+      "comment": "malonaldehyde train delta=-0.794"
+    },
+    {
+      "delta_pt": -0.8006609898435915,
+      "abs_delta_pt": 0.8006609898435915,
+      "r_oo": 2.696399953421642,
+      "co_alternation": 0.09575490580399104,
+      "r_donor_h": 0.9753910454986707,
+      "r_acceptor_h": 1.7760520353422622,
+      "index": 332,
+      "comment": "malonaldehyde train delta=-0.801"
+    },
+    {
+      "delta_pt": -0.8427503412408787,
+      "abs_delta_pt": 0.8427503412408787,
+      "r_oo": 2.7459740312298937,
+      "co_alternation": 0.0944555816934709,
+      "r_donor_h": 0.9916844720468877,
+      "r_acceptor_h": 1.8344348132877664,
+      "index": 333,
+      "comment": "malonaldehyde train delta=-0.843"
+    },
+    {
+      "delta_pt": -0.5144154737181188,
+      "abs_delta_pt": 0.5144154737181188,
+      "r_oo": 2.499947764120665,
+      "co_alternation": 0.12891089781286502,
+      "r_donor_h": 1.0481209165837628,
+      "r_acceptor_h": 1.5625363903018816,
+      "index": 334,
+      "comment": "malonaldehyde train delta=-0.514"
+    },
+    {
+      "delta_pt": -0.5659525934471401,
+      "abs_delta_pt": 0.5659525934471401,
+      "r_oo": 2.5100585803409596,
+      "co_alternation": 0.09815297923403099,
+      "r_donor_h": 1.022785419480225,
+      "r_acceptor_h": 1.5887380129273652,
+      "index": 335,
+      "comment": "malonaldehyde train delta=-0.566"
+    },
+    {
+      "delta_pt": -0.6626298606828491,
+      "abs_delta_pt": 0.6626298606828491,
+      "r_oo": 2.438992384074982,
+      "co_alternation": 0.05738032466717491,
+      "r_donor_h": 1.0267266759924367,
+      "r_acceptor_h": 1.6893565366752858,
+      "index": 336,
+      "comment": "malonaldehyde train delta=-0.663"
+    },
+    {
+      "delta_pt": -0.4219205420544392,
+      "abs_delta_pt": 0.4219205420544392,
+      "r_oo": 2.56396707522614,
+      "co_alternation": 0.06487760493051908,
+      "r_donor_h": 1.1072551349313557,
+      "r_acceptor_h": 1.529175676985795,
+      "index": 337,
+      "comment": "malonaldehyde train delta=-0.422"
+    },
+    {
+      "delta_pt": -0.6298177176859081,
+      "abs_delta_pt": 0.6298177176859081,
+      "r_oo": 2.551729104703875,
+      "co_alternation": 0.10316450816576617,
+      "r_donor_h": 1.0016169715558683,
+      "r_acceptor_h": 1.6314346892417764,
+      "index": 338,
+      "comment": "malonaldehyde train delta=-0.630"
+    },
+    {
+      "delta_pt": -0.4823821529866763,
+      "abs_delta_pt": 0.4823821529866763,
+      "r_oo": 2.466364837507235,
+      "co_alternation": 0.04557276354673623,
+      "r_donor_h": 1.0389665420898313,
+      "r_acceptor_h": 1.5213486950765076,
+      "index": 339,
+      "comment": "malonaldehyde train delta=-0.482"
+    },
+    {
+      "delta_pt": -0.7041084765039047,
+      "abs_delta_pt": 0.7041084765039047,
+      "r_oo": 2.5377434370513217,
+      "co_alternation": 0.11967672369527338,
+      "r_donor_h": 0.971674892849314,
+      "r_acceptor_h": 1.6757833693532187,
+      "index": 340,
+      "comment": "malonaldehyde train delta=-0.704"
+    },
+    {
+      "delta_pt": -0.6879461792625143,
+      "abs_delta_pt": 0.6879461792625143,
+      "r_oo": 2.6389196055634847,
+      "co_alternation": 0.11603016261798693,
+      "r_donor_h": 1.0480180263387977,
+      "r_acceptor_h": 1.735964205601312,
+      "index": 341,
+      "comment": "malonaldehyde train delta=-0.688"
+    },
+    {
+      "delta_pt": -0.9592377747308926,
+      "abs_delta_pt": 0.9592377747308926,
+      "r_oo": 2.6161274514671913,
+      "co_alternation": 0.07971019661634227,
+      "r_donor_h": 0.9626631260458681,
+      "r_acceptor_h": 1.9219009007767607,
+      "index": 342,
+      "comment": "malonaldehyde train delta=-0.959"
+    },
+    {
+      "delta_pt": -0.488623938143522,
+      "abs_delta_pt": 0.488623938143522,
+      "r_oo": 2.5994331760961558,
+      "co_alternation": 0.04419714859165769,
+      "r_donor_h": 1.082017722187669,
+      "r_acceptor_h": 1.570641660331191,
+      "index": 343,
+      "comment": "malonaldehyde train delta=-0.489"
+    },
+    {
+      "delta_pt": -0.5940556455970611,
+      "abs_delta_pt": 0.5940556455970611,
+      "r_oo": 2.608140029315242,
+      "co_alternation": 0.05694495446736525,
+      "r_donor_h": 1.103935392803792,
+      "r_acceptor_h": 1.6979910384008532,
+      "index": 344,
+      "comment": "malonaldehyde train delta=-0.594"
+    },
+    {
+      "delta_pt": -0.7733012058924043,
+      "abs_delta_pt": 0.7733012058924043,
+      "r_oo": 2.623966338938675,
+      "co_alternation": 0.16255128766785298,
+      "r_donor_h": 1.0191349211682625,
+      "r_acceptor_h": 1.7924361270606668,
+      "index": 345,
+      "comment": "malonaldehyde train delta=-0.773"
+    },
+    {
+      "delta_pt": -0.725188034820867,
+      "abs_delta_pt": 0.725188034820867,
+      "r_oo": 2.6561527950768107,
+      "co_alternation": 0.16109708645527054,
+      "r_donor_h": 1.0010556665798453,
+      "r_acceptor_h": 1.7262437014007124,
+      "index": 346,
+      "comment": "malonaldehyde train delta=-0.725"
+    },
+    {
+      "delta_pt": -0.7822075263728352,
+      "abs_delta_pt": 0.7822075263728352,
+      "r_oo": 2.6950830289786674,
+      "co_alternation": 0.12373385941694637,
+      "r_donor_h": 1.0392774839950116,
+      "r_acceptor_h": 1.8214850103678468,
+      "index": 347,
+      "comment": "malonaldehyde train delta=-0.782"
+    },
+    {
+      "delta_pt": -0.9868675067351036,
+      "abs_delta_pt": 0.9868675067351036,
+      "r_oo": 2.7405048763111712,
+      "co_alternation": 0.11807651888893167,
+      "r_donor_h": 1.0046524759237585,
+      "r_acceptor_h": 1.991519982658862,
+      "index": 348,
+      "comment": "malonaldehyde train delta=-0.987"
+    },
+    {
+      "delta_pt": -0.6177859165957764,
+      "abs_delta_pt": 0.6177859165957764,
+      "r_oo": 2.6315361839331834,
+      "co_alternation": 0.1195496896467223,
+      "r_donor_h": 1.0701208433124816,
+      "r_acceptor_h": 1.687906759908258,
+      "index": 349,
+      "comment": "malonaldehyde train delta=-0.618"
+    },
+    {
+      "delta_pt": -0.512223528727991,
+      "abs_delta_pt": 0.512223528727991,
+      "r_oo": 2.561055453846771,
+      "co_alternation": 0.10097759551022967,
+      "r_donor_h": 1.082957861238268,
+      "r_acceptor_h": 1.595181389966259,
+      "index": 350,
+      "comment": "malonaldehyde train delta=-0.512"
+    },
+    {
+      "delta_pt": -0.6596902521364838,
+      "abs_delta_pt": 0.6596902521364838,
+      "r_oo": 2.575449763965697,
+      "co_alternation": 0.13874450034350194,
+      "r_donor_h": 1.0113899519648342,
+      "r_acceptor_h": 1.671080204101318,
+      "index": 351,
+      "comment": "malonaldehyde train delta=-0.660"
+    },
+    {
+      "delta_pt": -0.8831580475602172,
+      "abs_delta_pt": 0.8831580475602172,
+      "r_oo": 2.638676696076927,
+      "co_alternation": 0.06345156049024081,
+      "r_donor_h": 0.9829086735597174,
+      "r_acceptor_h": 1.8660667211199347,
+      "index": 352,
+      "comment": "malonaldehyde train delta=-0.883"
+    },
+    {
+      "delta_pt": -0.7931088976055605,
+      "abs_delta_pt": 0.7931088976055605,
+      "r_oo": 2.6726753116687108,
+      "co_alternation": 0.10650935894201741,
+      "r_donor_h": 1.0092610839421599,
+      "r_acceptor_h": 1.8023699815477203,
+      "index": 353,
+      "comment": "malonaldehyde train delta=-0.793"
+    },
+    {
+      "delta_pt": -1.1779396447240242,
+      "abs_delta_pt": 1.1779396447240242,
+      "r_oo": 2.8709800625834276,
+      "co_alternation": 0.08828557016142957,
+      "r_donor_h": 0.9543635936520961,
+      "r_acceptor_h": 2.1323032383761205,
+      "index": 354,
+      "comment": "malonaldehyde train delta=-1.178"
+    },
+    {
+      "delta_pt": -0.6049654849509183,
+      "abs_delta_pt": 0.6049654849509183,
+      "r_oo": 2.5160367537331627,
+      "co_alternation": 0.06693117624060685,
+      "r_donor_h": 1.0114663164955782,
+      "r_acceptor_h": 1.6164318014464965,
+      "index": 355,
+      "comment": "malonaldehyde train delta=-0.605"
+    },
+    {
+      "delta_pt": -1.018669367691949,
+      "abs_delta_pt": 1.018669367691949,
+      "r_oo": 2.828427665900185,
+      "co_alternation": 0.09505121348532897,
+      "r_donor_h": 0.9807956526803626,
+      "r_acceptor_h": 1.9994650203723114,
+      "index": 356,
+      "comment": "malonaldehyde train delta=-1.019"
+    },
+    {
+      "delta_pt": -1.0005643410437228,
+      "abs_delta_pt": 1.0005643410437228,
+      "r_oo": 2.9137050374666726,
+      "co_alternation": 0.07975676188982428,
+      "r_donor_h": 1.0422524339014072,
+      "r_acceptor_h": 2.04281677494513,
+      "index": 357,
+      "comment": "malonaldehyde train delta=-1.001"
+    },
+    {
+      "delta_pt": -0.6550227674813134,
+      "abs_delta_pt": 0.6550227674813134,
+      "r_oo": 2.64171240111762,
+      "co_alternation": 0.08854753019376038,
+      "r_donor_h": 1.0657785964733673,
+      "r_acceptor_h": 1.7208013639546806,
+      "index": 358,
+      "comment": "malonaldehyde train delta=-0.655"
+    },
+    {
+      "delta_pt": -0.992633896160849,
+      "abs_delta_pt": 0.992633896160849,
+      "r_oo": 2.7663090665737906,
+      "co_alternation": 0.12195220149297104,
+      "r_donor_h": 1.0122409933632064,
+      "r_acceptor_h": 2.0048748895240553,
+      "index": 359,
+      "comment": "malonaldehyde train delta=-0.993"
+    },
+    {
+      "delta_pt": -0.8156457065925463,
+      "abs_delta_pt": 0.8156457065925463,
+      "r_oo": 2.656079372308417,
+      "co_alternation": 0.05201561182905268,
+      "r_donor_h": 0.9746706195910805,
+      "r_acceptor_h": 1.7903163261836268,
+      "index": 360,
+      "comment": "malonaldehyde train delta=-0.816"
+    },
+    {
+      "delta_pt": -0.9737480010829159,
+      "abs_delta_pt": 0.9737480010829159,
+      "r_oo": 2.6036765889709246,
+      "co_alternation": 0.10410271420017958,
+      "r_donor_h": 0.9057652360830933,
+      "r_acceptor_h": 1.8795132371660093,
+      "index": 361,
+      "comment": "malonaldehyde train delta=-0.974"
+    },
+    {
+      "delta_pt": -1.2867597714729255,
+      "abs_delta_pt": 1.2867597714729255,
+      "r_oo": 2.8144644438862763,
+      "co_alternation": 0.037232754000445345,
+      "r_donor_h": 0.9315075841537596,
+      "r_acceptor_h": 2.218267355626685,
+      "index": 362,
+      "comment": "malonaldehyde train delta=-1.287"
+    },
+    {
+      "delta_pt": -0.6899487133184365,
+      "abs_delta_pt": 0.6899487133184365,
+      "r_oo": 2.5565526542944226,
+      "co_alternation": 0.11125996941473226,
+      "r_donor_h": 0.9868046656305258,
+      "r_acceptor_h": 1.6767533789489624,
+      "index": 363,
+      "comment": "malonaldehyde train delta=-0.690"
+    },
+    {
+      "delta_pt": -0.9463666170926951,
+      "abs_delta_pt": 0.9463666170926951,
+      "r_oo": 2.6750414658231785,
+      "co_alternation": 0.12716986882716785,
+      "r_donor_h": 0.9862822931639096,
+      "r_acceptor_h": 1.9326489102566047,
+      "index": 364,
+      "comment": "malonaldehyde train delta=-0.946"
+    },
+    {
+      "delta_pt": -0.7200476223029502,
+      "abs_delta_pt": 0.7200476223029502,
+      "r_oo": 2.741581651030778,
+      "co_alternation": 0.13992947053615223,
+      "r_donor_h": 1.048932750627925,
+      "r_acceptor_h": 1.768980372930875,
+      "index": 365,
+      "comment": "malonaldehyde train delta=-0.720"
+    },
+    {
+      "delta_pt": -0.4687018198920232,
+      "abs_delta_pt": 0.4687018198920232,
+      "r_oo": 2.495304354444528,
+      "co_alternation": 0.06188701230429072,
+      "r_donor_h": 1.0635402123157607,
+      "r_acceptor_h": 1.5322420322077839,
+      "index": 366,
+      "comment": "malonaldehyde train delta=-0.469"
+    },
+    {
+      "delta_pt": -0.7289897796674576,
+      "abs_delta_pt": 0.7289897796674576,
+      "r_oo": 2.5038932860229193,
+      "co_alternation": 0.10325704231000254,
+      "r_donor_h": 1.0172419020674957,
+      "r_acceptor_h": 1.7462316817349532,
+      "index": 367,
+      "comment": "malonaldehyde train delta=-0.729"
+    },
+    {
+      "delta_pt": -0.6044491288227132,
+      "abs_delta_pt": 0.6044491288227132,
+      "r_oo": 2.5483239981267185,
+      "co_alternation": 0.12595784102542096,
+      "r_donor_h": 1.0253545865086549,
+      "r_acceptor_h": 1.629803715331368,
+      "index": 368,
+      "comment": "malonaldehyde train delta=-0.604"
+    },
+    {
+      "delta_pt": -0.989343234933021,
+      "abs_delta_pt": 0.989343234933021,
+      "r_oo": 2.7119282629388226,
+      "co_alternation": 0.15416657946798562,
+      "r_donor_h": 0.927984654841688,
+      "r_acceptor_h": 1.917327889774709,
+      "index": 369,
+      "comment": "malonaldehyde train delta=-0.989"
+    },
+    {
+      "delta_pt": -1.3174214083876052,
+      "abs_delta_pt": 1.3174214083876052,
+      "r_oo": 3.069478415873415,
+      "co_alternation": 0.09655671375842445,
+      "r_donor_h": 0.9810532740018469,
+      "r_acceptor_h": 2.298474682389452,
+      "index": 370,
+      "comment": "malonaldehyde train delta=-1.317"
+    },
+    {
+      "delta_pt": -0.9585813885751686,
+      "abs_delta_pt": 0.9585813885751686,
+      "r_oo": 2.765213470273388,
+      "co_alternation": 0.043349902180264355,
+      "r_donor_h": 1.02367798339592,
+      "r_acceptor_h": 1.9822593719710886,
+      "index": 371,
+      "comment": "malonaldehyde train delta=-0.959"
+    },
+    {
+      "delta_pt": -0.9173902346075866,
+      "abs_delta_pt": 0.9173902346075866,
+      "r_oo": 2.6797002785144697,
+      "co_alternation": 0.14651700492449282,
+      "r_donor_h": 0.9670215791114998,
+      "r_acceptor_h": 1.8844118137190864,
+      "index": 372,
+      "comment": "malonaldehyde train delta=-0.917"
+    },
+    {
+      "delta_pt": -0.904769521928621,
+      "abs_delta_pt": 0.904769521928621,
+      "r_oo": 2.742880930708337,
+      "co_alternation": 0.12835875488874748,
+      "r_donor_h": 0.990973490003103,
+      "r_acceptor_h": 1.895743011931724,
+      "index": 373,
+      "comment": "malonaldehyde train delta=-0.905"
+    },
+    {
+      "delta_pt": -0.670097560682763,
+      "abs_delta_pt": 0.670097560682763,
+      "r_oo": 2.623946490691508,
+      "co_alternation": 0.09028872749725148,
+      "r_donor_h": 1.0430417990002323,
+      "r_acceptor_h": 1.7131393596829954,
+      "index": 374,
+      "comment": "malonaldehyde train delta=-0.670"
+    },
+    {
+      "delta_pt": -0.5223051702221049,
+      "abs_delta_pt": 0.5223051702221049,
+      "r_oo": 2.5724068777979623,
+      "co_alternation": 0.13338748165872505,
+      "r_donor_h": 1.0736538074890725,
+      "r_acceptor_h": 1.5959589777111773,
+      "index": 375,
+      "comment": "malonaldehyde train delta=-0.522"
+    },
+    {
+      "delta_pt": -0.7756836470851487,
+      "abs_delta_pt": 0.7756836470851487,
+      "r_oo": 2.603030128437249,
+      "co_alternation": 0.08089725067392362,
+      "r_donor_h": 1.0236947685926794,
+      "r_acceptor_h": 1.799378415677828,
+      "index": 376,
+      "comment": "malonaldehyde train delta=-0.776"
+    },
+    {
+      "delta_pt": -0.49526919129206504,
+      "abs_delta_pt": 0.49526919129206504,
+      "r_oo": 2.4839745548876695,
+      "co_alternation": 0.06674641889876742,
+      "r_donor_h": 1.046929730462442,
+      "r_acceptor_h": 1.5421989217545071,
+      "index": 377,
+      "comment": "malonaldehyde train delta=-0.495"
+    },
+    {
+      "delta_pt": -0.6153622336425992,
+      "abs_delta_pt": 0.6153622336425992,
+      "r_oo": 2.549730016165354,
+      "co_alternation": 0.059461959326828184,
+      "r_donor_h": 0.9896884035076803,
+      "r_acceptor_h": 1.6050506371502795,
+      "index": 378,
+      "comment": "malonaldehyde train delta=-0.615"
+    },
+    {
+      "delta_pt": -0.7947328444735293,
+      "abs_delta_pt": 0.7947328444735293,
+      "r_oo": 2.7615111179486735,
+      "co_alternation": 0.14681646508249502,
+      "r_donor_h": 1.0642926038939995,
+      "r_acceptor_h": 1.8590254483675288,
+      "index": 379,
+      "comment": "malonaldehyde train delta=-0.795"
+    },
+    {
+      "delta_pt": -0.6548555467419344,
+      "abs_delta_pt": 0.6548555467419344,
+      "r_oo": 2.6771118783314174,
+      "co_alternation": 0.07828725729761721,
+      "r_donor_h": 1.083835773034938,
+      "r_acceptor_h": 1.7386913197768723,
+      "index": 380,
+      "comment": "malonaldehyde train delta=-0.655"
+    },
+    {
+      "delta_pt": -0.8524347005823382,
+      "abs_delta_pt": 0.8524347005823382,
+      "r_oo": 2.69401925179251,
+      "co_alternation": 0.0713352462556267,
+      "r_donor_h": 0.9865032045200618,
+      "r_acceptor_h": 1.8389379051024,
+      "index": 381,
+      "comment": "malonaldehyde train delta=-0.852"
+    },
+    {
+      "delta_pt": -0.7010430739862432,
+      "abs_delta_pt": 0.7010430739862432,
+      "r_oo": 2.533348038007383,
+      "co_alternation": 0.008395225114831373,
+      "r_donor_h": 0.9677659935263774,
+      "r_acceptor_h": 1.6688090675126206,
+      "index": 382,
+      "comment": "malonaldehyde train delta=-0.701"
+    },
+    {
+      "delta_pt": -0.4294442876836406,
+      "abs_delta_pt": 0.4294442876836406,
+      "r_oo": 2.4786265441413717,
+      "co_alternation": 0.033598604051951364,
+      "r_donor_h": 1.0837435975591552,
+      "r_acceptor_h": 1.5131878852427958,
+      "index": 383,
+      "comment": "malonaldehyde train delta=-0.429"
+    },
+    {
+      "delta_pt": -0.7128514222804054,
+      "abs_delta_pt": 0.7128514222804054,
+      "r_oo": 2.574778237972504,
+      "co_alternation": 0.045463199894444806,
+      "r_donor_h": 1.021280629632147,
+      "r_acceptor_h": 1.7341320519125525,
+      "index": 384,
+      "comment": "malonaldehyde train delta=-0.713"
+    },
+    {
+      "delta_pt": -1.1750507575148559,
+      "abs_delta_pt": 1.1750507575148559,
+      "r_oo": 2.8146585796574812,
+      "co_alternation": 0.08324013704923727,
+      "r_donor_h": 0.9910715233899691,
+      "r_acceptor_h": 2.166122280904825,
+      "index": 385,
+      "comment": "malonaldehyde train delta=-1.175"
+    },
+    {
+      "delta_pt": -0.9179970349278177,
+      "abs_delta_pt": 0.9179970349278177,
+      "r_oo": 2.7443567318989635,
+      "co_alternation": 0.14237938958297436,
+      "r_donor_h": 1.0009998188704925,
+      "r_acceptor_h": 1.9189968537983102,
+      "index": 386,
+      "comment": "malonaldehyde train delta=-0.918"
+    },
+    {
+      "delta_pt": -0.6892442265545026,
+      "abs_delta_pt": 0.6892442265545026,
+      "r_oo": 2.5207061238677198,
+      "co_alternation": 0.1604368407184551,
+      "r_donor_h": 0.9498275814745641,
+      "r_acceptor_h": 1.6390718080290667,
+      "index": 387,
+      "comment": "malonaldehyde train delta=-0.689"
+    },
+    {
+      "delta_pt": -0.6884209722615471,
+      "abs_delta_pt": 0.6884209722615471,
+      "r_oo": 2.5613107855947037,
+      "co_alternation": 0.14409736873403878,
+      "r_donor_h": 0.969801471405374,
+      "r_acceptor_h": 1.658222443666921,
+      "index": 388,
+      "comment": "malonaldehyde train delta=-0.688"
+    },
+    {
+      "delta_pt": -0.8158649183353552,
+      "abs_delta_pt": 0.8158649183353552,
+      "r_oo": 2.7007358169840874,
+      "co_alternation": 0.03715904815744997,
+      "r_donor_h": 1.0150098472667104,
+      "r_acceptor_h": 1.8308747656020656,
+      "index": 389,
+      "comment": "malonaldehyde train delta=-0.816"
+    },
+    {
+      "delta_pt": -1.067223107297313,
+      "abs_delta_pt": 1.067223107297313,
+      "r_oo": 2.8173566095074265,
+      "co_alternation": 0.045226757785302496,
+      "r_donor_h": 0.9605822927217909,
+      "r_acceptor_h": 2.027805400019104,
+      "index": 390,
+      "comment": "malonaldehyde train delta=-1.067"
+    },
+    {
+      "delta_pt": -0.5940227510868736,
+      "abs_delta_pt": 0.5940227510868736,
+      "r_oo": 2.5157556518225612,
+      "co_alternation": 0.08142940494727569,
+      "r_donor_h": 1.0041491838147683,
+      "r_acceptor_h": 1.5981719349016419,
+      "index": 391,
+      "comment": "malonaldehyde train delta=-0.594"
+    },
+    {
+      "delta_pt": -0.9725583616099792,
+      "abs_delta_pt": 0.9725583616099792,
+      "r_oo": 2.794858179678978,
+      "co_alternation": 0.11134992746922934,
+      "r_donor_h": 0.9682569202197792,
+      "r_acceptor_h": 1.9408152818297584,
+      "index": 392,
+      "comment": "malonaldehyde train delta=-0.973"
+    },
+    {
+      "delta_pt": -0.9772242830989977,
+      "abs_delta_pt": 0.9772242830989977,
+      "r_oo": 2.8579568052913586,
+      "co_alternation": 0.007242346627339691,
+      "r_donor_h": 1.0414958957795952,
+      "r_acceptor_h": 2.018720178878593,
+      "index": 393,
+      "comment": "malonaldehyde train delta=-0.977"
+    },
+    {
+      "delta_pt": -0.8514427991965705,
+      "abs_delta_pt": 0.8514427991965705,
+      "r_oo": 2.647399406727233,
+      "co_alternation": 0.12104272703984376,
+      "r_donor_h": 0.9893719431330166,
+      "r_acceptor_h": 1.840814742329587,
+      "index": 394,
+      "comment": "malonaldehyde train delta=-0.851"
+    },
+    {
+      "delta_pt": -1.0605565507735797,
+      "abs_delta_pt": 1.0605565507735797,
+      "r_oo": 2.6587815121305263,
+      "co_alternation": 0.04316233520662416,
+      "r_donor_h": 0.9494595335508079,
+      "r_acceptor_h": 2.0100160843243877,
+      "index": 395,
+      "comment": "malonaldehyde train delta=-1.061"
+    },
+    {
+      "delta_pt": -1.0499818009345143,
+      "abs_delta_pt": 1.0499818009345143,
+      "r_oo": 2.753668025884037,
+      "co_alternation": 0.02302808735436801,
+      "r_donor_h": 1.0044608854815553,
+      "r_acceptor_h": 2.0544426864160696,
+      "index": 396,
+      "comment": "malonaldehyde train delta=-1.050"
+    },
+    {
+      "delta_pt": -0.8248917627929426,
+      "abs_delta_pt": 0.8248917627929426,
+      "r_oo": 2.584796021590346,
+      "co_alternation": 0.10085394443896711,
+      "r_donor_h": 1.0360906598058834,
+      "r_acceptor_h": 1.860982422598826,
+      "index": 397,
+      "comment": "malonaldehyde train delta=-0.825"
+    },
+    {
+      "delta_pt": -0.9641349168708124,
+      "abs_delta_pt": 0.9641349168708124,
+      "r_oo": 2.7348160006488356,
+      "co_alternation": 0.06511412536619154,
+      "r_donor_h": 0.9638143093029325,
+      "r_acceptor_h": 1.927949226173745,
+      "index": 398,
+      "comment": "malonaldehyde train delta=-0.964"
+    },
+    {
+      "delta_pt": -0.6523468527980191,
+      "abs_delta_pt": 0.6523468527980191,
+      "r_oo": 2.51741969116221,
+      "co_alternation": 0.03361064831659122,
+      "r_donor_h": 0.9944972648470983,
+      "r_acceptor_h": 1.6468441176451174,
+      "index": 399,
+      "comment": "malonaldehyde train delta=-0.652"
+    }
+  ]
+}

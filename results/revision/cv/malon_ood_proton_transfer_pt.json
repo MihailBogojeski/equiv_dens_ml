@@ -1,0 +1,1300 @@
+{
+  "label": "malon_ood_proton_transfer",
+  "xyz": "datasets/revision/malonaldehyde/ood_proton_transfer.xyz",
+  "indices": {
+    "donor": 0,
+    "hydrogen": 5,
+    "acceptor": 4
+  },
+  "n_frames": 125,
+  "summary": {
+    "delta_pt": {
+      "mean": 0.02013254742279468,
+      "std": 0.41902636626687506,
+      "min": -0.8677895004319064,
+      "max": 0.6841714757125519
+    },
+    "abs_delta_pt": {
+      "mean": 0.36051090103507144,
+      "std": 0.2145234377112054,
+      "min": 0.00320288236281141,
+      "max": 0.8677895004319064
+    },
+    "r_oo": {
+      "mean": 2.47313123200914,
+      "std": 0.06627691631479607,
+      "min": 2.345974907620685,
+      "max": 2.666433098082619
+    },
+    "co_alternation": {
+      "mean": -0.0017457140600593472,
+      "std": 0.08427671230159,
+      "min": -0.15609987439980033,
+      "max": 0.18077417130580264
+    },
+    "r_donor_h": {
+      "mean": 1.2868886952623257,
+      "std": 0.18953863352348288,
+      "min": 0.9403741732589835,
+      "max": 1.6418070832195137
+    },
+    "r_acceptor_h": {
+      "mean": 1.2667561478395315,
+      "std": 0.23480934776347961,
+      "min": 0.9576356075069619,
+      "max": 1.80816367369089
+    }
+  },
+  "frames": [
+    {
+      "delta_pt": -0.7575483445990555,
+      "abs_delta_pt": 0.7575483445990555,
+      "r_oo": 2.6013312445099968,
+      "co_alternation": 0.08831732716338636,
+      "r_donor_h": 0.979999995156332,
+      "r_acceptor_h": 1.7375483397553875,
+      "index": 0,
+      "comment": "malonaldehyde scan delta=-0.758"
+    },
+    {
+      "delta_pt": -0.794944893078481,
+      "abs_delta_pt": 0.794944893078481,
+      "r_oo": 2.5819925982578145,
+      "co_alternation": 0.00420399216753653,
+      "r_donor_h": 0.9594191020163738,
+      "r_acceptor_h": 1.7543639950948549,
+      "index": 1,
+      "comment": "malonaldehyde scan-jitter delta=-0.795"
+    },
+    {
+      "delta_pt": -0.6730722421845177,
+      "abs_delta_pt": 0.6730722421845177,
+      "r_oo": 2.5677493070582824,
+      "co_alternation": 0.04355396714937276,
+      "r_donor_h": 1.003552852064505,
+      "r_acceptor_h": 1.6766250942490226,
+      "index": 2,
+      "comment": "malonaldehyde scan-jitter delta=-0.673"
+    },
+    {
+      "delta_pt": -0.8288296991088898,
+      "abs_delta_pt": 0.8288296991088898,
+      "r_oo": 2.607628730508152,
+      "co_alternation": 0.1664724814038807,
+      "r_donor_h": 0.9413207202528123,
+      "r_acceptor_h": 1.7701504193617021,
+      "index": 3,
+      "comment": "malonaldehyde scan-jitter delta=-0.829"
+    },
+    {
+      "delta_pt": -0.8677895004319064,
+      "abs_delta_pt": 0.8677895004319064,
+      "r_oo": 2.6131235941722326,
+      "co_alternation": 0.06473022365853742,
+      "r_donor_h": 0.9403741732589835,
+      "r_acceptor_h": 1.80816367369089,
+      "index": 4,
+      "comment": "malonaldehyde scan-jitter delta=-0.868"
+    },
+    {
+      "delta_pt": -0.7100453652023162,
+      "abs_delta_pt": 0.7100453652023162,
+      "r_oo": 2.6007705758345248,
+      "co_alternation": 0.08446172155024279,
+      "r_donor_h": 1.005833326020564,
+      "r_acceptor_h": 1.7158786912228803,
+      "index": 5,
+      "comment": "malonaldehyde scan delta=-0.710"
+    },
+    {
+      "delta_pt": -0.6464317732550144,
+      "abs_delta_pt": 0.6464317732550144,
+      "r_oo": 2.666433098082619,
+      "co_alternation": 0.1044363117562177,
+      "r_donor_h": 1.0758582841401658,
+      "r_acceptor_h": 1.7222900573951803,
+      "index": 6,
+      "comment": "malonaldehyde scan-jitter delta=-0.646"
+    },
+    {
+      "delta_pt": -0.7409726334145633,
+      "abs_delta_pt": 0.7409726334145633,
+      "r_oo": 2.5714395030932953,
+      "co_alternation": 0.17762865283669793,
+      "r_donor_h": 0.9594131788675445,
+      "r_acceptor_h": 1.7003858122821078,
+      "index": 7,
+      "comment": "malonaldehyde scan-jitter delta=-0.741"
+    },
+    {
+      "delta_pt": -0.6289452794493506,
+      "abs_delta_pt": 0.6289452794493506,
+      "r_oo": 2.5930405064288804,
+      "co_alternation": 0.14841010238420926,
+      "r_donor_h": 1.0273228124107232,
+      "r_acceptor_h": 1.6562680918600738,
+      "index": 8,
+      "comment": "malonaldehyde scan-jitter delta=-0.629"
+    },
+    {
+      "delta_pt": -0.7522197990415811,
+      "abs_delta_pt": 0.7522197990415811,
+      "r_oo": 2.5878825852473013,
+      "co_alternation": 0.06182001087605715,
+      "r_donor_h": 0.9719055466836113,
+      "r_acceptor_h": 1.7241253457251924,
+      "index": 9,
+      "comment": "malonaldehyde scan-jitter delta=-0.752"
+    },
+    {
+      "delta_pt": -0.6327032581586991,
+      "abs_delta_pt": 0.6327032581586991,
+      "r_oo": 2.580497431738022,
+      "co_alternation": 0.07886787986907606,
+      "r_donor_h": 1.0316666690135503,
+      "r_acceptor_h": 1.6643699271722494,
+      "index": 10,
+      "comment": "malonaldehyde scan delta=-0.633"
+    },
+    {
+      "delta_pt": -0.5399368646899687,
+      "abs_delta_pt": 0.5399368646899687,
+      "r_oo": 2.5235658227662103,
+      "co_alternation": 0.13659622765350954,
+      "r_donor_h": 1.043981627964259,
+      "r_acceptor_h": 1.5839184926542278,
+      "index": 11,
+      "comment": "malonaldehyde scan-jitter delta=-0.540"
+    },
+    {
+      "delta_pt": -0.6984433798597836,
+      "abs_delta_pt": 0.6984433798597836,
+      "r_oo": 2.565839750651919,
+      "co_alternation": 0.045012387441321744,
+      "r_donor_h": 1.0057924521981358,
+      "r_acceptor_h": 1.7042358320579194,
+      "index": 12,
+      "comment": "malonaldehyde scan-jitter delta=-0.698"
+    },
+    {
+      "delta_pt": -0.6777196160596606,
+      "abs_delta_pt": 0.6777196160596606,
+      "r_oo": 2.553648287956165,
+      "co_alternation": 0.14561975786813508,
+      "r_donor_h": 1.0013018691375386,
+      "r_acceptor_h": 1.6790214851971992,
+      "index": 13,
+      "comment": "malonaldehyde scan-jitter delta=-0.678"
+    },
+    {
+      "delta_pt": -0.6670908318539117,
+      "abs_delta_pt": 0.6670908318539117,
+      "r_oo": 2.5965816977241745,
+      "co_alternation": 0.09397452097726511,
+      "r_donor_h": 1.01877083521136,
+      "r_acceptor_h": 1.6858616670652717,
+      "index": 14,
+      "comment": "malonaldehyde scan-jitter delta=-0.667"
+    },
+    {
+      "delta_pt": -0.5408689742009349,
+      "abs_delta_pt": 0.5408689742009349,
+      "r_oo": 2.5505228121892434,
+      "co_alternation": 0.07112996029018936,
+      "r_donor_h": 1.0575000049815682,
+      "r_acceptor_h": 1.598368979182503,
+      "index": 15,
+      "comment": "malonaldehyde scan delta=-0.541"
+    },
+    {
+      "delta_pt": -0.5160790663719326,
+      "abs_delta_pt": 0.5160790663719326,
+      "r_oo": 2.5283186388730807,
+      "co_alternation": 0.111562424099793,
+      "r_donor_h": 1.0601762031047322,
+      "r_acceptor_h": 1.5762552694766647,
+      "index": 16,
+      "comment": "malonaldehyde scan-jitter delta=-0.516"
+    },
+    {
+      "delta_pt": -0.48052034033520297,
+      "abs_delta_pt": 0.48052034033520297,
+      "r_oo": 2.5424961339328647,
+      "co_alternation": 0.10830134227220545,
+      "r_donor_h": 1.0892530633975919,
+      "r_acceptor_h": 1.5697734037327948,
+      "index": 17,
+      "comment": "malonaldehyde scan-jitter delta=-0.481"
+    },
+    {
+      "delta_pt": -0.5914746986472947,
+      "abs_delta_pt": 0.5914746986472947,
+      "r_oo": 2.449347851558552,
+      "co_alternation": 0.07705769756551728,
+      "r_donor_h": 0.9759080350156928,
+      "r_acceptor_h": 1.5673827336629875,
+      "index": 18,
+      "comment": "malonaldehyde scan-jitter delta=-0.591"
+    },
+    {
+      "delta_pt": -0.6190620638108884,
+      "abs_delta_pt": 0.6190620638108884,
+      "r_oo": 2.581825058444926,
+      "co_alternation": 0.1507505356859744,
+      "r_donor_h": 1.03760397649929,
+      "r_acceptor_h": 1.6566660403101783,
+      "index": 19,
+      "comment": "malonaldehyde scan-jitter delta=-0.619"
+    },
+    {
+      "delta_pt": -0.46839416602038164,
+      "abs_delta_pt": 0.46839416602038164,
+      "r_oo": 2.5346082455548187,
+      "co_alternation": 0.06419278972738618,
+      "r_donor_h": 1.0833333364549464,
+      "r_acceptor_h": 1.551727502475328,
+      "index": 20,
+      "comment": "malonaldehyde scan delta=-0.468"
+    },
+    {
+      "delta_pt": -0.5541881404761397,
+      "abs_delta_pt": 0.5541881404761397,
+      "r_oo": 2.5438788002908015,
+      "co_alternation": -0.005295154594288531,
+      "r_donor_h": 1.0453256948303042,
+      "r_acceptor_h": 1.599513835306444,
+      "index": 21,
+      "comment": "malonaldehyde scan-jitter delta=-0.554"
+    },
+    {
+      "delta_pt": -0.4655918619088599,
+      "abs_delta_pt": 0.4655918619088599,
+      "r_oo": 2.572668354206724,
+      "co_alternation": 0.11648947638124163,
+      "r_donor_h": 1.0999536594238253,
+      "r_acceptor_h": 1.5655455213326852,
+      "index": 22,
+      "comment": "malonaldehyde scan-jitter delta=-0.466"
+    },
+    {
+      "delta_pt": -0.45744318906743375,
+      "abs_delta_pt": 0.45744318906743375,
+      "r_oo": 2.451015095548158,
+      "co_alternation": 0.10000272519135134,
+      "r_donor_h": 1.0497457028998578,
+      "r_acceptor_h": 1.5071888919672916,
+      "index": 23,
+      "comment": "malonaldehyde scan-jitter delta=-0.457"
+    },
+    {
+      "delta_pt": -0.44405767486387715,
+      "abs_delta_pt": 0.44405767486387715,
+      "r_oo": 2.443421582086211,
+      "co_alternation": 0.075056228389629,
+      "r_donor_h": 1.0359008072192717,
+      "r_acceptor_h": 1.4799584820831488,
+      "index": 24,
+      "comment": "malonaldehyde scan-jitter delta=-0.444"
+    },
+    {
+      "delta_pt": -0.377978167396922,
+      "abs_delta_pt": 0.377978167396922,
+      "r_oo": 2.5053240255636418,
+      "co_alternation": 0.05386322729030257,
+      "r_donor_h": 1.1091666705579895,
+      "r_acceptor_h": 1.4871448379549115,
+      "index": 25,
+      "comment": "malonaldehyde scan delta=-0.378"
+    },
+    {
+      "delta_pt": -0.3524311481328255,
+      "abs_delta_pt": 0.3524311481328255,
+      "r_oo": 2.5964826143713573,
+      "co_alternation": -0.09734386492614666,
+      "r_donor_h": 1.1493925685965445,
+      "r_acceptor_h": 1.50182371672937,
+      "index": 26,
+      "comment": "malonaldehyde scan-jitter delta=-0.352"
+    },
+    {
+      "delta_pt": -0.35366337689737093,
+      "abs_delta_pt": 0.35366337689737093,
+      "r_oo": 2.4854417018856,
+      "co_alternation": 0.07104391345450844,
+      "r_donor_h": 1.1131162681624487,
+      "r_acceptor_h": 1.4667796450598196,
+      "index": 27,
+      "comment": "malonaldehyde scan-jitter delta=-0.354"
+    },
+    {
+      "delta_pt": -0.462527584996109,
+      "abs_delta_pt": 0.462527584996109,
+      "r_oo": 2.4908612406904056,
+      "co_alternation": 0.10490205433610744,
+      "r_donor_h": 1.0541503417519162,
+      "r_acceptor_h": 1.5166779267480253,
+      "index": 28,
+      "comment": "malonaldehyde scan-jitter delta=-0.463"
+    },
+    {
+      "delta_pt": -0.4625638158684964,
+      "abs_delta_pt": 0.4625638158684964,
+      "r_oo": 2.5566984676295674,
+      "co_alternation": 0.04965398036907542,
+      "r_donor_h": 1.0812499086894727,
+      "r_acceptor_h": 1.543813724557969,
+      "index": 29,
+      "comment": "malonaldehyde scan-jitter delta=-0.463"
+    },
+    {
+      "delta_pt": -0.30167821609628565,
+      "abs_delta_pt": 0.30167821609628565,
+      "r_oo": 2.4873385955871226,
+      "co_alternation": 0.045281719270619636,
+      "r_donor_h": 1.1349999932800292,
+      "r_acceptor_h": 1.4366782093763149,
+      "index": 30,
+      "comment": "malonaldehyde scan delta=-0.302"
+    },
+    {
+      "delta_pt": -0.22360099163439817,
+      "abs_delta_pt": 0.22360099163439817,
+      "r_oo": 2.484674685990056,
+      "co_alternation": 0.18077417130580264,
+      "r_donor_h": 1.173531990835264,
+      "r_acceptor_h": 1.397132982469662,
+      "index": 31,
+      "comment": "malonaldehyde scan-jitter delta=-0.224"
+    },
+    {
+      "delta_pt": -0.2833854238185496,
+      "abs_delta_pt": 0.2833854238185496,
+      "r_oo": 2.4471996776158087,
+      "co_alternation": -0.03656686499297712,
+      "r_donor_h": 1.113116002338083,
+      "r_acceptor_h": 1.3965014261566326,
+      "index": 32,
+      "comment": "malonaldehyde scan-jitter delta=-0.283"
+    },
+    {
+      "delta_pt": -0.349858251089334,
+      "abs_delta_pt": 0.349858251089334,
+      "r_oo": 2.4520721793152926,
+      "co_alternation": 0.05601551740109856,
+      "r_donor_h": 1.0874915165307102,
+      "r_acceptor_h": 1.4373497676200442,
+      "index": 33,
+      "comment": "malonaldehyde scan-jitter delta=-0.350"
+    },
+    {
+      "delta_pt": -0.3390722270575739,
+      "abs_delta_pt": 0.3390722270575739,
+      "r_oo": 2.4693945123268044,
+      "co_alternation": -0.015105669375342634,
+      "r_donor_h": 1.1117834775695736,
+      "r_acceptor_h": 1.4508557046271475,
+      "index": 34,
+      "comment": "malonaldehyde scan-jitter delta=-0.339"
+    },
+    {
+      "delta_pt": -0.2208299000636822,
+      "abs_delta_pt": 0.2208299000636822,
+      "r_oo": 2.464768923337344,
+      "co_alternation": 0.033698281412371855,
+      "r_donor_h": 1.1608333396979915,
+      "r_acceptor_h": 1.3816632397616737,
+      "index": 35,
+      "comment": "malonaldehyde scan delta=-0.221"
+    },
+    {
+      "delta_pt": -0.15213169545064753,
+      "abs_delta_pt": 0.15213169545064753,
+      "r_oo": 2.4989410962166763,
+      "co_alternation": 0.014494389863690671,
+      "r_donor_h": 1.2129930130713125,
+      "r_acceptor_h": 1.36512470852196,
+      "index": 36,
+      "comment": "malonaldehyde scan-jitter delta=-0.152"
+    },
+    {
+      "delta_pt": -0.15262062582631386,
+      "abs_delta_pt": 0.15262062582631386,
+      "r_oo": 2.502207325533849,
+      "co_alternation": 0.1722794123834197,
+      "r_donor_h": 1.2143004445593903,
+      "r_acceptor_h": 1.3669210703857042,
+      "index": 37,
+      "comment": "malonaldehyde scan-jitter delta=-0.153"
+    },
+    {
+      "delta_pt": -0.18844710094256012,
+      "abs_delta_pt": 0.18844710094256012,
+      "r_oo": 2.5018470257364203,
+      "co_alternation": 0.04769734138068249,
+      "r_donor_h": 1.1906249898042982,
+      "r_acceptor_h": 1.3790720907468583,
+      "index": 38,
+      "comment": "malonaldehyde scan-jitter delta=-0.188"
+    },
+    {
+      "delta_pt": -0.22117196754908797,
+      "abs_delta_pt": 0.22117196754908797,
+      "r_oo": 2.5159181264773376,
+      "co_alternation": 0.09316537807819625,
+      "r_donor_h": 1.1776678084511252,
+      "r_acceptor_h": 1.3988397760002131,
+      "index": 39,
+      "comment": "malonaldehyde scan-jitter delta=-0.221"
+    },
+    {
+      "delta_pt": -0.14702155614992862,
+      "abs_delta_pt": 0.14702155614992862,
+      "r_oo": 2.447931346824721,
+      "co_alternation": 0.02396325489619966,
+      "r_donor_h": 1.186666667236343,
+      "r_acceptor_h": 1.3336882233862717,
+      "index": 40,
+      "comment": "malonaldehyde scan delta=-0.147"
+    },
+    {
+      "delta_pt": -0.15956944577127108,
+      "abs_delta_pt": 0.15956944577127108,
+      "r_oo": 2.4577237493298165,
+      "co_alternation": 0.011173436138350867,
+      "r_donor_h": 1.2107008718264507,
+      "r_acceptor_h": 1.3702703175977218,
+      "index": 41,
+      "comment": "malonaldehyde scan-jitter delta=-0.160"
+    },
+    {
+      "delta_pt": -0.24044312434449,
+      "abs_delta_pt": 0.24044312434449,
+      "r_oo": 2.4176817838322604,
+      "co_alternation": 0.05365370144857695,
+      "r_donor_h": 1.1202203197485565,
+      "r_acceptor_h": 1.3606634440930465,
+      "index": 42,
+      "comment": "malonaldehyde scan-jitter delta=-0.240"
+    },
+    {
+      "delta_pt": -0.03369871149000847,
+      "abs_delta_pt": 0.03369871149000847,
+      "r_oo": 2.4681886443312058,
+      "co_alternation": 0.10383219008485445,
+      "r_donor_h": 1.25634552578794,
+      "r_acceptor_h": 1.2900442372779484,
+      "index": 43,
+      "comment": "malonaldehyde scan-jitter delta=-0.034"
+    },
+    {
+      "delta_pt": -0.06359204569116605,
+      "abs_delta_pt": 0.06359204569116605,
+      "r_oo": 2.458468323987644,
+      "co_alternation": -0.02982547255611978,
+      "r_donor_h": 1.2338861511701968,
+      "r_acceptor_h": 1.297478196861363,
+      "index": 44,
+      "comment": "malonaldehyde scan-jitter delta=-0.064"
+    },
+    {
+      "delta_pt": -0.07525940552349453,
+      "abs_delta_pt": 0.07525940552349453,
+      "r_oo": 2.4321662950959713,
+      "co_alternation": 0.013253235593539525,
+      "r_donor_h": 1.212499999900511,
+      "r_acceptor_h": 1.2877594054240056,
+      "index": 45,
+      "comment": "malonaldehyde scan delta=-0.075"
+    },
+    {
+      "delta_pt": -0.03165411999321277,
+      "abs_delta_pt": 0.03165411999321277,
+      "r_oo": 2.3915048007035296,
+      "co_alternation": 0.1239534671607665,
+      "r_donor_h": 1.2215457861533718,
+      "r_acceptor_h": 1.2531999061465846,
+      "index": 46,
+      "comment": "malonaldehyde scan-jitter delta=-0.032"
+    },
+    {
+      "delta_pt": -0.13044086424619006,
+      "abs_delta_pt": 0.13044086424619006,
+      "r_oo": 2.4147519799010677,
+      "co_alternation": -0.09238492690928579,
+      "r_donor_h": 1.1714248224010013,
+      "r_acceptor_h": 1.3018656866471914,
+      "index": 47,
+      "comment": "malonaldehyde scan-jitter delta=-0.130"
+    },
+    {
+      "delta_pt": 0.15157365991994975,
+      "abs_delta_pt": 0.15157365991994975,
+      "r_oo": 2.4169532206499857,
+      "co_alternation": 0.009955491034311592,
+      "r_donor_h": 1.3208932779403593,
+      "r_acceptor_h": 1.1693196180204095,
+      "index": 48,
+      "comment": "malonaldehyde scan-jitter delta=+0.152"
+    },
+    {
+      "delta_pt": -0.12793729105663743,
+      "abs_delta_pt": 0.12793729105663743,
+      "r_oo": 2.414988204580812,
+      "co_alternation": -0.038316984424921596,
+      "r_donor_h": 1.1773996778589655,
+      "r_acceptor_h": 1.305336968915603,
+      "index": 49,
+      "comment": "malonaldehyde scan-jitter delta=-0.128"
+    },
+    {
+      "delta_pt": -0.007441157495239992,
+      "abs_delta_pt": 0.007441157495239992,
+      "r_oo": 2.419642797472288,
+      "co_alternation": 0.0022350765423546637,
+      "r_donor_h": 1.2383333295357968,
+      "r_acceptor_h": 1.2457744870310368,
+      "index": 50,
+      "comment": "malonaldehyde scan delta=-0.007"
+    },
+    {
+      "delta_pt": -0.04047150872723759,
+      "abs_delta_pt": 0.04047150872723759,
+      "r_oo": 2.482516121724215,
+      "co_alternation": 0.033358464013215405,
+      "r_donor_h": 1.2565624864418088,
+      "r_acceptor_h": 1.2970339951690464,
+      "index": 51,
+      "comment": "malonaldehyde scan-jitter delta=-0.040"
+    },
+    {
+      "delta_pt": 0.09415429064517844,
+      "abs_delta_pt": 0.09415429064517844,
+      "r_oo": 2.345974907620685,
+      "co_alternation": -0.023649444294289612,
+      "r_donor_h": 1.2673486725910943,
+      "r_acceptor_h": 1.1731943819459159,
+      "index": 52,
+      "comment": "malonaldehyde scan-jitter delta=+0.094"
+    },
+    {
+      "delta_pt": 0.04364171458392874,
+      "abs_delta_pt": 0.04364171458392874,
+      "r_oo": 2.396078719150794,
+      "co_alternation": -0.059854988998431,
+      "r_donor_h": 1.2522711735918592,
+      "r_acceptor_h": 1.2086294590079305,
+      "index": 53,
+      "comment": "malonaldehyde scan-jitter delta=+0.044"
+    },
+    {
+      "delta_pt": -0.01658083900480145,
+      "abs_delta_pt": 0.01658083900480145,
+      "r_oo": 2.4607171971822623,
+      "co_alternation": -0.01609848929715385,
+      "r_donor_h": 1.2662228762776158,
+      "r_acceptor_h": 1.2828037152824172,
+      "index": 54,
+      "comment": "malonaldehyde scan-jitter delta=-0.017"
+    },
+    {
+      "delta_pt": 0.05603238471062544,
+      "abs_delta_pt": 0.05603238471062544,
+      "r_oo": 2.4103380165428065,
+      "co_alternation": -0.008138787245788537,
+      "r_donor_h": 1.2641666639434228,
+      "r_acceptor_h": 1.2081342792327974,
+      "index": 55,
+      "comment": "malonaldehyde scan delta=+0.056"
+    },
+    {
+      "delta_pt": 0.03894795270439766,
+      "abs_delta_pt": 0.03894795270439766,
+      "r_oo": 2.356596650184616,
+      "co_alternation": 0.11264489604849359,
+      "r_donor_h": 1.2188059307676968,
+      "r_acceptor_h": 1.1798579780632992,
+      "index": 56,
+      "comment": "malonaldehyde scan-jitter delta=+0.039"
+    },
+    {
+      "delta_pt": -0.00320288236281141,
+      "abs_delta_pt": 0.00320288236281141,
+      "r_oo": 2.3593028617398977,
+      "co_alternation": 0.0980340121470904,
+      "r_donor_h": 1.2060283508141412,
+      "r_acceptor_h": 1.2092312331769526,
+      "index": 57,
+      "comment": "malonaldehyde scan-jitter delta=-0.003"
+    },
+    {
+      "delta_pt": 0.026449082347390185,
+      "abs_delta_pt": 0.026449082347390185,
+      "r_oo": 2.394894375944392,
+      "co_alternation": -0.040789648650053634,
+      "r_donor_h": 1.2376060119198007,
+      "r_acceptor_h": 1.2111569295724105,
+      "index": 58,
+      "comment": "malonaldehyde scan-jitter delta=+0.026"
+    },
+    {
+      "delta_pt": 0.0913905918178477,
+      "abs_delta_pt": 0.0913905918178477,
+      "r_oo": 2.4592532797696878,
+      "co_alternation": -0.11333883081612317,
+      "r_donor_h": 1.3112486400993693,
+      "r_acceptor_h": 1.2198580482815216,
+      "index": 59,
+      "comment": "malonaldehyde scan-jitter delta=+0.091"
+    },
+    {
+      "delta_pt": 0.11315707759087323,
+      "abs_delta_pt": 0.11315707759087323,
+      "r_oo": 2.4056817332684117,
+      "co_alternation": -0.0167962445191987,
+      "r_donor_h": 1.2900000002642076,
+      "r_acceptor_h": 1.1768429226733343,
+      "index": 60,
+      "comment": "malonaldehyde scan delta=+0.113"
+    },
+    {
+      "delta_pt": 0.22812716321811877,
+      "abs_delta_pt": 0.22812716321811877,
+      "r_oo": 2.445032529185845,
+      "co_alternation": -0.024734398731253382,
+      "r_donor_h": 1.353058832620696,
+      "r_acceptor_h": 1.1249316694025773,
+      "index": 61,
+      "comment": "malonaldehyde scan-jitter delta=+0.228"
+    },
+    {
+      "delta_pt": 0.05460924192937,
+      "abs_delta_pt": 0.05460924192937,
+      "r_oo": 2.408678174024197,
+      "co_alternation": -0.10140964121474472,
+      "r_donor_h": 1.277419140694162,
+      "r_acceptor_h": 1.222809898764792,
+      "index": 62,
+      "comment": "malonaldehyde scan-jitter delta=+0.055"
+    },
+    {
+      "delta_pt": 0.011752744552687266,
+      "abs_delta_pt": 0.011752744552687266,
+      "r_oo": 2.447806526238297,
+      "co_alternation": -0.04689205032957999,
+      "r_donor_h": 1.2678800258471534,
+      "r_acceptor_h": 1.2561272812944662,
+      "index": 63,
+      "comment": "malonaldehyde scan-jitter delta=+0.012"
+    },
+    {
+      "delta_pt": 0.05714276141000174,
+      "abs_delta_pt": 0.05714276141000174,
+      "r_oo": 2.423665279289457,
+      "co_alternation": -0.08566224698451119,
+      "r_donor_h": 1.2729674127480983,
+      "r_acceptor_h": 1.2158246513380966,
+      "index": 64,
+      "comment": "malonaldehyde scan-jitter delta=+0.057"
+    },
+    {
+      "delta_pt": 0.16378639856362698,
+      "abs_delta_pt": 0.16378639856362698,
+      "r_oo": 2.4054761260004027,
+      "co_alternation": -0.02550503148213945,
+      "r_donor_h": 1.3158333336067765,
+      "r_acceptor_h": 1.1520469350431495,
+      "index": 65,
+      "comment": "malonaldehyde scan delta=+0.164"
+    },
+    {
+      "delta_pt": 0.28708502242072576,
+      "abs_delta_pt": 0.28708502242072576,
+      "r_oo": 2.481074461767607,
+      "co_alternation": 0.01724527633072981,
+      "r_donor_h": 1.4203379941162932,
+      "r_acceptor_h": 1.1332529716955675,
+      "index": 66,
+      "comment": "malonaldehyde scan-jitter delta=+0.287"
+    },
+    {
+      "delta_pt": 0.1065857753192836,
+      "abs_delta_pt": 0.1065857753192836,
+      "r_oo": 2.430496591445711,
+      "co_alternation": 0.01822948751212783,
+      "r_donor_h": 1.31435497570712,
+      "r_acceptor_h": 1.2077692003878364,
+      "index": 67,
+      "comment": "malonaldehyde scan-jitter delta=+0.107"
+    },
+    {
+      "delta_pt": 0.20446947989613617,
+      "abs_delta_pt": 0.20446947989613617,
+      "r_oo": 2.4359739166238765,
+      "co_alternation": -0.06308454493173143,
+      "r_donor_h": 1.3416708898266487,
+      "r_acceptor_h": 1.1372014099305126,
+      "index": 68,
+      "comment": "malonaldehyde scan-jitter delta=+0.204"
+    },
+    {
+      "delta_pt": 0.1361429968153287,
+      "abs_delta_pt": 0.1361429968153287,
+      "r_oo": 2.3963690594413904,
+      "co_alternation": 0.014170822092245627,
+      "r_donor_h": 1.303868703553737,
+      "r_acceptor_h": 1.1677257067384084,
+      "index": 69,
+      "comment": "malonaldehyde scan-jitter delta=+0.136"
+    },
+    {
+      "delta_pt": 0.21376530293591633,
+      "abs_delta_pt": 0.21376530293591633,
+      "r_oo": 2.4063388302922726,
+      "co_alternation": -0.03292101399483083,
+      "r_donor_h": 1.3416666657992238,
+      "r_acceptor_h": 1.1279013628633074,
+      "index": 70,
+      "comment": "malonaldehyde scan delta=+0.214"
+    },
+    {
+      "delta_pt": 0.21349253190836248,
+      "abs_delta_pt": 0.21349253190836248,
+      "r_oo": 2.394503900209123,
+      "co_alternation": -0.10470913006606564,
+      "r_donor_h": 1.3270739097389272,
+      "r_acceptor_h": 1.1135813778305648,
+      "index": 71,
+      "comment": "malonaldehyde scan-jitter delta=+0.213"
+    },
+    {
+      "delta_pt": 0.1447894744496161,
+      "abs_delta_pt": 0.1447894744496161,
+      "r_oo": 2.3727042782628733,
+      "co_alternation": -0.09175676177395165,
+      "r_donor_h": 1.2925506542214813,
+      "r_acceptor_h": 1.1477611797718652,
+      "index": 72,
+      "comment": "malonaldehyde scan-jitter delta=+0.145"
+    },
+    {
+      "delta_pt": 0.16652578859256195,
+      "abs_delta_pt": 0.16652578859256195,
+      "r_oo": 2.4191158936547055,
+      "co_alternation": -0.14499825177101777,
+      "r_donor_h": 1.325870554247206,
+      "r_acceptor_h": 1.159344765654644,
+      "index": 73,
+      "comment": "malonaldehyde scan-jitter delta=+0.167"
+    },
+    {
+      "delta_pt": 0.3036803301345159,
+      "abs_delta_pt": 0.3036803301345159,
+      "r_oo": 2.432539280278816,
+      "co_alternation": -0.023919555949733384,
+      "r_donor_h": 1.3999825293224057,
+      "r_acceptor_h": 1.0963021991878898,
+      "index": 74,
+      "comment": "malonaldehyde scan-jitter delta=+0.304"
+    },
+    {
+      "delta_pt": 0.2605601610372128,
+      "abs_delta_pt": 0.2605601610372128,
+      "r_oo": 2.4101018145606568,
+      "co_alternation": -0.03973371734429221,
+      "r_donor_h": 1.367499996792714,
+      "r_acceptor_h": 1.1069398357555011,
+      "index": 75,
+      "comment": "malonaldehyde scan delta=+0.261"
+    },
+    {
+      "delta_pt": 0.22461263580217805,
+      "abs_delta_pt": 0.22461263580217805,
+      "r_oo": 2.421710065030506,
+      "co_alternation": -0.10629682914937777,
+      "r_donor_h": 1.3687135180992565,
+      "r_acceptor_h": 1.1441008822970784,
+      "index": 76,
+      "comment": "malonaldehyde scan-jitter delta=+0.225"
+    },
+    {
+      "delta_pt": 0.23370953413261164,
+      "abs_delta_pt": 0.23370953413261164,
+      "r_oo": 2.362273325691009,
+      "co_alternation": -0.05332699161337828,
+      "r_donor_h": 1.324840392831344,
+      "r_acceptor_h": 1.0911308586987323,
+      "index": 77,
+      "comment": "malonaldehyde scan-jitter delta=+0.234"
+    },
+    {
+      "delta_pt": 0.35470832681177833,
+      "abs_delta_pt": 0.35470832681177833,
+      "r_oo": 2.361261925279249,
+      "co_alternation": -0.058879577875482036,
+      "r_donor_h": 1.3877441468845235,
+      "r_acceptor_h": 1.0330358200727452,
+      "index": 78,
+      "comment": "malonaldehyde scan-jitter delta=+0.355"
+    },
+    {
+      "delta_pt": 0.2619657780466986,
+      "abs_delta_pt": 0.2619657780466986,
+      "r_oo": 2.400519985519752,
+      "co_alternation": -0.061003349049474576,
+      "r_donor_h": 1.3703896824661368,
+      "r_acceptor_h": 1.1084239044194382,
+      "index": 79,
+      "comment": "malonaldehyde scan-jitter delta=+0.262"
+    },
+    {
+      "delta_pt": 0.30491577478046006,
+      "abs_delta_pt": 0.30491577478046006,
+      "r_oo": 2.41554754913807,
+      "co_alternation": -0.04675224635340691,
+      "r_donor_h": 1.3933333375801886,
+      "r_acceptor_h": 1.0884175627997286,
+      "index": 80,
+      "comment": "malonaldehyde scan delta=+0.305"
+    },
+    {
+      "delta_pt": 0.3210156721840569,
+      "abs_delta_pt": 0.3210156721840569,
+      "r_oo": 2.4457962594840974,
+      "co_alternation": 0.012278225819985833,
+      "r_donor_h": 1.410495866383513,
+      "r_acceptor_h": 1.089480194199456,
+      "index": 81,
+      "comment": "malonaldehyde scan-jitter delta=+0.321"
+    },
+    {
+      "delta_pt": 0.2666374588330438,
+      "abs_delta_pt": 0.2666374588330438,
+      "r_oo": 2.4416881227090115,
+      "co_alternation": -0.07142109510985795,
+      "r_donor_h": 1.384773688142374,
+      "r_acceptor_h": 1.1181362293093302,
+      "index": 82,
+      "comment": "malonaldehyde scan-jitter delta=+0.267"
+    },
+    {
+      "delta_pt": 0.24222936236258774,
+      "abs_delta_pt": 0.24222936236258774,
+      "r_oo": 2.4512220596633196,
+      "co_alternation": 0.12306186459191282,
+      "r_donor_h": 1.384773953210324,
+      "r_acceptor_h": 1.1425445908477363,
+      "index": 83,
+      "comment": "malonaldehyde scan-jitter delta=+0.242"
+    },
+    {
+      "delta_pt": 0.20067157813889214,
+      "abs_delta_pt": 0.20067157813889214,
+      "r_oo": 2.4184712887829156,
+      "co_alternation": 0.015104331548489114,
+      "r_donor_h": 1.3494505979669198,
+      "r_acceptor_h": 1.1487790198280277,
+      "index": 84,
+      "comment": "malonaldehyde scan-jitter delta=+0.201"
+    },
+    {
+      "delta_pt": 0.3434323712211411,
+      "abs_delta_pt": 0.3434323712211411,
+      "r_oo": 2.426663823104141,
+      "co_alternation": -0.05046635169431779,
+      "r_donor_h": 1.4191666726716914,
+      "r_acceptor_h": 1.0757343014505503,
+      "index": 85,
+      "comment": "malonaldehyde scan delta=+0.343"
+    },
+    {
+      "delta_pt": 0.32164692646204807,
+      "abs_delta_pt": 0.32164692646204807,
+      "r_oo": 2.4309584853138553,
+      "co_alternation": -0.042909780759304184,
+      "r_donor_h": 1.4003553558806816,
+      "r_acceptor_h": 1.0787084294186335,
+      "index": 86,
+      "comment": "malonaldehyde scan-jitter delta=+0.322"
+    },
+    {
+      "delta_pt": 0.1999292317139849,
+      "abs_delta_pt": 0.1999292317139849,
+      "r_oo": 2.477984575787928,
+      "co_alternation": -0.13905928339250773,
+      "r_donor_h": 1.3751721823485317,
+      "r_acceptor_h": 1.1752429506345468,
+      "index": 87,
+      "comment": "malonaldehyde scan-jitter delta=+0.200"
+    },
+    {
+      "delta_pt": 0.25506793200637623,
+      "abs_delta_pt": 0.25506793200637623,
+      "r_oo": 2.502989658511877,
+      "co_alternation": 0.005639310445753054,
+      "r_donor_h": 1.401652779333145,
+      "r_acceptor_h": 1.1465848473267688,
+      "index": 88,
+      "comment": "malonaldehyde scan-jitter delta=+0.255"
+    },
+    {
+      "delta_pt": 0.36953002482833686,
+      "abs_delta_pt": 0.36953002482833686,
+      "r_oo": 2.41221336184387,
+      "co_alternation": -0.0366474569150419,
+      "r_donor_h": 1.420209953626617,
+      "r_acceptor_h": 1.0506799287982802,
+      "index": 89,
+      "comment": "malonaldehyde scan-jitter delta=+0.370"
+    },
+    {
+      "delta_pt": 0.38353695199990945,
+      "abs_delta_pt": 0.38353695199990945,
+      "r_oo": 2.4356158114818034,
+      "co_alternation": -0.05660663128399235,
+      "r_donor_h": 1.4450000004011254,
+      "r_acceptor_h": 1.061463048401216,
+      "index": 90,
+      "comment": "malonaldehyde scan delta=+0.384"
+    },
+    {
+      "delta_pt": 0.3423777314535217,
+      "abs_delta_pt": 0.3423777314535217,
+      "r_oo": 2.4707607212719958,
+      "co_alternation": 0.08811631700793687,
+      "r_donor_h": 1.440165091737383,
+      "r_acceptor_h": 1.0977873602838613,
+      "index": 91,
+      "comment": "malonaldehyde scan-jitter delta=+0.342"
+    },
+    {
+      "delta_pt": 0.3249515690899054,
+      "abs_delta_pt": 0.3249515690899054,
+      "r_oo": 2.38432539012898,
+      "co_alternation": -0.03795789451340004,
+      "r_donor_h": 1.3947832192528646,
+      "r_acceptor_h": 1.0698316501629592,
+      "index": 92,
+      "comment": "malonaldehyde scan-jitter delta=+0.325"
+    },
+    {
+      "delta_pt": 0.3124936297927108,
+      "abs_delta_pt": 0.3124936297927108,
+      "r_oo": 2.5059116321199784,
+      "co_alternation": -0.09495067969351556,
+      "r_donor_h": 1.4330627131240377,
+      "r_acceptor_h": 1.1205690833313269,
+      "index": 93,
+      "comment": "malonaldehyde scan-jitter delta=+0.312"
+    },
+    {
+      "delta_pt": 0.34920351591622434,
+      "abs_delta_pt": 0.34920351591622434,
+      "r_oo": 2.441990834335989,
+      "co_alternation": -0.08791580094103812,
+      "r_donor_h": 1.433608561492851,
+      "r_acceptor_h": 1.0844050455766268,
+      "index": 94,
+      "comment": "malonaldehyde scan-jitter delta=+0.349"
+    },
+    {
+      "delta_pt": 0.41768458394825014,
+      "abs_delta_pt": 0.41768458394825014,
+      "r_oo": 2.449719477706609,
+      "co_alternation": -0.059150852471917315,
+      "r_donor_h": 1.4708333345112854,
+      "r_acceptor_h": 1.0531487505630353,
+      "index": 95,
+      "comment": "malonaldehyde scan delta=+0.418"
+    },
+    {
+      "delta_pt": 0.37539045691302464,
+      "abs_delta_pt": 0.37539045691302464,
+      "r_oo": 2.539030740835929,
+      "co_alternation": 0.011761713671226914,
+      "r_donor_h": 1.4946553721422957,
+      "r_acceptor_h": 1.119264915229271,
+      "index": 96,
+      "comment": "malonaldehyde scan-jitter delta=+0.375"
+    },
+    {
+      "delta_pt": 0.3597837792679681,
+      "abs_delta_pt": 0.3597837792679681,
+      "r_oo": 2.4036696900248686,
+      "co_alternation": 0.007851382558426323,
+      "r_donor_h": 1.420794879239894,
+      "r_acceptor_h": 1.0610110999719258,
+      "index": 97,
+      "comment": "malonaldehyde scan-jitter delta=+0.360"
+    },
+    {
+      "delta_pt": 0.40489567423956596,
+      "abs_delta_pt": 0.40489567423956596,
+      "r_oo": 2.4562694575657975,
+      "co_alternation": 0.0711943586833712,
+      "r_donor_h": 1.456507463895989,
+      "r_acceptor_h": 1.051611789656423,
+      "index": 98,
+      "comment": "malonaldehyde scan-jitter delta=+0.405"
+    },
+    {
+      "delta_pt": 0.3097672374128393,
+      "abs_delta_pt": 0.3097672374128393,
+      "r_oo": 2.430807344113406,
+      "co_alternation": -0.11730160327145023,
+      "r_donor_h": 1.3951348185623789,
+      "r_acceptor_h": 1.0853675811495396,
+      "index": 99,
+      "comment": "malonaldehyde scan-jitter delta=+0.310"
+    },
+    {
+      "delta_pt": 0.4526875768475036,
+      "abs_delta_pt": 0.4526875768475036,
+      "r_oo": 2.462712193656937,
+      "co_alternation": -0.06285692264021492,
+      "r_donor_h": 1.4966666621538602,
+      "r_acceptor_h": 1.0439790853063566,
+      "index": 100,
+      "comment": "malonaldehyde scan delta=+0.453"
+    },
+    {
+      "delta_pt": 0.44090405400301713,
+      "abs_delta_pt": 0.44090405400301713,
+      "r_oo": 2.3598768027689485,
+      "co_alternation": -0.012157159115735894,
+      "r_donor_h": 1.4642370685279256,
+      "r_acceptor_h": 1.0233330145249084,
+      "index": 101,
+      "comment": "malonaldehyde scan-jitter delta=+0.441"
+    },
+    {
+      "delta_pt": 0.4161994554553703,
+      "abs_delta_pt": 0.4161994554553703,
+      "r_oo": 2.4645586669161177,
+      "co_alternation": -0.0358370011828244,
+      "r_donor_h": 1.473823679116335,
+      "r_acceptor_h": 1.0576242236609648,
+      "index": 102,
+      "comment": "malonaldehyde scan-jitter delta=+0.416"
+    },
+    {
+      "delta_pt": 0.5553671938266336,
+      "abs_delta_pt": 0.5553671938266336,
+      "r_oo": 2.535149334202519,
+      "co_alternation": -0.14577847574963454,
+      "r_donor_h": 1.583215973453422,
+      "r_acceptor_h": 1.0278487796267883,
+      "index": 103,
+      "comment": "malonaldehyde scan-jitter delta=+0.555"
+    },
+    {
+      "delta_pt": 0.2907093314731566,
+      "abs_delta_pt": 0.2907093314731566,
+      "r_oo": 2.42453108761918,
+      "co_alternation": 0.04553482072041759,
+      "r_donor_h": 1.3935345411479454,
+      "r_acceptor_h": 1.1028252096747888,
+      "index": 104,
+      "comment": "malonaldehyde scan-jitter delta=+0.291"
+    },
+    {
+      "delta_pt": 0.48554340216259817,
+      "abs_delta_pt": 0.48554340216259817,
+      "r_oo": 2.4772570632807525,
+      "co_alternation": -0.06609252333367799,
+      "r_donor_h": 1.5225000007197649,
+      "r_acceptor_h": 1.0369565985571667,
+      "index": 105,
+      "comment": "malonaldehyde scan delta=+0.486"
+    },
+    {
+      "delta_pt": 0.5301547858171505,
+      "abs_delta_pt": 0.5301547858171505,
+      "r_oo": 2.4858112833036428,
+      "co_alternation": 0.02245918318423179,
+      "r_donor_h": 1.5385141441116816,
+      "r_acceptor_h": 1.0083593582945312,
+      "index": 106,
+      "comment": "malonaldehyde scan-jitter delta=+0.530"
+    },
+    {
+      "delta_pt": 0.5396731493548587,
+      "abs_delta_pt": 0.5396731493548587,
+      "r_oo": 2.420076601665504,
+      "co_alternation": -0.007752622765374806,
+      "r_donor_h": 1.5221114693636064,
+      "r_acceptor_h": 0.9824383200087478,
+      "index": 107,
+      "comment": "malonaldehyde scan-jitter delta=+0.540"
+    },
+    {
+      "delta_pt": 0.4479770762959856,
+      "abs_delta_pt": 0.4479770762959856,
+      "r_oo": 2.4096553800142217,
+      "co_alternation": -0.10038681782648928,
+      "r_donor_h": 1.478682805158729,
+      "r_acceptor_h": 1.0307057288627435,
+      "index": 108,
+      "comment": "malonaldehyde scan-jitter delta=+0.448"
+    },
+    {
+      "delta_pt": 0.4587336003285343,
+      "abs_delta_pt": 0.4587336003285343,
+      "r_oo": 2.503451354179306,
+      "co_alternation": -0.11479148577733467,
+      "r_donor_h": 1.525143513212537,
+      "r_acceptor_h": 1.0664099128840028,
+      "index": 109,
+      "comment": "malonaldehyde scan-jitter delta=+0.459"
+    },
+    {
+      "delta_pt": 0.5193951565042831,
+      "abs_delta_pt": 0.5193951565042831,
+      "r_oo": 2.4910432930645094,
+      "co_alternation": -0.06959037436955495,
+      "r_donor_h": 1.5483333316799306,
+      "r_acceptor_h": 1.0289381751756475,
+      "index": 110,
+      "comment": "malonaldehyde scan delta=+0.519"
+    },
+    {
+      "delta_pt": 0.6242123113097838,
+      "abs_delta_pt": 0.6242123113097838,
+      "r_oo": 2.5451073204330847,
+      "co_alternation": -0.15609987439980033,
+      "r_donor_h": 1.6163042467234225,
+      "r_acceptor_h": 0.9920919354136387,
+      "index": 111,
+      "comment": "malonaldehyde scan-jitter delta=+0.624"
+    },
+    {
+      "delta_pt": 0.538182452943167,
+      "abs_delta_pt": 0.538182452943167,
+      "r_oo": 2.476290310995602,
+      "co_alternation": -0.1423318702330132,
+      "r_donor_h": 1.5322733862835818,
+      "r_acceptor_h": 0.9940909333404148,
+      "index": 112,
+      "comment": "malonaldehyde scan-jitter delta=+0.538"
+    },
+    {
+      "delta_pt": 0.568948455808687,
+      "abs_delta_pt": 0.568948455808687,
+      "r_oo": 2.519857996157501,
+      "co_alternation": -0.1408634048798001,
+      "r_donor_h": 1.5781474504668345,
+      "r_acceptor_h": 1.0091989946581474,
+      "index": 113,
+      "comment": "malonaldehyde scan-jitter delta=+0.569"
+    },
+    {
+      "delta_pt": 0.5027487941054181,
+      "abs_delta_pt": 0.5027487941054181,
+      "r_oo": 2.515369211940904,
+      "co_alternation": -0.09453634870088279,
+      "r_donor_h": 1.5399616139864256,
+      "r_acceptor_h": 1.0372128198810076,
+      "index": 114,
+      "comment": "malonaldehyde scan-jitter delta=+0.503"
+    },
+    {
+      "delta_pt": 0.5512662891302065,
+      "abs_delta_pt": 0.5512662891302065,
+      "r_oo": 2.5058857001766315,
+      "co_alternation": -0.07321198281840391,
+      "r_donor_h": 1.5741666659742106,
+      "r_acceptor_h": 1.0229003768440041,
+      "index": 115,
+      "comment": "malonaldehyde scan delta=+0.551"
+    },
+    {
+      "delta_pt": 0.5372523087396837,
+      "abs_delta_pt": 0.5372523087396837,
+      "r_oo": 2.465868123807874,
+      "co_alternation": -0.053261317517841134,
+      "r_donor_h": 1.5452194840862583,
+      "r_acceptor_h": 1.0079671753465747,
+      "index": 116,
+      "comment": "malonaldehyde scan-jitter delta=+0.537"
+    },
+    {
+      "delta_pt": 0.44451229413176807,
+      "abs_delta_pt": 0.44451229413176807,
+      "r_oo": 2.518756441540133,
+      "co_alternation": 0.018021929511849777,
+      "r_donor_h": 1.539588470887309,
+      "r_acceptor_h": 1.095076176755541,
+      "index": 117,
+      "comment": "malonaldehyde scan-jitter delta=+0.445"
+    },
+    {
+      "delta_pt": 0.6433550463187411,
+      "abs_delta_pt": 0.6433550463187411,
+      "r_oo": 2.452802188894056,
+      "co_alternation": -0.12841622424257637,
+      "r_donor_h": 1.6038259875241943,
+      "r_acceptor_h": 0.9604709412054532,
+      "index": 118,
+      "comment": "malonaldehyde scan-jitter delta=+0.643"
+    },
+    {
+      "delta_pt": 0.5515176269917286,
+      "abs_delta_pt": 0.5515176269917286,
+      "r_oo": 2.4594569664252046,
+      "co_alternation": -0.13721600542224266,
+      "r_donor_h": 1.5593985380536541,
+      "r_acceptor_h": 1.0078809110619256,
+      "index": 119,
+      "comment": "malonaldehyde scan-jitter delta=+0.552"
+    },
+    {
+      "delta_pt": 0.5825962885443148,
+      "abs_delta_pt": 0.5825962885443148,
+      "r_oo": 2.5214991754908858,
+      "co_alternation": -0.07507595451518201,
+      "r_donor_h": 1.6000000022444085,
+      "r_acceptor_h": 1.0174037137000937,
+      "index": 120,
+      "comment": "malonaldehyde scan delta=+0.583"
+    },
+    {
+      "delta_pt": 0.6841714757125519,
+      "abs_delta_pt": 0.6841714757125519,
+      "r_oo": 2.5276067254718653,
+      "co_alternation": -0.14517161972117965,
+      "r_donor_h": 1.6418070832195137,
+      "r_acceptor_h": 0.9576356075069619,
+      "index": 121,
+      "comment": "malonaldehyde scan-jitter delta=+0.684"
+    },
+    {
+      "delta_pt": 0.6019730375858032,
+      "abs_delta_pt": 0.6019730375858032,
+      "r_oo": 2.5292032525707824,
+      "co_alternation": -0.011412706813456186,
+      "r_donor_h": 1.6255048840098156,
+      "r_acceptor_h": 1.0235318464240124,
+      "index": 122,
+      "comment": "malonaldehyde scan-jitter delta=+0.602"
+    },
+    {
+      "delta_pt": 0.5794748213711337,
+      "abs_delta_pt": 0.5794748213711337,
+      "r_oo": 2.484674978363098,
+      "co_alternation": -0.14433059994545583,
+      "r_donor_h": 1.5659123174259983,
+      "r_acceptor_h": 0.9864374960548646,
+      "index": 123,
+      "comment": "malonaldehyde scan-jitter delta=+0.579"
+    },
+    {
+      "delta_pt": 0.5946398789927794,
+      "abs_delta_pt": 0.5946398789927794,
+      "r_oo": 2.507471786653699,
+      "co_alternation": -0.09980920496637546,
+      "r_donor_h": 1.5887508892411812,
+      "r_acceptor_h": 0.9941110102484019,
+      "index": 124,
+      "comment": "malonaldehyde scan-jitter delta=+0.595"
+    }
+  ]
+}
