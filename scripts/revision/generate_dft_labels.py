@@ -2,7 +2,13 @@
 """DFT-label geometries for the JACS revision.
 
 Wraps the paper PySCF pipeline (see scripts/data/generate_polythiophene_dataset.py)
-but allows --xc pbe|pbe0 and optional D4 / density fitting.
+with optional D4 and density fitting, on CPU or GPU.
+
+The level of theory can be given either as a `theory_levels` entry (`--theory
+wb97mv_def2tzvpd`, which is what the campaign uses and what the ORCA path also
+reads) or as the original loose `--xc`/`--basis` pair. The default remains
+`--xc pbe` at aug-cc-pVDZ so existing output files keep their names and the
+partially finished runs on disk can still be resumed.
 
 Usage:
   python scripts/revision/generate_dft_labels.py \\
@@ -23,6 +29,7 @@ from pyscf.scf import hf
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
 _REPO_ROOT = _SCRIPT_DIR.parent.parent
+sys.path.insert(0, str(_SCRIPT_DIR))
 sys.path.insert(0, str(_REPO_ROOT / "scripts" / "data"))
 sys.path.insert(0, str(_REPO_ROOT / "src"))
 
@@ -32,6 +39,8 @@ from generate_polythiophene_dataset import (  # noqa: E402
     _try_import_gpu4pyscf,
     load_trajectory,
 )
+from pyscf_labeler import density_fit_coeffs  # noqa: E402
+from theory_levels import basis_tag, get_level, level_keys  # noqa: E402
 
 hf.MUTE_CHKFILE = True
 
@@ -39,18 +48,22 @@ BASIS = "augccpvdz"
 AUXBASIS = "augccpvqzjkfit"
 
 
-def compute_frame(positions, atom_numbers, use_gpu, use_df, xc, use_d4):
+def compute_frame(positions, atom_numbers, use_gpu, use_df, xc, use_d4, basis=BASIS, nlc_grid_level=1):
     atom = [(int(anum), pos) for anum, pos in zip(atom_numbers, positions) if anum > 0]
     nelec = sum(gto.charge(anum) for anum, _ in atom)
     if nelec % 2 != 0:
         raise ValueError(f"Odd electron count ({nelec}); closed-shell only.")
-    mol = gto.M(atom=atom, basis=BASIS)
+    mol = gto.M(atom=atom, basis=basis)
     mol.build()
 
     mf = dft.RKS(mol)
     mf.chkfile = None
     mf.xc = xc
     mf.max_cycle = 1000
+    if mf._numint.libxc.is_nlc(xc):
+        # wB97M-V and friends carry VV10; pin the NLC grid so the cost of a
+        # frame does not depend on which PySCF default the machine happens to have.
+        mf.nlcgrids.level = nlc_grid_level
     if use_gpu and _try_import_gpu4pyscf():
         mf = mf.to_gpu()
     mf.kernel()
@@ -81,17 +94,8 @@ def compute_frame(positions, atom_numbers, use_gpu, use_df, xc, use_d4):
         "xc": xc,
     }
     if use_df:
-        import scipy
-
         dm1 = _to_numpy(dm1)
-        auxmol = df.addons.make_auxmol(mol, AUXBASIS)
-        ints_3c2e = df.incore.aux_e2(mol, auxmol, intor="int3c2e")
-        ints_2c2e = auxmol.intor("int2c2e")
-        nao = mol.nao
-        naux = auxmol.nao
-        df_coef = scipy.linalg.solve(ints_2c2e, ints_3c2e.reshape(nao * nao, naux).T)
-        df_coef = df_coef.reshape(naux, nao, nao)
-        calc_dict["df_coeff"] = np.einsum("Pij,ij->P", df_coef, dm1)
+        calc_dict["df_coeff"] = density_fit_coeffs(mol, dm1, AUXBASIS)
         calc_dict["auxbasis"] = AUXBASIS
 
     # Analytic dipole from the density.
@@ -107,7 +111,15 @@ def main():
     parser.add_argument("--output-prefix", "-o", default=None)
     parser.add_argument("--output-dir", default=".")
     parser.add_argument("--stride", type=int, default=1)
-    parser.add_argument("--xc", default="pbe", choices=("pbe", "pbe0", "b3lyp"))
+    parser.add_argument("--xc", default="pbe")
+    parser.add_argument("--basis", default=BASIS)
+    parser.add_argument(
+        "--theory",
+        default=None,
+        choices=level_keys(),
+        help="theory_levels entry; overrides --xc/--basis/--d4 and is what the campaign uses",
+    )
+    parser.add_argument("--nlc-grid-level", type=int, default=1)
     parser.add_argument("--d4", action="store_true")
     parser.add_argument("--df", action="store_true")
     parser.add_argument("--no-gpu", action="store_true")
@@ -119,10 +131,19 @@ def main():
     parser.add_argument("--quiet", action="store_true")
     args = parser.parse_args()
 
+    if args.theory:
+        level = get_level(args.theory)
+        if "pyscf" not in level.engines:
+            raise SystemExit(
+                f"theory {args.theory} is restricted to {level.engines}; "
+                "its labels must not be produced by PySCF (see theory_levels.py)"
+            )
+        args.xc, args.basis, args.d4 = level.pyscf_xc, level.pyscf_basis, level.d4
+
     out_dir = Path(args.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     prefix = args.output_prefix or Path(args.trajectory).stem
-    dens_path = out_dir / f"{prefix}_pyscf_augccpvdz_{args.xc}.npy"
+    dens_path = out_dir / f"{prefix}_pyscf_{basis_tag(args.basis)}_{args.xc}.npy"
     npy_path = out_dir / f"{prefix}_npy.npy"
 
     use_gpu = (not args.no_gpu) and _try_import_gpu4pyscf()
@@ -134,7 +155,10 @@ def main():
     if args.max_frames:
         frames = frames[: args.max_frames]
     if not args.quiet:
-        print(f"frames={len(frames)} xc={args.xc} d4={args.d4} df={args.df} gpu={use_gpu}")
+        print(
+            f"frames={len(frames)} xc={args.xc} basis={args.basis} "
+            f"d4={args.d4} df={args.df} gpu={use_gpu} -> {dens_path.name}"
+        )
 
     if frames and _is_precomputed_frame(frames[0]):
         results = list(frames)
@@ -147,7 +171,18 @@ def main():
             frames = frames[len(results) :]
         offset = len(results)
         for i, (pos, anum) in enumerate(frames):
-            results.append(compute_frame(pos, anum, use_gpu, args.df, args.xc, args.d4))
+            results.append(
+                compute_frame(
+                    pos,
+                    anum,
+                    use_gpu,
+                    args.df,
+                    args.xc,
+                    args.d4,
+                    basis=args.basis,
+                    nlc_grid_level=args.nlc_grid_level,
+                )
+            )
             if not args.quiet:
                 print(
                     f"  [{offset + i + 1}/{offset + len(frames)}] "
