@@ -21,9 +21,9 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import resource
 import shutil
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -72,10 +72,71 @@ def water_frame(n: int) -> tuple[list[int], list[list[float]]]:
     return read_xyz_frames(candidates[0])[0]
 
 
-def peak_rss_mb() -> float:
-    self_rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-    child_rss = resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss
-    return max(self_rss, child_rss) / 1024.0
+class PeakRSS:
+    """Peak resident memory of this process and its descendants, per measurement.
+
+    `getrusage` cannot answer this. Both `ru_maxrss` fields are high-water marks
+    that only ever rise, so reading them once per run reports the largest run so
+    far rather than the current one -- which is why the first calibration gave
+    byte-identical "peaks" for ORCA and PySCF at every size, ORCA having simply
+    inherited the mark left by the PySCF run before it. Those numbers set --mem
+    for the whole campaign, and the direction of the error is not fixed: a cheap
+    engine measured after an expensive one looks expensive, so a tier sized from
+    them can be over-provisioned (which costs concurrency under the QOS memory
+    cap) or, if the expensive run comes later, under-provisioned.
+
+    Sampling /proc instead catches ORCA, which is a subprocess and contributes
+    nothing to this process's own RSS. The tree is re-read each tick because ORCA
+    launches its MPI workers well after start-up.
+    """
+
+    def __init__(self, interval_s: float = 0.25) -> None:
+        self.interval_s = interval_s
+        self._peak_kb = 0
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+
+    @staticmethod
+    def _tree_rss_kb(root: int) -> int:
+        pids, seen, total = [root], set(), 0
+        while pids:
+            pid = pids.pop()
+            if pid in seen:
+                continue
+            seen.add(pid)
+            try:
+                with open(f"/proc/{pid}/status") as fh:
+                    for line in fh:
+                        if line.startswith("VmRSS:"):
+                            total += int(line.split()[1])
+                            break
+                children = Path(f"/proc/{pid}/task").iterdir()
+                for task in children:
+                    pids.extend(int(p) for p in (task / "children").read_text().split())
+            except (OSError, ValueError):
+                continue  # the process exited between listing and reading
+        return total
+
+    def _run(self) -> None:
+        root = os.getpid()
+        while not self._stop.wait(self.interval_s):
+            self._peak_kb = max(self._peak_kb, self._tree_rss_kb(root))
+
+    def __enter__(self) -> PeakRSS:
+        self._peak_kb = self._tree_rss_kb(os.getpid())
+        self._stop.clear()
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+        return self
+
+    def __exit__(self, *exc) -> None:
+        self._stop.set()
+        if self._thread is not None:
+            self._thread.join(timeout=2.0)
+
+    @property
+    def mb(self) -> float:
+        return self._peak_kb / 1024.0
 
 
 def compare(calc_a: dict, calc_b: dict, j2c: np.ndarray | None = None) -> dict:
@@ -204,29 +265,30 @@ def main() -> int:
                     name = f"{engine}{'-ref' if is_ref else ''}"
                     job_dir = scratch_root / f"{theory_key}_{tag}_{name}"
                     t0 = time.perf_counter()
-                    try:
-                        if engine == "orca":
-                            _mol, calc, diag = run_orca_single(
-                                z, xyz, job_dir,
-                                level=theory,
-                                orca_bin=orca_bin,
-                                orca2json_bin=orca2json,
-                                nprocs=args.nprocs,
-                                maxcore_mb=args.maxcore_mb,
-                                fit_df=True,
-                                reference=is_ref,
-                            )
-                        else:
-                            _mol, calc, diag = label_frame(
-                                z, xyz, theory,
-                                use_gpu=args.gpu,
-                                fit_df=True,
-                                with_forces=not args.no_forces,
-                            )
-                        status, error = "ok", None
-                    except Exception as exc:
-                        calc, diag = {}, {}
-                        status, error = "error", f"{type(exc).__name__}: {exc}"
+                    with PeakRSS() as rss:
+                        try:
+                            if engine == "orca":
+                                _mol, calc, diag = run_orca_single(
+                                    z, xyz, job_dir,
+                                    level=theory,
+                                    orca_bin=orca_bin,
+                                    orca2json_bin=orca2json,
+                                    nprocs=args.nprocs,
+                                    maxcore_mb=args.maxcore_mb,
+                                    fit_df=True,
+                                    reference=is_ref,
+                                )
+                            else:
+                                _mol, calc, diag = label_frame(
+                                    z, xyz, theory,
+                                    use_gpu=args.gpu,
+                                    fit_df=True,
+                                    with_forces=not args.no_forces,
+                                )
+                            status, error = "ok", None
+                        except Exception as exc:
+                            calc, diag = {}, {}
+                            status, error = "error", f"{type(exc).__name__}: {exc}"
                     total = time.perf_counter() - t0
 
                     rec = {
@@ -238,7 +300,7 @@ def main() -> int:
                         "engine": name,
                         "status": status,
                         "t_total_s": total,
-                        "peak_rss_mb": peak_rss_mb(),
+                        "peak_rss_mb": rss.mb,
                         "nao": diag.get("nao", 0),
                         "naux": diag.get("naux", 0),
                         **{k: v for k, v in diag.items() if k not in {"nao", "naux", "theory", "engine"}},
