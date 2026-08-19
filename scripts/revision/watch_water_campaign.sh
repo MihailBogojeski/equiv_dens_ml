@@ -124,28 +124,62 @@ for ((round = 1; round <= MAX_ROUNDS; round++)); do
   # unlabelled. Training is then kept alive the same way the labelling is -- a
   # run whose job hit the walltime has no .training_done marker and is
   # re-submitted, resuming from its checkpoint.
+  # Shards of `theory` still unlabelled across the given splits, or a positive
+  # number if that cannot be determined.
+  #
+  # Counts `n_shards - n_done`, not the `outstanding` list. Those are different
+  # questions: `outstanding` is "what needs submitting", so a shard a live worker
+  # is part-way through counts as zero, and gating on it launches training on
+  # labels that are still being computed. Only `--min-complete` stood between
+  # that and a model trained on a dataset missing whatever had not landed yet.
+  #
+  # Per-run rather than per-theory, because a run does not read the whole
+  # campaign. Training consumes train, validation and the in-distribution test
+  # set; the OOD tiers exist to be evaluated afterwards by csh_evaluate.py, and
+  # the ice and droplet tiers are the slowest arrays in the campaign by a wide
+  # margin -- 24 h tasks on the large tier. Waiting for them before starting
+  # training would idle the GPU for days while the data it actually optimises
+  # against sat finished on disk, and would push the headline figure out by the
+  # same amount for no benefit.
+  unlabelled_for() {
+    local theory=$1
+    shift
+    ./.venv/bin/python scripts/revision/campaign_status.py \
+      --root "$SHARD_ROOT" --out-root "$OUT_ROOT" --json 2>/dev/null |
+      SPLITS="$*" THEORY="$theory" ./.venv/bin/python -c "
+import json, os, sys
+splits = set(os.environ['SPLITS'].split())
+theory = os.environ['THEORY']
+rows = [r for r in json.load(sys.stdin)
+        if r['theory'] == theory and r['split'] in splits]
+# No rows means the shard tree for this run does not exist yet, which is not
+# the same as being finished.
+print(sum(r['n_shards'] - r['n_done'] for r in rows) if len(rows) == len(splits) else 1)
+" 2>/dev/null || echo 1
+  }
+
+  #: What each training run actually reads, as a list of shard-tree splits.
+  WATER_INPUTS="water_train_small water_val_small water_id_test_small"
+  MALON_INPUTS="malonaldehyde_train malonaldehyde_val"
+
   theories=$(for d in "$SHARD_ROOT"/*/*/; do basename "${d%/}"; done | sort -u)
   for theory in $theories; do
-    outstanding=$(./.venv/bin/python scripts/revision/campaign_status.py \
-      --root "$SHARD_ROOT" --out-root "$OUT_ROOT" --json 2>/dev/null |
-      ./.venv/bin/python -c "
-import json, sys
-rows = json.load(sys.stdin)
-print(sum(len(r['outstanding']) for r in rows if r['theory'] == '${theory}'))
-" 2>/dev/null || echo 1)
-    [[ "$outstanding" == "0" ]] || continue
-
     runs=(water malonaldehyde)
     if [[ "$theory" == "pbe_d4_avdz" ]]; then
       runs+=(cutoff_4 cutoff_5 cutoff_6 cutoff_8)
     fi
     for run in "${runs[@]}"; do
       case "$run" in
-        water) name="water_${theory}" ;;
-        malonaldehyde) name="malonaldehyde_${theory}" ;;
-        cutoff_*) name="water_pbe_orca_cutoff_${run#cutoff_}" ;;
+        water) name="water_${theory}"; inputs="$WATER_INPUTS" ;;
+        malonaldehyde) name="malonaldehyde_${theory}"; inputs="$MALON_INPUTS" ;;
+        cutoff_*) name="water_pbe_orca_cutoff_${run#cutoff_}"; inputs="$WATER_INPUTS" ;;
       esac
       [[ -e "results/revision/${name}/.training_done" ]] && continue
+      left=$(unlabelled_for "$theory" $inputs)
+      if [[ "$left" != "0" ]]; then
+        echo "[$(date -Is)] ${name}: ${left} shards of its inputs still unlabelled"
+        continue
+      fi
       job="tr-${run}-${theory}"
       queued=$(squeue -h -u "$USER" -n "$job" -o "%i" 2>/dev/null | wc -l)
       [[ "$queued" -gt 0 ]] && continue

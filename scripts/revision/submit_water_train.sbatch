@@ -34,6 +34,18 @@ THEORY=${THEORY:-wb97mv_def2tzvpd}
 RUN=${RUN:-water}
 MIN_COMPLETE=${MIN_COMPLETE:-0.6}
 
+# A note on the configs these stacks build, since the config files themselves
+# cannot carry it -- argparse reads them with fromfile_prefix_chars, so every
+# line is an argument and a `#` comment is a parse error.
+#
+# --np_dataset_test points at the *in-distribution* test set, not at an OOD
+# tier. The OOD numbers that go in the paper come from csh_evaluate.py, run per
+# tier by run_ood_analysis.sh once the model exists; run.py's own test pass is
+# incidental to that. It used to point at the ice tier, which meant training
+# could not start until the slowest 24 h arrays in the campaign had finished --
+# days after the train and validation labels it actually optimises against were
+# ready on disk.
+
 export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK:-8}"
 export WANDB_MODE="${WANDB_MODE:-offline}"
 mkdir -p logs

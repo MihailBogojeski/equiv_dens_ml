@@ -33,8 +33,8 @@
 --dens_dataset=datasets/revision/water_labels/water_train_wb97mv_def2tzvpd.npy
 --np_dataset_valid=datasets/revision/water_labels/water_val_wb97mv_def2tzvpd_base.npy
 --dens_dataset_valid=datasets/revision/water_labels/water_val_wb97mv_def2tzvpd.npy
---np_dataset_test=datasets/revision/water_labels/water_ood_order_wb97mv_def2tzvpd_base.npy
---dens_dataset_test=datasets/revision/water_labels/water_ood_order_wb97mv_def2tzvpd.npy
+--np_dataset_test=datasets/revision/water_labels/water_id_test_wb97mv_def2tzvpd_base.npy
+--dens_dataset_test=datasets/revision/water_labels/water_id_test_wb97mv_def2tzvpd.npy
 --orbitals_file=datasets/augccpvqzjkfit_orbital_basis_df.npy
 --radial_coeffs_file=datasets/augccpvqzjkfit_radial_coeffs_libcint_df.npy
 --atom_dens_path=datasets/free_atom_densities_def2tzvpd_augccpvqzjkfit_pyscf_wb97m-v.npy
@@ -45,7 +45,7 @@
 --center_energy=True
 --num_train=1250
 --num_valid=250
---num_test=192
+--num_test=250
 --train_batch_size=8
 --valid_batch_size=16
 --test_batch_size=8
