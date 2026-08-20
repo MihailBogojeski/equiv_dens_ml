@@ -188,14 +188,22 @@ print(sum(r['n_shards'] - r['n_done'] for r in rows) if len(rows) == len(splits)
         scripts/revision/submit_water_train.sbatch || true
     done
 
-    # The analysis is cheap and incremental -- it skips whatever it has already
-    # produced -- so it runs on every pass rather than waiting for a signal that
-    # everything is finished. That means the error-versus-distance curve appears
-    # as soon as the first model has a checkpoint and refreshes as the rest
-    # arrive, instead of depending on someone remembering to run it at the end.
+    # The analysis used to run inline in this loop. Evaluating the OOD ladder
+    # is hours of CPU work, during which no shard is re-submitted and no
+    # training is launched. It is its own job, and only once a checkpoint
+    # exists -- otherwise the 12 h slot would do the cheap geometry half and
+    # then exit.
     if [[ "${RUN_ANALYSIS:-1}" -ne 0 ]]; then
-      scripts/revision/run_ood_analysis.sh "$theory" \
-        >> "logs/ood_analysis_${theory}.log" 2>&1 || true
+      job="ood-${theory}"
+      queued=$(squeue -h -u "$USER" -n "$job" -o "%i" 2>/dev/null | wc -l)
+      if [[ "$queued" -eq 0 ]]; then
+        save_dir="results/revision/water_${theory}"
+        if [[ -n "$(scripts/revision/latest_run_dir.sh "$save_dir")" ]]; then
+          echo "[$(date -Is)] submitting ${job}"
+          THEORY="$theory" sbatch --job-name="$job" \
+            scripts/revision/submit_ood_analysis.sbatch || true
+        fi
+      fi
     fi
   done
 
