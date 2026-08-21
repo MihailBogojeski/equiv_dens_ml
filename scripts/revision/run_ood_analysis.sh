@@ -133,6 +133,28 @@ if [[ -n "$malon_run" ]]; then
 fi
 
 echo
+echo "=== hydrogen-bond geometry, predicted versus reference (R1.1) ==="
+# The size-OOD tier is the one Reviewer 1 named: train on n=2-6, test the
+# hydrogen-bond network on n=8,10,12. Relaxing under the model is what turns a
+# density model into something with a geometry to histogram, so this needs the
+# trained model and belongs here rather than with the geometry-only section.
+HB_XYZ="results/revision/hbond/${THEORY}/ood_size_densnet_relaxed.xyz"
+HB_JSON="results/revision/hbond/${THEORY}/ood_size_relaxation.json"
+if [[ "$FORCE_EVAL" -eq 1 || ! -f "$HB_XYZ" ]]; then
+  $PY scripts/revision/relax_water_clusters.py \
+    --xyz "${WATER}/ood_size.xyz" \
+    --run-dir "$water_run" \
+    --out-xyz "$HB_XYZ" --out-json "$HB_JSON" --use-gpu || true
+else
+  echo "  relaxed geometries already present, keeping them"
+fi
+if [[ -f "$HB_XYZ" ]]; then
+  $PY scripts/revision/evaluate_hbond_metrics.py \
+    --ref "${WATER}/ood_size.xyz" --pred-xyz "$HB_XYZ" \
+    --out "results/revision/water_hbond_ood_size_${THEORY}.json" || true
+fi
+
+echo
 echo "=== error versus distance from training ==="
 $PY scripts/revision/error_vs_distance.py \
   --train-cv "${CV}/water_train.json" \
@@ -143,3 +165,19 @@ $PY scripts/revision/error_vs_distance.py \
   --physical-axis "malonaldehyde:${CV}/malon_ood_proton_transfer_pt.json:${EVAL}/malonaldehyde_ood_proton_transfer.json:abs_delta_pt" \
   --out "results/revision/error_vs_distance_${THEORY}.json" \
   --figure "results/revision/figures/error_vs_distance_${THEORY}.png"
+
+echo
+echo "=== PBE versus hybrid, and the seed ensemble (R3.1, R3.3) ==="
+# Only says anything once both levels of theory have been evaluated, so it is
+# harmless on the first pass and fills in on a later one. Ensemble members are
+# whichever seed directories exist; with none, the wB97M-V column is a single
+# run and no standard deviation is claimed.
+hybrid_dirs="results/revision/eval/wb97mv_def2tzvpd"
+for seed_dir in results/revision/eval/wb97mv_def2tzvpd_seed*; do
+  [[ -d "$seed_dir" ]] && hybrid_dirs="${hybrid_dirs},${seed_dir}"
+done
+$PY scripts/revision/pbe_vs_hybrid_table.py \
+  --theory "pbe_d4_avdz:results/revision/eval/pbe_d4_avdz" \
+  --theory "wb97mv_def2tzvpd:${hybrid_dirs}" \
+  --out results/revision/pbe_vs_hybrid.json \
+  --markdown results/revision/pbe_vs_hybrid.md || true
