@@ -43,9 +43,19 @@ def load_shard_results(shard_dir: Path) -> list[dict]:
 
 
 def mol_from_pack(mol_pack: dict):
-    mol = gto.Mole()
-    mol.unpack(mol_pack)
+    # Mole.unpack is a classmethod returning a new Mole; calling it on an
+    # instance and discarding the result leaves an empty molecule behind. That
+    # failed silently -- every frame came back with natm=0, so the size
+    # histogram below saw one "0 atoms" bucket, no split ever reached
+    # --min-complete, and nothing was written.
+    mol = gto.Mole.unpack(mol_pack)
     mol.build(False, False)
+    n_packed = len(mol_pack["atom"])
+    if mol.natm != n_packed:
+        raise SystemExit(
+            f"unpacked molecule has {mol.natm} atoms but the pack holds {n_packed}; "
+            "gto.Mole.unpack is not round-tripping this pyscf version"
+        )
     return mol
 
 
