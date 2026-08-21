@@ -449,10 +449,19 @@ def load_densnet_calculator(
     if np_dataset is None:
         np_dataset = repo / "datasets" / "ethanol_train_10.npy"
 
-    candidates = [restart / "args.txt", repo / "config" / "training" / "ethanol_all_001.txt"]
+    # An explicitly supplied args_file wins. It used to be third in this list,
+    # behind the run directory's own args.txt, so passing --args-file had no
+    # effect whenever the checkpoint shipped one -- which the published models
+    # all do. That silently reinstated the 2024 argument set, and the flags that
+    # did not exist in 2024 then took their modern defaults.
+    candidates = []
     if args_file is not None:
         candidates.append(Path(args_file))
-    candidates.append(repo / "config" / "md" / "nn" / "ethanol_500ps.txt")
+    candidates += [
+        restart / "args.txt",
+        repo / "config" / "training" / "ethanol_all_001.txt",
+        repo / "config" / "md" / "nn" / "ethanol_500ps.txt",
+    ]
 
     def _is_arch_file(path):
         if not path.is_file():
@@ -482,6 +491,7 @@ def load_densnet_calculator(
         os.unlink(tmp_path)
 
     latest = restart / "checkpoints" / "latest_checkpoint.pth"
+    ckpt_state = None
     if latest.is_file():
         blob = torch.load(str(latest), map_location="cpu", weights_only=False)
         ckpt_args = blob.get("args") if isinstance(blob, dict) else None
@@ -496,14 +506,42 @@ def load_densnet_calculator(
                 "np_dataset_test",
                 "dens_dataset_test",
                 "atom_dens_path",
+                "atom_dens_type",
                 "orbitals_file",
                 "radial_coeffs_file",
                 "pseudo_pot_path",
+                # Architecture switches added after these checkpoints were
+                # written are absent from their stored args, so copying the
+                # stored args wholesale leaves them at today's defaults. They
+                # are inferred from the weights below instead.
+                "L0_start",
+                "append_atom_density",
+                "num_en_basis_functions",
             }
             for key, value in vars(ckpt_args).items():
                 if key not in skip:
                     setattr(args, key, value)
+        if isinstance(blob, dict):
+            for key in ("model", "state_dict", "model_state_dict"):
+                if isinstance(blob.get(key), dict):
+                    ckpt_state = blob[key]
+                    break
     args.ignore_unexpected_keywords = True
+
+    # Read the architecture off the weights rather than trusting flags. A
+    # checkpoint predating a flag cannot record it, and the default silently
+    # builds layers it never trained: L0_start=True adds radial_L0_map, which
+    # then stays randomly initialised through a non-strict load. That produced
+    # energies that changed from one load of the same checkpoint to the next,
+    # and forces whose error exactly equalled the reference force magnitude --
+    # the signature of a model predicting nothing at all.
+    if ckpt_state is not None:
+        energy_keys = [k for k in ckpt_state if k.startswith("property_models.energy")]
+        if energy_keys:
+            args.L0_start = any("radial_L0_map" in k for k in energy_keys)
+            rbf = ckpt_state.get("property_models.energy.radial_basis_functions.logc")
+            if rbf is not None:
+                args.num_en_basis_functions = int(rbf.shape[0])
 
     args.restart = str(restart)
     args.use_gpu = bool(use_gpu)
@@ -511,12 +549,19 @@ def load_densnet_calculator(
     args.dens_dataset = None
     args.np_dataset_test = str(np_dataset)
     args.dens_dataset_test = None
+    # Only fill these in when the args do not already name a file that exists.
+    # atom_dens_path in particular was overwritten unconditionally with the
+    # revision prior, so a published model was evaluated against a different
+    # free-atom reference than the one it learned to correct.
     for attr, rel in (
         ("orbitals_file", "datasets/augccpvqzjkfit_orbital_basis_df.npy"),
         ("radial_coeffs_file", "datasets/augccpvqzjkfit_radial_coeffs_libcint_df.npy"),
         ("atom_dens_path", "datasets/revision/sad_pbe_augccpvdz.npy"),
         ("pseudo_pot_path", "pseudo_potentials"),
     ):
+        current = getattr(args, attr, None)
+        if current and Path(current).exists():
+            continue
         path = repo / rel
         if path.exists():
             setattr(args, attr, str(path))
@@ -541,7 +586,52 @@ def load_densnet_calculator(
         calc_basis_path=getattr(args, "calc_basis_file", None),
         dtype=args.dtype,
     )
-    model = load_model(args, dataset, train=False)
+    def _build():
+        return load_model(args, dataset, train=False)
+
+    model = _build()
+
+    # append_atom_density doubles the energy head's L=0 input width by
+    # concatenating the prior's own coefficients. Which setting a checkpoint
+    # used cannot be read off a single tensor, so build, compare against the
+    # checkpoint, and flip once if it disagrees. For the thiophene model the
+    # widths are 30 without and 60 with.
+    ckpt_width = None
+    if ckpt_state is not None:
+        w = ckpt_state.get("property_models.energy.input_layer.0.weight")
+        if w is not None:
+            ckpt_width = int(w.shape[1])
+    if ckpt_width is not None and "energy" in getattr(model, "property_models", {}):
+        built = int(model.property_models["energy"].input_layer[0].weight.shape[1])
+        if built != ckpt_width:
+            args.append_atom_density = not getattr(args, "append_atom_density", False)
+            model = _build()
+            built = int(model.property_models["energy"].input_layer[0].weight.shape[1])
+            if built != ckpt_width:
+                raise RuntimeError(
+                    f"energy head expects an L=0 width of {ckpt_width} but the model "
+                    f"builds {built} with append_atom_density both ways; the prior at "
+                    f"{args.atom_dens_path} is probably not the one it was trained with"
+                )
+
+    # load_model restores the weights itself, but non-strict, so a shape or name
+    # disagreement leaves randomly initialised tensors behind and returns
+    # quietly. Re-checking here turns that into an error at load time rather
+    # than a plausible-looking number in a results file.
+    if ckpt_state is not None:
+        live = model.state_dict()
+        stale = [
+            k for k, v in ckpt_state.items()
+            if k in live and tuple(live[k].shape) != tuple(v.shape)
+        ]
+        absent = [k for k in ckpt_state if k not in live]
+        if stale or absent:
+            raise RuntimeError(
+                f"checkpoint does not fit the model built from {args_path}: "
+                f"{len(stale)} shape mismatches, {len(absent)} unmatched tensors "
+                f"(e.g. {(stale + absent)[:3]})"
+            )
+
     model.eval()
     return DenSNetCalculator(
         model,

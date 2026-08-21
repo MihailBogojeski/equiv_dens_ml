@@ -76,13 +76,19 @@ for attr in ['orbitals_file', 'radial_coeffs_file', 'L0_coeffs_file', 'atom_dens
     if hasattr(args, attr) and getattr(args, attr) and '/home/ml-dft/equiv_dens/' in str(getattr(args, attr)):
         setattr(args, attr, str(getattr(args, attr)).replace('/home/ml-dft/equiv_dens/', base_dir + '/'))
 
-# Fix atom_dens_path if it's missing the _pyscf suffix
+# Fall back to the _pyscf prior only when the one the model was trained with is
+# genuinely absent. This used to substitute unconditionally, which quietly
+# evaluated the model against a different delta-learning reference than it was
+# fitted to -- the substitution existed because the original would not unpickle
+# under current SciPy, and that is now handled in equiv_dens.utils.scipy_compat.
 if hasattr(args, 'atom_dens_path') and args.atom_dens_path:
-    if 'free_atom_densities_augccpvdz_augccpvqzjkfit.npy' in args.atom_dens_path:
+    if 'free_atom_densities_augccpvdz_augccpvqzjkfit.npy' in args.atom_dens_path \
+            and not Path(args.atom_dens_path).exists():
         args.atom_dens_path = args.atom_dens_path.replace(
             'free_atom_densities_augccpvdz_augccpvqzjkfit.npy',
             'free_atom_densities_augccpvdz_augccpvqzjkfit_pyscf.npy'
         )
+        print('original SAD prior missing; falling back to', args.atom_dens_path)
 
 # dpm-intor with remove_atom_density requires MO or DF coefficients (not spline).
 # Override atom_dens_type and atom_dens_path when the model was trained with spline.
@@ -103,7 +109,19 @@ if hasattr(args, 'log_dir') and args.log_dir and '/home/ml-dft/equiv_dens/' in a
 args.log_dir = os.path.join(base_dir, 'paper', 'results', 'eval_logs')
 os.makedirs(args.log_dir, exist_ok=True)
 
-args.restart = str(Path(main_args.args_file).resolve().parent)
+# The args file usually sits inside the run directory it describes, so its
+# parent is the checkpoint directory. That is not true of a config under
+# config/training/, and overriding unconditionally sent the loader looking for
+# config/training/checkpoints/latest_checkpoint.pth. Only take the parent when
+# it actually holds checkpoints; otherwise honour the config's own --restart.
+args_file_dir = Path(main_args.args_file).resolve().parent
+if (args_file_dir / 'checkpoints').is_dir():
+    args.restart = str(args_file_dir)
+elif not (args.restart and (Path(args.restart) / 'checkpoints').is_dir()):
+    raise SystemExit(
+        f"no checkpoints/ beside {main_args.args_file} and --restart="
+        f"{args.restart!r} does not hold one either"
+    )
 args.np_dataset = str(Path(main_args.target).resolve())
 
 # Use density_path when provided or auto-detect: target.npy -> target_pyscf.npy in same dir
