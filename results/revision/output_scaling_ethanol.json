@@ -1,0 +1,76 @@
+{
+  "structures": "datasets/ethanol_train_10.xyz",
+  "model": "paper/models/ethanol/2024-03-22_96w7KyGG",
+  "n_frames": 10,
+  "xc": "pbe",
+  "basis": "augccpvdz",
+  "scaling_in_checkpoint": 1.0,
+  "fitted_output_scaling": 90.35532370375942,
+  "in_distribution_force_mae_after_scaling_eV_A": 0.5740844272755876,
+  "in_distribution_force_rmse_after_scaling_eV_A": 0.784504765799274,
+  "reference_force_mean_abs_eV_A": 0.746584042371893,
+  "correlation_pred_ref": 0.6460340386299367,
+  "per_frame": [
+    {
+      "frame": 0,
+      "pred_mean_abs": 0.004563453436949877,
+      "ref_mean_abs": 0.5316461612265334,
+      "dft_energy_hartree": -154.85519559223226
+    },
+    {
+      "frame": 1,
+      "pred_mean_abs": 0.00469810015918618,
+      "ref_mean_abs": 0.469543470421569,
+      "dft_energy_hartree": -154.85163159422356
+    },
+    {
+      "frame": 2,
+      "pred_mean_abs": 0.005123663402897633,
+      "ref_mean_abs": 0.7429389426266605,
+      "dft_energy_hartree": -154.83934962680883
+    },
+    {
+      "frame": 3,
+      "pred_mean_abs": 0.005083027365833038,
+      "ref_mean_abs": 1.0391237425648543,
+      "dft_energy_hartree": -154.83727076553566
+    },
+    {
+      "frame": 4,
+      "pred_mean_abs": 0.00532512391240474,
+      "ref_mean_abs": 0.5547134282049675,
+      "dft_energy_hartree": -154.85490375575387
+    },
+    {
+      "frame": 5,
+      "pred_mean_abs": 0.005338765290852515,
+      "ref_mean_abs": 1.019430895343634,
+      "dft_energy_hartree": -154.83910560519303
+    },
+    {
+      "frame": 6,
+      "pred_mean_abs": 0.006598517643632712,
+      "ref_mean_abs": 0.9515923761991353,
+      "dft_energy_hartree": -154.82865815836306
+    },
+    {
+      "frame": 7,
+      "pred_mean_abs": 0.004653988756924971,
+      "ref_mean_abs": 0.8796713398551512,
+      "dft_energy_hartree": -154.8404790502441
+    },
+    {
+      "frame": 8,
+      "pred_mean_abs": 0.003890444943896943,
+      "ref_mean_abs": 0.4858292099144972,
+      "dft_energy_hartree": -154.85469537572794
+    },
+    {
+      "frame": 9,
+      "pred_mean_abs": 0.0066809113982512994,
+      "ref_mean_abs": 0.7913508573619281,
+      "dft_energy_hartree": -154.84299983034595
+    }
+  ],
+  "note": "fitted_output_scaling multiplies the model's raw forces and energies to put them in eV and eV/A. It is fitted only on the training geometries, so applying it to the OOD set leaves those numbers independent of the fit. correlation_pred_ref is the check that matters: a scale factor can only rescale, so if the model had lost its energy surface the correlation would be near zero and no factor would help."
+}
