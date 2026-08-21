@@ -24,12 +24,18 @@
 #SBATCH --time=24:00:00
 #SBATCH --account=torch_pr_283_chemistry
 #SBATCH --qos=gpu48
-# Both partitions, not l40s_public alone. Naming one partition discards the
-# other even when it is empty: with l40s_public at 263 of 272 GPUs allocated and
-# h200_public at 205 of 272, the pinned jobs sat pending for over a day beside
-# 67 idle H200s. This is the same trap the labelling arrays hit with
-# --partition=cs, and this account's fair-share of 0.006 makes it decisive.
-#SBATCH --partition=h200_public,l40s_public
+# a100_chemistry first: it is this account's own partition, it had 43 of 172
+# GPUs free while the shared queues were full, and its A100s carry 80 GB against
+# the L40S's 46 GB. A probe job started there in under six seconds.
+#
+# Naming l40s_public alone is what left these trainings pending for a day.
+# l40s_public was at 263 of 272 GPUs with the rest PLANNED for higher-priority
+# users, and h200_public's partition QOS caps everyone at 24 GPUs in aggregate.
+# With this account's fair-share at 0.006 the pinned queue was never going to
+# clear -- the same trap the labelling arrays hit with --partition=cs.
+#
+# --gres stays generic (gpu:1, above) so one script fits all three partitions.
+#SBATCH --partition=a100_chemistry,h200_public,l40s_public
 #SBATCH --output=logs/water_train_%j.out
 
 set -euo pipefail
