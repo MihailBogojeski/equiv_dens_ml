@@ -140,7 +140,19 @@ echo "=== hydrogen-bond geometry, predicted versus reference (R1.1) ==="
 # trained model and belongs here rather than with the geometry-only section.
 HB_XYZ="results/revision/hbond/${THEORY}/ood_size_densnet_relaxed.xyz"
 HB_JSON="results/revision/hbond/${THEORY}/ood_size_relaxation.json"
-if [[ "$FORCE_EVAL" -eq 1 || ! -f "$HB_XYZ" ]]; then
+# Relaxing 300 clusters of up to 24 waters is minutes on a GPU and many hours on
+# a CPU. This script is called every pass by the campaign watchdog, which runs
+# on a cpu_short allocation, so on a CPU-only host the relaxation is skipped
+# rather than left to stall the watchdog past its walltime and take the
+# labelling re-submissions down with it. RELAX_ON_CPU=1 overrides.
+if $PY -c "import torch, sys; sys.exit(0 if torch.cuda.is_available() else 1)" 2>/dev/null; then
+  HAVE_GPU=1
+else
+  HAVE_GPU=${RELAX_ON_CPU:-0}
+fi
+if [[ "$HAVE_GPU" -eq 0 ]]; then
+  echo "  no GPU here; skipping the relaxation (submit_ood_analysis.sbatch asks for one)"
+elif [[ "$FORCE_EVAL" -eq 1 || ! -f "$HB_XYZ" ]]; then
   $PY scripts/revision/relax_water_clusters.py \
     --xyz "${WATER}/ood_size.xyz" \
     --run-dir "$water_run" \
