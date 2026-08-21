@@ -88,6 +88,15 @@ case "$RUN" in
     fi
     name="malonaldehyde_${THEORY}"
     ;;
+  water_direct)
+    # R3.4: the same model predicting the total density instead of the SAD
+    # correction. Everything but --remove_atom_density is held fixed, so the
+    # difference between this run and `water` is the delta-learning target and
+    # nothing else. Reported against analyze_density_metrics.py, which measures
+    # how much of the density the prior already supplies.
+    cfg=("${base[@]}" "${overlay[@]}" @config/training/water_direct_overlay.txt)
+    name="water_direct_${THEORY}"
+    ;;
   cutoff_*)
     # R3.5 asks how far the message passing has to reach to capture a
     # hydrogen-bond network. That is a question about the architecture, not the
