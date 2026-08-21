@@ -26,7 +26,7 @@ from equiv_dens.utils.grids import (
     becke_scheme
 )
 import equiv_dens.utils.base as utils
-from equiv_dens.utils import orbitals
+from equiv_dens.utils import orbitals, scipy_compat
 from pyscf.dft import gen_grid, radi
 import time
 
@@ -128,6 +128,9 @@ class AtomsDensityData(Dataset):
             )
 
         if atom_dens_path is not None:
+            # The published models' priors hold BSplines pickled before SciPy
+            # 1.15 changed the pickle format; without this they raise on load.
+            scipy_compat.enable_legacy_bspline_unpickling()
             self.atom_dens = np.load(atom_dens_path, allow_pickle=True).item()
             self._ensure_sad_mo_basis()
         else:
