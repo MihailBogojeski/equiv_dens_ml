@@ -156,6 +156,7 @@ elif [[ "$FORCE_EVAL" -eq 1 || ! -f "$HB_XYZ" ]]; then
   $PY scripts/revision/relax_water_clusters.py \
     --xyz "${WATER}/ood_size.xyz" \
     --run-dir "$water_run" \
+    --np-dataset "${LABELS}/water_train_${THEORY}_base.npy" \
     --out-xyz "$HB_XYZ" --out-json "$HB_JSON" --use-gpu || true
 else
   echo "  relaxed geometries already present, keeping them"

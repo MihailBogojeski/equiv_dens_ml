@@ -78,6 +78,11 @@ def main() -> int:
     ap.add_argument("--args-file", default=None)
     ap.add_argument("--out-xyz", type=Path, required=True)
     ap.add_argument("--out-json", type=Path, required=True)
+    ap.add_argument("--np-dataset", default=None,
+                    help="the training set this model was fitted on. Needed because the "
+                         "output scaling is the standard deviation of its forces; without "
+                         "it predictions come back in normalised units and the relaxation "
+                         "barely moves the geometry")
     ap.add_argument("--fmax", type=float, default=0.05)
     ap.add_argument("--max-steps", type=int, default=200)
     ap.add_argument("--limit", type=int, default=0, help="relax only the first N frames (0 = all)")
@@ -91,7 +96,8 @@ def main() -> int:
 
     from equiv_dens.md.dft_network_calculator import load_densnet_calculator
 
-    calc = load_densnet_calculator(cli.run_dir, args_file=cli.args_file, use_gpu=cli.use_gpu)
+    calc = load_densnet_calculator(cli.run_dir, args_file=cli.args_file,
+                                   np_dataset=cli.np_dataset, use_gpu=cli.use_gpu)
 
     relaxed, comments, records = [], [], []
     t0 = time.time()

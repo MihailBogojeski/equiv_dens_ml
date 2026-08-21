@@ -2,6 +2,7 @@ import equiv_dens.compat  # noqa: F401 - apply T_co patch before schnetpack impo
 
 import os
 import time
+import warnings
 import torch
 import torch.nn as nn
 import equiv_dens.utils.base as utils
@@ -566,9 +567,31 @@ def load_densnet_calculator(
         if path.exists():
             setattr(args, attr, str(path))
 
+    # Ask for forces when the dataset carries them. load_model only rebuilds the
+    # VarianceScaling factor -- the training-set force standard deviation the
+    # model's outputs are expressed in -- when 'forces' is a required property.
+    # Without it the factor defaults to 1 and every energy and force comes back
+    # in normalised units, which looks like a model that has stopped responding
+    # to geometry rather than like a missing constant.
+    required_properties = []
+    try:
+        probe = np.load(args.np_dataset, allow_pickle=True).item()
+        if isinstance(probe, dict) and "forces" in probe:
+            required_properties = ["energy", "forces"]
+    except Exception:
+        pass
+    if not required_properties and getattr(args, "output_scaling", False):
+        warnings.warn(
+            f"{args.np_dataset} carries no forces, so the output scaling cannot be "
+            "reconstructed and predictions stay in normalised units. Pass "
+            "np_dataset=<the training set this checkpoint was fitted on>.",
+            RuntimeWarning,
+        )
+
     dataset = AtomsDensityData(
         np_path=args.np_dataset,
         density_path=args.dens_dataset,
+        required_properties=required_properties,
         orbitals_path=args.orbitals_file,
         density_n_samp=getattr(args, "density_subsamples", 10000),
         radial_coeffs_file=args.radial_coeffs_file,

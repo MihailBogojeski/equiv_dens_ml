@@ -82,6 +82,21 @@ def main():
         raise SystemExit(f"No frames in {args.dens}")
 
     calc = load_densnet_calculator(args.model, args_file=args.args_file, use_gpu=args.use_gpu)
+
+    # The output scaling is the standard deviation of the training-set forces and
+    # is not stored in checkpoints written before it became a buffer. When it
+    # cannot be recovered it silently defaults to 1 and every prediction comes
+    # back in normalised units -- flat, finite, and wrong by a constant factor.
+    # Detect that here rather than let the numbers be quoted as eV/A.
+    scale = None
+    for module in getattr(calc, "model", calc).modules():
+        if type(module).__name__ == "VarianceScaling":
+            scale = float(module.std)
+            break
+    unscaled = scale is not None and abs(scale - 1.0) < 1e-12
+    if unscaled:
+        print("WARNING: output scaling is 1.0, so predictions are in normalised "
+              "units. Absolute energies and forces below are not in eV.")
     e_err = []
     f_mae = []
     f_rmse = []
@@ -125,6 +140,20 @@ def main():
         "force_mae_kcalmol_A": float(np.mean(f_mae) / KCALMOL),
         "reference_force_mean_abs_eV_A": ref_scale,
         "force_mae_relative_to_reference": (float(np.mean(f_mae)) / ref_scale) if ref_scale else None,
+        "output_scaling_std": scale,
+        "predictions_unscaled": unscaled,
+        "scaling_note": (
+            "output_scaling_std is 1.0, meaning the training-set force standard "
+            "deviation could not be recovered: this checkpoint predates the scaling "
+            "being stored in the checkpoint, and the training set that defined it "
+            "(datasets/ethanol_dft_pyscf_ccpvdz_train.npy) is not on disk. Predictions "
+            "are therefore in normalised units and the absolute errors below are not "
+            "physical -- a force MAE equal to the mean reference force is the "
+            "signature of that, not of a model failing out of distribution. Restore "
+            "the training set to recover the scale."
+            if unscaled else
+            f"output scaling recovered from the training forces (std={scale})."
+        ),
         "note": (
             "energy_raw_mae_eV is dominated by a constant: the model is trained "
             "with center_energy=True and predicts energies from its own origin, "
