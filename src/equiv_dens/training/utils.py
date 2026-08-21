@@ -15,6 +15,26 @@ from equiv_dens.data.hamiltonian_dataset import seeded_random_split
 from equiv_dens.training.lookahead import Lookahead
 from equiv_dens.training.errors import ErrorDict
 import numpy as np
+import random
+
+
+def seed_everything(seed):
+    """Seed python, numpy and torch so a run can be reproduced or repeated.
+
+    Used to build the R3.3 ensemble: three runs differing only in this seed give
+    a mean and a standard deviation over independent fits of the same data,
+    which is the uncertainty the reviewer asked for. Varying ``--split_seed``
+    instead would change which frames the model sees and answer a different
+    question.
+
+    cudnn determinism is deliberately left alone; it costs throughput and the
+    ensemble only needs runs that are independent and reproducible from the
+    seed, not bitwise-identical across hardware.
+    """
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
 
 
 def init_training_vars(args, hyperparam_args):

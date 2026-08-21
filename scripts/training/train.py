@@ -28,6 +28,16 @@ from functools import partial
 """
 # read arguments
 args, hyperparam_args = parse_command_line_arguments()
+
+# Seed before anything constructs a module. Reviewer 3 asked for an uncertainty
+# estimate, and the only knob that existed was --split_seed, which varies the
+# train/valid/test partition; an ensemble built that way reports how sensitive
+# the model is to which frames it trained on, not the run-to-run spread of the
+# fit, and it leaves the weight initialisation itself unseeded and therefore
+# irreproducible.
+if args.init_seed is not None:
+    train_utils.seed_everything(args.init_seed)
+
 wandb.login()
 
 args, hyperparam_args, train_vars = train_utils.init_training_vars(args, hyperparam_args)

@@ -166,6 +166,12 @@ def parse_command_line_arguments(arg_file=None):
     args_training.add_argument("--num_workers", metavar='INT', type=int, default=0, help="number of worker threads for preparing batches")
     args_training.add_argument("--split_seed", metavar='INT', type=int, default=42,
                                help="seed for splitting the dataset in training, validation and test sets")
+    args_training.add_argument("--init_seed", metavar='INT', type=int, default=None,
+                               help="seed for weight initialisation and batch shuffling. Distinct from "
+                                    "--split_seed, which only chooses the train/valid/test partition: an "
+                                    "ensemble built by varying --split_seed measures sensitivity to the "
+                                    "split, not the run-to-run spread of the model. Unset keeps the "
+                                    "previous non-deterministic behaviour.")
     args_training.add_argument("--optimizer", metavar='adam|amsgrad|sgd', type=str, default='sgd',
                                choices=['adam', 'amsgrad', 'sgd'], help="optimizer used for training")
     args_training.add_argument("--lookahead_k", metavar='INT', type=int, default=5,

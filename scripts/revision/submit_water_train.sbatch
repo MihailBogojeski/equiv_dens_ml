@@ -107,6 +107,15 @@ case "$RUN" in
     ;;
 esac
 
+# R3.3 wants an uncertainty band, which needs several independent fits of the
+# same data. INIT_SEED varies only the weight initialisation and batch order,
+# and each member gets its own save_dir so the members do not resume from each
+# other's checkpoints -- which would collapse the ensemble to one model.
+if [[ -n "${INIT_SEED:-}" ]]; then
+  name="${name}_seed${INIT_SEED}"
+  cfg+=(--init_seed="$INIT_SEED")
+fi
+
 save_dir="results/revision/${name}"
 extra=(--args_file_name="$name" --save_dir="$save_dir")
 # --restart wants the timestamped run directory run.py creates *inside*
