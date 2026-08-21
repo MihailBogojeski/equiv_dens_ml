@@ -24,7 +24,12 @@
 #SBATCH --time=24:00:00
 #SBATCH --account=torch_pr_283_chemistry
 #SBATCH --qos=gpu48
-#SBATCH --partition=l40s_public
+# Both partitions, not l40s_public alone. Naming one partition discards the
+# other even when it is empty: with l40s_public at 263 of 272 GPUs allocated and
+# h200_public at 205 of 272, the pinned jobs sat pending for over a day beside
+# 67 idle H200s. This is the same trap the labelling arrays hit with
+# --partition=cs, and this account's fair-share of 0.006 makes it decisive.
+#SBATCH --partition=h200_public,l40s_public
 #SBATCH --output=logs/water_train_%j.out
 
 set -euo pipefail
