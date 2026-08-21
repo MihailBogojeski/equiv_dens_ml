@@ -1,54 +1,87 @@
-# Revision campaign status (2026-08-18)
+# Revision campaign status (2026-08-21)
 
 ## Environment
 
-`.venv` (Python 3.12.9) is complete. Do not force-reinstall torch. `gpu_burn` still holds ~1.2 GB / GPU; remaining L40S VRAM is used for reviewer jobs. Do not kill `gpu_burn` or other users.
+`.venv` (Python 3.12.9) is complete. Do not force-reinstall torch.
 
-## Running (tmux on gl056)
+`gpu_burn` on the `wrap` allocation (job 16137251, `gl063`) is **paused** via
+`logs/gpu_burn/PAUSE` in the sibling `cofolding-boltzmann` checkout. Both of
+that job's GPUs are running real tps-cofolding work (`oneopes` mek1 and
+cryptic), which started after gpu-burn did, so the burn was duty-cycling
+against them. Delete the PAUSE file to restore it. No cofolding job was touched.
 
-| Session | Job |
+## Labelling: complete
+
+513/513 shards at **both** ωB97M-V/def2-TZVPD and PBE-D4, every cluster-size
+bucket at 100%: water train 1250, val 250, ID test 250, size-OOD 300,
+order-OOD 192, density-OOD 120, malonaldehyde 400/80/125.
+
+Assembly had never written a single training file. `mol_from_pack` called
+`gto.Mole.unpack` on an instance and discarded the return of what is a
+classmethod, so every assembled frame had `natm=0`, the size histogram
+collapsed to one "0 atoms" bucket, and `--min-complete` refused every split.
+Each training job then died on `FileNotFoundError` about ninety seconds in.
+The gate is the only reason nothing trained on empty geometries.
+
+## Compute
+
+Trainings run on **`a100_chemistry`**, this account's own partition. They had
+been pinned to `l40s_public`, which sits at 263/272 GPUs with the rest
+`PLANNED` for higher-priority users; `h200_public` caps all users at 24 GPUs in
+aggregate. With fair-share at 0.006 that queue was not going to clear. Seven of
+eight trainings started within thirty seconds of offering `a100_chemistry`.
+
+Small evaluations go to the **CPU** partition. Ethanol is nine atoms; asking for
+a GPU put minutes of arithmetic behind hours of queue under a shared
+`QOSGrpGRES` cap.
+
+## Running
+
+| Job | What |
 | --- | --- |
-| `dft-pbe-train` | PBE+D4+DF water train (CPU; resume-safe) |
-| `dft-pbe-rest` | ethanol OOD then water val / id_test / ood_size |
-| `rev-gpu0-quick-pbe0` | GPU 0: Figure 2 + geo-opt + NVE + OOD force score, then PBE0 train |
-| `rev-gpu1-ethanol-md` | GPU 1: ethanol 500 ps DenSNet MD |
-| `rev-wait-water` | DFT count poller (water train is on the Slurm queue) |
+| `tr-water-{wb97mv_def2tzvpd,pbe_d4_avdz}` | the two headline models |
+| `tr-malonaldehyde-*` | proton-transfer axis, both theories |
+| `tr-cutoff_{4,5,6,8}-pbe_d4_avdz` | R3.5 sweep |
+| `tr-water-wb97mv-s{7,123,20260821}` | R3.3 ensemble, `--init_seed` |
+| `tr-water_direct-pbe_d4_avdz` | R3.4 direct-learning arm |
+| `ir-md-{ethanol,thiophene2}` | R3.6 trajectories with dipoles |
+| `ood-{pbe_d4_avdz,wb97mv_def2tzvpd}` | analysis chain, re-run by the watchdog |
 
-Resume DFT with `bash scripts/revision/run_dft_campaign.sh {pbe-train,pbe-rest,pbe0}`.
+All are resume-safe and the watchdog re-submits anything that hits a walltime.
 
-## Submitted Slurm (may pend: qos `gpu168` max 4 GPUs / user)
+## Established results
 
-`bash scripts/revision/submit_revision_gpu_jobs.sh` queues `dens-pbe0`, `dens-etohmd`, `dens-thio2`, `dens-water`.
+**R3.4 / R2.8 — the SAD correction, measured on a grid.** Over the water ID test
+set at PBE-D4: `∫|Δρ| / ∫|ρ| = 0.110`, so the free-atom prior already supplies
+89% of the density and the network predicts the remaining tenth. 84% of the
+volume carries a *negative* correction, which is the direct answer to R2.8: the
+softplus constrains `ρ_SAD + Δρ`, not `Δρ`. Reference fits integrate to the
+correct electron count to ~1e-4. The previous figures were means of DF
+coefficients, which are not densities and are not comparable across molecules.
 
-## Wave A (done)
+**Published ethanol checkpoint — three loader defects fixed, one blocker left.**
+`load_densnet_calculator` ranked an explicitly passed `--args-file` *below* the
+run directory's own `args.txt`, so it was ignored for every published model;
+`L0_start` then defaulted on and built `radial_L0_map` layers the 2024 model
+never trained, left random by the non-strict load; and `atom_dens_path` was
+overwritten unconditionally with the revision prior. The checkpoint now loads
+deterministically with 0 missing and 0 unexpected tensors, and the loader raises
+instead of returning a quietly wrong model.
 
-- Paper-split overlap, CPU Figure 2, density-sign diagnostics, water-dimer DFT geo-opt.
-- Ethanol DenSNet energy is **not** physical until the 2024 energy head is restored (owner).
+That was not the whole story. `VarianceScaling.std` — the training-set force
+standard deviation the outputs are expressed in — was a plain float, so it never
+entered `state_dict`, and `datasets/ethanol_dft_pyscf_ccpvdz_train.npy` is gone.
+Fitting the constant on the training geometries gives 90.36 but leaves the
+predicted-versus-reference force correlation at **0.646** and an
+in-distribution force MAE of 0.574 eV/Å against a 0.747 eV/Å reference. A scale
+factor can only rescale, so this checkpoint's energy head cannot be validated
+without its training set.
 
-## Wave B (partial)
+**R1.2, R2.4 and R2.11 are therefore blocked on restoring
+`datasets/ethanol_dft_pyscf_ccpvdz_train.npy`.** Do not quote force or energy
+numbers from `2024-03-22_96w7KyGG` until then — in particular the OOD force MAE
+of 6.52 eV/Å, which equals the mean reference force to four digits because the
+model's output is flat, not because it fails out of distribution.
 
-PBE0 labels **70/70**. Water / ethanol-OOD PBE still running. Do not start water DenSNet until train 1250 + val 250 + ood 300 exist.
-
-## OMol25 (back on the live list)
-
-Preferred R3.1 path: ωB97M-V/def2-TZVPD densities from the **4M electronic-structure split**, then train 5k–30k filtered frames. **Index:** public `train_4M.tar.gz` (19 GB) downloading to `datasets/revision/omol25/` (tmux `omol25-index`). **Densities:** still need Globus/MDF group approval. Do **not** pull the 500 TB dump. No HF token required for the index.
-
-## Wave C (launched)
-
-`ALLOW_GL056=1` now permits sharing this allocation.
-
-| Local GPU | Status |
-| --- | --- |
-| GPU 0 Figure 2 | DenSNet **467 ms/step** (0.093 ns/day). MACE-OFF/AIMNet2 still fail Triton/`Python.h`; SO3LR not installed |
-| GPU 0 geo-opt | RMSD 0.0 Å; energy 0.224 eV (not physical until energy head is restored) |
-| GPU 0 NVE 0.1 ps | std 8.4 meV, drift 0.18 eV/ps, 0.069 ns/day |
-| GPU 0 OOD forces | **80 frames**: force MAE 5.01 eV/Å, energy MAE ~4206 eV (not physical) |
-| GPU 0 PBE0 train | reached first forward; died on energy DF feature 16 vs 27 (needs paper DF SAD / energy-head fix). GPU 0 now running ASE 500 ps MD |
-| GPU 0 ASE MD | `ase_densnet_md.py` 1e6 steps — this calculator path already works |
-| GPU 1 | ethanol 500 ps `run.py md` (SAD `mo_basis` patched; ASE Langevin fallback if it dies) |
-
-Slurm (qos `gpu48`, Priority): `dens-pbe0` 15934887, `dens-ethanol-md` 15934889, `dens-thiophene-md` 15934890.
-
-## Recovered assets (local only)
-
-`paper/models/` (12G), extra `datasets/{thiophene*,resorcinol_*,qm7x_*,ethanethiol_*}`, manuscript TeX under `scratch/recovered_manuscript/`.
+`std` is now a registered buffer, so every model trained from here carries its
+own scale and this cannot recur.

@@ -66,7 +66,9 @@ Both networks run at every MD step: density features → energy/forces (and opti
 Electron-count normalization weights the loss by the integrated density so core and valence errors are not on incommensurate raw-grid scales. It does **not** replace a physically motivated prior. SAD delta-learning changes the *target* (ρ − ρ_SAD). Both are kept; they do different jobs.
 
 **R2.8 Softplus and signed Δρ.**  
-SAD corrections are signed. Softplus is applied so the **reconstructed total density** ρ_SAD + Δρ_pred stays non-negative, not so that Δρ itself is positive. DF-coefficient diagnostics: **46.7%** negative on h2o_small_test and **51.0%** on ethanethiol combo (50 frames). SAD occupancies H/C/N/O/S = 1/6/7/8/16.
+SAD corrections are signed. Softplus is applied so the **reconstructed total density** ρ_SAD + Δρ_pred stays non-negative, not so that Δρ itself is positive. Measured on a real grid over the water in-distribution test set (PBE-D4/aug-cc-pVDZ), **84% of the volume carries a negative Δρ**. The reference density fits integrate to the correct electron count to ~1e-4, so the ratio is not an artefact of the fit. SAD occupancies H/C/N/O/S = 1/6/7/8/16.
+
+Earlier drafts quoted the fraction of negative DF *coefficients* (46.7% and 51.0%). That is not the same statement: the auxiliary basis is over-complete, so coefficients can be large and cancelling while leaving the density unchanged. The grid figure replaces it.
 
 **R2.9 AIMD duration.**  
 Ethanol AIMD on disk: **10 ps** (`results/aimd_benchmark/aimd_ethanol_rep0_10ps.traj`). State this in the main text. Add other AIMD lengths when recovered.
@@ -75,7 +77,11 @@ Ethanol AIMD on disk: **10 ps** (`results/aimd_benchmark/aimd_ethanol_rep0_10ps.
 Report MAE in **e/a0³** (and e/Å³ in parentheses if useful) plus relative MAE ∫|Δρ| dV / N_elec.
 
 **R2.11 Equilibria.**  
-Water-dimer PBE BFGS: −4155.66 eV. Ethanol DenSNet BFGS from `ethanol_train_10.xyz` did not move (RMSD 0.0 Å vs start; already below fmax = 0.05 eV/Å). The reported DenSNet energy (~0.24 eV) is **not** a DFT-comparable total energy: the current energy head has layers absent from `96w7KyGG`. A production DenSNet↔DFT RMSD requires a matching energy architecture.
+Water-dimer PBE BFGS: −4155.66 eV. Ethanol PBE BFGS: −4214.07 eV.
+
+The DenSNet side is not yet quotable, and the reason is now pinned down. The loader had been building a different model than the checkpoint — an explicitly supplied architecture file was ignored in favour of the run directory's own, which predates several flags, so `L0_start` defaulted on and added layers the 2024 model never trained. That is fixed; `96w7KyGG` now loads deterministically with zero missing and zero unexpected tensors.
+
+What remains is a missing constant and a missing file. The model's outputs are expressed in units of its training-set force standard deviation, which older checkpoints do not store, and the ethanol training set that defined it is not on disk. Fitting that constant on the training geometries gives 90.4 but leaves the predicted-versus-reference force correlation at 0.65, so a rescale alone does not recover the energy surface. **A DenSNet↔DFT equilibrium comparison requires restoring `datasets/ethanol_dft_pyscf_ccpvdz_train.npy`.** Models trained for this revision store their scaling and are unaffected.
 
 **R2.12 Cuevas-Zuviría and Pacios, *J. Chem. Inf. Model.* 2020, 60, 3831–3842.** DOI [10.1021/acs.jcim.0c00197](https://doi.org/10.1021/acs.jcim.0c00197) (A2MD / A2MDnet analytical density model). Add to the introduction.
 
@@ -95,10 +101,10 @@ We compare MACE-OFF, AIMNet2, GFN2-xTB, and g-xTB on ethanol, ethanethiol, resor
 **Decline (with justification):** retraining DenSNet on Crambin in water (*J. Am. Chem. Soc.* 2025, 147, 33723–33734), paracetamol (*J. Am. Chem. Soc.* 2025, 147, 17598–17611), or FGG (*Chem. Eur. J.* 2005, 11, 6803–6817). Those papers benchmark *transferable* MLIPs. DenSNet is a system-specific density model; repeating those benchmarks would be a separate foundation-model paper. The fair test of “does learning ρ help IR?” is transferable MLIPs vs DenSNet on the systems we trained.
 
 **R3.3 Relative errors and uncertainty.**  
-Relative MAE plus a 3-seed ensemble mean ± std.
+Relative MAE plus a 3-seed ensemble mean ± std. The seeds vary weight initialisation and batch order only (`--init_seed`); the train/validation/test partition is held fixed, so the band is the run-to-run spread of the fit rather than sensitivity to which frames were used for training.
 
 **R3.4 Delta vs direct cost.**  
-SAD prior is a free-atom lookup; wall time is measured. Histogram |Δρ| / ρ and signed Δρ to show the correction is smaller than the total density.
+The SAD prior is a free-atom lookup, measured at 0.18 s per frame against a full SCF. On the water in-distribution test set it already supplies **89% of the density**: `∫|Δρ| dV / ∫|ρ| dV = 0.110`, so the network is asked for roughly a tenth of what direct learning would have to produce. A direct-learning run (`--remove_atom_density=False`, identical in every other respect) quantifies what that buys in accuracy.
 
 **R3.5 Hyperparameters.**  
 Document paper cutoffs (5.0 Å thiophene; 15 Bohr small molecules). Cutoff sweep {4, 5, 6, 8} Å on water clusters. Not a full grid search.
