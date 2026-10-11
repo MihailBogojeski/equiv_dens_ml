@@ -86,3 +86,8 @@ results/
 
 # Jupyter notebook checkpoints
 .ipynb_checkpoints/
+
+# Local documentation and workflow helpers
+/docs/
+/AGENTS.md
+/tools/agent/
