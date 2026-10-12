@@ -176,6 +176,7 @@ class DensityCoeffsNetwork(nn.Module):
             print('rad_dict', self.rad_dict)
             print('sph_dict', self.sph_dict)
             print('max rad_counts', max(self.rad_counts))
+        self._init_radial_packing_maps()
         if self.init_coeffs is not None or self.core_basis_ratio > 0:
             self.output_bias = False
             self.output_zero_init = True
@@ -328,6 +329,18 @@ class DensityCoeffsNetwork(nn.Module):
     def coeff_weight(self, key):
         return getattr(self, 'coeff_weights_{}_{}'.format(key[0], key[1]))
 
+    def _init_radial_packing_maps(self, device=None):
+        # Each shell occupies a column in [radial component, shell]. Derived
+        # topology stays out of state_dict so existing checkpoints load strictly.
+        for z, L in self.rad_dict:
+            counts = self.radial_count[z][L]
+            destinations = [r * len(counts) + shell
+                            for shell, count in enumerate(counts)
+                            for r in range(count)]
+            self.register_buffer('_radial_pack_{}_{}'.format(z, L),
+                                 torch.tensor(destinations, dtype=torch.long, device=device),
+                                 persistent=False)
+
     """
     Collects spherical harmonics features into orbital coefficients of the appropriate size
 
@@ -339,18 +352,19 @@ class DensityCoeffsNetwork(nn.Module):
 
     def extract_coefficients(self, sph_fs, rad_width, rad_scale, atoms):
         atom_numbers = atoms['batch_atom_numbers']
+        species = atom_numbers.amax(dim=0).detach().cpu().tolist()
         atom_num = sph_fs[0].shape[1]
         spherical_coeffs = [None] * atom_num
         radial_width = [None] * atom_num
         radial_scale = [None] * atom_num
         coeff_weights = [None] * atom_num
         for i in range(atom_num):
-            pos = atoms['batch_positions'][:, [i]]
+            pos = atoms['batch_positions'][:, i:i + 1]
             spherical_coeffs[i] = {}
             radial_width[i] = {}
             radial_scale[i] = {}
             coeff_weights[i] = {}
-            z = int(max(atom_numbers[:, i]))
+            z = species[i]
             atom_mask = atoms['batch_atom_mask'][:, i].to(device=pos.device, dtype=pos.dtype)
             dim_diff = 4 - atom_mask.dim()
             if dim_diff > 0:
@@ -361,7 +375,7 @@ class DensityCoeffsNetwork(nn.Module):
                 L = orb[2]
                 key = (z, L)
                 inds = self.sph_dict[key]
-                sph_fs_i = sph_fs[L][:, [i], :, :]
+                sph_fs_i = sph_fs[L][:, i:i + 1, :, :]
                 spherical_coeffs[i][key] = sph_fs_i[..., inds]
                 if self.coeff_weights is not None:
                     coeff_weights[i][key] = torch.sum(self.coeff_weight(key), dim=-2, keepdim=True)
@@ -372,14 +386,20 @@ class DensityCoeffsNetwork(nn.Module):
                                                    device=sph_fs_i.device, dtype=sph_fs_i.dtype)
                 if self.pred_radial_coeffs and z != 0:
                     inds = self.rad_dict[key]
-                    rad_w_i = rad_width[L][:, [i], :, :]
-                    rad_s_i = rad_scale[L][:, [i], :, :]
-                    r_curr = 0
-                    for k, r_num in enumerate(self.radial_count[z][L]):
-                        rad_inds = inds[r_curr: r_curr + r_num]
-                        r_curr += r_num
-                        radial_width[i][key][..., :r_num, k] = rad_w_i[..., 0, rad_inds]
-                        radial_scale[i][key][..., :r_num, k] = rad_s_i[..., 0, rad_inds]
+                    # One differentiable copy per output, in the same shell order
+                    # as the former per-shell assignments, including zero padding.
+                    destinations = getattr(self, '_radial_pack_{}_{}'.format(z, L), None)
+                    if destinations is None:
+                        # Preserve full-module checkpoints created before maps existed.
+                        self._init_radial_packing_maps(device=sph_fs_i.device)
+                        destinations = getattr(self, '_radial_pack_{}_{}'.format(z, L))
+                    destinations = destinations.to(sph_fs_i.device)
+                    rad_w_i = rad_width[L][:, i:i + 1, 0, inds]
+                    rad_s_i = rad_scale[L][:, i:i + 1, 0, inds]
+                    radial_width[i][key] = radial_width[i][key].flatten(-2).index_copy(
+                        -1, destinations, rad_w_i).view_as(radial_width[i][key])
+                    radial_scale[i][key] = radial_scale[i][key].flatten(-2).index_copy(
+                        -1, destinations, rad_s_i).view_as(radial_scale[i][key])
                 if self.init_coeffs is not None and L == 0:
                     spherical_coeffs[i][key] = spherical_coeffs[i][key] + self.init_sph(key)
                     if self.pred_radial_coeffs:

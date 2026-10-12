@@ -441,7 +441,7 @@ class TorchNeighborList:
 
     """
 
-    def __init__(self, cutoff):
+    def __init__(self, cutoff, backend="reference"):
         """
         Args:
             cutoff (float): the cutoff inside which atoms are considered pairs
@@ -449,11 +449,31 @@ class TorchNeighborList:
                 perform the calculation on a CPU or GPU, respectively.
         """
         self.cutoff = cutoff
+        if backend not in ("reference", "native"):
+            raise ValueError("Neighbor backend must be reference or native")
+        self.backend = backend
+        # Only candidate indices are cached, never distances or selected edges.
+        self._pair_candidates = {}
 
     def get_neighbors(self, atoms, pbc=False):
         idx_is = []
         idx_js = []
         idx_Ss = []
+        if self.backend == "native" and not pbc:
+            for i in range(atoms['positions'].shape[0]):
+                pos = atoms['positions'][i][atoms['atom_numbers'][i] > 0].detach()
+                key = (pos.shape[0], pos.device)
+                if key not in self._pair_candidates:
+                    self._pair_candidates[key] = torch.triu_indices(
+                        pos.shape[0], pos.shape[0], offset=1, device=pos.device)
+                pairs = self._pair_candidates[key]
+                inside = (pos[pairs[0]] - pos[pairs[1]]).norm(2, -1) < self.cutoff
+                idx_i, idx_j = pairs[:, inside]
+                idx_is.append(torch.cat((idx_i, idx_j)))
+                idx_js.append(torch.cat((idx_j, idx_i)))
+                idx_Ss.append(torch.zeros((2 * idx_i.numel(), 3),
+                                          dtype=torch.long, device=pos.device))
+            return idx_is, idx_js, idx_Ss
         if pbc:
             pbc = torch.ones((3, )).to(atoms['positions']).type(torch.BoolTensor)
         else:
@@ -592,7 +612,8 @@ def neighbor_pairs(padding_mask, coordinates, cell, shifts, cutoff):
     padding_mask = (padding_mask[p1_all]) | (padding_mask[p2_all])
     distances.masked_fill_(padding_mask, math.inf)
     in_cutoff = torch.nonzero(distances < cutoff, as_tuple=False)
-    pair_index = in_cutoff.squeeze()
+    # Keep a vector for exactly one pair as required by index_select.
+    pair_index = in_cutoff.reshape(-1)
     atom_index1 = p1_all[pair_index]
     atom_index2 = p2_all[pair_index]
     shifts = shifts_all.index_select(0, pair_index)
@@ -703,6 +724,46 @@ def compress_batch_atoms(numbers, props_dict, df_basis_size=None, ao_basis_size=
         batch_props[key] = np.array(batch_props[key])
 
     return batch_nums, batch_props
+
+
+class TorchAtomBatchLayout:
+    """Static species packing matching compress_batch_atoms' insertion order.
+
+    Construction crosses the host boundary once for discrete metadata. Position
+    packing stays on its device and is differentiable; callers choose where to
+    detach positions. Zero padding and order match the NumPy array-property path.
+    """
+
+    def __init__(self, numbers, position_dtype, position_device=None):
+        self.source_numbers = numbers.detach().clone()
+        self.position_dtype = position_dtype
+        self.position_device = torch.device(position_device or numbers.device)
+        source = numbers.detach().cpu().numpy()
+        indices = np.broadcast_to(np.arange(source.shape[1]), source.shape)
+        packed, props = compress_batch_atoms(source, {'indices': indices})
+        self.numpy_numbers = packed
+        self.numbers = torch.as_tensor(packed, dtype=torch.long, device=self.position_device)
+        self.gather_indices = torch.as_tensor(props['indices'], dtype=torch.long,
+                                              device=self.position_device)
+        self.mask = self.numbers > 0
+        self.first_positions = get_atom_num_first_positions(packed)
+        self.counts = [int(np.count_nonzero(row)) for row in packed]
+        self.batch_idx_pos = torch.nonzero(self.mask.flatten(), as_tuple=False).flatten()
+        self.atom_batch_idx = torch.arange(source.shape[0], device=self.position_device)[
+            :, None].expand_as(self.numbers).flatten()[self.mask.flatten()].view(1, -1)
+
+    def matches(self, numbers, position_dtype, position_device=None):
+        return (numbers.shape == self.source_numbers.shape
+                and numbers.device == self.source_numbers.device
+                and numbers.dtype == self.source_numbers.dtype
+                and position_dtype == self.position_dtype
+                and torch.device(position_device or numbers.device) == self.position_device
+                and torch.equal(numbers, self.source_numbers))
+
+    def pack_positions(self, positions):
+        indices = self.gather_indices.unsqueeze(-1).expand(-1, -1, positions.shape[-1])
+        packed = positions.gather(1, indices)
+        return packed.masked_fill(~self.mask.unsqueeze(-1), 0)
 
 # def batch_compressed_atoms(atoms, relevant_keys):
 #     atom_numbers = atoms['atom_numbers']

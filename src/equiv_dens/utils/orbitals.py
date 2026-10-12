@@ -20,7 +20,8 @@ from equiv_dens.utils.hirshfeld_analysis import eval_spline_density
 
 hf.MUTE_CHKFILE = True
 
-pyscf_gto_factor = 2 * np.sqrt(np.pi)
+# Preserve the FP64 value without a NumPy scalar guard inside torch.func graphs.
+pyscf_gto_factor = float(2 * np.sqrt(np.pi))
 
 top_n_elec_per_atom_full = {'H':1,
                             'C':4,
@@ -374,40 +375,28 @@ def coeffs_dict_to_vector(
     if convert_to_pyscf:
         coeffs = convert_coeffs_to_pyscf(coeffs)
 
-    all_coeffs = {key: None for key in relevant_keys}
+    all_coeffs = {key: [] for key in relevant_keys}
     # all_sph = None
     # all_scale = None
     # all_width = None
     # all_weights = None
 
-    for i, z in enumerate(torch.max(a_num, dim=0)[0]):
+    # Transfer topology metadata once, rather than synchronizing each CUDA scalar.
+    for i, z in enumerate(torch.max(a_num, dim=0)[0].detach().cpu().tolist()):
         orb_ind = {}
-        z = int(z)
         basis = orbital_basis[z]
         for orb in basis:
             L = orb[2]
             key = (z, L)
             if key not in orb_ind.keys():
                 orb_ind[key] = 0
-            if all_coeffs["spherical_coeffs"] is None:
-                for coeff_type in relevant_keys:
-                    all_coeffs[coeff_type] = (
-                        1 * coeffs[coeff_type][i][key][..., orb_ind[key]]
-                    )
-            else:
-                for coeff_type in relevant_keys:
-                    all_coeffs[coeff_type] = torch.cat(
-                        [
-                            all_coeffs[coeff_type],
-                            coeffs[coeff_type][i][key][..., orb_ind[key]],
-                        ],
-                        dim=2,
-                    )
+            for coeff_type in relevant_keys:
+                all_coeffs[coeff_type].append(coeffs[coeff_type][i][key][..., orb_ind[key]])
             orb_ind[key] += 1
 
     vector_coeffs = {}
     for coeff_type in relevant_keys:
-        vector_coeffs[coeff_type] = all_coeffs[coeff_type].squeeze(1)
+        vector_coeffs[coeff_type] = torch.cat(all_coeffs[coeff_type], dim=2).squeeze(1)
 
     return vector_coeffs
 

@@ -67,7 +67,9 @@ def Y0(u):
 
 
 # spherical harmonics of order 1
-sqrt3 = np.sqrt(3)
+# Python floats preserve these FP64 values and avoid NumPy scalar tensor guards
+# when torch.compile traces the formulas inside torch.func differentiation.
+sqrt3 = float(np.sqrt(3))
 
 
 def Y1(x, y, z):
@@ -75,8 +77,8 @@ def Y1(x, y, z):
 
 
 # spherical harmonics of order 2
-sqrt15 = np.sqrt(15)
-sqrt5over2 = np.sqrt(5) / 2
+sqrt15 = float(np.sqrt(15))
+sqrt5over2 = float(np.sqrt(5) / 2)
 sqrt15over2 = sqrt15 / 2
 
 
@@ -94,10 +96,10 @@ def Y2(xy, yz, xz, _3z2m1, _x2my2):
 
 
 # spherical harmonics of order 3
-sqrt70over4 = np.sqrt(70) / 4
-sqrt105 = np.sqrt(105)
-sqrt42over4 = np.sqrt(42) / 4
-sqrt7over2 = np.sqrt(7) / 2
+sqrt70over4 = float(np.sqrt(70) / 4)
+sqrt105 = float(np.sqrt(105))
+sqrt42over4 = float(np.sqrt(42) / 4)
+sqrt7over2 = float(np.sqrt(7) / 2)
 sqrt105over2 = sqrt105 / 2
 
 
@@ -119,10 +121,10 @@ def Y3(x, y, z, z2, xyz, _x2my2, _3x2my2, _x2m3y2):
 
 
 # spherical harmonics of order 4
-sqrt35_3over2 = np.sqrt(35) * 3 / 2
-sqrt70_9over4 = np.sqrt(70) * 9 / 4
-sqrt45over2 = np.sqrt(45) / 2
-sqrt10_3over4 = np.sqrt(10) * 3 / 4
+sqrt35_3over2 = float(np.sqrt(35) * 3 / 2)
+sqrt70_9over4 = float(np.sqrt(70) * 9 / 4)
+sqrt45over2 = float(np.sqrt(45) / 2)
+sqrt10_3over4 = float(np.sqrt(10) * 3 / 4)
 oneover8 = 1 / 8
 sqrt45over4 = sqrt45over2 / 2
 sqrt70_3over4 = sqrt70_9over4 / 3
@@ -150,12 +152,12 @@ def Y4(x2, y2, z2, xy, yz, xz, x4, y4, x2y2, _x2my2, _x2m3y2):
 
 
 # spherical harmonics of order 5
-sqrt154_3over16 = np.sqrt(154) * 3 / 16
-sqrt385_3over2 = np.sqrt(385) * 3 / 2
-sqrt770over16 = np.sqrt(770) / 16
-sqrt1155over2 = np.sqrt(1155) / 2
-sqrt165over8 = np.sqrt(165) / 8
-sqrt11over8 = np.sqrt(11) / 8
+sqrt154_3over16 = float(np.sqrt(154) * 3 / 16)
+sqrt385_3over2 = float(np.sqrt(385) * 3 / 2)
+sqrt770over16 = float(np.sqrt(770) / 16)
+sqrt1155over2 = float(np.sqrt(1155) / 2)
+sqrt165over8 = float(np.sqrt(165) / 8)
+sqrt11over8 = float(np.sqrt(11) / 8)
 sqrt1155over4 = sqrt1155over2 / 2
 sqrt385_3over8 = sqrt385_3over2 / 4
 
