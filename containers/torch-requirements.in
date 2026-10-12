@@ -1,0 +1,36 @@
+# DenSNet development, DFT reference generation, MD/IR, and backbone exploration.
+# Torch itself comes from the explicitly identified base image.
+apsw
+ase
+DateTime
+dftd4
+dftpy
+h5py
+matplotlib
+numpy
+pandas
+pyscf
+rdkit
+scikit-learn
+scipy
+tensorboardX
+tqdm
+wandb
+# Metadata-normalized wheel; upstream scientific source is byte-identical.
+schnetpack @ file:///opt/densnet-runtime/wheels/schnetpack-2.1.1+densnet1-py3-none-any.whl
+e3nn
+mace-torch
+cuequivariance-torch
+cuequivariance-ops-torch-cu12
+cupy-cuda12x==13.4.1
+cutensor-cu12==2.2.0
+gpu4pyscf-cuda12x
+memspectrum
+pytest
+pytest-timeout
+pytest-cov
+pytest-benchmark
+ruff
+ipykernel
+jupyterlab
+notebook

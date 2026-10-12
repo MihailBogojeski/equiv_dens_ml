@@ -1,0 +1,46 @@
+Bootstrap: localimage
+From: /home/johannes/cont/mlff_jax.sif
+
+# Build from the repository root. See containers/README.md.
+# Runtime only: the project checkout is supplied through PYTHONPATH.
+%files
+    containers/jax-requirements.in /opt/densnet-runtime/jax-requirements.in
+    containers/jax-core-constraints.txt /opt/densnet-runtime/jax-core-constraints.txt
+    containers/jax-requirements.lock /opt/densnet-runtime/jax-requirements.lock
+
+%post
+    set -eux
+    export PATH=/opt/venv/bin:/usr/local/bin:$PATH
+    export VIRTUAL_ENV=/opt/venv UV_LINK_MODE=copy UV_NO_CACHE=1
+    export TMPDIR=/var/tmp
+    uv pip install --python /opt/venv/bin/python \
+        -r /opt/densnet-runtime/jax-requirements.lock
+    python -m pip check
+    python -m pip freeze --all > /opt/densnet-runtime/installed.txt
+
+%environment
+    export LANG=C.UTF-8 LC_ALL=C.UTF-8
+    export PATH=/opt/venv/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin
+    export VIRTUAL_ENV=/opt/venv
+    export PYTHONNOUSERSITE=1
+    CACHE_USER="$(id -un 2>/dev/null || echo nobody)"
+    CACHE_ROOT="/temp/${CACHE_USER}/cache/densnet-jax"
+    if ! mkdir -p "$CACHE_ROOT" 2>/dev/null; then
+        CACHE_ROOT="${HOME:-/tmp}/.cache/densnet-jax"
+    fi
+    export XDG_CACHE_HOME="$CACHE_ROOT/xdg"
+    export UV_CACHE_DIR="$CACHE_ROOT/uv"
+    export PYTHONPYCACHEPREFIX="$CACHE_ROOT/pycache"
+    export JAX_COMPILATION_CACHE_DIR="$CACHE_ROOT/jax"
+    for d in "$XDG_CACHE_HOME" "$UV_CACHE_DIR" "$PYTHONPYCACHEPREFIX" \
+             "$JAX_COMPILATION_CACHE_DIR"; do
+        mkdir -p "$d" 2>/dev/null || true
+    done
+
+%runscript
+    exec /bin/bash "$@"
+
+%labels
+    Project equiv_dens_ml
+    Runtime JAX CUDA12 DenSNet PySCF cuEquivariance
+    ScientificSource external-checkout

@@ -1,0 +1,9 @@
+# Generated campaign tensors and diagnostics; source, timings and logs stay in Git.
+docs/analysis/densnet-performance/**/*.pt filter=lfs diff=lfs merge=lfs -text
+
+# Raw transcripts and patches keep the exact bytes emitted by their instruments.
+docs/analysis/**/*.txt whitespace=-blank-at-eol,-blank-at-eof
+docs/analysis/**/*.log whitespace=-blank-at-eol,-blank-at-eof
+docs/analysis/**/*.out whitespace=-blank-at-eol,-blank-at-eof
+docs/analysis/**/*.patch whitespace=-blank-at-eol,-blank-at-eof
+docs/analysis/**/*.xml whitespace=-blank-at-eol,-blank-at-eof
