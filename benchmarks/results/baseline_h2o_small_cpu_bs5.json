@@ -1,0 +1,52 @@
+{
+ "meta": {
+  "dataset": "h2o_small",
+  "device": "cpu",
+  "batch_size": 5,
+  "reps": 5,
+  "config": [
+   "/workspace/.claude/worktrees/agent-ab82224f5919a23ec/config/training/h2o_small_all_001.txt"
+  ],
+  "overrides": [
+   "--train_batch_size=5",
+   "--use_gpu=False"
+  ],
+  "n_atoms_batch": 15,
+  "n_grid_points": 5000,
+  "n_params": 8679915,
+  "dtype": "torch.float32",
+  "gpu": null
+ },
+ "results": {
+  "data_loading": {
+   "ms": 152.94347800227115,
+   "peak_mb": null
+  },
+  "repr_forward": {
+   "ms": 222.1442579975701,
+   "peak_mb": null
+  },
+  "density_head": {
+   "ms": 15.372175002994481,
+   "peak_mb": null
+  },
+  "expansion": {
+   "ms": 16.261483004200272,
+   "peak_mb": null
+  },
+  "expansion_grad": {
+   "ms": 167.32304900506278,
+   "peak_mb": null
+  },
+  "energy_forces": {
+   "ms": 145.2858289994765,
+   "peak_mb": null
+  },
+  "train_step": {
+   "ms": 938.3090379997157,
+   "peak_mb": null,
+   "fwd_loss_ms": 449.39030800014734,
+   "bwd_ms": 455.70081799814943
+  }
+ }
+}
