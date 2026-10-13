@@ -77,10 +77,16 @@ def run(name, mode, d):
     if 'density_grad' in pred:
         loss = loss + pred['density_grad'].pow(2).mean()
     params = [(n, p) for n, p in model.named_parameters() if p.requires_grad]
-    grads = torch.autograd.grad(loss, [p for _, p in params], allow_unused=True)
+    grads = torch.autograd.grad(loss, [p for _, p in params], allow_unused=True, retain_graph=True)
     for (n, _), g in zip(params, grads):
         if g is not None:
             out['grad:' + n] = g
+    # gradients of the density-only loss and of the density_grad-only loss
+    for tag, l in (('gd:', pred['density'].pow(2).mean()), ('gg:', pred['density_grad'].pow(2).mean())):
+        gs = torch.autograd.grad(l, [p for _, p in params], allow_unused=True, retain_graph=True)
+        for (n, _), g in zip(params, gs):
+            if g is not None:
+                out[tag + n] = g
     return out
 
 
@@ -104,6 +110,8 @@ if __name__ == '__main__':
                 a, b = out[k], ref[k]
                 err = ((a - b).abs().max() / (b.abs().max() + 1e-300)).item()
                 worst = max(worst, err)
+                if k in ('density', 'density_grad', 'df_coeffs', 'energy', 'forces'):
+                    print(name, k, 'rel err %.3e' % err)
                 if err > 1e-10:
                     print(name, 'MISMATCH', k, 'rel err %.3e' % err)
             print(name, 'worst rel err %.3e' % worst)
