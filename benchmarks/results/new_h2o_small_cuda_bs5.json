@@ -1,0 +1,64 @@
+{
+ "meta": {
+  "dataset": "h2o_small",
+  "device": "cuda",
+  "batch_size": 5,
+  "reps": 5,
+  "config": [
+   "/workspace/.claude/worktrees/agent-ab1fb29d7a15a4439/config/training/h2o_small_all_001.txt"
+  ],
+  "overrides": [
+   "--train_batch_size=5",
+   "--use_gpu=True"
+  ],
+  "n_atoms_batch": 15,
+  "n_grid_points": 5000,
+  "n_params": 8679915,
+  "dtype": "torch.float32",
+  "gpu": "NVIDIA GeForce RTX 4070 Laptop GPU"
+ },
+ "results": {
+  "data_loading": {
+   "ms": 19.691805995535105,
+   "peak_mb": 54.1103515625
+  },
+  "repr_forward": {
+   "ms": 21.46758600429166,
+   "peak_mb": 247.85546875
+  },
+  "density_head": {
+   "ms": 1.5364999999292195,
+   "peak_mb": 156.29443359375
+  },
+  "expansion": {
+   "ms": 1.5985970094334334,
+   "peak_mb": 233.55712890625
+  },
+  "expansion_grad": {
+   "ms": 7.1763369924155995,
+   "peak_mb": 318.8740234375
+  },
+  "energy_forces": {
+   "ms": 99.67463799694087,
+   "peak_mb": 272.6875
+  },
+  "train_step": {
+   "ms": 318.156296008965,
+   "peak_mb": 444.86865234375,
+   "fwd_loss_ms": 116.77338699519169,
+   "bwd_ms": 189.25406799826305
+  },
+  "infer_forces": {
+   "ms": 104.54185199341737,
+   "peak_mb": 319.1435546875
+  },
+  "infer_coeffs": {
+   "ms": 18.468334994395263,
+   "peak_mb": 213.57421875
+  },
+  "infer_density": {
+   "ms": 19.96190400677733,
+   "peak_mb": 229.3193359375
+  }
+ }
+}

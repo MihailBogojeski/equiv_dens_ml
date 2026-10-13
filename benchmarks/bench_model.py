@@ -9,6 +9,11 @@ Usage (from anywhere):
 Unknown flags (--key=value) are passed through as training-arg overrides on top of --config.
 --dataset: h2o_small or water{n} (from /workspace/datasets/water_clusters, see make_water_clusters.py).
 Writes benchmarks/results/<tag><dataset>_<device>_bs<bs>.json and prints a table.
+Training: components and train_step (forward + loss + backward). Inference (model.eval(), no parameter grads):
+infer_forces (energy + forces, gradient w.r.t. positions only), infer_coeffs (representation + density coefficient
+head under inference_mode) and infer_density (coefficients + density on the grid). With --compile=True the training
+step and infer_forces use the compiled force region, infer_coeffs / infer_density a separately compiled
+representation + coefficient head.
 """
 import argparse
 import json
@@ -137,6 +142,49 @@ results['train_step'] = timeit(train_step)
 reps = cli.reps
 results['train_step']['fwd_loss_ms'] = statistics.median(step_t['fwd_loss'][-reps:])
 results['train_step']['bwd_ms'] = statistics.median(step_t['bwd'][-reps:])
+
+# ---- inference (model.eval()) ----
+model.eval()
+for q in model.parameters():
+    q.requires_grad_(False)
+compiled = getattr(model, 'compiled', False)
+
+# (g) energy + forces: gradient w.r.t. the positions only (no create_graph, no parameter grads, no density on the grid)
+if 'energy' in model.property_models:
+    no_force_props, model.no_force_props = model.no_force_props, []
+    results['infer_forces'] = timeit(lambda: model(data))
+    model.no_force_props = no_force_props
+
+# (h) density only under inference_mode: representation + coefficient head, then also the density on the grid
+labels = ('coords', 'coord_weights', 'density', 'density_grad', 'atom_density', 'atom_density_grad', 'energy', 'forces',
+          'batch_forces', 'dipole_moment')
+inputs = {k: v for k, v in data.items() if isinstance(v, torch.Tensor) and k not in labels}
+
+
+def coeffs_fn(atoms):
+    return dens_head(repr_model(atoms))
+
+
+if compiled:
+    zs = data['batch_atom_numbers'].max(0)[0].tolist()
+    dens_head.warm_caches(zs, data['positions'].device, data['positions'].dtype)
+    coeffs_fn = torch.compile(coeffs_fn, dynamic=True)
+
+
+def infer_coeffs():
+    with torch.inference_mode():
+        return coeffs_fn(dict(inputs))
+
+
+def infer_density():
+    with torch.inference_mode():
+        atoms = dict(data)
+        atoms.update(coeffs_fn(dict(inputs)))
+        return expansion(atoms, density_grad=False)['density']
+
+
+results['infer_coeffs'] = timeit(infer_coeffs)
+results['infer_density'] = timeit(infer_density)
 
 meta = {'dataset': cli.dataset, 'device': cli.device, 'batch_size': cli.batch_size, 'reps': cli.reps,
         'config': cli.config, 'overrides': overrides, 'n_atoms_batch': n_atoms, 'n_grid_points': n_grid,

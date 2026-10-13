@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import torch.nn as nn
 from torch.utils.checkpoint import checkpoint
 from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
-from equiv_dens.nn.modules.spherical_harmonic_layers import SphericalLinear
+from equiv_dens.nn.modules.spherical_harmonic_layers import SphericalLinear, unpack_orders
 from equiv_dens.utils.spherical_harmonics import spherical_harmonics
 from equiv_dens.utils.orbitals import combine_orbital_basis, \
     get_max_order, get_n_electrons, gto_norm, pyscf_gto_factor, \
@@ -311,6 +311,12 @@ class DensityCoeffsNetwork(nn.Module):
         matrix: Array of orbital coefficients of shape [batch_size, num_orbitals]
     """
 
+    def warm_caches(self, zs, device, dtype):
+        """Build the cached layouts outside of a compiled region; the compiled forward reads the elements from self.zs."""
+        self.zs = list(zs)
+        self.layout.get(zs, device, dtype)
+        self.channels(zs, device)
+
     def channels(self, zs, device):
         """Indices of the feature channels (spherical and radial) that make up each packed shell."""
         key = (tuple(zs), device)
@@ -331,7 +337,7 @@ class DensityCoeffsNetwork(nn.Module):
                 sph.append(torch.from_numpy(sc).to(device))
                 rad.append(torch.from_numpy(rc).to(device))
                 pmask.append(torch.from_numpy(pm).to(device))
-            chan = {'sph': sph, 'rad': rad, 'pmask': pmask, 'counts': self.sph_counts, 'P': self.layout.P,
+            chan = {'sph': sph, 'rad': rad, 'pmask': pmask, 'counts': [int(c) for c in self.sph_counts], 'P': [int(p) for p in self.layout.P],
                     'A': len(zs)}
             self._chan_cache[key] = chan
         return self._chan_cache[key]
@@ -454,19 +460,13 @@ class DensityCoeffsNetwork(nn.Module):
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
             print('Memory cached', torch.cuda.memory_cached() / 1024**2)
         # start = time.time()
-        atoms['sph_repr_batch'] = [repr * 1 for repr in atoms['sph_repr']]
+        atoms['sph_repr_batch'] = atoms['sph_repr']
         atoms = batch_compressed_atoms(atoms, ['sph_repr_batch'])
         fs = atoms['sph_repr_batch']
-        # print('fs[0]', fs[0][:, :, 0, 0])
-        if self.verbose > 3:
-            print('distances', atoms['distances'])
-            print('fs[0]:', fs[0][:, 0, :, :10])
-            print('fs[1]:', fs[1][:, 0, :, :10])
         out_sph = self.spherical_output(fs)
-        # print('out_sph[0]', out_sph[0][:, :, 0, 0])
         if self.linear_out:
             out_sph = self.linear_output(out_sph)
-        # print('out_sph[0] lin', out_sph[0][:, :, 0, 0])
+        out_sph = unpack_orders(out_sph)
         if self.scale_sph_order:
             for L in range(len(out_sph)):
                 out_sph[L] = out_sph[L] * 10**(-L)
@@ -476,17 +476,17 @@ class DensityCoeffsNetwork(nn.Module):
         out_scale = []
         if self.pred_radial_coeffs:
             for L in range(len(self.radial_width)):
-                out_width.append(torch.tanh(self.radial_width[L](fs[0])))
+                out_width.append(torch.tanh(self.radial_width[L](fs[..., :1, :])))
                 # out_width[L] = out_width[L].view(*out_width[L].shape[:-2], self.r_max[L], self.L_counts[L])
                 if self.positive_coeffs:
-                    out_scale.append(torch.tanh(self.radial_scale[L](fs[0])))
+                    out_scale.append(torch.tanh(self.radial_scale[L](fs[..., :1, :])))
                 else:
-                    out_scale.append(self.radial_scale[L](fs[0]))
+                    out_scale.append(self.radial_scale[L](fs[..., :1, :]))
         if self.memory:
             print('density coeffs forward outputs:')
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
             print('Memory cached', torch.cuda.memory_cached() / 1024**2)
-        zs = atoms['batch_atom_numbers'].max(0)[0].tolist()
+        zs = self.zs if torch.compiler.is_compiling() else atoms['batch_atom_numbers'].max(0)[0].tolist()
         packed = self.extract_coefficients(out_sph, out_width, out_scale, atoms, zs)
         if 'packed_coeffs' not in atoms:
             atoms['packed_coeffs'] = packed

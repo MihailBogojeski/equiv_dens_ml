@@ -1,16 +1,33 @@
 import torch
 import torch.nn as nn
-from equiv_dens.nn.modules.network_blocks import ModularBlock, ResidualBlock, layer_norm
+from equiv_dens.nn.modules.network_blocks import ModularBlock, ResidualBlock, layer_norm_orders
 from equiv_dens.nn.modules.radial_basis_functions import BernsteinRadialBasisFunctions,\
     GaussianRadialBasisFunctions, ExponentialBernsteinRadialBasisFunctions, ExponentialGaussianRadialBasisFunctions
 from equiv_dens.nn.modules.activations import Swish, ShiftedSoftplus
 from equiv_dens.utils.orbitals import combine_orbital_basis, get_invariant_features,\
         get_max_order, coeffs_dict_to_tensors, gto_norm, pyscf_gto_factor, gto_norm_pyscf
 from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
-from equiv_dens.nn.modules.spherical_harmonic_layers import SphericalLinear
+from equiv_dens.nn.modules.spherical_harmonic_layers import SphericalLinear, apply_L0, order_scale
 from equiv_dens.nn.modules.embeddings import SphericalEmbedding
 import time
 import numpy as np
+
+
+def abs_(x):
+    """|x| with the same derivatives as torch.abs (the double backward of torch.abs specializes dynamic shapes in torch.compile)."""
+    return x * torch.sign(x).detach()
+
+
+def accumulate_features(fs, ys, normalize):
+    """Running sum of the output features of the modules (packed), rescaled per order if normalizing."""
+    if fs is None:
+        return ys
+    D = min(fs.shape[-2], ys.shape[-2])
+    fs_low, ys_low = fs[..., :D, :], ys[..., :D, :]
+    scale = order_scale(fs_low, ys_low, normalize)
+    low = ys_low * scale + fs_low * scale if normalize else ys_low + fs_low
+    rest = fs[..., D:, :] if fs.shape[-2] > D else ys[..., D:, :]
+    return torch.cat([low, rest], dim=-2) if rest.shape[-2] else low
 
 
 class SphericalHarmonicsEnergyNetwork(nn.Module):
@@ -249,52 +266,27 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
         return getattr(self, "radial_width_filters_{}".format(L))
 
     def forward(self, atoms):
-        start = time.time()
-        R = atoms['positions']
-        N = R.shape[1]
-        batch_size = R.shape[0]
         idx_i = atoms['idx_i']
         idx_j = atoms['idx_j']
-        neighbor_mask = 1
-        # exclude self - interactions
-        # initialize atomic features to embeddings
-        # print('atoms sph_dict', atoms['sph_dict'])
-        # print('atoms keys', atoms.keys())
-        # print('atoms dens', self.atom_dens[16]['df_basis'])
-        # print('atoms df widths', self.atom_df_widths)
-        # print('atoms df scales', self.atom_df_scales)
-        # print('radial_widths 16', [(key, atoms['radial_width'][8][key]) for key in atoms['radial_width'][8].keys() if key[1]==0])
-        # print('radial_scales 16', [(key, atoms['radial_scale'][8][key]) for key in atoms['radial_scale'][8].keys() if key[1]==0])
-        # print('spherical coeffs 0', [(key, atoms['spherical_coeffs'][0][key]) for key in atoms['spherical_coeffs'][0].keys() if key[1]==0])
         sph_fs, scale_fs, width_fs = coeffs_dict_to_tensors(atoms, radial_coeffs=self.pred_radial_coeffs,
                                                             atom_df_coeffs=self.atom_df_coeffs,
                                                             atom_df_widths=self.atom_df_widths,
                                                             atom_df_scales=self.atom_df_scales)
-        # print('sph fs 0', sph_fs[0][:, 0, 0, :10])
-        # print('width fs 0', width_fs[0][:, 8, 0, 32:])
-        # print('scale fs 0', scale_fs[0][:, 8, 0, 32:])
-        # print('atoms.atom_dens', self.atom_dens[1]['df_coeffs'])
         for i in range(len(sph_fs)):
-            sph_fs[i] = sph_fs[i].view(1, -1, *sph_fs[i].shape[2:])
-            sph_fs[i] = sph_fs[i][:, atoms['atom_mask']]
-            scale_fs[i] = scale_fs[i].view(1, -1, *scale_fs[i].shape[2:])
-            scale_fs[i] = scale_fs[i][:, atoms['atom_mask']]
-            width_fs[i] = width_fs[i].view(1, -1, *width_fs[i].shape[2:])
-            width_fs[i] = width_fs[i][:, atoms['atom_mask']]
+            sph_fs[i] = sph_fs[i].view(1, -1, *sph_fs[i].shape[2:]).index_select(1, atoms['batch_idx_pos'])
+            scale_fs[i] = scale_fs[i].view(1, -1, *scale_fs[i].shape[2:]).index_select(1, atoms['batch_idx_pos'])
+            width_fs[i] = width_fs[i].view(1, -1, *width_fs[i].shape[2:]).index_select(1, atoms['batch_idx_pos'])
         dij = atoms['distances']
         sph = atoms['sph']
         rbf = self.radial_basis_functions(dij).unsqueeze(-2)  # unsqueeze for broadcasting
         xs = []
         radial_all = 0
-        # print('dens features', self.dens_features)
         if self.pred_radial_coeffs:
             for L in range(len(scale_fs)):
-                # print('L', L)
-                # print('self.radial_scale_filters[L]', self.radial_scale_filters(L).shape)
                 scale_fs[L] = scale_fs[L] * self.radial_scale_filters(L)
                 width_fs[L] = width_fs[L] * self.radial_width_filters(L)
                 radial_comb = self.coeff_activation[L](scale_fs[L] * width_fs[L])
-                radial_comb = radial_comb / torch.sqrt(torch.abs(radial_comb) + 1e-8)
+                radial_comb = radial_comb / torch.sqrt(abs_(radial_comb) + 1e-8)
                 radial_comb = radial_comb.sum(-2, keepdim=True)
                 if self.L0_start:
                     radial_all = radial_all + self.radial_L0_map[L](radial_comb)
@@ -303,48 +295,27 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
                     xs.append(sph_fs[L] * radial_comb)
             if self.L0_start:
                 xs[0] = xs[0] * radial_all
-                xs[0] = xs[0] / torch.sqrt(torch.abs(xs[0]) + 1e-8)
+                xs[0] = xs[0] / torch.sqrt(abs_(xs[0]) + 1e-8)
 
         else:
             xs = sph_fs
 
-        for L in range(len(xs)):
-            xs[L] = self.input_layer[L](xs[L])
+        xs = torch.cat([self.input_layer[L](xs[L]) for L in range(len(xs))], dim=-2)
 
         if self.L0_start:
             xs = self.L0_change(xs)
 
         if self.normalize > 1 or self.L0_start:
-            for L in range(len(xs)):
-                xs[L] = layer_norm(xs[L], dims=(-3, -2, -1))
-        # print('xs energy norm after input layer:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
-        # print('xs.shape', xs[0].shape)
-        # print('positions.shape', atoms['positions'].shape)
+            xs = layer_norm_orders(xs)
         # perform iterations over modular building blocks to get environment - dependent features
-        fs = [torch.tensor(0, device=xs[0].device, dtype=xs[0].dtype) for _ in range(max(self.order_max, self.orbitals_max_order) + 1)]  # output features
-        # print('self normalize en', self.normalize)
-        # print('fs norm start :', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
-        # fs = [torch.zeros_like(x) for x in xs]  # output features
+        fs = None
         for i, module in enumerate(self.module):
             xs = self.order_change[i](xs)
-            # print('xs norm module ', i, ':', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
-            # print('xs nan', [torch.any(torch.isnan(xs[L])) for L in range(len(xs))])
-            xs, ys = module(xs, rbf, sph, idx_i, idx_j, neighbor_mask=neighbor_mask)
-            # print('ys nan', [torch.any(torch.isnan(ys[L])) for L in range(len(ys))])
-            for L in range(self._order[i] + 1):
-                if not self.normalize or torch.mean(fs[L]**2) == 0 or torch.mean(ys[L]**2) == 0:
-                    scale = 1
-                else:
-                    scale = np.sqrt(1/2)
-                    # print('self normalize en', self.normalize)
-                fs[L] = ys[L] * scale + fs[L] * scale
-                # print('module', i, 'fs[0]', fs[0])
-            # print('fs norm ', i, ':', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
-            # print('fs nan', [torch.any(torch.isnan(fs[L])) for L in range(len(fs))])
-        fs[0] = self.out_activation(fs[0])
+            xs, ys = module(xs, rbf, sph, idx_i, idx_j)
+            fs = accumulate_features(fs, ys, self.normalize)
+        fs = apply_L0(self.out_activation, fs)
 
-        atom_en = self.energy_output(fs)[0].squeeze(-1).squeeze(-1)
-        # print('energy', atom_en)
+        atom_en = self.energy_output(fs).squeeze(-1).squeeze(-1)
 
         energy = torch.zeros(1, atoms['batch_atom_numbers'].shape[0], device=atoms['positions'].device, dtype=atoms['positions'].dtype)
         energy = energy.scatter_add(1, atoms['atom_batch_idx'], atom_en)
@@ -355,12 +326,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
             forces = -torch.autograd.grad(torch.sum(energy), atoms['positions'], create_graph=self.training)[0]
             atoms['forces'] = forces
 
-        # raise Exception('Random exception')
-
-        if self.timing:
-            print('simple energy time', time.time() - start)
         return atoms
-
 
 class SphericalLinearEnergyNetwork(nn.Module):
     """
@@ -492,20 +458,16 @@ class SphericalLinearEnergyNetwork(nn.Module):
         return getattr(self, "radial_width_filters_{}".format(L))
 
     def forward(self, atoms):
-        start = time.time()
-        R = atoms['positions']
-        N = R.shape[1]
-        batch_size = R.shape[0]
-
+        idx_i = atoms['idx_i']
+        idx_j = atoms['idx_j']
         sph_fs, scale_fs, width_fs = coeffs_dict_to_tensors(atoms, radial_coeffs=self.pred_radial_coeffs)
-
+        for i in range(len(sph_fs)):
+            sph_fs[i] = sph_fs[i].view(1, -1, *sph_fs[i].shape[2:]).index_select(1, atoms['batch_idx_pos'])
+            scale_fs[i] = scale_fs[i].view(1, -1, *scale_fs[i].shape[2:]).index_select(1, atoms['batch_idx_pos'])
+            width_fs[i] = width_fs[i].view(1, -1, *width_fs[i].shape[2:]).index_select(1, atoms['batch_idx_pos'])
         xs = []
-        # print('dens features', self.dens_features)
         if self.pred_radial_coeffs:
             for L in range(len(scale_fs)):
-                # print('L', L)
-                # print('scale fs L', scale_fs[L].shape)
-                # print('self.radial_scale_filters[L]', self.radial_scale_filters(L).shape)
                 scale_fs[L] = scale_fs[L] * self.radial_scale_filters(L)
                 width_fs[L] = width_fs[L] * self.radial_width_filters(L)
                 radial_comb = self.coeff_activation[L](scale_fs[L] * width_fs[L])
@@ -514,30 +476,15 @@ class SphericalLinearEnergyNetwork(nn.Module):
         else:
             xs = sph_fs
 
-        for L in range(len(xs)):
-            xs[L] = self.input_layer[L](xs[L])
-        # perform iterations over modular building blocks to get environment - dependent features
-        # print('self order', self.order)
-        fs = [0 for _ in range(max(self.order_max, self.orbitals_max_order) + 1)]  # output features
-        for i in range(len(xs)):
-            fs[i] = fs[i] + xs[i]
-        # print('xs shapes', [x.shape for x in xs])
+        xs = torch.cat([self.input_layer[L](xs[L]) for L in range(len(xs))], dim=-2)
+        fs = xs
         for i, module in enumerate(self.module):
-            # print('xs len before order change', len(xs))
             xs = self.order_change[i](xs)
-            # print('xs len after order change', len(xs))
-            # print('order ', i, ':', self.order[i] + 1)
             xs = module(xs)
-            for L in range(self.order[i] + 1):
-                if not self.normalize or torch.mean(fs[L]**2) == 0 or torch.mean(xs[L]**2) == 0:
-                    scale = 1
-                else:
-                    scale = 1/np.sqrt(2)
-                fs[L] = xs[L] * scale + fs[L] * scale
+            fs = accumulate_features(fs, xs, self.normalize)
 
-        fs[0] = self.out_activation(fs[0])
-
-        atom_en = self.energy_output(xs)[0].squeeze(-1).squeeze(-1)
+        fs = apply_L0(self.out_activation, fs)
+        atom_en = self.energy_output(xs).squeeze(-1).squeeze(-1)
 
         energy = torch.sum(atom_en, dim=1, keepdim=True)
 
@@ -546,8 +493,6 @@ class SphericalLinearEnergyNetwork(nn.Module):
             forces = -torch.autograd.grad(torch.sum(energy), atoms['positions'], create_graph=self.training)[0]
             atoms['forces'] = forces
 
-        if self.timing:
-            print('simple energy time', time.time() - start)
         return atoms
 
 class RepresentationEnergyNetwork(nn.Module):
@@ -604,14 +549,10 @@ class RepresentationEnergyNetwork(nn.Module):
         return getattr(self, "radial_width_filters_{}".format(L))
 
     def forward(self, atoms):
-        start = time.time()
-        fs = atoms['sph_repr']
-        fs[0] = self.out_activation(fs[0])
+        fs = apply_L0(self.out_activation, atoms['sph_repr'])
 
-        atom_en = self.energy_output(fs)[0].squeeze(-1).squeeze(-1)
+        atom_en = self.energy_output(fs).squeeze(-1).squeeze(-1)
 
-        # print('atom_en shape', atom_en.shape)
-        # print('positions shape', atoms['positions'].shape)
         energy = torch.zeros(1, atoms['batch_atom_numbers'].shape[0], device=atoms['positions'].device, dtype=atoms['positions'].dtype)
         energy = energy.scatter_add(1, atoms['atom_batch_idx'], atom_en)
         energy = torch.t(energy)
@@ -621,10 +562,6 @@ class RepresentationEnergyNetwork(nn.Module):
             forces = -torch.autograd.grad(torch.sum(energy), atoms['positions'], create_graph=self.training)[0]
             atoms['forces'] = forces
 
-        # raise Exception('Random exception')
-
-        if self.timing:
-            print('simple energy time', time.time() - start)
         return atoms
 
 class SphericalHarmonicsEmbeddingEnergyNetwork(nn.Module):
@@ -828,75 +765,43 @@ class SphericalHarmonicsEmbeddingEnergyNetwork(nn.Module):
         return getattr(self, "radial_width_filters_{}".format(L))
 
     def forward(self, atoms):
-        start = time.time()
-        R = atoms['positions']
-        N = R.shape[1]
-        batch_size = R.shape[0]
         idx_i = atoms['idx_i']
         idx_j = atoms['idx_j']
-        neighbor_mask = 1
-        # exclude self - interactions
-        # initialize atomic features to embeddings
         sph_fs, scale_fs, width_fs = coeffs_dict_to_tensors(atoms, radial_coeffs=self.pred_radial_coeffs)
         for i in range(len(sph_fs)):
-            sph_fs[i] = sph_fs[i].view(1, -1, *sph_fs[i].shape[2:])
-            sph_fs[i] = sph_fs[i][:, atoms['atom_mask']]
-            scale_fs[i] = scale_fs[i].view(1, -1, *scale_fs[i].shape[2:])
-            scale_fs[i] = scale_fs[i][:, atoms['atom_mask']]
-            width_fs[i] = width_fs[i].view(1, -1, *width_fs[i].shape[2:])
-            width_fs[i] = width_fs[i][:, atoms['atom_mask']]
+            sph_fs[i] = sph_fs[i].view(1, -1, *sph_fs[i].shape[2:]).index_select(1, atoms['batch_idx_pos'])
+            scale_fs[i] = scale_fs[i].view(1, -1, *scale_fs[i].shape[2:]).index_select(1, atoms['batch_idx_pos'])
+            width_fs[i] = width_fs[i].view(1, -1, *width_fs[i].shape[2:]).index_select(1, atoms['batch_idx_pos'])
         dij = atoms['distances']
         sph = atoms['sph']
         rbf = self.radial_basis_functions(dij).unsqueeze(-2)  # unsqueeze for broadcasting
         xs = self.embedding(atoms['atom_numbers'])
-        # print('dens features', self.dens_features)
         dens_fs = []
         if self.pred_radial_coeffs:
             for L in range(len(scale_fs)):
-                # print('L', L)
-                # print('scale fs L', scale_fs[L].shape)
-                # print('self.radial_scale_filters[L]', self.radial_scale_filters(L).shape)
                 scale_fs[L] = scale_fs[L] * self.radial_scale_filters(L)
                 width_fs[L] = width_fs[L] * self.radial_width_filters(L)
                 radial_comb = self.coeff_activation[L](scale_fs[L] * width_fs[L])
                 radial_comb = radial_comb.sum(-2, keepdim=True)
                 dens_fs.append(sph_fs[L] * radial_comb)
         else:
-            dens_fs = sph_fs 
-        # print('xs energy norm before:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
+            dens_fs = sph_fs
 
-        for L in range(len(xs)):
-            dens_fs[L] = self.input_layer[L](dens_fs[L])
+        D = min(xs.shape[-2], sum(2 * L + 1 for L in range(len(dens_fs))))
+        dens_fs = torch.cat([self.input_layer[L](dens_fs[L]) for L in range(len(dens_fs))], dim=-2)
 
         if self.normalize > 1:
-            for L in range(len(xs)):
-                dens_fs[L] = layer_norm(dens_fs[L], dims=(-3, -2, -1))
+            dens_fs = layer_norm_orders(dens_fs)
 
-        xs = [xs[L] + dens_fs[L] for L in range(min(len(xs), len(dens_fs)))]
-        # print('xs energy norm after input layer:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
-        # perform iterations over modular building blocks to get environment - dependent features
-        fs = [0 for _ in range(max(self.order_max, self.orbitals_max_order) + 1)]  # output features
-        for L in range(len(xs)):
-            fs[L] = fs[L] + xs[L]
-        # print('self normalize en', self.normalize)
-        # print('fs norm start :', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
-        # fs = [torch.zeros_like(x) for x in xs]  # output features
+        xs = xs[..., :D, :] + dens_fs[..., :D, :]
+        fs = xs
         for i, module in enumerate(self.module):
             xs = self.order_change[i](xs)
-            # print('xs norm module ', i, ':', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
-            xs, ys = module(xs, rbf, sph, idx_i, idx_j, neighbor_mask=neighbor_mask)
-            for L in range(self.order[i] + 1):
-                if not self.normalize or torch.mean(fs[L]**2) == 0 or torch.mean(ys[L]**2) == 0:
-                    scale = 1
-                else:
-                    scale = np.sqrt(1/2)
-                    # print('self normalize en', self.normalize)
-                fs[L] = ys[L] * scale + fs[L] * scale
-                # print('module', i, 'fs[0]', fs[0])
-            # print('fs norm ', i, ':', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
-        fs[0] = self.out_activation(fs[0])
+            xs, ys = module(xs, rbf, sph, idx_i, idx_j)
+            fs = accumulate_features(fs, ys, self.normalize)
+        fs = apply_L0(self.out_activation, fs)
 
-        atom_en = self.energy_output(fs)[0].squeeze(-1).squeeze(-1)
+        atom_en = self.energy_output(fs).squeeze(-1).squeeze(-1)
 
         energy = torch.zeros(1, atoms['batch_atom_numbers'].shape[0], device=atoms['positions'].device, dtype=atoms['positions'].dtype)
         energy = energy.scatter_add(1, atoms['atom_batch_idx'], atom_en)
@@ -907,8 +812,5 @@ class SphericalHarmonicsEmbeddingEnergyNetwork(nn.Module):
             forces = -torch.autograd.grad(torch.sum(energy), atoms['positions'], create_graph=self.training)[0]
             atoms['forces'] = forces
 
-        # raise Exception('Random exception')
-
-        if self.timing:
-            print('simple energy time', time.time() - start)
         return atoms
+

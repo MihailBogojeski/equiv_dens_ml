@@ -1,6 +1,8 @@
 import torch.nn as nn
 import numpy as np
 import torch
+from torch.utils._pytree import tree_leaves
+from equiv_dens.utils.orbitals import CoeffsDict
 from equiv_dens.utils.scaling import UnitConversion, VarianceScaling
 
 
@@ -8,6 +10,9 @@ class DFTNetwork(nn.Module):
     """
     Neural network for computing molecular electronic densities and density-derived properties
     """
+    # batch entries that are only targets (not passed into the compiled region)
+    label_keys = ('coords', 'coord_weights', 'density', 'density_grad', 'atom_density', 'atom_density_grad', 'energy',
+                  'forces', 'batch_forces', 'dipole_moment')
 
     def __init__(self, density_repr_model,
                  property_model_dict,
@@ -38,9 +43,17 @@ class DFTNetwork(nn.Module):
         print('force props', self.force_props)
         print('no force props', self.no_force_props)
         self.remove_atom_density = remove_atom_density
+        self.compiled = False
+        # Clebsch-Gordan buffers are not stored in checkpoints anymore, ignore them in old ones
+        self._register_load_state_dict_pre_hook(self._drop_cg_keys)
         if self.verbose > 0:
             print('force props', self.force_props)
             print('no force props', self.no_force_props)
+
+    @staticmethod
+    def _drop_cg_keys(state_dict, prefix, *args):
+        for key in [k for k in state_dict if k.startswith(prefix) and 'clebsch_gordan.' in k]:
+            del state_dict[key]
 
     def transform_input(self, data):
         """
@@ -95,6 +108,30 @@ class DFTNetwork(nn.Module):
         return data
 
 
+    def _core(self, positions, atoms):
+        """Representation and the property models that need forces; returns (energy sum, (atoms, energy sum))."""
+        atoms = dict(atoms)
+        atoms['positions'] = positions
+        atoms = self.density_repr_model(atoms)
+        # run the models that require forces first, then turn off gradient for the positions
+        for key in self.force_props:
+            atoms = self.property_models[key](atoms)
+        energy = atoms['energy'].sum() if 'energy' in atoms else positions.sum() * 0
+        # func.grad only returns tensors as aux outputs
+        aux = {k: v for k, v in atoms.items() if all(isinstance(t, torch.Tensor) for t in tree_leaves(v))}
+        return energy, (aux, energy)
+
+    def _forces(self, positions, atoms):
+        return torch.func.grad_and_value(self._core, has_aux=True)(positions, atoms)
+
+    def enable_compile(self):
+        """Compile the representation and force heads, the forces are then computed with torch.func.grad."""
+        self.compiled = self.calculate_forces
+        self.coeffs_layout = [m.layout for m in self.modules() if hasattr(m, 'warm_caches')][0]
+        for key in self.force_props:
+            self.property_models[key].calculate_forces = False
+        self._forces = torch.compile(self._forces, dynamic=True)
+
     def forward(self, data):
         """
         Compute the electron density and needed density-derived properties.
@@ -115,19 +152,26 @@ class DFTNetwork(nn.Module):
             else:
                 atoms[key] = data[key]
 
-        if self.calculate_forces:
-            atoms['positions'].requires_grad_(True)
-
-        atoms = self.density_repr_model(atoms)
-        # run the models that require forces first, then turn off gradient for the positions
-        for key in self.force_props:
-            atoms = self.property_models[key](atoms)
-            if self.memory:
-                print('dft network forward', key, ':')
-                print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
-                print('Memory cached', torch.cuda.memory_cached() / 1024**2)
-            # if self.verbose > 2:
-            #     print('dft network forward after prop:', key, torch.cuda.memory_summary())
+        if self.compiled:
+            # forces from torch.func.grad inside the compiled region, since compiled autograd.grad has no double backward.
+            # Only the model inputs go in: labels and python values would add guards and recompiles.
+            positions = atoms['positions']
+            zs = atoms['batch_atom_numbers'].max(0)[0].tolist()  # the elements fix the coefficient layout
+            for module in self.modules():
+                if hasattr(module, 'warm_caches'):
+                    module.warm_caches(zs, positions.device, positions.dtype)
+            inputs = {k: v for k, v in atoms.items()
+                      if isinstance(v, torch.Tensor) and k not in self.label_keys and k != 'positions'}
+            grad, (energy, (aux, _)) = self._forces(positions, inputs)
+            atoms.update(aux)
+            atoms['positions'] = positions
+            atoms['slot_z'] = zs
+            atoms = CoeffsDict(atoms, self.coeffs_layout)
+            atoms['forces'] = -grad
+        else:
+            if self.calculate_forces:
+                atoms['positions'].requires_grad_(True)
+            atoms = self._core(atoms['positions'], atoms)[1][0]
 
         atoms['positions'].requires_grad_(False)
         if self.training:

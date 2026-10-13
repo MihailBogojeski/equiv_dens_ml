@@ -9,6 +9,7 @@ Numerical-equivalence reference for refactors (float64, CPU, fixed seed).
       Builds the model with the current code, loads the saved state_dict (strict for all parameters and
       small buffers; only the large constant CG buffers are not stored), runs the same batch and
       prints max-abs / max-rel (max-abs / max|ref|) differences per quantity. Exit code 1 on any failure.
+      --device cuda runs the comparison on the GPU (float64, the fused CUDA tensor product).
 
 Quantities: sph_repr (canonical = list of per-L tensors [.., 2L+1, F]; packed tensors [.., (L+1)^2, F] are split
 by compare), df_coeffs, density, density_grad (where enabled), energy, forces, loss, and d(loss)/d(param) for all params.
@@ -32,6 +33,7 @@ CONFIGS = {  # name -> (dataset, batch size, extra overrides)
     'norm2': ('h2o_small', 2, ['--normalize=2']),
     'water8': ('water8', 1, []),
 }
+DEVICE = 'cpu'  # compare --device cuda runs the current code on the GPU (still float64)
 KEYS = ['sph_repr', 'df_coeffs', 'density', 'density_grad', 'energy', 'forces']
 
 
@@ -41,7 +43,7 @@ def clone(batch):
 
 def setup(name):
     dataset, bs, extra = CONFIGS[name]
-    overrides = C.dataset_overrides(dataset, bs) + COMMON + extra
+    overrides = C.dataset_overrides(dataset, bs) + COMMON + extra + [f'--use_gpu={DEVICE == "cuda"}']
     torch.manual_seed(0)
     np.random.seed(0)
     args, ds, train_ds, model, error_dict = C.build([C.DEFAULT_CONFIG], overrides)
@@ -51,7 +53,7 @@ def setup(name):
 
 def run(model, error_dict, batch):
     """Forward + loss + backward on a copy of `batch`. Returns canonical outputs and parameter grads."""
-    data = model.transform_input(clone(batch))
+    data = model.transform_input(C.to_device(clone(batch), DEVICE))
     model.zero_grad()
     pred = model(data)
     loss = error_dict.compute(pred, data)['loss']
@@ -140,7 +142,9 @@ if __name__ == '__main__':
     p.add_argument('mode', choices=['capture', 'compare'])
     p.add_argument('--names', nargs='+', default=list(CONFIGS))
     p.add_argument('--tol', type=float, default=1e-9)
+    p.add_argument('--device', default='cpu')
     cli = p.parse_args()
+    DEVICE = cli.device
     if cli.mode == 'capture':
         for n in cli.names:
             capture(n)

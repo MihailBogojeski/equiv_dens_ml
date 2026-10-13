@@ -105,7 +105,7 @@ def get_max_order(orbital_basis, per_atom=False):
     if per_atom:
         return order_max
     else:
-        return max(order_max.values())
+        return int(max(order_max.values()))
 
 
 def get_n_electrons(atom_numbers, valence=False, full_valence=False):
@@ -234,13 +234,14 @@ def packed_to_tensors(packed, chan, radial_coeffs=True):
         p = packed.get(L)
         ref = next(iter(packed.values()))['coeff']
         C = chan['counts'][L]
-        sph = ref.new_zeros(B, chan['A'], C, 2 * L + 1)
+        A = int(chan['A'])
+        sph = ref.new_zeros(B, A, C, 2 * L + 1)
         if p is not None:
             sph[:, p['atom'], chan['sph'][L]] = p['coeff']
         all_sph.append(sph.permute(0, 1, 3, 2))
         if radial_coeffs:
             for out, name in ((all_width, 'width'), (all_scale, 'scale')):
-                t = ref.new_zeros(B, chan['A'], C, chan['P'][L])
+                t = ref.new_zeros(B, A, C, chan['P'][L])
                 if p is not None:
                     t[:, p['atom'], chan['sph'][L]] = p[name]
                 out.append(t.permute(0, 1, 3, 2))

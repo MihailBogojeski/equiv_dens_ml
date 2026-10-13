@@ -14,7 +14,7 @@ class BernsteinRadialBasisFunctions(nn.Module):
         super(BernsteinRadialBasisFunctions, self).__init__()
         self.num_basis_functions = num_basis_functions
         if normalize:
-            self.norm_factor = np.sqrt(num_basis_functions)
+            self.norm_factor = float(np.sqrt(num_basis_functions))
         else:
             self.norm_factor = 1
         # compute values to initialize buffers
@@ -101,7 +101,7 @@ class ExponentialBernsteinRadialBasisFunctions(nn.Module):
         self.num_basis_functions = num_basis_functions
         self.ini_alpha = ini_alpha
         if normalize:
-            self.norm_factor = num_basis_functions / np.log(num_basis_functions**(0.5))
+            self.norm_factor = float(num_basis_functions / np.log(num_basis_functions**(0.5)))
         else:
             self.norm_factor = 1
         # compute values to initialize buffers
