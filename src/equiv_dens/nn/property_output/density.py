@@ -726,8 +726,6 @@ class DensityExpansion(nn.Module):
         atoms['density'] = torch.cat(dens, dim=1)
         if density_grad:
             atoms['density_grad'] = bohr_to_angstrom(torch.cat(grads, dim=1))
-        n_electrons = get_n_electrons(atoms['batch_atom_numbers'])
-
         if self.verbose > 0:
             print('Density shape', atoms['density'].shape)
             print('sum neg integrals', torch.sum((atoms['density'] * atoms['coord_weights'])[atoms['density'] < 0], dim=-1))
@@ -738,7 +736,7 @@ class DensityExpansion(nn.Module):
         if self.expansion_constraint == 'sp':
             atoms['density'] = F.softplus(atoms['density'], beta=100000000) + 1e-30
         if self.integral_constraint == 'grid':
-            grid_scaling = n_electrons / torch.sum(atoms['density'] * atoms['coord_weights'], dim=1, keepdim=True)
+            grid_scaling = get_n_electrons(atoms['batch_atom_numbers']) / torch.sum(atoms['density'] * atoms['coord_weights'], dim=1, keepdim=True)
             if self.verbose > 0:
                 print('grid_scaling', grid_scaling)
                 print('grid_scaling_factor', (1 - self.grid_scaling_factor))
