@@ -69,7 +69,7 @@ def run(name, mode, d):
         if k in pred:
             out[k] = pred[k].detach()
     for k in ['spherical_coeffs', 'radial_width', 'radial_scale']:
-        if k in pred:
+        if k in pred or 'packed_coeffs' in pred:  # new code builds these lazily
             for i, dct in enumerate(pred[k]):
                 for key, v in dct.items():
                     out['%s_%d_%d_%d' % (k, i, key[0], key[1])] = v.detach()

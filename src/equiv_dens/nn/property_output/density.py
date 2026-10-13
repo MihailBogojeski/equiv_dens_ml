@@ -182,7 +182,7 @@ class DensityCoeffsNetwork(nn.Module):
             self.init_coeff_weights()
 
         self.init_radial_coeffs()
-        self.layout = PackedLayout(self.orbital_basis, self.radial_coeffs)
+        self.layout = PackedLayout(self.orbital_basis, self.radial_coeffs, round_f32=True)
         self._chan_cache = {}
         self.reset_parameters()
 

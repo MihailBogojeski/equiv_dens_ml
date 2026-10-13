@@ -1874,9 +1874,10 @@ class PackedLayout:
     The index tensors only depend on the element of each atom slot (zs) and are cached.
     """
 
-    def __init__(self, orbital_basis, radial_coeffs=None):
+    def __init__(self, orbital_basis, radial_coeffs=None, round_f32=False):
         self.orbital_basis = orbital_basis
         self.radial_coeffs = radial_coeffs
+        self.round_f32 = round_f32  # DensityCoeffsNetwork has always used float32-rounded radial coefficients
         self.Lmax = get_max_order(orbital_basis)
         self.shells = {}  # z -> [(L, k, n_primitives, j)], k = index of the shell among the shells of this L
         for z, basis in orbital_basis.items():
@@ -1945,6 +1946,8 @@ class PackedLayout:
                         rc = self.radial_coeffs[z_arr[L][s]][j_arr[L][s]]
                         w0[s, :len(rc[0])] = rc[0]
                         s0[s, :len(rc[1])] = rc[1]
+                    if self.round_f32:
+                        w0, s0 = w0.astype(np.float32), s0.astype(np.float32)
                     lay['width0'].append(torch.tensor(w0, dtype=dtype, device=device))
                     lay['scale0'].append(torch.tensor(s0, dtype=dtype, device=device))
         return lay
