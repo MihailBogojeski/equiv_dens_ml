@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
+from torch.utils.checkpoint import checkpoint
 from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
 from equiv_dens.nn.modules.spherical_harmonic_layers import SphericalLinear
 from equiv_dens.utils.spherical_harmonics import spherical_harmonics
@@ -701,20 +702,27 @@ class DensityExpansion(nn.Module):
                             for p in packed.values()))
         chunk = max(1, min(G, int(self.chunk_bytes // (floats * coords.element_size()))))
         create_graph = torch.is_grad_enabled()
-        dens, grads = [], []
+
+        def eval_chunk(c):
+            if not density_grad:
+                return self.density_at(c, positions, packed, Lmax)
+            with torch.enable_grad():
+                c = c.detach().requires_grad_(True)
+                d = self.density_at(c, positions, packed, Lmax)
+                g, = torch.autograd.grad(d.sum(), c, create_graph=create_graph)
+            if not create_graph:
+                d, g = d.detach(), g.detach()
+            return d, g
+
+        out = []
         for i in range(0, G, chunk):
             c = coords[:, i:i + chunk]
-            if density_grad:
-                with torch.enable_grad():
-                    c = c.detach().requires_grad_(True)
-                    d = self.density_at(c, positions, packed, Lmax)
-                    g, = torch.autograd.grad(d.sum(), c, create_graph=create_graph)
-                if not create_graph:
-                    d, g = d.detach(), g.detach()
-                grads.append(g)
-            else:
-                d = self.density_at(c, positions, packed, Lmax)
-            dens.append(d)
+            # with several chunks only one chunk graph is kept in memory, the rest is recomputed in the backward pass
+            out.append(checkpoint(eval_chunk, c, use_reentrant=False) if create_graph and chunk < G else eval_chunk(c))
+        if density_grad:
+            dens, grads = zip(*out)
+        else:
+            dens = out
         atoms['density'] = torch.cat(dens, dim=1)
         if density_grad:
             atoms['density_grad'] = bohr_to_angstrom(torch.cat(grads, dim=1))
