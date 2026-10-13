@@ -15,10 +15,7 @@ The product y = CGProduct(x1, x2, w) is dS/dy, and the gradient of any slot is d
 gradient placed in the y slot. So forward, backward and double backward are all the same fused CUDA op
 (`equiv_dens::cg_tp`): for every output row it loops over the triples (sorted by that slot, grouped by the slot
 that is factored out) and accumulates in registers, so no [batch, triples, F] intermediate is ever materialized.
-
-Inside torch.compile the plain gather - multiply - index_add formulation is used instead: the forces are computed
-with torch.func.grad there, and neither custom ops nor autograd.Functions are correctly differentiated twice
-through func.grad by dynamo/aot_autograd (torch 2.14: wrong or missing parameter gradients).
+Under torch.compile (forces via torch.func.grad) the autograd.Function is kept opaque to dynamo, see fused_cg_product.
 """
 
 
@@ -113,26 +110,40 @@ def cg_tp(x1: Optional[torch.Tensor], x2: Optional[torch.Tensor], w: Optional[to
     return out
 
 
-def _setup_context(ctx, inputs, output):
-    x1, x2, w, y, k, reduce, dims, *tables = inputs
-    ctx.save_for_backward(x1, x2, w, y)
-    ctx.k, ctx.dims, ctx.tables = k, dims, tables
+class CGTP(torch.autograd.Function):
+    """cg_tp with its gradients: the gradient of slot j is cg_tp with the output gradient in slot k."""
+
+    @staticmethod
+    def forward(x1, x2, w, y, k, reduce, dims, tables):
+        return cg_tp(x1, x2, w, y, k, reduce, dims, *tables)
+
+    @staticmethod
+    def setup_context(ctx, inputs, output):
+        x1, x2, w, y, k, reduce, dims, tables = inputs
+        ctx.save_for_backward(x1, x2, w, y)
+        ctx.k, ctx.dims, ctx.tables = k, dims, tables
+
+    @staticmethod
+    def backward(ctx, grad):
+        slots = list(ctx.saved_tensors)
+        slots[ctx.k] = grad.contiguous()
+        grads = [None] * 4
+        for j in range(4):
+            if j != ctx.k and ctx.needs_input_grad[j]:
+                others = [None if s == j else slots[s] for s in range(4)]
+                reduce = slots[j].shape[0] == 1 and grad.shape[0] != 1
+                grads[j] = CGTP.apply(*others, j, reduce, ctx.dims, ctx.tables)
+        return grads[0], grads[1], grads[2], grads[3], None, None, None, None
 
 
-def _backward(ctx, grad):
-    """The gradient of slot j is cg_tp with the output gradient in slot k (differentiable again)."""
-    slots = list(ctx.saved_tensors)
-    slots[ctx.k] = grad.contiguous()
-    grads = [None] * 4
-    for j in range(4):
-        if j != ctx.k and ctx.needs_input_grad[j]:
-            others = [None if s == j else slots[s] for s in range(4)]
-            reduce = slots[j].shape[0] == 1 and grad.shape[0] != 1
-            grads[j] = cg_tp(*others, j, reduce, ctx.dims, *ctx.tables)
-    return (*grads, None, None, None, None, None, None, None, None)
-
-
-cg_tp.register_autograd(_backward, setup_context=_setup_context)
+@torch._dynamo.allow_in_graph
+def fused_cg_product(x1, x2, w, dims, tab, coef, rowptr, seg, segc):
+    """
+    CGTP as one opaque graph node for dynamo: aot_autograd then traces it (and its backward, again CGTP) with the
+    real autograd, which differentiates correctly twice through torch.func.grad. Letting dynamo trace into the
+    autograd.Function instead gives wrong parameter gradients for the forces loss (torch 2.14).
+    """
+    return CGTP.apply(x1, x2, w, None, 3, False, dims, (tab, coef, rowptr, seg, segc))
 
 
 class CGProduct(nn.Module):
@@ -141,8 +152,8 @@ class CGProduct(nn.Module):
 
     out[..., M, f] = sum_paths w[..., path, f] * sum_{m1, m2} cg[m1, m2, M] * x1[..., m1, f] * x2[..., m2, f]
 
-    The nonzero (m1, m2, M) Clebsch-Gordan triples of all paths are collected once. On the GPU (eager) the product
-    is the fused `cg_tp` op, on the CPU and inside torch.compile a gather - multiply - scatter over the triples.
+    The nonzero (m1, m2, M) Clebsch-Gordan triples of all paths are collected once. On the GPU the product
+    is the fused `cg_tp` op (also inside torch.compile), on the CPU a gather - multiply - scatter over the triples.
     """
 
     def __init__(self, cg_matrix, paths):
@@ -200,9 +211,9 @@ class CGProduct(nn.Module):
         x1 = x1.reshape(-1, x1.shape[-2], F_)
         x2 = x2.reshape(-1, x2.shape[-2], F_)
         w = w.reshape(-1, w.shape[-2], F_)
-        if x1.is_cuda and not torch.compiler.is_compiling():
-            y = cg_tp(x1.contiguous(), x2.contiguous(), w.contiguous(), None, 3, False, self.dims,
-                      self.tab, self.coef.to(x1.dtype), self.rowptr, self.seg, self.segc)
+        if x1.is_cuda:
+            y = fused_cg_product(x1.contiguous(), x2.contiguous(), w.contiguous(), self.dims,
+                                 self.tab, self.coef.to(x1.dtype), self.rowptr, self.seg, self.segc)
             return y.view(*lead, D_out, F_)
         prod = x1[:, self.i1] * x2[:, self.i2] * self.cg.to(x1.dtype).view(1, -1, 1) * w[:, self.pid]
         y = x1.new_zeros(x1.shape[0], D_out, F_).index_add(1, self.io, prod)

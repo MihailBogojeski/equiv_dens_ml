@@ -55,7 +55,3 @@ gpu_ms = sum(e.device_time for e in kernels) / 1e3
 print(prof.key_averages().table(sort_by=cli.sort, row_limit=cli.top))
 print(f'{cli.dataset} bs={cli.batch_size}: {len(kernels)} kernel launches, {gpu_ms:.1f} ms GPU kernel time, '
       f'{wall:.1f} ms wall (unprofiled step), first step {first:.1f} s')
-if args.compile:
-    times = torch._dynamo.utils.compile_times(repr='raw')
-    print('compile (s):', {k: round(sum(times[k]), 1) for k in ['_compile.compile_inner', 'bytecode_tracing',
-                                                              'aot_trace_joint_graph', 'compile_fx_inner'] if k in times})
