@@ -261,7 +261,6 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
         return getattr(self, "radial_width_filters_{}".format(L))
 
     def forward(self, atoms):
-        start = time.time()
         idx_i = atoms['idx_i']
         idx_j = atoms['idx_j']
         sph_fs, scale_fs, width_fs = coeffs_dict_to_tensors(atoms, radial_coeffs=self.pred_radial_coeffs,
@@ -322,8 +321,6 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
             forces = -torch.autograd.grad(torch.sum(energy), atoms['positions'], create_graph=self.training)[0]
             atoms['forces'] = forces
 
-        if self.timing:
-            print('simple energy time', time.time() - start)
         return atoms
 
 class SphericalLinearEnergyNetwork(nn.Module):
@@ -456,7 +453,6 @@ class SphericalLinearEnergyNetwork(nn.Module):
         return getattr(self, "radial_width_filters_{}".format(L))
 
     def forward(self, atoms):
-        start = time.time()
         idx_i = atoms['idx_i']
         idx_j = atoms['idx_j']
         sph_fs, scale_fs, width_fs = coeffs_dict_to_tensors(atoms, radial_coeffs=self.pred_radial_coeffs)
@@ -492,8 +488,6 @@ class SphericalLinearEnergyNetwork(nn.Module):
             forces = -torch.autograd.grad(torch.sum(energy), atoms['positions'], create_graph=self.training)[0]
             atoms['forces'] = forces
 
-        if self.timing:
-            print('simple energy time', time.time() - start)
         return atoms
 
 class RepresentationEnergyNetwork(nn.Module):
@@ -550,7 +544,6 @@ class RepresentationEnergyNetwork(nn.Module):
         return getattr(self, "radial_width_filters_{}".format(L))
 
     def forward(self, atoms):
-        start = time.time()
         fs = apply_L0(self.out_activation, atoms['sph_repr'])
 
         atom_en = self.energy_output(fs).squeeze(-1).squeeze(-1)
@@ -564,8 +557,6 @@ class RepresentationEnergyNetwork(nn.Module):
             forces = -torch.autograd.grad(torch.sum(energy), atoms['positions'], create_graph=self.training)[0]
             atoms['forces'] = forces
 
-        if self.timing:
-            print('simple energy time', time.time() - start)
         return atoms
 
 class SphericalHarmonicsEmbeddingEnergyNetwork(nn.Module):
@@ -769,7 +760,6 @@ class SphericalHarmonicsEmbeddingEnergyNetwork(nn.Module):
         return getattr(self, "radial_width_filters_{}".format(L))
 
     def forward(self, atoms):
-        start = time.time()
         idx_i = atoms['idx_i']
         idx_j = atoms['idx_j']
         sph_fs, scale_fs, width_fs = coeffs_dict_to_tensors(atoms, radial_coeffs=self.pred_radial_coeffs)
@@ -817,7 +807,5 @@ class SphericalHarmonicsEmbeddingEnergyNetwork(nn.Module):
             forces = -torch.autograd.grad(torch.sum(energy), atoms['positions'], create_graph=self.training)[0]
             atoms['forces'] = forces
 
-        if self.timing:
-            print('simple energy time', time.time() - start)
         return atoms
 

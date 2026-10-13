@@ -311,6 +311,11 @@ class DensityCoeffsNetwork(nn.Module):
         matrix: Array of orbital coefficients of shape [batch_size, num_orbitals]
     """
 
+    def warm_caches(self, zs, device, dtype):
+        """Build the cached layouts outside of a compiled region."""
+        self.layout.get(zs, device, dtype)
+        self.channels(zs, device)
+
     def channels(self, zs, device):
         """Indices of the feature channels (spherical and radial) that make up each packed shell."""
         key = (tuple(zs), device)
@@ -331,7 +336,7 @@ class DensityCoeffsNetwork(nn.Module):
                 sph.append(torch.from_numpy(sc).to(device))
                 rad.append(torch.from_numpy(rc).to(device))
                 pmask.append(torch.from_numpy(pm).to(device))
-            chan = {'sph': sph, 'rad': rad, 'pmask': pmask, 'counts': self.sph_counts, 'P': self.layout.P,
+            chan = {'sph': sph, 'rad': rad, 'pmask': pmask, 'counts': [int(c) for c in self.sph_counts], 'P': [int(p) for p in self.layout.P],
                     'A': len(zs)}
             self._chan_cache[key] = chan
         return self._chan_cache[key]
@@ -480,7 +485,7 @@ class DensityCoeffsNetwork(nn.Module):
             print('density coeffs forward outputs:')
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
             print('Memory cached', torch.cuda.memory_cached() / 1024**2)
-        zs = atoms['batch_atom_numbers'].max(0)[0].tolist()
+        zs = atoms['zs'] if 'zs' in atoms else atoms['batch_atom_numbers'].max(0)[0].tolist()
         packed = self.extract_coefficients(out_sph, out_width, out_scale, atoms, zs)
         if 'packed_coeffs' not in atoms:
             atoms['packed_coeffs'] = packed

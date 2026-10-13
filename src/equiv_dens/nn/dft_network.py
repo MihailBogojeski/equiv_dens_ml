@@ -1,6 +1,8 @@
 import torch.nn as nn
 import numpy as np
 import torch
+from torch.utils._pytree import tree_leaves
+from equiv_dens.utils.orbitals import CoeffsDict
 from equiv_dens.utils.scaling import UnitConversion, VarianceScaling
 
 
@@ -112,7 +114,9 @@ class DFTNetwork(nn.Module):
         for key in self.force_props:
             atoms = self.property_models[key](atoms)
         energy = atoms['energy'].sum() if 'energy' in atoms else positions.sum() * 0
-        return energy, (atoms, energy)
+        # func.grad only returns tensors as aux outputs
+        aux = {k: v for k, v in atoms.items() if all(isinstance(t, torch.Tensor) for t in tree_leaves(v))}
+        return energy, (aux, energy)
 
     def _forces(self, positions, atoms):
         return torch.func.grad_and_value(self._core, has_aux=True)(positions, atoms)
@@ -120,8 +124,10 @@ class DFTNetwork(nn.Module):
     def enable_compile(self):
         """Compile the representation and force heads, the forces are then computed with torch.func.grad."""
         self.compiled = self.calculate_forces
+        self.coeffs_layout = [m.layout for m in self.modules() if hasattr(m, 'warm_caches')][0]
         for key in self.force_props:
             self.property_models[key].calculate_forces = False
+        torch._dynamo.config.specialize_int = True  # atomic numbers are structural constants
         self._forces = torch.compile(self._forces, dynamic=True)
 
     def forward(self, data):
@@ -147,8 +153,15 @@ class DFTNetwork(nn.Module):
         if self.compiled and self.calculate_forces:
             # forces from torch.func.grad inside the compiled region, since compiled autograd.grad has no double backward
             positions = atoms.pop('positions')
-            grad, (atoms, energy) = self._forces(positions, atoms)
+            atoms['zs'] = atoms['batch_atom_numbers'].max(0)[0].tolist()  # python ints keep this sync out of the compiled region
+            for module in self.modules():
+                if hasattr(module, 'warm_caches'):
+                    module.warm_caches(atoms['zs'], positions.device, positions.dtype)
+            grad, (energy, (aux, _)) = self._forces(positions, atoms)
+            atoms.update(aux)
             atoms['positions'] = positions
+            atoms['slot_z'] = atoms.pop('zs')
+            atoms = CoeffsDict(atoms, self.coeffs_layout)
             atoms['forces'] = -grad
         else:
             if self.calculate_forces:
