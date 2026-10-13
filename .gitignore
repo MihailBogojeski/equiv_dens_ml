@@ -86,3 +86,6 @@ results/
 
 # Jupyter notebook checkpoints
 .ipynb_checkpoints/
+
+# benchmark reference tensors (large)
+benchmarks/reference_data/
