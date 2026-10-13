@@ -4,24 +4,29 @@ Fit free-atom densities with many s-type Gaussians.
 
 For every element in a free-atom file (mo_basis, mo_coeff, mo_occ, ...) the coefficients c of
 rho~(r) = sum_k c_k phi_k(r), phi_k = (2 a_k / pi)^(3/4) exp(-a_k r^2) (pyscf-normalized s shell),
-minimize
+minimize the Coulomb self-energy of the error density J[rho - rho~] (+ mu times its L2 norm) subject
+to the electron count int rho~ = N and, by default, the exact nuclear attraction V[rho~] = V[rho]
+(V = -Z int rho / r). The exponents are even-tempered between 0.3x the most diffuse and 2x the
+tightest MO primitive.
 
-    J[rho - rho~] + w_V (V[rho] - V[rho~])^2   subject to   int rho~ = N,
+The Coulomb matrix of that many Gaussians has condition number ~1e12-1e15, so the double precision
+errors of the integrals were amplified into the fit. Here the reference density is expanded
+analytically in the MO primitives and every integral and the KKT solve are done in 60-digit
+mpmath arithmetic, which removes the noise floor: the error keeps falling with the number of
+functions and the coefficients stay O(1-10).
 
-J is the Coulomb self-energy of the error density, V = -Z int rho / r. This is a linear (KKT)
-system, solved with an eigenvalue cutoff. The exponents are either even-tempered ("et") or the
-l=0 exponents of the jkfit basis with the largest log-gaps filled up ("jk"); "best" fits both
-and keeps the one with the lower relative L1 density error. The output has the same format as the input, with
-df_basis / df_coeffs replaced by the s basis / coefficients, so it works with
---atom_dens_type=df_coeffs.
-
+The output has the same format as the input, with df_basis / df_coeffs replaced by the s basis /
+coefficients, so it works with --atom_dens_type=df_coeffs.
 --scan N1 N2 ... only prints the errors for different numbers of s functions.
 """
 import argparse
 
 import numpy as np
 import torch
+from mpmath import mp
 from pyscf import gto, dft, df
+
+mp.dps = 60
 
 HA2KCAL = 627.5096080305927
 
@@ -74,24 +79,90 @@ class Reference:
         return np.einsum("ijP,ij->P", df.incore.aux_e2(self.mol, aux, intor="int3c2e"), self.dm)
 
 
-def fit_coeffs(ref, a, w_V, cutoffs):
-    Z = ref.Z
-    aux = atom_mol(Z, s_basis(a))
-    A = aux.intor("int2c2e")
-    b = ref.three_center(aux)
-    norm = (2 * a / np.pi) ** 0.75
-    n = norm * (np.pi / a) ** 1.5  # int phi
-    v = -Z * norm * 2 * np.pi / a  # -Z int phi / r
-    M = A + w_V * np.outer(v, v)
-    rhs = b + w_V * ref.v_ref * v
-    ev, U = np.linalg.eigh(M)
-    fits = []
-    for cutoff in cutoffs:
-        keep = ev > cutoff * ev.max()
-        Minv = (U[:, keep] / ev[keep]) @ U[:, keep].T
-        lam = (n @ Minv @ rhs - Z) / (n @ Minv @ n)
-        fits.append((Minv @ (rhs - lam * n), cutoff))
-    return fits
+def radial_terms(ref, mo_basis):
+    """rho(r) = sum_t w_t r^(2 l_t) exp(-g_t r^2) for the (spherical) reference density, as an exact
+    mpmath expansion over products of MO primitives. Returns {(l, g): w}."""
+    mol, dm = ref.mol, ref.dm
+    loc = mol.ao_loc_nr()
+    shells = []
+    for sh in mo_basis:
+        l = sh[0]
+        a = [mp.mpf(float(pr[0])) for pr in sh[1:]]
+        cs = np.array([pr[1:] for pr in sh[1:]], dtype=float)
+        cols = []
+        for c in range(cs.shape[1]):
+            # unit-normalized radial function: int R^2 r^2 dr = 1
+            cp = [mp.mpf(float(cs[p, c])) * mp.sqrt(2 * (2 * a[p]) ** (l + mp.mpf(3) / 2) / mp.gamma(l + mp.mpf(3) / 2))
+                  for p in range(len(a))]
+            S = sum(cp[p] * cp[q] * mp.gamma(l + mp.mpf(3) / 2) / (2 * (a[p] + a[q]) ** (l + mp.mpf(3) / 2))
+                    for p in range(len(a)) for q in range(len(a)))
+            cols.append([x / mp.sqrt(S) for x in cp])
+        shells.append((l, a, cols))
+    terms = {}
+    for ib, (l, a, cols) in enumerate(shells):
+        for jb, (l2, a2, cols2) in enumerate(shells):
+            if l2 != l:
+                continue
+            for c, cc in enumerate(cols):
+                for c2, cc2 in enumerate(cols2):
+                    D = mp.mpf(float(np.mean([dm[loc[ib] + c * (2 * l + 1) + m, loc[jb] + c2 * (2 * l + 1) + m]
+                                              for m in range(2 * l + 1)])))
+                    for p in range(len(a)):
+                        for q in range(len(a2)):
+                            key = (l, a[p] + a2[q])
+                            terms[key] = terms.get(key, 0) + D * cc[p] * cc2[q] * (2 * l + 1) / (4 * mp.pi)
+    return terms
+
+
+def erf_moment(l, g, a):
+    """int_0^inf r^(2l+1) exp(-g r^2) erf(sqrt(a) r) dr for l = 0, 1, 2"""
+    h = g + a
+    s = mp.sqrt(a) / 2
+    if l == 0:
+        return s / (g * mp.sqrt(h))
+    if l == 1:
+        return s * (1 / (g ** 2 * mp.sqrt(h)) + 1 / (2 * g * h ** 1.5))
+    return s * (2 / (g ** 3 * mp.sqrt(h)) + 1 / (g ** 2 * h ** 1.5) + 3 / (4 * g * h ** 2.5))
+
+
+def fit_exact(Z, terms, a, mu, exact_V):
+    """minimize J[rho - rho~] + mu int (rho - rho~)^2 with int rho~ = Z (and V[rho~] = V[rho] if
+    exact_V) in 60-digit arithmetic. Returns float coefficients."""
+    K = len(a)
+    a = [mp.mpf(float(x)) for x in a]
+    pi = mp.pi
+    N = [(2 * x / pi) ** mp.mpf(0.75) for x in a]
+    A = mp.matrix(K, K)
+    S = mp.matrix(K, K)
+    for k in range(K):
+        for m in range(K):
+            A[k, m] = N[k] * N[m] * 2 * pi ** 2.5 / (a[k] * a[m] * mp.sqrt(a[k] + a[m]))
+            S[k, m] = N[k] * N[m] * (pi / (a[k] + a[m])) ** 1.5
+    b = mp.matrix(K, 1)
+    sv = mp.matrix(K, 1)
+    for k in range(K):
+        b[k] = sum(w * 4 * pi * N[k] * (pi / a[k]) ** 1.5 * erf_moment(l, g, a[k]) for (l, g), w in terms.items())
+        sv[k] = sum(w * N[k] * 4 * pi * mp.gamma(l + 1.5) / (2 * (g + a[k]) ** (l + 1.5)) for (l, g), w in terms.items())
+    v_ref = -Z * sum(w * 4 * pi * mp.gamma(l + 1) / (2 * g ** (l + 1)) for (l, g), w in terms.items())
+    rows = [[N[k] * (pi / a[k]) ** 1.5 for k in range(K)]]
+    d = [mp.mpf(Z)]
+    if exact_V:
+        rows.append([-Z * N[k] * 2 * pi / a[k] for k in range(K)])
+        d.append(v_ref)
+    m = len(rows)
+    KKT = mp.matrix(K + m, K + m)
+    rhs = mp.matrix(K + m, 1)
+    for k in range(K):
+        for j in range(K):
+            KKT[k, j] = A[k, j] + mu * S[k, j]
+        rhs[k] = b[k] + mu * sv[k]
+        for i in range(m):
+            KKT[k, K + i] = rows[i][k]
+            KKT[K + i, k] = rows[i][k]
+    for i in range(m):
+        rhs[K + i] = d[i]
+    sol = mp.lu_solve(KKT, rhs)
+    return np.array([float(sol[k]) for k in range(K)])
 
 
 def evaluate(ref, rho_fit, j_err=np.nan):
@@ -121,29 +192,17 @@ def show(name, m):
           f"relL1 {m['L1']:.2e}  nucleus {m['near']:.2e}  tail {m['tail']:.2e}")
 
 
-def fit_best(ref, d, jk_basis, n, args):
-    a_lo, a_hi = exponent_range(d["mo_basis"][ref.Z], args.lo, args.hi)
-    results = {}
-    for kind, a in [("et", et_exponents(a_lo, a_hi, n)), ("jk", jk_exponents(jk_basis, a_lo, a_hi, n))]:
-        # the normal matrix is ill-conditioned beyond ~1e-12; pick the cutoff with the best density
-        evals = [(evaluate_df(ref, s_basis(a), c), c, cutoff) for c, cutoff in fit_coeffs(ref, a, args.w_V, args.cutoffs)]
-        m, c, cutoff = min(evals, key=lambda e: e[0]["L1"])
-        results[kind] = (m, a, c, cutoff)
-    return results
-
-
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--input", default="/workspace/datasets/free_atom_densities_augccpvdz_augccpvqzjkfit_pyscf.npy")
     p.add_argument("--minimized", default="/workspace/datasets/free_atom_densities_augccpvdz_augccpvqzjkfit_pyscf_minimized.npy",
                    help="jkfit l=0-only fit: baseline and source of the jkfit l=0 exponents")
     p.add_argument("--output", default=None)
-    p.add_argument("--n_s", type=int, default=50)
+    p.add_argument("--n_s", type=int, default=60)
     p.add_argument("--scan", type=int, nargs="*", default=None)
-    p.add_argument("--exps", choices=["et", "jk", "best"], default="best")
-    p.add_argument("--w_V", type=float, default=1.0)
-    p.add_argument("--cutoffs", type=float, nargs="+", default=[1e-14, 1e-13, 1e-12, 1e-11, 1e-10],
-                   help="relative eigenvalue cutoffs of the normal matrix to try (best relative L1 is kept)")
+    p.add_argument("--exps", choices=["et", "jk"], default="et", help="even-tempered, or jkfit l=0 exponents plus gap filling")
+    p.add_argument("--mu", type=float, default=0.0, help="weight of the L2 density error added to J")
+    p.add_argument("--no_exact_V", action="store_true", help="do not constrain V[rho~] = V[rho]")
     p.add_argument("--hi", type=float, default=2.0, help="tightest exponent = hi * tightest MO primitive")
     p.add_argument("--lo", type=float, default=0.3, help="most diffuse exponent = lo * most diffuse MO primitive")
     args = p.parse_args()
@@ -153,25 +212,22 @@ def main():
     out = {}
     for Z, d in data.items():
         ref = Reference(Z, d)
+        terms = radial_terms(ref, d["mo_basis"][Z])
         jk_basis = mini[Z]["df_basis"][Z]
+        a_lo, a_hi = exponent_range(d["mo_basis"][Z], args.lo, args.hi)
         print(f"Z={Z}")
         if args.scan is None:
             show("full jkfit df", evaluate_df(ref, d["df_basis"][Z], d["df_coeffs"].numpy()))
         show(f"jkfit l=0 ({len([e for e in jk_basis if e[0] == 0])})", evaluate_df(ref, jk_basis, mini[Z]["df_coeffs"].numpy()))
         if args.scan is None:
-            spl = d["spline_interp"](np.log(ref.r)).clip(0)
-            show("spline", evaluate(ref, spl))
+            show("spline", evaluate(ref, d["spline_interp"](np.log(ref.r)).clip(0)))
         for n in args.scan or [args.n_s]:
-            res = fit_best(ref, d, jk_basis, n, args)
-            for kind, (m, a, c, cutoff) in res.items():
-                show(f"{kind} {n} (cut {cutoff:.0e})", m)
-            if args.scan is None:
-                kind = min(res, key=lambda k: res[k][0]["L1"]) if args.exps == "best" else args.exps
-                print(f"    -> using {kind}")
-                m, a, c, _ = res[kind]
-                out[Z] = dict(d)
-                out[Z]["df_basis"] = {Z: s_basis(a)}
-                out[Z]["df_coeffs"] = torch.tensor(c, dtype=torch.float64).reshape(1, -1)
+            a = et_exponents(a_lo, a_hi, n) if args.exps == "et" else jk_exponents(jk_basis, a_lo, a_hi, n)
+            c = fit_exact(Z, terms, a, args.mu, not args.no_exact_V)
+            show(f"{args.exps} {n}", evaluate_df(ref, s_basis(a), c))
+            out[Z] = dict(d)
+            out[Z]["df_basis"] = {Z: s_basis(a)}
+            out[Z]["df_coeffs"] = torch.tensor(c, dtype=torch.float64).reshape(1, -1)
     if args.scan is None:
         path = args.output or f"/workspace/datasets/free_atom_densities_augccpvdz_sgauss{args.n_s}.npy"
         np.save(path, out, allow_pickle=True)
