@@ -13,6 +13,11 @@ import time
 import numpy as np
 
 
+def abs_(x):
+    """|x| with the same derivatives as torch.abs (the double backward of torch.abs specializes dynamic shapes in torch.compile)."""
+    return x * torch.sign(x).detach()
+
+
 def accumulate_features(fs, ys, normalize):
     """Running sum of the output features of the modules (packed), rescaled per order if normalizing."""
     if fs is None:
@@ -281,7 +286,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
                 scale_fs[L] = scale_fs[L] * self.radial_scale_filters(L)
                 width_fs[L] = width_fs[L] * self.radial_width_filters(L)
                 radial_comb = self.coeff_activation[L](scale_fs[L] * width_fs[L])
-                radial_comb = radial_comb / torch.sqrt(torch.abs(radial_comb) + 1e-8)
+                radial_comb = radial_comb / torch.sqrt(abs_(radial_comb) + 1e-8)
                 radial_comb = radial_comb.sum(-2, keepdim=True)
                 if self.L0_start:
                     radial_all = radial_all + self.radial_L0_map[L](radial_comb)
@@ -290,7 +295,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
                     xs.append(sph_fs[L] * radial_comb)
             if self.L0_start:
                 xs[0] = xs[0] * radial_all
-                xs[0] = xs[0] / torch.sqrt(torch.abs(xs[0]) + 1e-8)
+                xs[0] = xs[0] / torch.sqrt(abs_(xs[0]) + 1e-8)
 
         else:
             xs = sph_fs

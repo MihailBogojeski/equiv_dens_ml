@@ -10,9 +10,17 @@ The m axis is ordered by L: [L=0 | L=1 (3) | L=2 (5) | ...], the same ordering a
 """
 
 
+_l_of_m_cache = {}
+
+
 def l_of_m(D, device):
-    """Order L of every entry of a packed m axis of length D."""
-    return torch.arange(D, device=device).float().sqrt().floor().long()
+    """Order L of every entry of a packed m axis of length D (cached in eager mode, saves 3 kernels per call)."""
+    if torch.compiler.is_compiling():
+        return torch.arange(D, device=device).float().sqrt().floor().long()
+    key = (D, str(device))
+    if key not in _l_of_m_cache:
+        _l_of_m_cache[key] = torch.arange(D, device=device).float().sqrt().floor().long()
+    return _l_of_m_cache[key]
 
 
 def order_of(D):

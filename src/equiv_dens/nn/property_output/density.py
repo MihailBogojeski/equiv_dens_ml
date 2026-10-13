@@ -312,7 +312,8 @@ class DensityCoeffsNetwork(nn.Module):
     """
 
     def warm_caches(self, zs, device, dtype):
-        """Build the cached layouts outside of a compiled region."""
+        """Build the cached layouts outside of a compiled region; the compiled forward reads the elements from self.zs."""
+        self.zs = list(zs)
         self.layout.get(zs, device, dtype)
         self.channels(zs, device)
 
@@ -485,7 +486,7 @@ class DensityCoeffsNetwork(nn.Module):
             print('density coeffs forward outputs:')
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
             print('Memory cached', torch.cuda.memory_cached() / 1024**2)
-        zs = atoms['zs'] if 'zs' in atoms else atoms['batch_atom_numbers'].max(0)[0].tolist()
+        zs = self.zs if torch.compiler.is_compiling() else atoms['batch_atom_numbers'].max(0)[0].tolist()
         packed = self.extract_coefficients(out_sph, out_width, out_scale, atoms, zs)
         if 'packed_coeffs' not in atoms:
             atoms['packed_coeffs'] = packed

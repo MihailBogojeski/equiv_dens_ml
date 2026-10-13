@@ -10,6 +10,9 @@ class DFTNetwork(nn.Module):
     """
     Neural network for computing molecular electronic densities and density-derived properties
     """
+    # batch entries that are only targets (not passed into the compiled region)
+    label_keys = ('coords', 'coord_weights', 'density', 'density_grad', 'atom_density', 'atom_density_grad', 'energy',
+                  'forces', 'batch_forces', 'dipole_moment')
 
     def __init__(self, density_repr_model,
                  property_model_dict,
@@ -127,7 +130,6 @@ class DFTNetwork(nn.Module):
         self.coeffs_layout = [m.layout for m in self.modules() if hasattr(m, 'warm_caches')][0]
         for key in self.force_props:
             self.property_models[key].calculate_forces = False
-        torch._dynamo.config.specialize_int = True  # atomic numbers are structural constants
         self._forces = torch.compile(self._forces, dynamic=True)
 
     def forward(self, data):
@@ -150,17 +152,20 @@ class DFTNetwork(nn.Module):
             else:
                 atoms[key] = data[key]
 
-        if self.compiled and self.calculate_forces:
-            # forces from torch.func.grad inside the compiled region, since compiled autograd.grad has no double backward
-            positions = atoms.pop('positions')
-            atoms['zs'] = atoms['batch_atom_numbers'].max(0)[0].tolist()  # python ints keep this sync out of the compiled region
+        if self.compiled:
+            # forces from torch.func.grad inside the compiled region, since compiled autograd.grad has no double backward.
+            # Only the model inputs go in: labels and python values would add guards and recompiles.
+            positions = atoms['positions']
+            zs = atoms['batch_atom_numbers'].max(0)[0].tolist()  # the elements fix the coefficient layout
             for module in self.modules():
                 if hasattr(module, 'warm_caches'):
-                    module.warm_caches(atoms['zs'], positions.device, positions.dtype)
-            grad, (energy, (aux, _)) = self._forces(positions, atoms)
+                    module.warm_caches(zs, positions.device, positions.dtype)
+            inputs = {k: v for k, v in atoms.items()
+                      if isinstance(v, torch.Tensor) and k not in self.label_keys and k != 'positions'}
+            grad, (energy, (aux, _)) = self._forces(positions, inputs)
             atoms.update(aux)
             atoms['positions'] = positions
-            atoms['slot_z'] = atoms.pop('zs')
+            atoms['slot_z'] = zs
             atoms = CoeffsDict(atoms, self.coeffs_layout)
             atoms['forces'] = -grad
         else:
