@@ -133,6 +133,9 @@ class DFTNetwork(nn.Module):
             self.property_models[key].calculate_forces = False
         # sizes that happen to be equal in one batch (atoms, slots, pairs, ...) must not share a symbol
         torch.fx.experimental._config.use_duck_shape = False
+        # batch size 1, single atoms and L without shells (sizes 0 / 1) still get their own graph, a few at most;
+        # never fall back to eager because of them
+        torch._dynamo.config.recompile_limit = max(torch._dynamo.config.recompile_limit, 64)
         self._forces = torch.compile(self._forces, dynamic=True)
 
     def forward(self, data):

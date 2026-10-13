@@ -173,6 +173,6 @@ for i, (names, b) in enumerate(zip(compositions, batches)):
           f'elements={sorted(set(z.unique().tolist()) - {0})} {"+".join(names):<40} {dt * 1e3:9.1f} ms '
           f'graphs={graphs[-1]} ' + ' '.join(f'{k}={v:.1e}' for k, v in dev_.items()), flush=True)
 print('\nworst rel deviation compiled vs eager: ' + ' '.join(f'{k}={v:.1e}' for k, v in worst.items()))
-print({k: dict(v) for k, v in counters.items()})
 print(f'compiled graphs after the first batch: {graphs[0]}, after all {len(batches)} batches: {graphs[-1]} '
-      f'(recompiles after the first: {graphs[-1] - graphs[0]}), graph breaks: {sum(counters["graph_break"].values())}')
+      f'(recompiles after the first: {graphs[-1] - graphs[0]}), graph breaks: {sum(counters["graph_break"].values())}, '
+      f'frames that fell back to eager: {sum(counters["unimplemented"].values())}')
