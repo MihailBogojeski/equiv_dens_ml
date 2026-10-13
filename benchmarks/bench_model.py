@@ -29,12 +29,13 @@ p.add_argument('--batch_size', type=int, default=2)
 p.add_argument('--reps', type=int, default=5)
 p.add_argument('--warmup', type=int, default=2)
 p.add_argument('--tag', default='')
+p.add_argument('--mem_fraction', type=float, default=0.3)
 p.add_argument('--out_dir', default=os.path.join(C.ROOT, 'benchmarks/results'))
 cli, overrides = p.parse_known_args()
 
 cuda = cli.device == 'cuda'
 if cuda:
-    torch.cuda.set_per_process_memory_fraction(0.3)
+    torch.cuda.set_per_process_memory_fraction(cli.mem_fraction)
 overrides = C.dataset_overrides(cli.dataset, cli.batch_size) + [f'--use_gpu={cuda}'] + overrides
 args, dataset, train_ds, model, error_dict = C.build(cli.config, overrides)
 device = torch.device('cuda' if cuda else 'cpu')
