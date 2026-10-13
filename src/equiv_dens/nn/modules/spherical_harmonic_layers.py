@@ -86,10 +86,10 @@ class SphericalLinear(nn.Module):
             parity (bool): whether to preserve parity of spherical features
         """
         super().__init__()
-        self.order_in = order_in
-        self.num_in = num_in
-        self.order_out = order_out
-        self.num_out = num_out
+        self.order_in = int(order_in)
+        self.num_in = int(num_in)
+        self.order_out = int(order_out)
+        self.num_out = int(num_out)
         self.bias = bias
         self.mix_orders = mix_orders
         self.zero_init = zero_init
@@ -175,9 +175,9 @@ class SelfMixing(nn.Module):
             parity (bool): whether to preserve parity of spherical features
         """
         super().__init__()
-        self.order_in = order_in
-        self.order_out = order_out
-        self.num_features = num_features
+        self.order_in = int(order_in)
+        self.order_out = int(order_out)
+        self.num_features = int(num_features)
         self.normalize = normalize
         self.parity = parity
         self.paths = mixing_paths(order_in, order_in, order_out, parity, only_upper=True)
@@ -293,11 +293,11 @@ class PairMixing(nn.Module):
             parity (bool): whether to preserve parity of spherical features
         """
         super().__init__()
-        self.order_in1 = order_in1
-        self.order_in2 = order_in2
-        self.order_out = order_out
-        self.num_basis_functions = num_basis_functions
-        self.num_features = num_features
+        self.order_in1 = int(order_in1)
+        self.order_in2 = int(order_in2)
+        self.order_out = int(order_out)
+        self.num_basis_functions = int(num_basis_functions)
+        self.num_features = int(num_features)
         self.normalize = normalize
         self.parity = parity
         self.paths = mixing_paths(order_in1, order_in2, order_out, parity)
@@ -385,9 +385,9 @@ class PairInteraction(nn.Module):
             normalize (int): whether to normalize the output features
         """
         super().__init__()
-        self.order = order
-        self.num_basis_functions = num_basis_functions
-        self.num_features = num_features
+        self.order = int(order)
+        self.num_basis_functions = int(num_basis_functions)
+        self.num_features = int(num_features)
         self.normalize = normalize
         self.paths = [(L, L, L) for L in range(self.order + 1)]
         # distance - dependent coefficients for mixing

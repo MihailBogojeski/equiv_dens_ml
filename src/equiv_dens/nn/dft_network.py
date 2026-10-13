@@ -38,6 +38,7 @@ class DFTNetwork(nn.Module):
         print('force props', self.force_props)
         print('no force props', self.no_force_props)
         self.remove_atom_density = remove_atom_density
+        self.compiled = False
         # Clebsch-Gordan buffers are not stored in checkpoints anymore, ignore them in old ones
         self._register_load_state_dict_pre_hook(self._drop_cg_keys)
         if self.verbose > 0:
@@ -102,6 +103,27 @@ class DFTNetwork(nn.Module):
         return data
 
 
+    def _core(self, positions, atoms):
+        """Representation and the property models that need forces; returns (energy sum, (atoms, energy sum))."""
+        atoms = dict(atoms)
+        atoms['positions'] = positions
+        atoms = self.density_repr_model(atoms)
+        # run the models that require forces first, then turn off gradient for the positions
+        for key in self.force_props:
+            atoms = self.property_models[key](atoms)
+        energy = atoms['energy'].sum() if 'energy' in atoms else positions.sum() * 0
+        return energy, (atoms, energy)
+
+    def _forces(self, positions, atoms):
+        return torch.func.grad_and_value(self._core, has_aux=True)(positions, atoms)
+
+    def enable_compile(self):
+        """Compile the representation and force heads, the forces are then computed with torch.func.grad."""
+        self.compiled = self.calculate_forces
+        for key in self.force_props:
+            self.property_models[key].calculate_forces = False
+        self._forces = torch.compile(self._forces, dynamic=True)
+
     def forward(self, data):
         """
         Compute the electron density and needed density-derived properties.
@@ -122,19 +144,16 @@ class DFTNetwork(nn.Module):
             else:
                 atoms[key] = data[key]
 
-        if self.calculate_forces:
-            atoms['positions'].requires_grad_(True)
-
-        atoms = self.density_repr_model(atoms)
-        # run the models that require forces first, then turn off gradient for the positions
-        for key in self.force_props:
-            atoms = self.property_models[key](atoms)
-            if self.memory:
-                print('dft network forward', key, ':')
-                print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
-                print('Memory cached', torch.cuda.memory_cached() / 1024**2)
-            # if self.verbose > 2:
-            #     print('dft network forward after prop:', key, torch.cuda.memory_summary())
+        if self.compiled and self.calculate_forces:
+            # forces from torch.func.grad inside the compiled region, since compiled autograd.grad has no double backward
+            positions = atoms.pop('positions')
+            grad, (atoms, energy) = self._forces(positions, atoms)
+            atoms['positions'] = positions
+            atoms['forces'] = -grad
+        else:
+            if self.calculate_forces:
+                atoms['positions'].requires_grad_(True)
+            atoms = self._core(atoms['positions'], atoms)[1][0]
 
         atoms['positions'].requires_grad_(False)
         if self.training:
