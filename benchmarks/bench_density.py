@@ -27,7 +27,7 @@ def sync():
         torch.cuda.synchronize()
 
 
-def timeit(fn, n=5):
+def timeit(fn, n=12):
     fn()
     sync()
     ts = []
@@ -39,7 +39,7 @@ def timeit(fn, n=5):
         sync()
         ts.append(time.time() - t)
     mem = torch.cuda.max_memory_allocated() / 1024**2 if dev == 'cuda' else 0
-    return '%8.1f ms %7.0f MB' % (1000 * np.median(ts), mem)
+    return '%8.1f ms (min %8.1f) %7.0f MB' % (1000 * np.median(ts), 1000 * np.min(ts), mem)
 
 
 def report(name, fn):
@@ -131,6 +131,12 @@ if which in ('h2o', 'all'):
         loss.backward()
         model.zero_grad()
     report('FULL train step (dens+grad+en+F)', step)
+    if os.environ.get('PROFILE'):
+        from torch.profiler import profile, ProfilerActivity
+        with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA]) as prof:
+            step()
+            sync()
+        print(prof.key_averages().table(sort_by='cuda_time_total' if dev == 'cuda' else 'cpu_time_total', row_limit=15))
     args.density_grad = False
 
 if which in ('big', 'all'):
