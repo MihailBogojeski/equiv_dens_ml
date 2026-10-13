@@ -184,7 +184,7 @@ class DensityCoeffsNetwork(nn.Module):
 
         self.init_radial_coeffs()
         self.layout = PackedLayout(self.orbital_basis, self.radial_coeffs, round_f32=True)
-        self._chan_cache = {}
+        self.init_channel_tables()
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -311,53 +311,53 @@ class DensityCoeffsNetwork(nn.Module):
         matrix: Array of orbital coefficients of shape [batch_size, num_orbitals]
     """
 
-    def warm_caches(self, zs, device, dtype):
-        """Build the cached layouts outside of a compiled region; the compiled forward reads the elements from self.zs."""
-        self.zs = list(zs)
-        self.layout.get(zs, device, dtype)
-        self.channels(zs, device)
+    def init_channel_tables(self):
+        """Per element shell e of each L (see PackedLayout): spherical feature channel, radial feature channels
+        (with mask) and the DF coefficient weight. Non-persistent buffers, gathered by the layout of each batch."""
+        self.chan_counts = [int(c) for c in self.sph_counts]
+        for L in range(self.orbitals_max_order + 1):
+            E, P = len(self.layout.eshell[L]), self.layout.P[L]
+            sc = np.zeros(E, dtype=np.int64)
+            rc = np.zeros((E, P), dtype=np.int64)
+            pm = np.zeros((E, P), dtype=bool)
+            w = np.zeros(E)
+            for e, (z, k, j) in enumerate(self.layout.eshell[L]):
+                counts = self.radial_count[z][L]
+                sc[e] = self.sph_dict[(z, L)][k]
+                rc[e, :counts[k]] = int(self.rad_dict[(z, L)][0]) + sum(counts[:k]) + np.arange(counts[k])
+                pm[e, :counts[k]] = True
+                if self.coeff_weights is not None:
+                    w[e] = np.sum(self.coeff_weights[z][j])
+            self.register_buffer(f'chan_sph_{L}', torch.from_numpy(sc), persistent=False)
+            self.register_buffer(f'chan_rad_{L}', torch.from_numpy(rc), persistent=False)
+            self.register_buffer(f'chan_pmask_{L}', torch.from_numpy(pm), persistent=False)
+            self.register_buffer(f'shell_weight_{L}', torch.from_numpy(w), persistent=False)
 
-    def channels(self, zs, device):
-        """Indices of the feature channels (spherical and radial) that make up each packed shell."""
-        key = (tuple(zs), device)
-        if key not in self._chan_cache:
-            lay = self.layout.get(zs, device)
-            sph, rad, pmask = [], [], []
-            for L in range(self.orbitals_max_order + 1):
-                S, P = lay['S'][L], self.layout.P[L]
-                sc = np.zeros(S, dtype=np.int64)
-                rc = np.zeros((S, P), dtype=np.int64)
-                pm = np.zeros((S, P), dtype=bool)
-                for s in range(S):
-                    z, k = lay['z'][L][s], lay['k'][L][s]
-                    counts = self.radial_count[z][L]
-                    sc[s] = self.sph_dict[(z, L)][k]
-                    rc[s, :counts[k]] = int(self.rad_dict[(z, L)][0]) + sum(counts[:k]) + np.arange(counts[k])
-                    pm[s, :counts[k]] = True
-                sph.append(torch.from_numpy(sc).to(device))
-                rad.append(torch.from_numpy(rc).to(device))
-                pmask.append(torch.from_numpy(pm).to(device))
-            chan = {'sph': sph, 'rad': rad, 'pmask': pmask, 'counts': [int(c) for c in self.sph_counts], 'P': [int(p) for p in self.layout.P],
-                    'A': len(zs)}
-            self._chan_cache[key] = chan
-        return self._chan_cache[key]
+    def batch_layout(self, atoms):
+        """Packed layout of the batch (outside of a compiled region; inside it is passed in as atoms['coeff_layout'])."""
+        zs = atoms['batch_atom_numbers'].max(0)[0].tolist()
+        ref = atoms['positions']
+        return zs, self.layout.get(zs, ref.device, ref.dtype)
 
-    def extract_coefficients(self, sph_fs, rad_width, rad_scale, atoms, zs):
+    def channels(self, lay):
+        """Feature channels (spherical and radial) that make up each packed shell."""
+        return {'sph': [getattr(self, f'chan_sph_{L}')[e] for L, e in enumerate(lay['e'])],
+                'rad': [getattr(self, f'chan_rad_{L}')[e] for L, e in enumerate(lay['e'])],
+                'pmask': [getattr(self, f'chan_pmask_{L}')[e] for L, e in enumerate(lay['e'])],
+                'counts': self.chan_counts, 'P': self.layout.P}
+
+    def extract_coefficients(self, sph_fs, rad_width, rad_scale, atoms, lay, chan):
         """Gathers the predicted features into the packed coefficients (see PackedLayout)."""
         ref = sph_fs[0]
-        lay = self.layout.get(zs, ref.device, ref.dtype)
-        chan = self.channels(zs, ref.device)
         packed = {}
         for L in range(self.orbitals_max_order + 1):
-            if lay['S'][L] == 0:
-                continue
             atom = lay['atom'][L]
             coeff = sph_fs[L].permute(0, 1, 3, 2)[:, atom, chan['sph'][L]]
             if self.pred_radial_coeffs:
                 width = rad_width[L][:, :, 0][:, atom[:, None], chan['rad'][L]] * chan['pmask'][L]
                 scale = rad_scale[L][:, :, 0][:, atom[:, None], chan['rad'][L]] * chan['pmask'][L]
             else:
-                width = coeff.new_zeros(coeff.shape[0], len(atom), self.layout.P[L])
+                width = coeff.new_zeros(coeff.shape[0], atom.shape[0], self.layout.P[L])
                 scale = torch.zeros_like(width)
             if self.radial_coeffs is not None:
                 atom_mask = atoms['batch_atom_mask'].to(dtype=ref.dtype)[:, atom].unsqueeze(-1)
@@ -370,11 +370,11 @@ class DensityCoeffsNetwork(nn.Module):
             packed[L] = {'atom': atom, 'coeff': coeff, 'width': width, 'scale': scale}
         return packed
 
-    def df_weights(self, zs, device, dtype):
+    def df_weights(self, lay):
         """Weights of the DF coefficients (sum of the coefficient weights of the shell primitives) in PySCF order."""
-        w = [np.full(2 * orb[2] + 1, np.sum(self.coeff_weights[z][j]))
-             for z in zs if z != 0 for j, orb in enumerate(self.orbital_basis[z])]
-        return torch.tensor(np.concatenate(w), device=device, dtype=dtype).unsqueeze(0)
+        w = torch.cat([getattr(self, f'shell_weight_{L}')[e].repeat_interleave(2 * L + 1)
+                       for L, e in enumerate(lay['e'])])
+        return w[lay['perm']].unsqueeze(0)
 
     """
     Counts how many features of each order are needed to collect the orbital coefficients
@@ -486,17 +486,21 @@ class DensityCoeffsNetwork(nn.Module):
             print('density coeffs forward outputs:')
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
             print('Memory cached', torch.cuda.memory_cached() / 1024**2)
-        zs = self.zs if torch.compiler.is_compiling() else atoms['batch_atom_numbers'].max(0)[0].tolist()
-        packed = self.extract_coefficients(out_sph, out_width, out_scale, atoms, zs)
+        if 'coeff_layout' in atoms:  # compiled region: the layout comes in as data
+            lay = atoms.pop('coeff_layout')
+        else:
+            zs, lay = self.batch_layout(atoms)
+            atoms['slot_z'] = zs
+        chan = self.channels(lay)
+        packed = self.extract_coefficients(out_sph, out_width, out_scale, atoms, lay, chan)
         if 'packed_coeffs' not in atoms:
             atoms['packed_coeffs'] = packed
-            atoms['slot_z'] = zs
-            atoms['packed_chan'] = self.channels(zs, fs[0].device)
+            atoms['packed_chan'] = chan
             if self.integral_constraint is not None:
                 atoms = self.integral_constraint(atoms)
-            atoms['df_coeffs'] = self.layout.to_df_vector(atoms['packed_coeffs'], zs)
+            atoms['df_coeffs'] = self.layout.to_df_vector(atoms['packed_coeffs'], lay)
             if self.coeff_weights is not None:
-                atoms['df_weights'] = self.df_weights(zs, fs[0].device, fs[0].dtype)
+                atoms['df_weights'] = self.df_weights(lay).to(fs[0].dtype)
         else:
             # core coefficients are added to the existing ones
             atoms.pop('packed_chan', None)

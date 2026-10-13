@@ -127,9 +127,12 @@ class DFTNetwork(nn.Module):
     def enable_compile(self):
         """Compile the representation and force heads, the forces are then computed with torch.func.grad."""
         self.compiled = self.calculate_forces
-        self.coeffs_layout = [m.layout for m in self.modules() if hasattr(m, 'warm_caches')][0]
+        # the density coefficient head inside the compiled region gets the packed layout of each batch as data
+        self.coeffs_head = ([m for m in self.density_repr_model.modules() if hasattr(m, 'batch_layout')] + [None])[0]
         for key in self.force_props:
             self.property_models[key].calculate_forces = False
+        # sizes that happen to be equal in one batch (atoms, slots, pairs, ...) must not share a symbol
+        torch.fx.experimental._config.use_duck_shape = False
         self._forces = torch.compile(self._forces, dynamic=True)
 
     def forward(self, data):
@@ -156,17 +159,16 @@ class DFTNetwork(nn.Module):
             # forces from torch.func.grad inside the compiled region, since compiled autograd.grad has no double backward.
             # Only the model inputs go in: labels and python values would add guards and recompiles.
             positions = atoms['positions']
-            zs = atoms['batch_atom_numbers'].max(0)[0].tolist()  # the elements fix the coefficient layout
-            for module in self.modules():
-                if hasattr(module, 'warm_caches'):
-                    module.warm_caches(zs, positions.device, positions.dtype)
             inputs = {k: v for k, v in atoms.items()
                       if isinstance(v, torch.Tensor) and k not in self.label_keys and k != 'positions'}
+            if self.coeffs_head is not None:
+                zs, inputs['coeff_layout'] = self.coeffs_head.batch_layout(atoms)
             grad, (energy, (aux, _)) = self._forces(positions, inputs)
             atoms.update(aux)
             atoms['positions'] = positions
-            atoms['slot_z'] = zs
-            atoms = CoeffsDict(atoms, self.coeffs_layout)
+            if self.coeffs_head is not None:
+                atoms['slot_z'] = zs
+                atoms = CoeffsDict(atoms, self.coeffs_head.layout)
             atoms['forces'] = -grad
         else:
             if self.calculate_forces:

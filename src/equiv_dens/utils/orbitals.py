@@ -227,31 +227,29 @@ def get_invariant_features(
     return invariant_feats
 
 
-def packed_to_tensors(packed, chan, radial_coeffs=True):
+def packed_to_tensors(packed, chan, A, radial_coeffs=True):
     """Packed coefficients -> per-L tensors [B, A, 2L+1 (or P_L), n_feature_channels] (see coeffs_dict_to_tensors)."""
     all_sph, all_scale, all_width = [], [], []
-    B = next(iter(packed.values()))['coeff'].shape[0]
+    ref = packed[0]['coeff']
+    B = ref.shape[0]
     for L in range(len(chan['counts'])):
-        p = packed.get(L)
-        ref = next(iter(packed.values()))['coeff']
+        p = packed[L]
         C = chan['counts'][L]
-        A = int(chan['A'])
         sph = ref.new_zeros(B, A, C, 2 * L + 1)
-        if p is not None:
-            sph[:, p['atom'], chan['sph'][L]] = p['coeff']
+        sph[:, p['atom'], chan['sph'][L]] = p['coeff']
         all_sph.append(sph.permute(0, 1, 3, 2))
         if radial_coeffs:
             for out, name in ((all_width, 'width'), (all_scale, 'scale')):
                 t = ref.new_zeros(B, A, C, chan['P'][L])
-                if p is not None:
-                    t[:, p['atom'], chan['sph'][L]] = p[name]
+                t[:, p['atom'], chan['sph'][L]] = p[name]
                 out.append(t.permute(0, 1, 3, 2))
     return all_sph, all_scale, all_width
 
 
 def coeffs_dict_to_tensors(coeffs, radial_coeffs=True, atom_df_coeffs=None, atom_df_widths=None, atom_df_scales=None):
     if 'packed_chan' in coeffs and atom_df_coeffs is None:
-        return packed_to_tensors(coeffs['packed_coeffs'], coeffs['packed_chan'], radial_coeffs)
+        return packed_to_tensors(coeffs['packed_coeffs'], coeffs['packed_chan'], coeffs['batch_atom_numbers'].shape[1],
+                                radial_coeffs)
     sph_coeffs = coeffs["spherical_coeffs"]
     rad_width = coeffs["radial_width"]
     rad_scale = coeffs["radial_scale"]
@@ -1986,7 +1984,9 @@ class PackedLayout:
 
     For every L all shells of all atoms are stacked along one axis (atom-major, shells in orbital_basis order):
         coeff [B, S_L, 2L+1], width / scale [B, S_L, P_L] (zero padded primitives), atom [S_L] (atom slot of each shell).
-    The index tensors only depend on the element of each atom slot (zs) and are cached.
+    The shells of each L of all elements of the basis are enumerated once (element shells e, see eshell). A layout
+    (get) holds only index tensors, built by tensor ops from per-element tables, so it can go into a compiled region
+    as data. Layouts are cached per element list zs.
     """
 
     def __init__(self, orbital_basis, radial_coeffs=None, round_f32=False):
@@ -1999,8 +1999,9 @@ class PackedLayout:
             cnt = [0] * (self.Lmax + 1)
             self.shells[z] = []
             for j, orb in enumerate(basis):
-                self.shells[z].append((orb[2], cnt[orb[2]], orb[1], j))
-                cnt[orb[2]] += 1
+                L, n = int(orb[2]), int(orb[1])
+                self.shells[z].append((L, cnt[L], n, j))
+                cnt[L] += 1
         self.P = [max([n for z in self.shells for (l, _, n, _) in self.shells[z] if l == L] + [1])
                   for L in range(self.Lmax + 1)]
         self.rmax = {}  # (z, L) -> max number of primitives of the shells
@@ -2009,68 +2010,90 @@ class PackedLayout:
             for (L, _, n, _) in self.shells[z]:
                 self.rmax[(z, L)] = max(self.rmax.get((z, L), 0), n)
                 self.nshell[(z, L)] = self.nshell.get((z, L), 0) + 1
+        # element shells of each L: eshell[L][e] = (z, k, j), eid[L][z, k] = e, nsh[L][z] = number of shells
+        Zmax = max(self.shells) + 1
+        K = [max([self.nshell.get((z, L), 0) for z in self.shells] + [1]) for L in range(self.Lmax + 1)]
+        self.eshell = [[] for _ in range(self.Lmax + 1)]
+        self.eid = [torch.zeros(Zmax, K[L], dtype=torch.long) for L in range(self.Lmax + 1)]
+        self.nsh = [torch.zeros(Zmax, dtype=torch.long) for L in range(self.Lmax + 1)]
+        # per element its coefficients in PySCF order: L, k and m (index in the 2L+1 block) of each
+        T = max(sum(2 * orb[2] + 1 for orb in basis) for basis in orbital_basis.values())
+        self.tL = torch.zeros(Zmax, T, dtype=torch.long)
+        self.tk = torch.zeros(Zmax, T, dtype=torch.long)
+        self.tm = torch.zeros(Zmax, T, dtype=torch.long)
+        self.tvalid = torch.zeros(Zmax, T, dtype=torch.bool)
+        for z in sorted(self.shells):
+            t = 0
+            for (L, k, n, j) in self.shells[z]:
+                self.eid[L][z, k] = len(self.eshell[L])
+                self.eshell[L].append((z, k, j))
+                self.nsh[L][z] += 1
+                for m in range(2 * L + 1):
+                    self.tL[z, t], self.tk[z, t], self.tm[z, t] = L, k, ([2, 0, 1][m] if L == 1 else m)
+                    self.tvalid[z, t] = True
+                    t += 1
+        # radial parameters of the element shells [E_L, P_L] (float64)
+        if radial_coeffs is not None:
+            self.width0, self.scale0 = [], []
+            for L in range(self.Lmax + 1):
+                w0 = np.zeros((len(self.eshell[L]), self.P[L]))
+                s0 = np.zeros((len(self.eshell[L]), self.P[L]))
+                for e, (z, k, j) in enumerate(self.eshell[L]):
+                    rc = radial_coeffs[z][j]
+                    w0[e, :len(rc[0])] = rc[0]
+                    s0[e, :len(rc[1])] = rc[1]
+                if round_f32:
+                    w0, s0 = w0.astype(np.float32), s0.astype(np.float32)
+                self.width0.append(torch.tensor(w0, dtype=torch.float64))
+                self.scale0.append(torch.tensor(s0, dtype=torch.float64))
         self._cache = {}
 
     def get(self, zs, device, dtype=None):
-        key = (tuple(zs), device, dtype)
+        """
+        Layout of the atom slots with elements zs (0 = empty slot), a dict of tensors only:
+            atom[L], e[L] [S_L]: atom slot and element shell of every packed shell,
+            start [Lmax + 1, A]: index of the first shell of every atom slot in the L stacks,
+            perm / inv [n_coeffs]: packed (flattened, L-major) <-> PySCF order, sign [n_coeffs]: PySCF sign convention,
+            with a dtype also width0[L] / scale0[L] [S_L, P_L]: radial parameters of the basis (if radial_coeffs).
+        """
+        key = (tuple(zs), str(device), dtype)
         if key not in self._cache:
+            if len(self._cache) > 2000:
+                self._cache.clear()
             self._cache[key] = self._build(zs, device, dtype)
         return self._cache[key]
 
     def _build(self, zs, device, dtype):
-        Lmax = self.Lmax
-        z_arr = [[] for _ in range(Lmax + 1)]
-        a_arr = [[] for _ in range(Lmax + 1)]
-        k_arr = [[] for _ in range(Lmax + 1)]
-        j_arr = [[] for _ in range(Lmax + 1)]
-        start = {}
-        order = []  # shells in PySCF order: (L, index in the packed L stack, z)
-        for a, z in enumerate(zs):
-            if z == 0:
-                continue
-            for (L, k, n, j) in self.shells[z]:
-                if (a, L) not in start:
-                    start[(a, L)] = len(a_arr[L])
-                order.append((L, len(a_arr[L]), z))
-                z_arr[L].append(z)
-                a_arr[L].append(a)
-                k_arr[L].append(k)
-                j_arr[L].append(j)
-        S = [len(x) for x in a_arr]
-        off = np.concatenate([[0], np.cumsum([S[L] * (2 * L + 1) for L in range(Lmax + 1)])])
-        perm = []
-        sign = []
-        for (L, s, z) in order:
-            for m in range(2 * L + 1):
-                perm.append(off[L] + s * (2 * L + 1) + ([2, 0, 1][m] if L == 1 else m))
-                sign.append(-1.0 if L % 2 else 1.0)
-        perm = np.array(perm, dtype=np.int64)
-        lay = {'S': S, 'off': off, 'start': start, 'zs': list(zs),
-               'z': [np.array(x, dtype=np.int64) for x in z_arr], 'k': [np.array(x, dtype=np.int64) for x in k_arr],
-               'atom_np': [np.array(x, dtype=np.int64) for x in a_arr],
-               'atom': [torch.tensor(x, dtype=torch.long, device=device) for x in a_arr],
-               'perm': torch.from_numpy(perm).to(device), 'inv': torch.from_numpy(np.argsort(perm)).to(device)}
-        if dtype is not None:
-            lay['sign'] = torch.tensor(sign, dtype=dtype, device=device)
-            if self.radial_coeffs is not None:
-                lay['width0'], lay['scale0'] = [], []
-                for L in range(Lmax + 1):
-                    w0 = np.zeros((S[L], self.P[L]))
-                    s0 = np.zeros((S[L], self.P[L]))
-                    for s in range(S[L]):
-                        rc = self.radial_coeffs[z_arr[L][s]][j_arr[L][s]]
-                        w0[s, :len(rc[0])] = rc[0]
-                        s0[s, :len(rc[1])] = rc[1]
-                    if self.round_f32:
-                        w0, s0 = w0.astype(np.float32), s0.astype(np.float32)
-                    lay['width0'].append(torch.tensor(w0, dtype=dtype, device=device))
-                    lay['scale0'].append(torch.tensor(s0, dtype=dtype, device=device))
-        return lay
+        z = torch.as_tensor(zs, dtype=torch.long)
+        A = len(z)
+        lay = {'atom': [], 'e': []}
+        start, off = [], [0]
+        for L in range(self.Lmax + 1):
+            n = self.nsh[L][z]
+            atom = torch.repeat_interleave(torch.arange(A), n)
+            first = torch.cumsum(n, 0) - n
+            k = torch.arange(len(atom)) - first[atom]
+            lay['atom'].append(atom)
+            lay['e'].append(self.eid[L][z[atom], k])
+            start.append(first)
+            off.append(off[-1] + len(atom) * (2 * L + 1))
+        start = torch.stack(start)
+        tL, valid = self.tL[z], self.tvalid[z]
+        idx = torch.tensor(off)[tL] + (start[tL, torch.arange(A)[:, None]] + self.tk[z]) * (2 * tL + 1) + self.tm[z]
+        perm = idx[valid]
+        sign = 1 - 2 * (tL[valid] % 2)
+        lay['start'] = start
+        lay['perm'] = perm
+        lay['inv'] = torch.argsort(perm)
+        lay['sign'] = sign if dtype is None else sign.to(dtype)
+        if dtype is not None and self.radial_coeffs is not None:
+            lay['width0'] = [self.width0[L][e].to(dtype) for L, e in enumerate(lay['e'])]
+            lay['scale0'] = [self.scale0[L][e].to(dtype) for L, e in enumerate(lay['e'])]
+        return {k: ([t.to(device) for t in v] if isinstance(v, list) else v.to(device)) for k, v in lay.items()}
 
-    def to_df_vector(self, packed, zs):
+    def to_df_vector(self, packed, lay):
         """Packed coefficients -> flat coefficient vector in PySCF order [B, n_coeffs]."""
-        c = next(iter(packed.values()))['coeff']
-        lay = self.get(zs, c.device, c.dtype)
+        c = packed[0]['coeff']
         flat = torch.cat([packed[L]['coeff'].reshape(c.shape[0], -1) for L in sorted(packed)], dim=1)
         return flat[:, lay['perm']] * lay['sign']
 
@@ -2079,10 +2102,13 @@ class PackedLayout:
         lay = self.get(zs, vec.device, vec.dtype)
         flat = (vec * lay['sign'])[:, lay['inv']]
         packed = {}
+        off = 0
         for L in range(self.Lmax + 1):
-            if lay['S'][L] == 0:
+            S = len(lay['atom'][L])
+            coeff = flat[:, off:off + S * (2 * L + 1)].reshape(vec.shape[0], S, 2 * L + 1)
+            off += S * (2 * L + 1)
+            if S == 0:
                 continue
-            coeff = flat[:, lay['off'][L]:lay['off'][L + 1]].reshape(vec.shape[0], lay['S'][L], 2 * L + 1)
             width = lay['width0'][L].expand(vec.shape[0], -1, -1)
             scale = lay['scale0'][L].expand(vec.shape[0], -1, -1)
             packed[L] = {'atom': lay['atom'][L], 'coeff': coeff.detach().requires_grad_(require_grads),
@@ -2096,7 +2122,7 @@ class PackedLayout:
         lay = self.get(zs, dev)
         packed = {}
         for L in range(self.Lmax + 1):
-            if lay['S'][L] == 0:
+            if len(lay['atom'][L]) == 0:
                 continue
             cs, ws, ss = [], [], []
             for a, z in enumerate(zs):
@@ -2112,7 +2138,7 @@ class PackedLayout:
 
     def to_dicts(self, packed, zs):
         """Packed coefficients -> per-atom dicts {(z, L): [B, 1, 2L+1 (or r_max), n_shells]} (views)."""
-        lay = self.get(zs, next(iter(packed.values()))['coeff'].device)
+        start = self.get(zs, next(iter(packed.values()))['coeff'].device)['start'].tolist()
         sph, width, scale = [], [], []
         for a, z in enumerate(zs):
             sph.append({})
@@ -2123,7 +2149,7 @@ class PackedLayout:
             for L in range(self.Lmax + 1):
                 if (z, L) not in self.nshell:
                     continue
-                s0 = lay['start'][(a, L)]
+                s0 = start[L][a]
                 s1 = s0 + self.nshell[(z, L)]
                 r = self.rmax[(z, L)]
                 sph[a][(z, L)] = packed[L]['coeff'][:, s0:s1].permute(0, 2, 1).unsqueeze(1)

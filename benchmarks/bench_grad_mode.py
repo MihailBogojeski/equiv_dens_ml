@@ -29,7 +29,7 @@ l = lay.get(zs, dev, dt)
 torch.manual_seed(0)
 packed = {}
 for L in range(lay.Lmax + 1):
-    S = l['S'][L]
+    S = len(l['atom'][L])
     packed[L] = {'atom': l['atom'][L],
                  'coeff': (torch.randn(B, S, 2 * L + 1, device=dev, dtype=dt) * 0.1).requires_grad_(),
                  'width': l['width0'][L].expand(B, -1, -1).clone().requires_grad_(),

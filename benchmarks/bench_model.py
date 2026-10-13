@@ -166,8 +166,7 @@ def coeffs_fn(atoms):
 
 
 if compiled:
-    zs = data['batch_atom_numbers'].max(0)[0].tolist()
-    dens_head.warm_caches(zs, data['positions'].device, data['positions'].dtype)
+    inputs['coeff_layout'] = dens_head.batch_layout(data)[1]
     coeffs_fn = torch.compile(coeffs_fn, dynamic=True)
 
 
