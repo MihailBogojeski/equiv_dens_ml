@@ -1689,26 +1689,30 @@ def sample_single_atom_density_mo(position, atom_number, coords, mo_coeffs, dens
 _sgauss_tables = {}
 
 
-def sgauss_tables(atom_dens_dict, device):
+def build_sgauss_tables(atom_dens_dict, device):
     """Padded per-element tables [Zmax + 1, K] of exponents and coefficients (including the pyscf
-    s normalization (2a/pi)^(3/4)) for s-only df free atom densities, else None. Cached."""
+    s normalization (2a/pi)^(3/4)) for s-only df free atom densities, else None."""
+    zs = [z for z in atom_dens_dict if z > 0]
+    bases = {z: atom_dens_dict[z]["df_basis"][z] for z in zs}
+    if not all(len(sh) == 2 and sh[0] == 0 for z in zs for sh in bases[z]):
+        return None
+    K = max(len(bases[z]) for z in zs)
+    exps = torch.ones((max(zs) + 1, K), dtype=torch.float64)
+    coefs = torch.zeros((max(zs) + 1, K), dtype=torch.float64)
+    for z in zs:
+        a = torch.tensor([sh[1][0] for sh in bases[z]], dtype=torch.float64)
+        c = atom_dens_dict[z]["df_coeffs"].reshape(-1).double()
+        exps[z, :len(a)] = a
+        coefs[z, :len(a)] = c * (2 * a / np.pi) ** 0.75
+    return exps.to(device), coefs.to(device)
+
+
+def sgauss_tables(atom_dens_dict, device):
+    """build_sgauss_tables, cached per free-atom dict (kept alive by the cache entry)."""
     key = (id(atom_dens_dict), str(device))
     if key not in _sgauss_tables:
-        zs = [z for z in atom_dens_dict if z > 0]
-        bases = {z: atom_dens_dict[z]["df_basis"][z] for z in zs}
-        if all(len(sh) == 2 and sh[0] == 0 for z in zs for sh in bases[z]):
-            K = max(len(bases[z]) for z in zs)
-            exps = torch.ones((max(zs) + 1, K), dtype=torch.float64)
-            coefs = torch.zeros((max(zs) + 1, K), dtype=torch.float64)
-            for z in zs:
-                a = torch.tensor([sh[1][0] for sh in bases[z]], dtype=torch.float64)
-                c = atom_dens_dict[z]["df_coeffs"].reshape(-1).double()
-                exps[z, :len(a)] = a
-                coefs[z, :len(a)] = c * (2 * a / np.pi) ** 0.75
-            _sgauss_tables[key] = (exps.to(device), coefs.to(device), atom_dens_dict)
-        else:
-            _sgauss_tables[key] = None
-    return _sgauss_tables[key]
+        _sgauss_tables[key] = (build_sgauss_tables(atom_dens_dict, device), atom_dens_dict)
+    return _sgauss_tables[key][0]
 
 
 def sample_atom_density_sgauss(positions, atom_numbers, coords, tables, density_grad=False,
@@ -1751,7 +1755,7 @@ def sample_single_atom_density_df(position, atom_number, coords, basis, df_coeff
     """
     if all(len(sh) == 2 and sh[0] == 0 for z in basis for sh in basis[z]):
         z = int(atom_number.max())
-        tables = sgauss_tables({z: {"df_basis": basis, "df_coeffs": df_coeffs}}, coords.device)
+        tables = build_sgauss_tables({z: {"df_basis": basis, "df_coeffs": df_coeffs}}, coords.device)
         dens = sample_atom_density_sgauss(position, atom_number, coords, tables, density_grad)[:, 0]
         return dens.to(torch.get_default_dtype())
     df_coeffs = [df_coeffs] * coords.shape[0]
