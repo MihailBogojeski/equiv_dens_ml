@@ -11,6 +11,14 @@ from pyscf.data import nist
 import math
 from equiv_dens.utils import cubetools
 
+def has_gpu4pyscf():
+    import importlib.util
+    return importlib.util.find_spec("gpu4pyscf") is not None and torch.cuda.is_available()
+
+
+# switch for the gpu4pyscf code paths (set from --use_gpu4pyscf in training)
+USE_GPU4PYSCF = has_gpu4pyscf()
+
 to_bohr = 1 / pyscf.lib.param.BOHR
 to_angstrom = pyscf.lib.param.BOHR
 
