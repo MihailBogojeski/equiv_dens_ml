@@ -29,8 +29,8 @@ class ClebschGordanMatrix(nn.Module):
     def __init__(self, order_max=10):
         super().__init__()
         cg_matrix, cg_masked = construct_cg_matrix(order_max)
-        self.register_buffer('cg_matrix', cg_matrix)
-        self.register_buffer('cg_masked', cg_masked)
+        self.register_buffer('cg_matrix', cg_matrix, persistent=False)
+        self.register_buffer('cg_masked', cg_masked, persistent=False)
 
     def forward(self, l1, l2, l3):
         dim1 = (l1 + 1)**2

@@ -38,9 +38,16 @@ class DFTNetwork(nn.Module):
         print('force props', self.force_props)
         print('no force props', self.no_force_props)
         self.remove_atom_density = remove_atom_density
+        # Clebsch-Gordan buffers are not stored in checkpoints anymore, ignore them in old ones
+        self._register_load_state_dict_pre_hook(self._drop_cg_keys)
         if self.verbose > 0:
             print('force props', self.force_props)
             print('no force props', self.no_force_props)
+
+    @staticmethod
+    def _drop_cg_keys(state_dict, prefix, *args):
+        for key in [k for k in state_dict if k.startswith(prefix) and 'clebsch_gordan.' in k]:
+            del state_dict[key]
 
     def transform_input(self, data):
         """
