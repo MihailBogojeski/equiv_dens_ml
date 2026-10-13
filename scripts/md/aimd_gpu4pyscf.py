@@ -91,6 +91,7 @@ class PySCFCalculator(Calculator):
 
         if self.use_gpu:
             mf = mf.to_gpu()
+            mf.disp = "d4"  # D4 energy and gradient in gpu4pyscf, no CPU gradient
 
         # Warm restart: project previous step's density matrix as initial guess
         dm0 = None
@@ -105,13 +106,11 @@ class PySCFCalculator(Calculator):
 
         mf.kernel(dm0=dm0)
 
-        # dftd4.pyscf requires standard PySCF SCF; convert GPU object to CPU
         if self.use_gpu:
-            mf = mf.to_cpu()
-
-        d4mf = d4disp.energy(mf).run()
-        grad = d4mf.nuc_grad_method()
-        gradients = grad.kernel()
+            d4mf = mf
+        else:
+            d4mf = d4disp.energy(mf).run()
+        gradients = d4mf.nuc_grad_method().kernel()
 
         # Convert to numpy if CuPy
         if hasattr(gradients, "get"):
