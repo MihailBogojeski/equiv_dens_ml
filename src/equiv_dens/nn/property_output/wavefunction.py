@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 import torch.nn as nn
 from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
-from equiv_dens.nn.modules.spherical_harmonic_layers import SphericalLinear
+from equiv_dens.nn.modules.spherical_harmonic_layers import SphericalLinear, unpack_orders
 from equiv_dens.utils.spherical_harmonics_simple import spherical_harmonics
 from equiv_dens.utils.orbitals import combine_orbitals, gaussian_rbf, get_max_order, get_n_electrons
 from equiv_dens.utils.base import calculate_distances_and_directions
@@ -235,11 +235,7 @@ class WavefunctionCoeffsNetwork(nn.Module):
             print('Memory cached', torch.cuda.memory_cached() / 1024**2)
         start = time.time()
         fs = atoms['sph_repr']
-        if self.verbose > 3:
-            print('distances', atoms['distances'])
-            print('fs[0]:', fs[0][:, 0, :, :10])
-            print('fs[1]:', fs[1][:, 0, :, :10])
-        out_sph = self.spherical_output(fs)
+        out_sph = unpack_orders(self.spherical_output(fs))
         if self.verbose > 2:
             print('density coeffs forward outputs:')
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)

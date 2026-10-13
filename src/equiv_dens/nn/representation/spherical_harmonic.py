@@ -4,7 +4,7 @@ from equiv_dens.nn.modules.radial_basis_functions import BernsteinRadialBasisFun
     ExponentialBernsteinRadialBasisFunctions, ExponentialGaussianRadialBasisFunctions
 from equiv_dens.nn.modules.embeddings import SphericalEmbedding
 from equiv_dens.nn.modules.network_blocks import ModularBlock, ResidualBlock, NonmixingInteractionBlock
-from equiv_dens.nn.modules.spherical_harmonic_layers import SphericalLinear
+from equiv_dens.nn.modules.spherical_harmonic_layers import SphericalLinear, order_scale
 from equiv_dens.utils.spherical_harmonics import spherical_harmonics
 from equiv_dens.utils.base import calculate_distances_and_directions
 from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
@@ -205,116 +205,43 @@ class EquivariantSphericalHarmonics(nn.Module):
         inputs:
             R: Cartesian coordinates of shape [batch_size, num_atoms, 3]
         outputs:
-            C: Spherical harmonics coefficients
+            C: packed spherical harmonics features of shape [batch_size, num_atoms, (order_max + 1)**2, num_features]
         """
-
         R = atoms['positions']
-        N = R.shape[1]
-        batch_size = R.shape[0]
-        # idx_i = torch.arange(N).view(-1, 1).repeat(1, N).view(-1).to(R).type(torch.int64)
-        # idx_j = torch.arange(N).view(1, -1).repeat(N, 1).view(-1).to(R).type(torch.int64)
         idx_i = atoms['idx_i']
         idx_j = atoms['idx_j']
-        neighbor_mask = 1
-        # neighbor_mask = atoms['atom_mask'].view(batch_size, 1, -1).repeat(1, N, 1).view(batch_size, -1)
-        # exclude self - interactions
-        # neighbor_mask = neighbor_mask[:, idx_i != idx_j]
-        # idx_i, idx_j = idx_i[idx_i != idx_j], idx_j[idx_i != idx_j]
-        if self.verbose > 2:
-            print('atom numbers', atoms['atom_numbers'])
-            print('atom mask', atoms['atom_mask'])
-            print('idx_i', idx_i)
-            print('idx_j', idx_j)
-            print('neighbor_mask', neighbor_mask)
-
-        # extract nuclear charges from orbitals, determine maximum order, and
-        # build the occupation mask (for extracting occupied orbitals in energy prediction)
 
         if self.memory:
             print('repr forward start:')
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
             print('Memory cached', torch.cuda.memory_cached() / 1024**2)
-        # start = time.time()
-        # for key in atoms.keys():
-        #     print('prop', key)
-        #     if hasattr(atoms[key], 'shape'):
-        #         print('shape:', atoms[key].shape)
-        #     else:
-        #         print(atoms[key])
         # compute radial basis functions and spherical harmonics
-        # print('idx_i', idx_i)
         dij, uij = calculate_distances_and_directions(R, idx_i, idx_j)
-        # print('dij shape', dij.shape)
-        # print('uij shape', uij.shape)
-        # print('R shape', R.shape)
-        # print('dij', dij)
-        if self.memory:
-            print('repr forward distances:')
-            print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
-            print('Memory cached', torch.cuda.memory_cached() / 1024**2)
         rbf = self.radial_basis_functions(dij).unsqueeze(-2)  # unsqueeze for broadcasting
-        # print('rbf shape', rbf.shape)
-        # print('rbf', rbf)
-        # print('rbf shape', rbf.shape)
-        # print('rbf sum', torch.sum(rbf, dim=-1))
-        # print('rbf softmax', F.softmax(rbf, dim=-1))
-        sph = spherical_harmonics(self.order_max, uij)
-        # print('sph', sph)
+        sph = torch.cat(spherical_harmonics(self.order_max, uij), dim=-1).unsqueeze(-1)
         atoms['distances'] = dij
         atoms['directions'] = uij
-        # print('sph shape', sph[0].shape)
-        for L in range(self.order_max + 1):
-            sph[L] = sph[L].unsqueeze(-1)  # unsqueeze for broadcasting
-        # print('sph shape', sph[0].shape)
         atoms['sph'] = sph
-        # print('sph norm:', [float(torch.mean(torch.norm(sph[L], dim=(-2, -1))**2)) for L in range(len(sph))])
-        # print('sph[0]', sph[1])
         # initialize atomic features to embeddings
-        # repeat Z along batch dimension
-        # print('atom numbers shape', atoms['atom_numbers'].shape)
-        # print('atom numbers', atoms['atom_numbers'])
         xs = self.embedding(atoms['atom_numbers'])
-        # print('xs norm representation before:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
 
         # perform iterations over modular building blocks to get environment - dependent features
-        if self.memory:
-            print('repr forward before module blocks:')
-            print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
-            print('Memory cached', torch.cuda.memory_cached() / 1024**2)
-        fs = [torch.zeros_like(x) for x in xs]  # output features
-        # print('xs norm representation:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
-        # print('fs norm representation:', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
+        fs = torch.zeros_like(xs)  # output features
         for i, module in enumerate(self.module):
             xs = self.order_change[i](xs)
-            # print('xs norm module ', i, ':', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
-            # for L in range(len(xs)):
-            #     print('xs[L] main', xs[L])
-            xs, ys = module(xs, rbf, sph, idx_i, idx_j, neighbor_mask=neighbor_mask)
-            # print('fs norm before:', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
-            for L in range(self.order[i] + 1):
-                if not self.normalize or torch.mean(fs[L]**2) == 0 or torch.mean(fs[L]**2) == 0:
-                    scale = 1
-                else:
-                    scale = np.sqrt(1/2)
-                # print('ys[' + str(L) +'] norm', float(torch.mean(ys[L]**2)))
-                # print('fs[' + str(L) +'] norm before', float(torch.mean(fs[L]**2)))
-                # print('scale', scale)
-                fs[L] = ys[L] * scale + fs[L] * scale
-                # print('fs[' + str(L) +'] norm after', float(torch.mean(fs[L]**2)))
-            # print('')
-            # print('ys norm:', [float(torch.mean(ys[L]**2)) for L in range(len(ys))])
-            # print('fs norm:', [float(torch.mean(fs[L]**2)) for L in range(len(fs))])
-            # print('')
+            xs, ys = module(xs, rbf, sph, idx_i, idx_j)
+            D = ys.shape[-2]
+            fs_low = fs[..., :D, :]
+            scale = order_scale(fs_low, fs_low, self.normalize)
+            fs_low = ys * scale + fs_low * scale if self.normalize else ys + fs_low
+            fs = torch.cat([fs_low, fs[..., D:, :]], dim=-2)
             if self.memory:
                 print('repr forward after module', i, ':')
                 print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
                 print('Memory cached', torch.cuda.memory_cached() / 1024**2)
-            # print('fs norms', [torch.mean(torch.sum(fs[i]**2, dim=-2), dim=-1) for i in range(len(fs))])
         if self.nonmixing_interaction:
-            fs = self.nonmixing_interaction_block(fs, rbf, sph, idx_i, idx_j, neighbor_mask=neighbor_mask)
+            fs = self.nonmixing_interaction_block(fs, rbf, sph, idx_i, idx_j)
         atoms['sph_repr'] = fs
-        # if self.timing:
-        #     print('sph repr time', time.time() - start)
         if self.memory:
             print('repr forward end:')
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
