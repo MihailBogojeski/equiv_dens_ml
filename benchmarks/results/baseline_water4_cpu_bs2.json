@@ -1,0 +1,61 @@
+{
+ "meta": {
+  "dataset": "water4",
+  "device": "cpu",
+  "batch_size": 2,
+  "reps": 3,
+  "config": [
+   "/workspace/.claude/worktrees/agent-ab82224f5919a23ec/config/training/h2o_small_all_001.txt"
+  ],
+  "overrides": [
+   "--train_batch_size=2",
+   "--np_dataset=/workspace/datasets/water_clusters/water4_augccpvdz.npy",
+   "--dens_dataset=/workspace/datasets/water_clusters/water4_augccpvdz_df_augccpvqzjkfit.npy",
+   "--np_dataset_valid=None",
+   "--dens_dataset_valid=None",
+   "--np_dataset_test=None",
+   "--dens_dataset_test=None",
+   "--num_train=4",
+   "--num_valid=0",
+   "--num_test=0",
+   "--use_gpu=False"
+  ],
+  "n_atoms_batch": 24,
+  "n_grid_points": 5000,
+  "n_params": 8679915,
+  "dtype": "torch.float32",
+  "gpu": null
+ },
+ "results": {
+  "data_loading": {
+   "ms": 289.54197500570444,
+   "peak_mb": null
+  },
+  "repr_forward": {
+   "ms": 51121.882471998106,
+   "peak_mb": null
+  },
+  "density_head": {
+   "ms": 381.40089200169314,
+   "peak_mb": null
+  },
+  "expansion": {
+   "ms": 82.45965599780902,
+   "peak_mb": null
+  },
+  "expansion_grad": {
+   "ms": 9170.272457995452,
+   "peak_mb": null
+  },
+  "energy_forces": {
+   "ms": 3397.365754004568,
+   "peak_mb": null
+  },
+  "train_step": {
+   "ms": 46552.50869199517,
+   "peak_mb": null,
+   "fwd_loss_ms": 26326.371536000806,
+   "bwd_ms": 20191.192261998367
+  }
+ }
+}
