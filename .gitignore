@@ -86,3 +86,7 @@ results/
 
 # Jupyter notebook checkpoints
 .ipynb_checkpoints/
+
+# Local agent instructions / notes (Claude Code)
+.claude/
+CLAUDE.md
