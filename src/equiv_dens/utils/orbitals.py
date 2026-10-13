@@ -873,14 +873,7 @@ def intor_dipole_moment_ml(
     batch_dip_intor = []
     for i in range(atoms['batch_atom_numbers'].shape[0]):
         auxmol_ml = ml_basis_to_auxmol(atoms, i, skip_zero=False)
-        helper_mol = build_1c1e_helper_mol(auxmol_ml)
-        intor_idx = [
-            auxmol_ml.bas_atom(ibas)
-            for ibas in range(auxmol_ml.nbas) for _ in range(auxmol_ml.bas_angular(ibas) * 2 + 1)
-        ]
-        int1e_r = gto.mole.intor_cross('int1e_r', helper_mol, auxmol_ml)
-        int1e_r = int1e_r[:, intor_idx, range(auxmol_ml.nao)]
-        int1e_r = utils.bohr_to_angstrom(torch.from_numpy(int1e_r).to(nucl_dip))
+        int1e_r = utils.bohr_to_angstrom(torch.from_numpy(int1e_r_one_center(auxmol_ml)).to(df_coeffs_ml))
         # ml_dip = utils.bohr_to_angstrom(nucl_dip - torch.einsum('ji,i->j', int1e_r, df_coeffs_ml))
         el_dip = torch.einsum('ji,i->j', int1e_r, df_coeffs_ml[i])
         batch_dens_dip.append(el_dip)
@@ -933,6 +926,43 @@ def intor_dipole_moment_mo(
     return atoms
 
 
+def int1e_r_one_center(mol):
+    """int1e_r between a constant and every basis function of mol ([3, nao], Bohr), in closed form.
+    Only s (charge, times atom position) and p (dipole) functions contribute. Assumes nctr == 1."""
+    bas, env, xyz = mol._bas, mol._env, mol.atom_coords()
+    out = np.zeros((3, mol.nao))
+    p0 = 0
+    for ib in range(mol.nbas):
+        l, nprim, ptr_e, ptr_c = bas[ib, 1], bas[ib, 2], bas[ib, 5], bas[ib, 6]
+        exps, coef = env[ptr_e:ptr_e + nprim], env[ptr_c:ptr_c + nprim]
+        if l == 0:
+            out[:, p0] = xyz[bas[ib, 0]] * np.sum(coef * 0.282094791773878143 * (np.pi / exps) ** 1.5)
+        elif l == 1:
+            d = np.sum(coef * 0.488602511902919921 * (np.pi / exps) ** 1.5 / (2 * exps))
+            out[range(3), range(p0, p0 + 3)] = d
+        p0 += 2 * l + 1
+    return out
+
+
+_dipole_tables = {}
+
+
+def _atom_dipole_table(basis, z):
+    """(d, q) of the DF basis functions of a single atom: int1e_r at the origin and the charge
+    integral of each function, both [3, nao_atom] / [1, nao_atom], from two cheap intor calls."""
+    if (basis, z) not in _dipole_tables:
+        tabs = []
+        for shift in (0.0, utils.to_angstrom):  # 1 Bohr in Angstrom
+            mol = utils.npy_to_pyscf(np.array([[[shift, 0., 0.]]]), np.array([[z]]), basis,
+                                     build=True, skip_zero=False)[0]
+            helper_mol = build_1c1e_helper_mol(mol)
+            intor_idx = [mol.bas_atom(ibas) for ibas in range(mol.nbas)
+                         for _ in range(mol.bas_angular(ibas) * 2 + 1)]
+            tabs.append(gto.mole.intor_cross('int1e_r', helper_mol, mol)[:, intor_idx, range(mol.nao)])
+        _dipole_tables[(basis, z)] = (tabs[0], tabs[1][0:1] - tabs[0][0:1])
+    return _dipole_tables[(basis, z)]
+
+
 def intor_dipole_moment_df(
     atoms,
     basis,
@@ -947,22 +977,33 @@ def intor_dipole_moment_df(
         df_coeff = 'df_coeffs'
 
     batch_dens_dip = []
-    mols = utils.npy_to_pyscf(atoms['batch_positions'].numpy(force=True),
-                              atoms['batch_atom_numbers'].numpy(force=True),
-                              basis, build=True)
-    for i in range(atoms['batch_atom_numbers'].shape[0]):
-        auxmol = mols[i] 
-        helper_mol = build_1c1e_helper_mol(auxmol)
-        intor_idx = [
-            auxmol.bas_atom(ibas)
-            for ibas in range(auxmol.nbas) for _ in range(auxmol.bas_angular(ibas) * 2 + 1)
-        ]
-        int1e_r = gto.mole.intor_cross('int1e_r', helper_mol, auxmol)
-        int1e_r = int1e_r[:, intor_idx, range(auxmol.nao)]
-        int1e_r = utils.bohr_to_angstrom(torch.from_numpy(int1e_r).to(coords))
-        # ml_dip = utils.bohr_to_angstrom(nucl_dip - torch.einsum('ji,i->j', int1e_r, df_coeffs_ml))
-        el_dip = torch.einsum('ji,i->j', int1e_r, atoms[df_coeff][i])
-        batch_dens_dip.append(el_dip)
+    if isinstance(basis, str):
+        # int1e_r of an atom-centered function is exactly d + R * q (d: dipole about its center,
+        # q: charge integral), so only a per-element table is needed, no per-sample Mole
+        for i in range(atoms['batch_atom_numbers'].shape[0]):
+            z = atoms['batch_atom_numbers'][i].numpy(force=True).astype(int)
+            pos = atoms['batch_positions'][i].numpy(force=True) * utils.to_bohr
+            int1e_r = np.concatenate(
+                [_atom_dipole_table(basis, zj)[0] + pos[j][:, None] * _atom_dipole_table(basis, zj)[1]
+                 for j, zj in enumerate(z) if zj > 0], axis=1)
+            int1e_r = utils.bohr_to_angstrom(torch.from_numpy(int1e_r).to(coords))
+            batch_dens_dip.append(torch.einsum('ji,i->j', int1e_r, atoms[df_coeff][i]))
+    else:
+        mols = utils.npy_to_pyscf(atoms['batch_positions'].numpy(force=True),
+                                  atoms['batch_atom_numbers'].numpy(force=True),
+                                  basis, build=True)
+        for i in range(atoms['batch_atom_numbers'].shape[0]):
+            auxmol = mols[i]
+            helper_mol = build_1c1e_helper_mol(auxmol)
+            intor_idx = [
+                auxmol.bas_atom(ibas)
+                for ibas in range(auxmol.nbas) for _ in range(auxmol.bas_angular(ibas) * 2 + 1)
+            ]
+            int1e_r = gto.mole.intor_cross('int1e_r', helper_mol, auxmol)
+            int1e_r = int1e_r[:, intor_idx, range(auxmol.nao)]
+            int1e_r = utils.bohr_to_angstrom(torch.from_numpy(int1e_r).to(coords))
+            el_dip = torch.einsum('ji,i->j', int1e_r, atoms[df_coeff][i])
+            batch_dens_dip.append(el_dip)
 
     dens_dip = torch.stack(batch_dens_dip, dim=0)
 
@@ -1047,6 +1088,7 @@ def sample_density_base(mols, coords, coeffs, scale_coords=False, projected=Fals
         dens = torch.zeros((coords.shape[0], coords.shape[1], coords.shape[2] + 1))
     else:
         dens = torch.zeros((coords.shape[0], coords.shape[1]))
+    gpu_dens = []
     for i in range(len(mols)):
         mol = mols[i]
         if not mol._built:
@@ -1060,6 +1102,12 @@ def sample_density_base(mols, coords, coeffs, scale_coords=False, projected=Fals
         #     print('coords vals', torch.max(coords[i]), torch.min(coords[i]), torch.min(torch.abs(coords[i])))
         # else:
         #     print('coords vals', np.max(coords[i]), np.min(coords[i]), np.min(np.abs(coords[i])))
+        if utils.USE_GPU4PYSCF:
+            from equiv_dens.utils import gpu_pyscf
+            rho = torch.from_dlpack(
+                gpu_pyscf.sample_density(mol, coords[i], coeffs[i], projected, density_grad))
+            gpu_dens.append((i, rho.T if density_grad else rho))
+            continue
         ao = numint.eval_ao(mol, coords[i], deriv=deriv)
         if projected:
             rho = _expand_pyscf_projected_density(mol, ao, coeffs[i], density_grad=density_grad)
@@ -1068,6 +1116,9 @@ def sample_density_base(mols, coords, coeffs, scale_coords=False, projected=Fals
         if density_grad:
             rho = np.transpose(rho)
         dens[i, :] = torch.from_numpy(rho)
+    if gpu_dens:
+        gpu_out = torch.stack([r for _, r in gpu_dens]).cpu()
+        dens[[i for i, _ in gpu_dens]] = gpu_out.to(dens)
     return dens
 
 
@@ -1571,7 +1622,11 @@ def sample_single_atom_density_spline(position, atom_number,
         anum_nz = anum_nz.view(-1, 1, 1)
     else:
         anum_nz = anum_nz.view(-1, 1)
-    dens_spline = eval_spline_density(spline_basis, atom_coords, density_grad=density_grad)
+    if atom_coords.is_cuda:
+        from equiv_dens.utils import gpu_pyscf
+        dens_spline = gpu_pyscf.eval_spline_density(spline_basis, atom_coords, density_grad=density_grad)
+    else:
+        dens_spline = eval_spline_density(spline_basis, atom_coords, density_grad=density_grad)
 
     return dens_spline * anum_nz
 
@@ -1655,11 +1710,13 @@ def sample_atom_density(
         (density, atom_wise_density) (torch.Tensor, torch.Tensor): Tuple containing free atom
         density of the molecule, plus the individual density of each atom in the molecule
     """
-    gc.collect()  # To release circular referred objects
+    gpu = utils.USE_GPU4PYSCF and atom_dens_type == "spline"
+    if gpu:
+        positions, atom_numbers, coords = positions.cuda(), atom_numbers.cuda(), coords.cuda()
     if density_grad:
-        dens = torch.zeros((coords.shape[0], coords.shape[1], coords.shape[2] + 1))
+        dens = torch.zeros((coords.shape[0], coords.shape[1], coords.shape[2] + 1), device=coords.device)
     else:
-        dens = torch.zeros((coords.shape[0], coords.shape[1]))
+        dens = torch.zeros((coords.shape[0], coords.shape[1]), device=coords.device)
     atom_densities = []
     for i in range(positions.shape[1]):
         start = time.time()
@@ -1700,7 +1757,7 @@ def sample_atom_density(
         atom_densities = torch.stack(atom_densities, dim=1)
     else:
         atom_densities = torch.zeros(1)
-    return dens, atom_densities
+    return dens.cpu(), atom_densities.cpu()
 
 
 def model_input_from_atoms(

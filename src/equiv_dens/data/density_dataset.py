@@ -691,6 +691,23 @@ class AtomsDensityData(Dataset):
                 }
             else:
                 rot_spec = self.grid_spec
+            if utils.USE_GPU4PYSCF:
+                from equiv_dens.utils import gpu_pyscf
+                coords, weights = gpu_pyscf.get_partition(
+                    mol, gpu_pyscf.grids_to_cupy(rot_spec)
+                )
+                if self.density_n_samp <= coords.shape[0]:
+                    rand_idx = np.random.choice(
+                        np.arange(coords.shape[0]), size=self.density_n_samp, replace=False
+                    )
+                    coords, weights = coords[rand_idx], weights[rand_idx]
+                coords = gpu_pyscf.cp_to_torch(coords)
+                weights = gpu_pyscf.cp_to_torch(weights)
+                if self.density_n_samp <= coords.shape[0]:
+                    coords, weights = coords.to(self.dtype), weights.to(self.dtype)
+                all_coords.append(coords)
+                all_weights.append(weights)
+                continue
             coords, weights = gen_grid.get_partition(mol, rot_spec)
             coords = torch.tensor(coords)
             weights = torch.tensor(weights)
@@ -715,7 +732,7 @@ class AtomsDensityData(Dataset):
         pad_weights = nn.utils.rnn.pad_sequence(
             all_weights, batch_first=True, padding_value=0
         )
-        return pad_coords, pad_weights
+        return pad_coords.cpu(), pad_weights.cpu()
 
     def get_coords(self, positions, atom_numbers):
         if self.use_gpu:
