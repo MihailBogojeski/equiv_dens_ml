@@ -35,6 +35,7 @@ VARIANTS = {
     'positive': ['--positive_coeffs=True'],
     'int_constraint': ['--integral_constraint=coeffs_in_coeffs_net'],
     'int_constraint_scale': ['--integral_constraint=coeffs_in_coeffs_net', '--integral_scale=True'],
+    'remove_atom': ['--remove_atom_density=True', '--integral_constraint=coeffs_in_coeffs_net'],
     'from_df': ['--density_from_df=True'],
     'from_free_atoms': ['--density_from_free_atoms=True'],
 }
