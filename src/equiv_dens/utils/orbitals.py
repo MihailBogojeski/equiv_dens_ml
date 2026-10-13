@@ -1663,6 +1663,57 @@ def sample_single_atom_density_mo(position, atom_number, coords, mo_coeffs, dens
     return dens
 
 
+_sgauss_tables = {}
+
+
+def sgauss_tables(atom_dens_dict, device):
+    """Padded per-element tables [Zmax + 1, K] of exponents and coefficients (including the pyscf
+    s normalization (2a/pi)^(3/4)) for s-only df free atom densities, else None. Cached."""
+    key = (id(atom_dens_dict), str(device))
+    if key not in _sgauss_tables:
+        zs = [z for z in atom_dens_dict if z > 0]
+        bases = {z: atom_dens_dict[z]["df_basis"][z] for z in zs}
+        if all(len(sh) == 2 and sh[0] == 0 for z in zs for sh in bases[z]):
+            K = max(len(bases[z]) for z in zs)
+            exps = torch.ones((max(zs) + 1, K), dtype=torch.float64)
+            coefs = torch.zeros((max(zs) + 1, K), dtype=torch.float64)
+            for z in zs:
+                a = torch.tensor([sh[1][0] for sh in bases[z]], dtype=torch.float64)
+                c = atom_dens_dict[z]["df_coeffs"].reshape(-1).double()
+                exps[z, :len(a)] = a
+                coefs[z, :len(a)] = c * (2 * a / np.pi) ** 0.75
+            _sgauss_tables[key] = (exps.to(device), coefs.to(device), atom_dens_dict)
+        else:
+            _sgauss_tables[key] = None
+    return _sgauss_tables[key]
+
+
+def sample_atom_density_sgauss(positions, atom_numbers, coords, tables, density_grad=False,
+                               max_elements=2 ** 25):
+    """Free atom densities of s-type Gaussians for all atoms at once, in torch on the device of
+    the tables. positions [B, A, 3], coords [B, N, 3] in Angstrom, exponents in Bohr^-2.
+    Returns [B, A, N] (or [B, A, N, 4] with the gradient w.r.t. Bohr coordinates), float64."""
+    exps, coefs = tables[0], tables[1]
+    z = atom_numbers.long().to(exps.device)
+    a = exps[z]  # [B, A, K]
+    c = coefs[z] * (z > 0).unsqueeze(-1)
+    pos = positions.double().to(exps.device)
+    coords = coords.double().to(exps.device)
+    B, A, K = a.shape
+    N = coords.shape[1]
+    chunk = max(1, max_elements // (B * A * K))
+    out = []
+    for i in range(0, N, chunk):
+        d = (coords[:, None, i:i + chunk, :] - pos[:, :, None, :]) / param.BOHR  # [B, A, n, 3]
+        term = c[:, :, None, :] * torch.exp(-a[:, :, None, :] * (d ** 2).sum(-1, keepdim=True))  # [B, A, n, K]
+        rho = term.sum(-1)
+        if density_grad:
+            grad = -2 * (term * a[:, :, None, :]).sum(-1, keepdim=True) * d
+            rho = torch.cat([rho.unsqueeze(-1), grad], dim=-1)
+        out.append(rho)
+    return torch.cat(out, dim=2)
+
+
 def sample_single_atom_density_df(position, atom_number, coords, basis, df_coeffs, density_grad=False):
     """
     Sample the free atom density of a single atom on a given coordinate grid using a density fitting basis.
@@ -1675,6 +1726,11 @@ def sample_single_atom_density_df(position, atom_number, coords, basis, df_coeff
     Returns:
         density (torch.Tensor): Free atom density of the atom
     """
+    if all(len(sh) == 2 and sh[0] == 0 for z in basis for sh in basis[z]):
+        z = int(atom_number.max())
+        tables = sgauss_tables({z: {"df_basis": basis, "df_coeffs": df_coeffs}}, coords.device)
+        dens = sample_atom_density_sgauss(position, atom_number, coords, tables, density_grad)[:, 0]
+        return dens.to(torch.get_default_dtype())
     df_coeffs = [df_coeffs] * coords.shape[0]
     atom = utils.npy_to_pyscf(
         position.detach().cpu().numpy(), atom_number.detach().cpu().numpy(), basis
@@ -1710,6 +1766,13 @@ def sample_atom_density(
         (density, atom_wise_density) (torch.Tensor, torch.Tensor): Tuple containing free atom
         density of the molecule, plus the individual density of each atom in the molecule
     """
+    if atom_dens_type == "df_coeffs":
+        device = "cuda" if utils.USE_GPU4PYSCF else coords.device
+        tables = sgauss_tables(atom_dens_dict, device)
+        if tables is not None:
+            atom_dens = sample_atom_density_sgauss(positions, atom_numbers, coords, tables, density_grad)
+            atom_dens = atom_dens.to(torch.get_default_dtype()).cpu()
+            return atom_dens.sum(1), (atom_dens if individual_dens else torch.zeros(1))
     gpu = utils.USE_GPU4PYSCF and atom_dens_type == "spline"
     if gpu:
         positions, atom_numbers, coords = positions.cuda(), atom_numbers.cuda(), coords.cuda()
