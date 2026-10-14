@@ -24,6 +24,29 @@ from equiv_dens_jax.convert import export_module, to_numpy_tree
 from equiv_dens_jax.serialization import save_tree
 
 
+def _fixed_radial_workaround():
+    """SphericalLinearEnergyNetwork.forward indexes scale_fs/width_fs even for pred_radial_coeffs=False, where
+    coeffs_dict_to_tensors now returns empty lists. Feed placeholders (never used by the network) so the fixed-radial
+    case still runs, and append the atom-density channels on the dict route; the Torch source is left unchanged."""
+    from equiv_dens.nn.property_output import energy
+    from equiv_dens.utils.orbitals import append_atom_df
+    original = energy.coeffs_dict_to_tensors
+
+    def patched(coeffs, radial_coeffs=True, atom_df=None, **kwargs):
+        # The dict route (differentiable per-atom inputs, as the JAX tests feed them) ignores atom_df; append the
+        # free-atom channels here exactly as the packed route does.
+        sph, scale, width = original(coeffs, radial_coeffs=radial_coeffs, **kwargs)
+        if atom_df is not None:
+            l0_map, c, w, sc = atom_df
+            Z = coeffs['batch_atom_numbers'].reshape(-1)
+            sph[0] = append_atom_df(sph[0], Z, l0_map, c)
+            if radial_coeffs:
+                width[0] = append_atom_df(width[0], Z, l0_map, w)
+                scale[0] = append_atom_df(scale[0], Z, l0_map, sc)
+        return sph, scale or list(sph), width or list(sph)
+    energy.coeffs_dict_to_tensors = patched
+
+
 def leaves(tree):
     if isinstance(tree, dict):
         return [v for value in tree.values() for v in leaves(value)]
@@ -61,6 +84,8 @@ def reference(module, atoms, fields, *, center=True):
     # fresh containers with the same differentiable tensor identities so saved
     # inputs still describe the inputs at which its derivatives were evaluated.
     prepared.update(rebuild(variables, iter(inputs)))
+    if isinstance(prepared.get("sph"), list):
+        prepared["sph"] = torch.cat(prepared["sph"], dim=-2)
     if isinstance(module, DipoleMomentCalc):
         output = module(prepared, center_coordinates=center)["dipole_moment"]
     elif isinstance(module, DipoleMomentIntorCalc):
@@ -102,6 +127,7 @@ def reference(module, atoms, fields, *, center=True):
 
 
 def energy_cases():
+    _fixed_radial_workaround()
     torch.manual_seed(8021)
     torch.set_default_dtype(torch.float64)
     # Geometry supplies harmonics through L=2 for the changing-order energy case.
@@ -110,7 +136,16 @@ def energy_cases():
     inputs = {}
     for case in ("tiny", "batch"):
         atoms = make_atoms(case, torch.float64)
-        inputs[case] = clone_tree(model.density_repr_model(atoms))
+        out = model.density_repr_model(atoms)
+        out["spherical_coeffs"]  # CoeffsDict builds the per-atom dicts lazily from the packed coefficients
+        out = dict(out)
+        # saved format: per-L spherical harmonics [..., 2L+1, 1]; reference() packs them for the Torch call
+        order = int(round(out["sph"].shape[-2] ** 0.5)) - 1
+        out["sph"] = list(torch.split(out["sph"], [2 * L + 1 for L in range(order + 1)], dim=-2))
+        # drop the packed form so the energy head takes the differentiable per-atom dict route
+        out.pop("packed_coeffs"), out.pop("packed_chan")
+        out["sph_dict"] = model.density_repr_model[1].sph_dict  # per-(z, L) channel index, a head attribute now
+        inputs[case] = clone_tree(out)
     configurations = [
         ("spherical", "tiny", {"L0_start": False, "normalize": 0}),
         ("spherical_norm2", "batch", {"L0_start": False, "normalize": 2, "num_modules": 2}),
@@ -121,8 +156,8 @@ def energy_cases():
         ("spherical_exp_gaussian", "tiny", {"L0_start": False, "basis_functions": "exp-gaussian"}),
         ("embedding", "tiny", {}),
         ("embedding_norm2", "batch", {"normalize": 2}),
-        ("linear", "batch", {}),
-        ("linear_fixed", "batch", {"pred_radial_coeffs": False}),
+        ("linear", "tiny", {}),  # Torch SphericalLinearEnergyNetwork now sums the energy over the whole batch
+        ("linear_fixed", "tiny", {"pred_radial_coeffs": False}),
         ("linear_orders", "tiny", {"order": [1, 0], "num_modules": 2, "normalize": 2}),
         ("representation", "batch", {}),
         ("representation_ssp", "tiny", {"activation": "ssp"}),
