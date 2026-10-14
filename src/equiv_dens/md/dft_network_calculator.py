@@ -46,6 +46,7 @@ class DFTNetworkCalculator(MDCalculator):
         use_fast_inference=False,
         compile_model=False,
         geometry_backend="reference",
+        static_compile=False,
         ):
         # energy prediction model
         super().__init__(
@@ -82,6 +83,11 @@ class DFTNetworkCalculator(MDCalculator):
         self.geometry_backend = geometry_backend
         self._geometry_layout = None
         self._geometry_neighbors = None
+        # static compile: fixed shapes and CUDA graphs, the neighbor pairs are padded to a grow-only capacity
+        self.static_compile = static_compile
+        self._pair_capacity = 0
+        if static_compile:
+            self.model.enable_compile(static=True)
         
         # Performance optimizations
         self.enable_tf32 = enable_tf32
@@ -318,8 +324,29 @@ class DFTNetworkCalculator(MDCalculator):
             inputs['atom_batch_idx'] = atom_batch_idx.flatten()
             inputs['atom_batch_idx'] = inputs['atom_batch_idx'][inputs['atom_mask']].view(1, -1)
         inputs['positions'] = inputs['positions'][:, inputs['atom_mask']]
+        if self.static_compile:
+            self._pad_pairs(inputs)
 
         return inputs
+
+    def _pad_pairs(self, inputs):
+        """Pad the neighbor pairs to a grow-only capacity (10% headroom, multiples of 128, at most all pairs) so
+        that the pair count of the static compile only changes when the capacity grows. The padding pairs are pairs
+        of the same molecule outside of the cutoff: their radial basis (cutoff function) and with it their messages
+        and gradients are exactly zero."""
+        idx_i, idx_j = inputs['idx_i'], inputs['idx_j']
+        b = inputs['atom_batch_idx'][0]
+        N = b.shape[0]
+        n_all = int(np.sum(np.bincount(b.cpu().numpy()) ** 2)) - N  # ordered pairs within the molecules
+        self._pair_capacity = min(max(self._pair_capacity, -(-int(1.1 * idx_i.numel()) // 128) * 128), n_all)
+        pad = self._pair_capacity - idx_i.numel()
+        if pad > 0:
+            outside = b[:, None] == b[None, :]
+            outside.fill_diagonal_(False)
+            outside[idx_i, idx_j] = False
+            far_i, far_j = outside.nonzero().T
+            inputs['idx_i'] = torch.cat([idx_i, far_i[:pad]])
+            inputs['idx_j'] = torch.cat([idx_j, far_j[:pad]])
 
 
 def get_pyscf_coords(grid_spec, density_n_samp, atom_numbers, positions):

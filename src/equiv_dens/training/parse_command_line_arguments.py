@@ -417,6 +417,9 @@ def parse_command_line_arguments(arg_file=None):
                                  choices=[True, False], help="Use FastInferenceWrapper (default: False, can be slower).")
     args_simulation.add_argument("--compile_model", metavar='True|False', type=str2bool, default=False,
                                  choices=[True, False], help="Use torch.compile for model (default: False, can be slower).")
+    args_simulation.add_argument("--static_compile", metavar='True|False', type=str2bool, default=False,
+                                 choices=[True, False],
+                                 help="Compile energy/forces with static shapes and CUDA graphs for MD (default: False).")
 
     # arguments for logging and checkpoints
     args_logging = parser.add_argument_group("logging and checkpoints")

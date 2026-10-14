@@ -52,6 +52,7 @@ def make_calculator(module=candidate, backend='native', cutoff=2.5):
     calc.remove_atom_density = False
     calc.atom_dens = None
     calc.cutoff = cutoff
+    calc.static_compile = False
     calc._get_system_molecules = lambda system: system
     return calc
 
