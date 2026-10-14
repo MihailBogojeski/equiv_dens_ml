@@ -4,6 +4,10 @@ SE3-equivariant neural network for predicting molecular electron densities. The 
 
 Any publication that uses this code or its outputs should cite the associated manuscript (see [Citing this work](#citing-this-work)).
 
+The current architecture also has a native JAX pipeline for density/energy/force
+training, inference and ASE MD. Use `python run_jax.py --help` for its native
+commands and `tools/runtime/run.sh jax` for the separate runtime.
+
 ## Requirements
 
 - Python >= 3.10
