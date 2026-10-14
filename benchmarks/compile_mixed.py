@@ -124,6 +124,7 @@ def make_batch(names):
     b['density_grad'] = torch.randn(B, cli.grid, 3, generator=g, dtype=args.dtype)
     b['energy'] = torch.randn(B, 1, generator=g, dtype=args.dtype)
     b['forces'] = torch.randn(1, N, 3, generator=g, dtype=args.dtype)
+    b['atom_density'] = torch.rand(B, cli.grid, generator=g, dtype=args.dtype)  # for --remove_atom_density=True
     return model.transform_input(C.to_device(b, dev))
 
 

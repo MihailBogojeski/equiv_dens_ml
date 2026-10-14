@@ -135,21 +135,28 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
             self._order[0] = 0
         
         if self.atom_dens is not None:
-            print('self atom dens', self.atom_dens[8]['df_basis'])
-            # for z in self.spherical_spec.keys():
-            #     print('z', z)
-            #     print("atom dens", self.atom_dens[z]['df_basis'])
-            #     print("atom dens", self.atom_dens[z]['df_basis'][z])
-            #     for i in range(len(self.atom_dens[z]['df_basis'][z])):
-            #         print('i', i)
-            #         print("atom dens", self.atom_dens[z]['df_basis'][z][i][1][0])
-            self.atom_df_widths = {z: torch.tensor([self.atom_dens[z]['df_basis'][z][i][1][0] for i in range(len(self.atom_dens[z]['df_basis'][z]))]) for z in self.spherical_spec.keys()}
-            self.atom_df_scales = {z: torch.tensor([gto_norm_pyscf(0, self.atom_dens[z]['df_basis'][z][i][1][0]) for i in range(len(self.atom_dens[z]['df_basis'][z]))]) for z in self.spherical_spec.keys()}
-            self.atom_df_coeffs = {z: self.atom_dens[z]['df_coeffs'] for z in self.spherical_spec.keys()}
+            # free-atom DF coefficients (s-type) of each element, in front of its L=0 channels: element z with n_z
+            # predicted L=0 channels and m_z free-atom ones occupies [off_z, off_z + m_z + n_z), the free-atom ones first
+            n0 = {z: sum(orb[1] for orb in spec if orb[2] == 0) for z, spec in self.spherical_spec.items()}
+            m0 = {z: self.atom_dens[z]['df_coeffs'].shape[1] for z in self.spherical_spec}
+            C = sum(n0[z] + m0[z] for z in self.spherical_spec)
+            l0_map = []
+            tables = torch.zeros(3, max(self.spherical_spec) + 1, C, dtype=torch.float64)
+            off = 0
+            for z in self.spherical_spec:
+                widths = [shell[1][0] for shell in self.atom_dens[z]['df_basis'][z]]
+                tables[0, z, off:off + m0[z]] = self.atom_dens[z]['df_coeffs'].reshape(-1).double()
+                tables[1, z, off:off + m0[z]] = torch.tensor(widths)  # float32 widths, as the old code had them
+                tables[2, z, off:off + m0[z]] = torch.tensor([gto_norm_pyscf(0, w) for w in widths], dtype=torch.float64)
+                l0_map.extend(range(off + m0[z], off + m0[z] + n0[z]))
+                off += m0[z] + n0[z]
+            self.register_buffer('atom_df_l0_map', torch.tensor(l0_map), persistent=False)
+            self.register_buffer('atom_df_coeffs', tables[0], persistent=False)
+            self.register_buffer('atom_df_widths', tables[1], persistent=False)
+            self.register_buffer('atom_df_scales', tables[2], persistent=False)
+            self.atom_df = True
         else:
-            self.atom_df_widths = None
-            self.atom_df_scales = None
-            self.atom_df_coeffs = None
+            self.atom_df = None
 
         for key in self.spherical_spec.keys():
             curr_feats = [0] * (self.orbitals_max_order + 1)
@@ -268,10 +275,10 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
     def forward(self, atoms):
         idx_i = atoms['idx_i']
         idx_j = atoms['idx_j']
-        sph_fs, scale_fs, width_fs = coeffs_dict_to_tensors(atoms, radial_coeffs=self.pred_radial_coeffs,
-                                                            atom_df_coeffs=self.atom_df_coeffs,
-                                                            atom_df_widths=self.atom_df_widths,
-                                                            atom_df_scales=self.atom_df_scales)
+        atom_df = None
+        if self.atom_df is not None:
+            atom_df = (self.atom_df_l0_map, self.atom_df_coeffs, self.atom_df_widths, self.atom_df_scales)
+        sph_fs, scale_fs, width_fs = coeffs_dict_to_tensors(atoms, radial_coeffs=self.pred_radial_coeffs, atom_df=atom_df)
         for i in range(len(sph_fs)):
             sph_fs[i] = sph_fs[i].view(1, -1, *sph_fs[i].shape[2:]).index_select(1, atoms['batch_idx_pos'])
             scale_fs[i] = scale_fs[i].view(1, -1, *scale_fs[i].shape[2:]).index_select(1, atoms['batch_idx_pos'])

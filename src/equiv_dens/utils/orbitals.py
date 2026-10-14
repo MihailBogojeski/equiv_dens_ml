@@ -246,10 +246,28 @@ def packed_to_tensors(packed, chan, A, radial_coeffs=True):
     return all_sph, all_scale, all_width
 
 
-def coeffs_dict_to_tensors(coeffs, radial_coeffs=True, atom_df_coeffs=None, atom_df_widths=None, atom_df_scales=None):
+def append_atom_df(fs, Z, l0_map, table):
+    """Moves the L=0 channels of fs [1, B * A, X, C] to l0_map and adds the per-element free-atom channels
+    table[Z] [B * A, C'] (broadcast over X) -> [1, B * A, X, C']."""
+    out = fs.new_zeros(*fs.shape[:-1], table.shape[-1]).index_copy(-1, l0_map, fs)
+    return out + table.to(fs.dtype)[Z][None, :, None, :]
+
+
+def coeffs_dict_to_tensors(coeffs, radial_coeffs=True, atom_df=None, atom_df_coeffs=None, atom_df_widths=None,
+                           atom_df_scales=None):
+    """atom_df: (l0_map [C0], coeffs, widths, scales [n_z, C0']) appends the free-atom DF coefficients of the element of
+    each atom to the L=0 channels (packed coefficients)."""
     if 'packed_chan' in coeffs and atom_df_coeffs is None:
-        return packed_to_tensors(coeffs['packed_coeffs'], coeffs['packed_chan'], coeffs['batch_atom_numbers'].shape[1],
-                                radial_coeffs)
+        sph, scale, width = packed_to_tensors(coeffs['packed_coeffs'], coeffs['packed_chan'],
+                                              coeffs['batch_atom_numbers'].shape[1], radial_coeffs)
+        if atom_df is not None:
+            l0_map, c, w, s = atom_df
+            Z = coeffs['batch_atom_numbers'].reshape(-1)
+            sph[0] = append_atom_df(sph[0], Z, l0_map, c)
+            if radial_coeffs:
+                width[0] = append_atom_df(width[0], Z, l0_map, w)
+                scale[0] = append_atom_df(scale[0], Z, l0_map, s)
+        return sph, scale, width
     sph_coeffs = coeffs["spherical_coeffs"]
     rad_width = coeffs["radial_width"]
     rad_scale = coeffs["radial_scale"]
