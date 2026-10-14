@@ -151,12 +151,18 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
                 l0_map.extend(range(off + m0[z], off + m0[z] + n0[z]))
                 off += m0[z] + n0[z]
             self.register_buffer('atom_df_l0_map', torch.tensor(l0_map), persistent=False)
-            self.register_buffer('atom_df_coeffs', tables[0], persistent=False)
-            self.register_buffer('atom_df_widths', tables[1], persistent=False)
-            self.register_buffer('atom_df_scales', tables[2], persistent=False)
+            self.register_buffer('atom_df_coeff_table', tables[0], persistent=False)
+            self.register_buffer('atom_df_width_table', tables[1], persistent=False)
+            self.register_buffer('atom_df_scale_table', tables[2], persistent=False)
             self.atom_df = True
+            # per-element dicts, only read by the JAX exporter (equiv_dens_jax), unused by the Torch forward
+            dfb = {z: [shell[1][0] for shell in self.atom_dens[z]['df_basis'][z]] for z in self.spherical_spec}
+            self.atom_df_widths = {z: torch.tensor(dfb[z]) for z in self.spherical_spec}
+            self.atom_df_scales = {z: torch.tensor([gto_norm_pyscf(0, w) for w in dfb[z]]) for z in self.spherical_spec}
+            self.atom_df_coeffs = {z: self.atom_dens[z]['df_coeffs'] for z in self.spherical_spec}
         else:
             self.atom_df = None
+            self.atom_df_widths = self.atom_df_scales = self.atom_df_coeffs = None
 
         for key in self.spherical_spec.keys():
             curr_feats = [0] * (self.orbitals_max_order + 1)
@@ -277,7 +283,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
         idx_j = atoms['idx_j']
         atom_df = None
         if self.atom_df is not None:
-            atom_df = (self.atom_df_l0_map, self.atom_df_coeffs, self.atom_df_widths, self.atom_df_scales)
+            atom_df = (self.atom_df_l0_map, self.atom_df_coeff_table, self.atom_df_width_table, self.atom_df_scale_table)
         sph_fs, scale_fs, width_fs = coeffs_dict_to_tensors(atoms, radial_coeffs=self.pred_radial_coeffs, atom_df=atom_df)
         for i in range(len(sph_fs)):
             sph_fs[i] = sph_fs[i].view(1, -1, *sph_fs[i].shape[2:]).index_select(1, atoms['batch_idx_pos'])
