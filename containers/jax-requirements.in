@@ -1,0 +1,25 @@
+# Extend the audited mlff_jax CUDA12 image without changing its JAX core.
+jax==0.9.2
+jaxlib==0.9.2
+jax-cuda12-plugin==0.9.2
+jax-cuda12-pjrt==0.9.2
+numpy==2.5.3
+scipy==1.18.1
+flax==0.12.6
+optax==0.2.8
+orbax-checkpoint==0.12.6
+jax-md==0.2.29
+jraph==0.0.6.dev0
+e3nn-jax==0.21.0
+
+# Optional equivariant kernels, DFT, tests, and linting for DenSNet work.
+cuequivariance-jax
+cuequivariance-ops-jax-cu12
+pyscf
+ase==3.29.0
+dftpy==2.2.0
+pytest
+pytest-timeout
+pytest-cov
+pytest-benchmark
+ruff

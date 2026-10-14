@@ -1,0 +1,6 @@
+# Preserve the audited modern CUDA12 base while resolving optional packages.
+torch==2.12.1+cu126
+torchvision==0.27.1+cu126
+torchaudio==2.11.0+cu126
+numpy==2.2.6
+scipy==1.17.1

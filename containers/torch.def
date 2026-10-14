@@ -1,0 +1,60 @@
+Bootstrap: localimage
+From: /home/johannes/cont/deq_212.sif
+
+# Run apptainer build from the repository root. See containers/README.md.
+# Runtime only: the project checkout is supplied through PYTHONPATH.
+%files
+    containers/torch-requirements.in /opt/densnet-runtime/torch-requirements.in
+    containers/torch-core-constraints.txt /opt/densnet-runtime/torch-core-constraints.txt
+    containers/gxtb-provenance.json /opt/densnet-runtime/gxtb-provenance.json
+    tools/runtime/install_gxtb.py /opt/densnet-runtime/install_gxtb.py
+    containers/torch-requirements.lock /opt/densnet-runtime/torch-requirements.lock
+    containers/wheels/schnetpack-2.1.1+densnet1-py3-none-any.whl /opt/densnet-runtime/wheels/schnetpack-2.1.1+densnet1-py3-none-any.whl
+
+%post
+    set -eux
+    export PATH=/opt/venv/bin:/usr/local/cuda/bin:/usr/local/bin:$PATH
+    export VIRTUAL_ENV=/opt/venv UV_LINK_MODE=copy UV_NO_CACHE=1
+    export TMPDIR=/var/tmp
+    uv pip install --python /opt/venv/bin/python \
+        --extra-index-url https://download.pytorch.org/whl/cu126 \
+        --index-strategy unsafe-best-match \
+        -r /opt/densnet-runtime/torch-requirements.lock
+    python -m pip check
+    python /opt/densnet-runtime/install_gxtb.py /opt/densnet-runtime/gxtb-provenance.json /opt/gxtb
+    python -m pip freeze --all > /opt/densnet-runtime/installed.txt
+    nvcc --version
+
+%environment
+    export LANG=C.UTF-8 LC_ALL=C.UTF-8
+    export PATH=/opt/venv/bin:/opt/gxtb/bin:/usr/local/cuda/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin
+    export VIRTUAL_ENV=/opt/venv CUDA_HOME=/usr/local/cuda
+    export GXTBHOME=/opt/gxtb/parameters
+    export PYTHONNOUSERSITE=1
+    CACHE_USER="$(id -un 2>/dev/null || echo nobody)"
+    CACHE_ROOT="/temp/${CACHE_USER}/cache/densnet-torch"
+    if ! mkdir -p "$CACHE_ROOT" 2>/dev/null; then
+        CACHE_ROOT="${HOME:-/tmp}/.cache/densnet-torch"
+    fi
+    export XDG_CACHE_HOME="$CACHE_ROOT/xdg"
+    export UV_CACHE_DIR="$CACHE_ROOT/uv"
+    export PYTHONPYCACHEPREFIX="$CACHE_ROOT/pycache"
+    export TORCHINDUCTOR_CACHE_DIR="$CACHE_ROOT/torchinductor"
+    export TRITON_CACHE_DIR="$CACHE_ROOT/triton"
+    export TORCH_EXTENSIONS_DIR="$CACHE_ROOT/extensions"
+    export WANDB_CACHE_DIR="$CACHE_ROOT/wandb"
+    export WANDB_DATA_DIR="$CACHE_ROOT/wandb_data"
+    for d in "$XDG_CACHE_HOME" "$UV_CACHE_DIR" "$PYTHONPYCACHEPREFIX" \
+             "$TORCHINDUCTOR_CACHE_DIR" "$TRITON_CACHE_DIR" \
+             "$TORCH_EXTENSIONS_DIR" "$WANDB_CACHE_DIR" "$WANDB_DATA_DIR"; do
+        mkdir -p "$d" 2>/dev/null || true
+    done
+
+%runscript
+    exec /bin/bash "$@"
+
+%labels
+    Project equiv_dens_ml
+    Runtime Torch CUDA12 DenSNet PySCF gpu4pyscf e3nn MACE cuEquivariance
+    ScientificSource external-checkout
+    SchNetPackMetadataPatch 2.1.1+densnet1

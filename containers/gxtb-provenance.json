@@ -1,0 +1,30 @@
+{
+  "release": "v1.1.0",
+  "api_url": "https://api.github.com/repos/grimme-lab/g-xtb/releases/239395625",
+  "assets": [
+    {
+      "name": "basisq",
+      "url": "https://github.com/grimme-lab/g-xtb/releases/download/v1.1.0/basisq",
+      "sha256": "f88fade9010423a62dd498640cb663a6e19655d91a6220b72dccce7a512a0103",
+      "size": 109254
+    },
+    {
+      "name": "eeq",
+      "url": "https://github.com/grimme-lab/g-xtb/releases/download/v1.1.0/eeq",
+      "sha256": "76d699f63c145a8374de164f6b744b5e327eeddc82fc17dec2f3594ab19c0101",
+      "size": 18672
+    },
+    {
+      "name": "gxtb",
+      "url": "https://github.com/grimme-lab/g-xtb/releases/download/v1.1.0/gxtb",
+      "sha256": "d6e95e6757c1d2d02ce0e3602188787d4f0c0676ddc15bbd653801dee36a40b4",
+      "size": 59814296
+    },
+    {
+      "name": "gxtb_parameters",
+      "url": "https://github.com/grimme-lab/g-xtb/releases/download/v1.1.0/gxtb_parameters",
+      "sha256": "42c4b2f8bbcfea577ca72dfbd9488d9e2d71bba7e2a86d4365e630d35c5d63ab",
+      "size": 73200
+    }
+  ]
+}
