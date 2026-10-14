@@ -24,8 +24,6 @@ from equiv_dens.nn.representation.spherical_harmonic import EquivariantSpherical
 from equiv_dens.utils.spherical_harmonics import spherical_harmonics
 from equiv_dens.utils.spherical_harmonics_deriv import spherical_harmonics_deriv
 from equiv_dens_jax.convert import export_module
-import torch_layer_norm_patch
-torch_layer_norm_patch.apply()
 
 
 def export(module):
