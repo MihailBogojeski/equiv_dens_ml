@@ -200,6 +200,7 @@ class SelfMixing(nn.Module):
             name = "keepcoeff_{}".format(L)
             self.register_parameter(name, nn.Parameter(torch.Tensor(self.num_features)))
         self.register_buffer("l_keep", l_of_m((self.order_keep + 1) ** 2, "cpu"), persistent=False)
+        self.clebsch_gordan = clebsch_gordan  # only read by the JAX exporter, unused by the Torch forward
         if self.paths:
             cg_matrix, _ = clebsch_gordan(order_in, order_in, order_out)
             self.product = CGProduct(cg_matrix, self.paths)
@@ -329,6 +330,7 @@ class PairMixing(nn.Module):
                 norm_factor = np.sqrt(L + 1) * np.sqrt(self.num_features / self.num_basis_functions)
             path_scale.append(norm_factor / np.sqrt(self.L_count[L]))
         self.register_buffer("path_scale", torch.tensor(path_scale, dtype=torch.float64), persistent=False)
+        self.clebsch_gordan = clebsch_gordan  # only read by the JAX exporter, unused by the Torch forward
         cg_matrix, _ = clebsch_gordan(order_in1, order_in2, order_out)
         self.product = CGProduct(cg_matrix, self.paths)
         self.reset_parameters()
@@ -415,6 +417,7 @@ class PairInteraction(nn.Module):
                 norm_factor = np.sqrt(L + 1) * np.sqrt(self.num_features / self.num_basis_functions)
             path_scale.append(norm_factor)
         self.register_buffer("path_scale", torch.tensor(path_scale, dtype=torch.float64), persistent=False)
+        self.clebsch_gordan = clebsch_gordan  # only read by the JAX exporter, unused by the Torch forward
         cg_matrix, _ = clebsch_gordan(order, order, order)
         self.product = CGProduct(cg_matrix, self.paths)
         self.reset_parameters()
