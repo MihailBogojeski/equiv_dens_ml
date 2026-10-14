@@ -166,22 +166,31 @@ class DFTNetwork(nn.Module):
     def _forces(self, positions, atoms):
         return torch.func.grad_and_value(self._core, has_aux=True)(positions, atoms)
 
-    # data-dependent dims of the compiled-region inputs: molecules, atom columns, atoms, pairs, packed shells, coefficients
-    batch_dims = {'positions': [1], 'atom_numbers': [1], 'atom_batch_idx': [1], 'batch_idx_pos': [0], 'atom_mask': [0],
-                  'idx_i': [0], 'idx_j': [0], 'neighbor_batch_idx': [0], 'batch_atom_numbers': [0, 1],
-                  'batch_atom_mask': [0, 1], 'batch_positions': [0, 1], 'n_electrons': [0], 'idx': [0], '_idx': [0]}
-    layout_dims = {'atom': [0], 'e': [0], 'width0': [0], 'scale0': [0], 'start': [1], 'perm': [0], 'inv': [0], 'sign': [0]}
+    # data-dependent dims of the compiled-region inputs and their sizes: molecules B, atom columns A, atoms N,
+    # neighbor pairs P, packed shells S<L> of every L and coefficients C
+    batch_dims = {'positions': {1: 'N'}, 'atom_numbers': {1: 'N'}, 'atom_batch_idx': {1: 'N'}, 'batch_idx_pos': {0: 'N'},
+                  'atom_mask': {0: 'BA'}, 'idx_i': {0: 'P'}, 'idx_j': {0: 'P'}, 'neighbor_batch_idx': {0: 'P'},
+                  'batch_atom_numbers': {0: 'B', 1: 'A'}, 'batch_atom_mask': {0: 'B', 1: 'A'},
+                  'batch_positions': {0: 'B', 1: 'A'}, 'n_electrons': {0: 'B'}, 'idx': {0: 'B'}, '_idx': {0: 'B'}}
+    layout_dims = {'atom': {0: 'S'}, 'e': {0: 'S'}, 'width0': {0: 'S'}, 'scale0': {0: 'S'}, 'start': {1: 'A'},
+                   'perm': {0: 'C'}, 'inv': {0: 'C'}, 'sign': {0: 'C'}}
+
+    @staticmethod
+    def mark(t, dims, suffix=''):
+        for d, size in dims.items():
+            # the size of this batch is the hint for the size heuristics of inductor (not a guard)
+            torch._dynamo.decorators.mark_unbacked(t, d, shape_id=size + suffix, hint_override=max(t.shape[d], 2))
 
     def mark_sizes(self, inputs):
         """Mark the batch-dependent sizes unbacked: no guards on their values and no 0/1 specialization (batch size 1,
-        a single atom, no neighbor pairs, an L without shells), one graph serves every batch."""
-        mark = torch._dynamo.decorators.mark_unbacked
+        a single atom, no neighbor pairs, an L without shells), one graph serves every batch. Dims of the same size
+        share one symbol."""
         for k, v in inputs.items():
             if k in self.batch_dims:
-                mark(v, self.batch_dims[k])
+                self.mark(v, self.batch_dims[k])
         for k, v in inputs.get('coeff_layout', {}).items():
-            for t in (v if isinstance(v, list) else [v]):
-                mark(t, self.layout_dims[k])
+            for L, t in enumerate(v if isinstance(v, list) else [v]):
+                self.mark(t, self.layout_dims[k], str(L) if isinstance(v, list) else '')
 
     def compiled_inputs(self, atoms):
         """Inputs of the compiled region: the model input tensors (no labels, no python values) and the packed layout
