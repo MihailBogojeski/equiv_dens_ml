@@ -228,21 +228,21 @@ def get_invariant_features(
 
 
 def packed_to_tensors(packed, chan, A, radial_coeffs=True):
-    """Packed coefficients -> per-L tensors [B, A, 2L+1 (or P_L), n_feature_channels] (see coeffs_dict_to_tensors)."""
+    """Packed coefficients -> per-L tensors [1, B * A, 2L+1 (or P_L), n_feature_channels] (see coeffs_dict_to_tensors),
+    the atom slots of all molecules flattened (row b * A + a)."""
     all_sph, all_scale, all_width = [], [], []
     ref = packed[0]['coeff']
     B = ref.shape[0]
     for L in range(len(chan['counts'])):
         p = packed[L]
         C = chan['counts'][L]
-        sph = ref.new_zeros(B, A, C, 2 * L + 1)
-        sph[:, p['atom'], chan['sph'][L]] = p['coeff']
-        all_sph.append(sph.permute(0, 1, 3, 2))
+        idx = (torch.arange(B, device=ref.device)[:, None] * A + p['atom'], chan['sph'][L])
+        sph = ref.new_zeros(B * A, C, 2 * L + 1).index_put(idx, p['coeff'])
+        all_sph.append(sph.permute(0, 2, 1).unsqueeze(0))
         if radial_coeffs:
             for out, name in ((all_width, 'width'), (all_scale, 'scale')):
-                t = ref.new_zeros(B, A, C, chan['P'][L])
-                t[:, p['atom'], chan['sph'][L]] = p[name]
-                out.append(t.permute(0, 1, 3, 2))
+                t = ref.new_zeros(B * A, C, chan['P'][L]).index_put(idx, p[name])
+                out.append(t.permute(0, 2, 1).unsqueeze(0))
     return all_sph, all_scale, all_width
 
 
@@ -2094,7 +2094,8 @@ class PackedLayout:
     def to_df_vector(self, packed, lay):
         """Packed coefficients -> flat coefficient vector in PySCF order [B, n_coeffs]."""
         c = packed[0]['coeff']
-        flat = torch.cat([packed[L]['coeff'].reshape(c.shape[0], -1) for L in sorted(packed)], dim=1)
+        flat = torch.cat([packed[L]['coeff'].reshape(c.shape[0], packed[L]['coeff'].shape[1] * (2 * L + 1))
+                          for L in sorted(packed)], dim=1)
         return flat[:, lay['perm']] * lay['sign']
 
     def from_df_vector(self, vec, zs, require_grads=False):

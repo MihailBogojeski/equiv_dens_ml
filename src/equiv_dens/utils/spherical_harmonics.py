@@ -28,10 +28,8 @@ def spherical_harmonics(L, u):
     if L >= 0:
         Y.append(Y0(u))
     if L >= 1:
-        shape = (*u.shape[:-1], 1)
-        x = torch.gather(u, -1, u.new_full(shape, 0, dtype=torch.long))
-        y = torch.gather(u, -1, u.new_full(shape, 1, dtype=torch.long))
-        z = torch.gather(u, -1, u.new_full(shape, 2, dtype=torch.long))
+        # (a gather here gives wrong saved-tensor strides in inductor with data-dependent sizes)
+        x, y, z = u.split(1, dim=-1)
         Y.append(Y1(x, y, z))
     if L >= 2:
         x2 = x * x

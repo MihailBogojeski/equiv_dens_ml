@@ -155,16 +155,13 @@ def worker(args):
             if model.calculate_forces:
                 model.enable_compile()
             else:  # density: compile representation + coefficient head, the grid expansion stays eager
-                from equiv_dens.nn.dft_network import DFTNetwork
                 repr_model, dens_head = model.density_repr_model[0], model.density_repr_model[1]
                 expansion = model.property_models["density"]
-                zs = data["batch_atom_numbers"].max(0)[0].tolist()
-                dens_head.warm_caches(zs, data["positions"].device, data["positions"].dtype)
                 coeffs_fn = torch.compile(lambda a: dens_head(repr_model(a)), dynamic=True)
         def model_call(atoms):
             if compiled and not model.calculate_forces:
-                inputs = {k: v for k, v in atoms.items()
-                          if isinstance(v, torch.Tensor) and k not in DFTNetwork.label_keys}
+                inputs = model.compiled_inputs(atoms)[1]
+                inputs["positions"] = atoms["positions"]
                 out = dict(atoms)
                 with torch.set_grad_enabled(update):
                     out.update(coeffs_fn(dict(inputs)))

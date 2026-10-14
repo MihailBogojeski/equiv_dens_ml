@@ -14,6 +14,12 @@ from equiv_dens.utils.base import calculate_distances_and_directions, batch_comp
 import time
 
 
+def linear(x, lin):
+    """nn.Linear lin on x as matmul + bias: F.linear (addmm) of a strided view does not trace with data-dependent
+    (unbacked) atom counts."""
+    return torch.matmul(x, lin.weight.t()) + lin.bias
+
+
 class CoeffsIntegralConstraint(nn.Module):
     def __init__(self, integral_scale=False, remove_atom_density=False):
         super().__init__()
@@ -346,18 +352,48 @@ class DensityCoeffsNetwork(nn.Module):
                 'pmask': [getattr(self, f'chan_pmask_{L}')[e] for L, e in enumerate(lay['e'])],
                 'counts': self.chan_counts, 'P': self.layout.P}
 
+    def output_features(self, fs):
+        """Spherical and radial output features [1, n, ...] of the atom features fs [1, n, (order + 1)^2, F]."""
+        out_sph = self.spherical_output(fs)
+        if self.linear_out:
+            out_sph = self.linear_output(out_sph)
+        out_sph = unpack_orders(out_sph)
+        if self.scale_sph_order:
+            for L in range(len(out_sph)):
+                out_sph[L] = out_sph[L] * 10**(-L)
+        if self.positive_coeffs:
+            out_sph[0] = F.softplus(out_sph[0])
+        out_width = []
+        out_scale = []
+        if self.pred_radial_coeffs:
+            f0 = fs[..., 0, :]  # the L=0 features
+            for L in range(len(self.radial_width)):
+                out_width.append(torch.tanh(linear(f0, self.radial_width[L])).unsqueeze(-2))
+                if self.positive_coeffs:
+                    out_scale.append(torch.tanh(linear(f0, self.radial_scale[L])).unsqueeze(-2))
+                else:
+                    out_scale.append(linear(f0, self.radial_scale[L]).unsqueeze(-2))
+        return out_sph, out_width, out_scale
+
     def extract_coefficients(self, sph_fs, rad_width, rad_scale, atoms, lay, chan):
-        """Gathers the predicted features into the packed coefficients (see PackedLayout)."""
+        """Gathers the predicted features of the atoms [1, N + 1, ...] (last row: empty atom slot) into the packed
+        coefficients [B, S_L, ...] (see PackedLayout)."""
         ref = sph_fs[0]
+        B, A = atoms['batch_atom_numbers'].shape
+        N = ref.shape[1] - 1
+        # row of every (molecule, atom slot): its atom in the compressed features, or N for an empty slot
+        row = torch.full((B * A,), N, dtype=torch.long, device=ref.device)
+        row = row.index_put((atoms['batch_idx_pos'],), torch.arange(N, device=ref.device)).view(B, A)
         packed = {}
         for L in range(self.orbitals_max_order + 1):
             atom = lay['atom'][L]
-            coeff = sph_fs[L].permute(0, 1, 3, 2)[:, atom, chan['sph'][L]]
+            r = row[:, atom]  # [B, S_L]
+            coeff = sph_fs[L][0].permute(0, 2, 1)[r, chan['sph'][L]]
             if self.pred_radial_coeffs:
-                width = rad_width[L][:, :, 0][:, atom[:, None], chan['rad'][L]] * chan['pmask'][L]
-                scale = rad_scale[L][:, :, 0][:, atom[:, None], chan['rad'][L]] * chan['pmask'][L]
+                width = rad_width[L][0, :, 0][r[..., None], chan['rad'][L]] * chan['pmask'][L]
+                scale = rad_scale[L][0, :, 0][r[..., None], chan['rad'][L]] * chan['pmask'][L]
             else:
-                width = coeff.new_zeros(coeff.shape[0], atom.shape[0], self.layout.P[L])
+                width = coeff.new_zeros(B, atom.shape[0], self.layout.P[L])
                 scale = torch.zeros_like(width)
             if self.radial_coeffs is not None:
                 atom_mask = atoms['batch_atom_mask'].to(dtype=ref.dtype)[:, atom].unsqueeze(-1)
@@ -460,28 +496,11 @@ class DensityCoeffsNetwork(nn.Module):
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
             print('Memory cached', torch.cuda.memory_cached() / 1024**2)
         # start = time.time()
-        atoms['sph_repr_batch'] = atoms['sph_repr']
-        atoms = batch_compressed_atoms(atoms, ['sph_repr_batch'])
-        fs = atoms['sph_repr_batch']
-        out_sph = self.spherical_output(fs)
-        if self.linear_out:
-            out_sph = self.linear_output(out_sph)
-        out_sph = unpack_orders(out_sph)
-        if self.scale_sph_order:
-            for L in range(len(out_sph)):
-                out_sph[L] = out_sph[L] * 10**(-L)
-        if self.positive_coeffs:
-            out_sph[0] = F.softplus(out_sph[0])
-        out_width = []
-        out_scale = []
-        if self.pred_radial_coeffs:
-            for L in range(len(self.radial_width)):
-                out_width.append(torch.tanh(self.radial_width[L](fs[..., :1, :])))
-                # out_width[L] = out_width[L].view(*out_width[L].shape[:-2], self.r_max[L], self.L_counts[L])
-                if self.positive_coeffs:
-                    out_scale.append(torch.tanh(self.radial_scale[L](fs[..., :1, :])))
-                else:
-                    out_scale.append(self.radial_scale[L](fs[..., :1, :]))
+        # the output layers act on the features of the real atoms and, separately, on one zero row that stands for the
+        # empty atom slots of the padded layout (index N); the slots gather from these rows (see extract_coefficients)
+        fs = atoms['sph_repr']
+        outs = [self.output_features(f) for f in (fs, fs.new_zeros(1, 1, *fs.shape[2:]))]
+        out_sph, out_width, out_scale = [[torch.cat(pair, dim=1) for pair in zip(*parts)] for parts in zip(*outs)]
         if self.memory:
             print('density coeffs forward outputs:')
             print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)

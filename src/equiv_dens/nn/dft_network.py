@@ -6,6 +6,46 @@ from equiv_dens.utils.orbitals import CoeffsDict
 from equiv_dens.utils.scaling import UnitConversion, VarianceScaling
 
 
+def exact_unbacked_output_strides():
+    """Make inductor return graph outputs whose strides depend on data-dependent (unbacked) sizes with exactly the strides
+    of the traced graph. Inductor cannot report such strides to the backward compile, which then assumes the traced
+    ones; a different layout chosen by inductor (copy only then) would break the saved tensors of the backward."""
+    from torch._inductor import ir
+    from torch._inductor.graph import GraphLowering
+    from torch._inductor.custom_graph_pass import CustomGraphPass
+    from torch.fx.experimental.symbolic_shapes import free_unbacked_symbols
+    if getattr(GraphLowering.output, 'exact_unbacked_strides', False):
+        return
+    output = GraphLowering.output
+
+    def exact_output(self, target, args, kwargs):
+        output(self, target, args, kwargs)
+        fx_args = self.current_node.args[0]
+        fx_args = fx_args if isinstance(fx_args, (tuple, list)) else (fx_args,)
+        outs = []
+        for r, node in zip(self.graph_outputs, fx_args):
+            val = node.meta.get('val') if isinstance(node, torch.fx.Node) else None
+            if isinstance(val, torch.Tensor) and isinstance(r, ir.IRNode) and free_unbacked_symbols(val.stride()):
+                # also fixes a still flexible layout (no copy then)
+                r = ir.ExternKernel.require_exact_strides(r, [t.node.expr if isinstance(t, torch.SymInt) else t
+                                                              for t in val.stride()])
+            outs.append(r)
+        self.graph_outputs = outs
+
+    exact_output.exact_unbacked_strides = True
+    GraphLowering.output = exact_output
+
+    class CacheKey(CustomGraphPass):
+        """No-op pass whose uuid puts the patched lowering into the inductor cache key."""
+        def __call__(self, graph):
+            pass
+
+        def uuid(self):
+            return 'equiv_dens exact unbacked output strides 1'
+
+    torch._inductor.config.post_grad_custom_post_pass = CacheKey()
+
+
 class DFTNetwork(nn.Module):
     """
     Neural network for computing molecular electronic densities and density-derived properties
@@ -44,6 +84,8 @@ class DFTNetwork(nn.Module):
         print('no force props', self.no_force_props)
         self.remove_atom_density = remove_atom_density
         self.compiled = False
+        # the density coefficient head of the representation model (its packed layout is passed in as data)
+        self.coeffs_head = ([m for m in self.density_repr_model.modules() if hasattr(m, 'batch_layout')] + [None])[0]
         # Clebsch-Gordan buffers are not stored in checkpoints anymore, ignore them in old ones
         self._register_load_state_dict_pre_hook(self._drop_cg_keys)
         if self.verbose > 0:
@@ -124,18 +166,44 @@ class DFTNetwork(nn.Module):
     def _forces(self, positions, atoms):
         return torch.func.grad_and_value(self._core, has_aux=True)(positions, atoms)
 
+    # data-dependent dims of the compiled-region inputs: molecules, atom columns, atoms, pairs, packed shells, coefficients
+    batch_dims = {'positions': [1], 'atom_numbers': [1], 'atom_batch_idx': [1], 'batch_idx_pos': [0], 'atom_mask': [0],
+                  'idx_i': [0], 'idx_j': [0], 'neighbor_batch_idx': [0], 'batch_atom_numbers': [0, 1],
+                  'batch_atom_mask': [0, 1], 'batch_positions': [0, 1], 'n_electrons': [0], 'idx': [0], '_idx': [0]}
+    layout_dims = {'atom': [0], 'e': [0], 'width0': [0], 'scale0': [0], 'start': [1], 'perm': [0], 'inv': [0], 'sign': [0]}
+
+    def mark_sizes(self, inputs):
+        """Mark the batch-dependent sizes unbacked: no guards on their values and no 0/1 specialization (batch size 1,
+        a single atom, no neighbor pairs, an L without shells), one graph serves every batch."""
+        mark = torch._dynamo.decorators.mark_unbacked
+        for k, v in inputs.items():
+            if k in self.batch_dims:
+                mark(v, self.batch_dims[k])
+        for k, v in inputs.get('coeff_layout', {}).items():
+            for t in (v if isinstance(v, list) else [v]):
+                mark(t, self.layout_dims[k])
+
+    def compiled_inputs(self, atoms):
+        """Inputs of the compiled region: the model input tensors (no labels, no python values) and the packed layout
+        of the batch. Returns (zs, inputs)."""
+        inputs = {k: v for k, v in atoms.items()
+                  if isinstance(v, torch.Tensor) and k not in self.label_keys and k != 'positions'}
+        zs = None
+        if self.coeffs_head is not None:
+            zs, inputs['coeff_layout'] = self.coeffs_head.batch_layout(atoms)
+        self.mark_sizes({'positions': atoms['positions'], **inputs})
+        return zs, inputs
+
     def enable_compile(self):
         """Compile the representation and force heads, the forces are then computed with torch.func.grad."""
         self.compiled = self.calculate_forces
-        # the density coefficient head inside the compiled region gets the packed layout of each batch as data
-        self.coeffs_head = ([m for m in self.density_repr_model.modules() if hasattr(m, 'batch_layout')] + [None])[0]
         for key in self.force_props:
             self.property_models[key].calculate_forces = False
-        # sizes that happen to be equal in one batch (atoms, slots, pairs, ...) must not share a symbol
-        torch.fx.experimental._config.use_duck_shape = False
-        # batch size 1, single atoms and L without shells (sizes 0 / 1) still get their own graph, a few at most;
-        # never fall back to eager because of them
-        torch._dynamo.config.recompile_limit = max(torch._dynamo.config.recompile_limit, 64)
+        # inductor with data-dependent sizes: the uniform-value constant folding checks contiguity it cannot decide, and
+        # cat inputs realized into the cat output are saved for the backward with wrong strides
+        torch._inductor.config.joint_graph_constant_folding = False
+        torch._inductor.config.force_pointwise_cat = True
+        exact_unbacked_output_strides()
         self._forces = torch.compile(self._forces, dynamic=True)
 
     def forward(self, data):
@@ -162,25 +230,20 @@ class DFTNetwork(nn.Module):
             # forces from torch.func.grad inside the compiled region, since compiled autograd.grad has no double backward.
             # Only the model inputs go in: labels and python values would add guards and recompiles.
             positions = atoms['positions']
-            inputs = {k: v for k, v in atoms.items()
-                      if isinstance(v, torch.Tensor) and k not in self.label_keys and k != 'positions'}
-            if self.coeffs_head is not None:
-                zs, inputs['coeff_layout'] = self.coeffs_head.batch_layout(atoms)
+            zs, inputs = self.compiled_inputs(atoms)
             grad, (energy, (aux, _)) = self._forces(positions, inputs)
             atoms.update(aux)
             atoms['positions'] = positions
-            if self.coeffs_head is not None:
-                atoms['slot_z'] = zs
-                atoms = CoeffsDict(atoms, self.coeffs_head.layout)
             atoms['forces'] = -grad
         else:
             if self.calculate_forces:
                 atoms['positions'].requires_grad_(True)
             zs = atoms['batch_atom_numbers'].max(0)[0].tolist()
             atoms = self._core(atoms['positions'], atoms)[1][0]
+        if self.coeffs_head is not None:
             # the tensor-only aux dict lost the lazy conversion of the packed coefficients, restore it
             atoms['slot_z'] = zs
-            atoms = CoeffsDict(atoms, [m.layout for m in self.modules() if hasattr(m, 'warm_caches')][0])
+            atoms = CoeffsDict(atoms, self.coeffs_head.layout)
 
         atoms['positions'].requires_grad_(False)
         if self.training:

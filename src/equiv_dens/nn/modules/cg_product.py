@@ -5,6 +5,7 @@ import torch.nn as nn
 import triton
 import triton.language as tl
 from torch.library import triton_op, wrap_triton
+from torch.fx.experimental.symbolic_shapes import guard_or_false, guard_or_true
 
 """
 Channel-wise Clebsch-Gordan tensor products as one sparse 4-linear form over the slots (x1, x2, w, y):
@@ -95,7 +96,9 @@ def cg_tp(x1: Optional[torch.Tensor], x2: Optional[torch.Tensor], w: Optional[to
     fac = factor_slot(k)
     cols = [s for s in range(4) if s != k and s != fac]
     a, b, c = slots[cols[0]], slots[cols[1]], slots[fac]
-    N = max(a.shape[0], b.shape[0], c.shape[0])
+    # a leading dim that is not statically 1 counts as batched (also for data-dependent sizes, identical for one row)
+    batched = [guard_or_true(t.shape[0] != 1) for t in (a, b, c)]
+    N = [t.shape[0] for t, bt in zip((a, b, c), batched) if bt][0] if any(batched) else 1
     F = a.shape[-1]
     out = a.new_empty(1 if reduce else N, dims[k], F)
     BLOCK_F = min(128, triton.next_power_of_2(F))
@@ -104,7 +107,7 @@ def cg_tp(x1: Optional[torch.Tensor], x2: Optional[torch.Tensor], w: Optional[to
     wrap_triton(_cg_tp_kernel)[grid](
         a, b, c, out, rowptr[k], seg[k], segc[k], tab[k], coef[k], N, F,
         a.stride(0), b.stride(0), c.stride(0), out.stride(0), COL_A=cols[0], COL_B=cols[1],
-        A_BATCH=a.shape[0] != 1, B_BATCH=b.shape[0] != 1, C_BATCH=c.shape[0] != 1,
+        A_BATCH=batched[0], B_BATCH=batched[1], C_BATCH=batched[2],
         REDUCE=reduce, ACC64=a.dtype == torch.float64, BLOCK_N=BLOCK_N, BLOCK_F=BLOCK_F,
     )
     return out
@@ -131,7 +134,7 @@ class CGTP(torch.autograd.Function):
         for j in range(4):
             if j != ctx.k and ctx.needs_input_grad[j]:
                 others = [None if s == j else slots[s] for s in range(4)]
-                reduce = slots[j].shape[0] == 1 and grad.shape[0] != 1
+                reduce = guard_or_false(slots[j].shape[0] == 1) and guard_or_true(grad.shape[0] != 1)
                 grads[j] = CGTP.apply(*others, j, reduce, ctx.dims, ctx.tables)
         return grads[0], grads[1], grads[2], grads[3], None, None, None, None
 
