@@ -20,8 +20,10 @@ classifiers = [
 
 [project.scripts]
 equiv-dens = "equiv_dens.cli:main"
+equiv-dens-jax = "equiv_dens_jax.cli:main"
 
 [project.optional-dependencies]
+jax = ["jax>=0.9.2", "numpy", "scipy", "pyscf", "ase", "dftpy==2.2.0"]
 gpu-cuda11 = ["gpu4pyscf-cuda11x", "cutensor-cu11"]
 gpu-cuda12 = ["gpu4pyscf-cuda12x", "cutensor-cu12"]
 gpu-cuda13 = ["gpu4pyscf-cuda13x", "cutensor-cu13"]
