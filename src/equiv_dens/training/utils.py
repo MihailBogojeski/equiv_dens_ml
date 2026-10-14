@@ -15,6 +15,7 @@ from equiv_dens.data.hamiltonian_dataset import seeded_random_split
 from equiv_dens.training.lookahead import Lookahead
 from equiv_dens.training.errors import ErrorDict
 import numpy as np
+import equiv_dens.utils.base as base_utils
 
 
 def init_training_vars(args, hyperparam_args):
@@ -281,6 +282,8 @@ def prepare_datasets(args, required_properties, grid_vars, data_split_indices, d
     """
     if density_n_samp is None:
         density_n_samp = args.density_subsamples
+    if args.use_gpu4pyscf is not None:
+        base_utils.USE_GPU4PYSCF = args.use_gpu4pyscf
     train_dataset, valid_dataset, test_dataset = None, None, None
 
     dataset = AtomsDensityData(np_path=args.np_dataset, density_path=args.dens_dataset,
@@ -565,10 +568,10 @@ def prepare_optimizers(args, model, phase=None):
 
     # learning rate scheduler (decays learning rate if validation loss plateaus)
     schedulers = [torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizers[0], mode='min', factor=args.decay_factor, patience=args.decay_patience, verbose=args.verbose)]
+        optimizers[0], mode='min', factor=args.decay_factor, patience=args.decay_patience)]
     if args.energy_offset:
         schedulers.append(torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizers[1], mode='min', factor=args.decay_factor, patience=args.decay_patience, verbose=args.verbose))
+            optimizers[1], mode='min', factor=args.decay_factor, patience=args.decay_patience))
 
     return optimizers, schedulers, ema_params
 

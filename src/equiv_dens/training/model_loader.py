@@ -10,6 +10,7 @@ from equiv_dens.nn.property_output.density import DensityCoeffsNetwork, DFDensit
     FreeAtomDensityCoeffs, DensityExpansion
 from equiv_dens.nn.property_output.dipole_moment import DipoleMomentCalc, DipoleMomentIntorCalc
 from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
+from equiv_dens.utils.orbitals import get_max_order
 from equiv_dens.utils.scaling import UnitConversion, VarianceScaling
 import equiv_dens.utils.base as utils
 from equiv_dens.utils.grids import CubicalGrid
@@ -25,7 +26,8 @@ torch.set_float32_matmul_precision('high')
 def load_model(args, dataset, train=False):
     use_gpu = args.use_gpu and torch.cuda.is_available()
     z_vals = dataset.atoms['atom_numbers']
-    clebsch_gordan = ClebschGordanMatrix()
+    orders = args.order + args.order_en + (args.mixing_order or []) + (args.mixing_order_en or [])
+    clebsch_gordan = ClebschGordanMatrix(order_max=max(orders + [get_max_order(dataset.orbital_basis_num)]))
     # print('args energy_unit_in', args.energy_unit_in)
     # print('args energy_unit_out', args.energy_unit_out)
     conversions_in = UnitConversion(
@@ -431,7 +433,7 @@ def load_model(args, dataset, train=False):
             model = torch.nn.DataParallel(model)
 
     if args.compile:
-        model = torch.compile(model)
+        model.enable_compile()
 
     # print('train', train)
     # print('density model end of load_model:', model.density_repr_model[1].spherical_output.linear[0].weight[:5, :5])

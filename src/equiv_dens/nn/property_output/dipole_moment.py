@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 from pyscf import gto
 
+import equiv_dens.compat  # noqa: F401  (before cupy/gpu4pyscf)
 from equiv_dens.utils import orbitals
 from equiv_dens.utils import base as utils
 
@@ -111,14 +112,7 @@ class DipoleMomentIntorCalc(nn.Module):
                     int1e_r = self._cached_int1e_r[i].to(coords)
                 else:
                     auxmol_ml = orbitals.ml_basis_to_auxmol(atoms, i, skip_zero=False)
-                    helper_mol = orbitals.build_1c1e_helper_mol(auxmol_ml)
-                    intor_idx = [
-                        auxmol_ml.bas_atom(ibas)
-                        for ibas in range(auxmol_ml.nbas) for _ in range(auxmol_ml.bas_angular(ibas) * 2 + 1)
-                    ]
-                    # PySCF libcint (CPU) is ~10k× faster than CuPy implementation for small molecules
-                    int1e_r_arr = gto.mole.intor_cross("int1e_r", helper_mol, auxmol_ml)
-                    int1e_r_arr = int1e_r_arr[:, intor_idx, range(auxmol_ml.nao)]
+                    int1e_r_arr = orbitals.int1e_r_one_center(auxmol_ml)
                     int1e_r = torch.from_numpy(int1e_r_arr).to(coords.dtype).to(coords.device)
                     int1e_r = utils.bohr_to_angstrom(int1e_r)
                     if self.cache_integrals:
