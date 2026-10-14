@@ -140,7 +140,7 @@ def test_watchdog_timeout_terminates_only_child_and_resumes_owned_training_pid(t
     args.cache_root = tmp_path / "node-local-cache"
     args.seed_cache_root = tmp_path / "seed-caches"
     args.compile_threads = 3
-    args.compile_strategy = "regional-density"
+    args.compile_strategy = "fullgraph"
     args.backends = ["torch-eager", "jax"]
     system = FakeSystem(args.training_pid, args.expected_training_start_ticks,
                         args.expected_gpu_uuid, str(script))
@@ -157,7 +157,7 @@ def test_watchdog_timeout_terminates_only_child_and_resumes_owned_training_pid(t
     assert system.command[system.command.index("--cache-root") + 1] == str(args.cache_root.resolve())
     assert system.command[system.command.index("--seed-cache-root") + 1] == str(args.seed_cache_root.resolve())
     assert system.command[system.command.index("--compile-threads") + 1] == "3"
-    assert system.command[system.command.index("--compile-strategy") + 1] == "regional-density"
+    assert system.command[system.command.index("--compile-strategy") + 1] == "fullgraph"
     assert system.command[system.command.index("--backends") + 1:system.command.index("--modes")] == ["torch-eager", "jax"]
     assert system.environment["DENSNET_ALLOWED_PAUSED_GPU_PIDS"] == str(args.training_pid)
     assert system.environment["DENSNET_MEASUREMENT_LOCK_SCOPE"] == "allocated-gpu"
@@ -244,19 +244,6 @@ def test_absolute_script_help_imports_without_pythonpath(tmp_path):
                             stderr=subprocess.PIPE, timeout=10)
     assert result.returncode == 0, result.stderr
     assert "--compile-threads" in result.stdout
-
-
-def test_regional_density_cli_rejects_non_update_modes_before_pause(monkeypatch, tmp_path):
-    base = ["--job-id", "5053839", "--training-pid", "1635119",
-            "--expected-training-start-ticks", "817608690", "--expected-gpu-uuid", "GPU-test",
-            "--source-root", str(tmp_path), "--output", str(tmp_path / "report"),
-            "--modes", "ef", "--compile-strategy", "regional-density"]
-    try:
-        wrapper.parse_args(base)
-    except SystemExit as error:
-        assert error.code == 2
-    else:
-        raise AssertionError("regional-density accepted non-density_update modes")
 
 
 def test_wrapper_requires_distinct_eager_comparison_backend(tmp_path):

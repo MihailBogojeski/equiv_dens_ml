@@ -81,7 +81,7 @@ def test_explicit_cache_root_and_compiler_threads_are_forwarded(tmp_path):
     report_root = tmp_path / "run-report"
     def fake_child(command, log, timeout):
         assert "--compile-strategy" in command
-        assert command[command.index("--compile-strategy") + 1] == "regional-density"
+        assert command[command.index("--compile-strategy") + 1] == "fullgraph"
         assert "TORCHINDUCTOR_COMPILE_THREADS=3" in command
         worker_output = Path(command[command.index("--output") + 1])
         worker_output.write_text(json.dumps({"times_ms": [1.], "cold_first_call_seconds": 2.}))
@@ -91,7 +91,7 @@ def test_explicit_cache_root_and_compiler_threads_are_forwarded(tmp_path):
     try:
         result = runner.invoke_arm(report_root, "ethanol-small", "density_update", 0,
                                    "torch-compile", 0, 1, 10, "shared-after-first",
-                                   cache_root, 3, False, "regional-density")
+                                   cache_root, 3, False, "fullgraph")
     finally:
         runner.run_child = original
     annotated = json.loads(Path(result["file"]).read_text())

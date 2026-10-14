@@ -77,6 +77,5 @@ QC preparation or the paper's AMSGrad/EMA.
 Numerical acceptance is independent per case/backend/round/mode. The default
 `isolated` cache policy measures independent cold compilation; explicitly
 selected `shared-after-first` and seeded node-local continuations record cache
-reuse and distinguish first-call startup from warm performance. Regional
-stage-one compilation is separately selected and labelled. Each run records
+reuse and distinguish first-call startup from warm performance. Each run records
 successful contrasts, bounded failures, startup costs and memory scope.

@@ -463,8 +463,7 @@ def main() -> int:
                         help="copy compiler caches from this prior OUTPUT/caches tree into a fresh cache root")
     parser.add_argument("--compile-threads", type=int, default=1,
                         help="Torch Inductor compiler threads (positive and no greater than Slurm CPU allocation)")
-    parser.add_argument("--compile-strategy", choices=("fullgraph", "regional-density"), default="fullgraph",
-                        help="Torch compile strategy; regional-density applies only to density_update")
+    parser.add_argument("--compile-strategy", choices=("fullgraph",), default="fullgraph")
     parser.add_argument("--timeout", type=int, default=900,
                         help="per worker/comparison timeout in seconds")
     args = parser.parse_args()
@@ -481,8 +480,6 @@ def main() -> int:
         parser.error(str(exc))
     if args.seed_cache_root and args.cache_policy != "shared-after-first":
         parser.error("--seed-cache-root requires --cache-policy shared-after-first")
-    if args.compile_strategy == "regional-density" and args.modes != ["density_update"]:
-        parser.error("regional-density compile strategy requires --modes density_update only")
     root = args.output.resolve()
     root.mkdir(parents=True, exist_ok=True)
     if (root / "manifest.json").exists() or (root / "register.json").exists():

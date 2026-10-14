@@ -412,7 +412,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--seed-cache-root", type=Path,
                         help="prior compiler cache tree to copy into a fresh cache root")
     parser.add_argument("--compile-threads", type=int, default=1)
-    parser.add_argument("--compile-strategy", choices=("fullgraph", "regional-density"), default="fullgraph")
+    parser.add_argument("--compile-strategy", choices=("fullgraph",), default="fullgraph")
     parser.add_argument("--backends", nargs="+", choices=BACKEND_CHOICES, default=list(BACKEND_CHOICES))
     parser.add_argument("--max-seconds", type=int, default=5400)
     parser.add_argument("--modes", nargs="+", choices=MODE_CHOICES, required=True)
@@ -425,8 +425,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         parser.error(str(exc))
     if args.cache_root is None:
         args.cache_root = args.output / "caches"
-    if args.compile_strategy == "regional-density" and args.modes != ["density_update"]:
-        parser.error("regional-density compile strategy requires --modes density_update only")
     if len(set(args.backends)) != len(args.backends):
         parser.error("--backends entries must be distinct")
     if "torch-eager" not in args.backends or len(args.backends) < 2:
