@@ -125,6 +125,7 @@ def run_molecular_dynamics(args, dataset, model, directory=None, model_code=None
         grid_cache_threshold=getattr(args, 'grid_cache_threshold', 0.1),
         use_fast_inference=getattr(args, 'use_fast_inference', False),
         compile_model=getattr(args, 'compile_model', False),
+        static_compile=getattr(args, 'static_compile', False),
     )
 
     simulation_hooks = []
