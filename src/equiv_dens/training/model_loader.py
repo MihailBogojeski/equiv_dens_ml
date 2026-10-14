@@ -10,6 +10,7 @@ from equiv_dens.nn.property_output.density import DensityCoeffsNetwork, DFDensit
     FreeAtomDensityCoeffs, DensityExpansion
 from equiv_dens.nn.property_output.dipole_moment import DipoleMomentCalc, DipoleMomentIntorCalc
 from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
+from equiv_dens.nn.modules.cg_product import CGProduct
 from equiv_dens.utils.orbitals import get_max_order
 from equiv_dens.utils.scaling import UnitConversion, VarianceScaling
 import equiv_dens.utils.base as utils
@@ -24,6 +25,7 @@ torch.set_float32_matmul_precision('high')
 
 
 def load_model(args, dataset, train=False):
+    CGProduct.cpu_per_path = getattr(args, 'cpu_per_path_cg', False)
     use_gpu = args.use_gpu and torch.cuda.is_available()
     z_vals = dataset.atoms['atom_numbers']
     orders = args.order + args.order_en + (args.mixing_order or []) + (args.mixing_order_en or [])

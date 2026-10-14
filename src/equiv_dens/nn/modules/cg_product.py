@@ -1,5 +1,7 @@
 from typing import Optional
 
+import warnings
+
 import torch
 import torch.nn as nn
 import triton
@@ -156,8 +158,11 @@ class CGProduct(nn.Module):
     out[..., M, f] = sum_paths w[..., path, f] * sum_{m1, m2} cg[m1, m2, M] * x1[..., m1, f] * x2[..., m2, f]
 
     The nonzero (m1, m2, M) Clebsch-Gordan triples of all paths are collected once. On the GPU the product
-    is the fused `cg_tp` op (also inside torch.compile), on the CPU a gather - multiply - scatter over the triples.
+    is the fused `cg_tp` op (also inside torch.compile), on the CPU a gather - multiply - scatter over the triples
+    (memory heavy, warns) or, with `CGProduct.cpu_per_path = True` (--cpu_per_path_cg), a low-memory loop over the paths.
     """
+
+    cpu_per_path = False
 
     def __init__(self, cg_matrix, paths):
         super().__init__()
@@ -177,6 +182,9 @@ class CGProduct(nn.Module):
         for name, v in [('i1', idx[:, 0]), ('i2', idx[:, 1]), ('pid', idx[:, 2]), ('io', idx[:, 3])]:
             self.register_buffer(name, v.clone(), persistent=False)
         self.register_buffer('cg', val, persistent=False)
+        for p, (l1, l2, L) in enumerate(paths):
+            block = cg_matrix[l1 ** 2:(l1 + 1) ** 2, l2 ** 2:(l2 + 1) ** 2, L ** 2:(L + 1) ** 2]
+            self.register_buffer(f'cg_path_{p}', block.clone(), persistent=False)
         # for the fused op: for every slot k the triples sorted by (k, factor slot), grouped into segments with the
         # same row and factor index, and the segment range of every row
         tables = {name: [] for name in ['tab', 'coef', 'rowptr', 'seg', 'segc']}
@@ -218,6 +226,15 @@ class CGProduct(nn.Module):
             y = fused_cg_product(x1.contiguous(), x2.contiguous(), w.contiguous(), self.dims,
                                  self.tab, self.coef.to(x1.dtype), self.rowptr, self.seg, self.segc)
             return y.view(*lead, D_out, F_)
+        if self.cpu_per_path:
+            y = x1.new_zeros(x1.shape[0], D_out, F_)
+            for p, (l1, l2, L) in enumerate(self.paths):
+                t = torch.einsum('nif,njf,ijk->nkf', x1[:, l1 ** 2:(l1 + 1) ** 2], x2[:, l2 ** 2:(l2 + 1) ** 2],
+                                 getattr(self, f'cg_path_{p}').to(x1.dtype))
+                y[:, L ** 2:(L + 1) ** 2] += t * w[:, p, None]
+            return y.view(*lead, D_out, F_)
+        warnings.warn('CGProduct on the CPU materializes an [N, num_triples, F] tensor and uses a lot of memory; '
+                      'pass --cpu_per_path_cg=True for the low-memory per-path computation.')
         prod = x1[:, self.i1] * x2[:, self.i2] * self.cg.to(x1.dtype).view(1, -1, 1) * w[:, self.pid]
         y = x1.new_zeros(x1.shape[0], D_out, F_).index_add(1, self.io, prod)
         return y.view(*lead, D_out, F_)

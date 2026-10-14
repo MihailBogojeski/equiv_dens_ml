@@ -420,6 +420,10 @@ def parse_command_line_arguments(arg_file=None):
     args_simulation.add_argument("--static_compile", metavar='True|False', type=str2bool, default=False,
                                  choices=[True, False],
                                  help="Compile energy/forces with static shapes and CUDA graphs for MD (default: False).")
+    args_simulation.add_argument("--cpu_per_path_cg", metavar='True|False', type=str2bool, default=False,
+                                 choices=[True, False],
+                                 help="CPU only: low-memory per-path Clebsch-Gordan products instead of the "
+                                      "memory-heavy triples gather/scatter (default: False).")
 
     # arguments for logging and checkpoints
     args_logging = parser.add_argument_group("logging and checkpoints")
