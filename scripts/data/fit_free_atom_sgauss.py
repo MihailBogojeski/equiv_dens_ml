@@ -184,12 +184,20 @@ def evaluate_df(ref, aux_basis, c):
     aux = atom_mol(ref.Z, aux_basis)
     c = np.asarray(c, dtype=float).reshape(-1)
     j_err = ref.rho_rho - 2 * c @ ref.three_center(aux) + c @ aux.intor("int2c2e") @ c
-    return evaluate(ref, dft.numint.eval_ao(aux, ref.coords) @ c, j_err)
+    m = evaluate(ref, dft.numint.eval_ao(aux, ref.coords) @ c, j_err)
+    # analytic N and V of the s shells (higher l integrate to zero): int phi = (pi/a)^(3/2) n, int phi/r = 2 pi/a n
+    s = [(sh[1][0], ci) for sh, ci in zip(aux_basis, c) if sh[0] == 0]
+    a, cs = np.array([x[0] for x in s]), np.array([x[1] for x in s])
+    norm = cs * (2 * a / np.pi) ** 0.75
+    m["N_an"] = np.sum(norm * (np.pi / a) ** 1.5) - ref.Z
+    m["V_an"] = (-ref.Z * np.sum(norm * 2 * np.pi / a) - ref.v_ref) * HA2KCAL
+    return m
 
 
 def show(name, m):
-    print(f"    {name:16s} N={m['N']:10.6f}  J {m['J']:9.4f}  V {m['V']:9.4f} kcal/mol  "
-          f"relL1 {m['L1']:.2e}  nucleus {m['near']:.2e}  tail {m['tail']:.2e}")
+    print(f"    {name:16s} N={m['N']:10.6f}  J {m['J']:9.2e}  V {m['V']:9.2e} kcal/mol  "
+          f"relL1 {m['L1']:.2e}  nucleus {m['near']:.2e}  tail {m['tail']:.2e}"
+          + (f"  analytic: dN {m['N_an']:9.2e}  dV {m['V_an']:9.2e} kcal/mol" if "V_an" in m else ""))
 
 
 def main():
