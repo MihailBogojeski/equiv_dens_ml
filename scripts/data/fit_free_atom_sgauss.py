@@ -30,6 +30,9 @@ mp.dps = 60
 
 HA2KCAL = 627.5096080305927
 
+# recommended number of s functions per element (J < 1e-2 kcal/mol and relL1 < 1e-4)
+N_S_DEFAULT = {1: 18, 6: 36, 7: 36, 8: 36, 9: 40, 16: 44, 17: 44}
+
 
 def s_basis(a):
     return [[0, [float(x), 1.0]] for x in a]
@@ -206,8 +209,8 @@ def main():
     p.add_argument("--minimized", default="/workspace/datasets/free_atom_densities_augccpvdz_augccpvqzjkfit_pyscf_minimized.npy",
                    help="jkfit l=0-only fit: baseline and source of the jkfit l=0 exponents")
     p.add_argument("--output", default=None)
-    p.add_argument("--n_s", type=int, default=60)
-    p.add_argument("--n_s_per_element", nargs="*", default=[], help="Z:n pairs overriding --n_s, e.g. 1:12 6:40")
+    p.add_argument("--n_s", type=int, default=None, help="uniform number of s functions (default: N_S_DEFAULT per element)")
+    p.add_argument("--n_s_per_element", nargs="*", default=[], help="Z:n pairs overriding the defaults, e.g. 1:12 6:40")
     p.add_argument("--elements", type=int, nargs="*", default=None, help="only these Z (default: all in the input)")
     p.add_argument("--scan", type=int, nargs="*", default=None)
     p.add_argument("--exps", choices=["et", "jk"], default="et", help="even-tempered, or jkfit l=0 exponents plus gap filling")
@@ -220,6 +223,8 @@ def main():
     data = np.load(args.input, allow_pickle=True).item()
     mini = np.load(args.minimized, allow_pickle=True).item()
     n_per = {int(z): int(n) for z, n in (x.split(":") for x in args.n_s_per_element)}
+    if args.n_s is None and not n_per:
+        n_per = N_S_DEFAULT
     out = {}
     for Z, d in data.items():
         if args.elements is not None and Z not in args.elements:
@@ -234,7 +239,7 @@ def main():
         show(f"jkfit l=0 ({len([e for e in jk_basis if e[0] == 0])})", evaluate_df(ref, jk_basis, mini[Z]["df_coeffs"].numpy()))
         if args.scan is None:
             show("spline", evaluate(ref, d["spline_interp"](np.log(ref.r)).clip(0)))
-        for n in args.scan or [n_per.get(Z, args.n_s)]:
+        for n in args.scan or [n_per.get(Z, args.n_s or 60)]:
             a = et_exponents(a_lo, a_hi, n) if args.exps == "et" else jk_exponents(jk_basis, a_lo, a_hi, n)
             c = fit_exact(Z, terms, a, args.mu, not args.no_exact_V)
             show(f"{args.exps} {n}", evaluate_df(ref, s_basis(a), c))
@@ -242,7 +247,7 @@ def main():
             out[Z]["df_basis"] = {Z: s_basis(a)}
             out[Z]["df_coeffs"] = torch.tensor(c, dtype=torch.float64).reshape(1, -1)
     if args.scan is None:
-        path = args.output or f"/workspace/datasets/free_atom_densities_augccpvdz_sgauss{args.n_s}.npy"
+        path = args.output or "/workspace/datasets/free_atom_densities_augccpvdz_sgauss_pe.npy"
         np.save(path, out, allow_pickle=True)
         print("saved", path)
 
