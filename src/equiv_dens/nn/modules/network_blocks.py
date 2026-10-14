@@ -639,8 +639,8 @@ def layer_norm_orders(x):
         return torch.zeros(t.shape[0], nL, device=x.device, dtype=x.dtype).index_add(1, l, t.sum(dim=(-3, -1)))
 
     mean = per_order_sum(x) / n
-    xc = x - mean[:, l].unsqueeze(-3).unsqueeze(-1)
+    xc = x - mean[:, l][:, None, :, None]
     var = per_order_sum(xc * xc) / (n - 1)
     positive = var > 0
     std = torch.where(positive, torch.sqrt(torch.where(positive, var, torch.ones_like(var))), torch.zeros_like(var))
-    return xc / (std[:, l].unsqueeze(-3).unsqueeze(-1) + 1e-8)
+    return xc / (std[:, l][:, None, :, None] + 1e-8)
