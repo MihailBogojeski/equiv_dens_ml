@@ -5,6 +5,7 @@ import argparse
 import copy
 import hashlib
 import importlib.util
+import os
 import json
 from pathlib import Path
 
@@ -14,7 +15,7 @@ from benchmarks.timing import paired_benchmark
 from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
 from benchmarks import experimental_kernels as candidate
 
-REFERENCE_ROOT = Path('/home/johannes/equiv_dens_ml-paper-reference')
+REFERENCE_ROOT = Path(os.environ.get('DENSNET_REFERENCE_ROOT', '/home/johannes/equiv_dens_ml-paper-reference'))
 
 
 def load_reference(root=REFERENCE_ROOT):
