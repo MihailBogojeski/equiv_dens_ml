@@ -21,6 +21,10 @@ fairchem/
 *.vim
 *.out
 
+# Preserve the small qualification/measurement transcripts cited by the reports.
+!docs/analysis/**/*.log
+!docs/analysis/**/*.out
+
 # Large data directories
 # (paper/models/ and paper/trajectories/ now tracked via Git LFS - see .gitattributes)
 paper/results/
@@ -93,3 +97,8 @@ CLAUDE.md
 
 # benchmark reference tensors (large)
 benchmarks/reference_data/
+
+# Local documentation and workflow helpers
+/docs/
+/AGENTS.md
+/tools/agent/

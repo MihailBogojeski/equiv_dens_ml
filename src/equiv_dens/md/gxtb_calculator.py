@@ -10,10 +10,55 @@ from pathlib import Path
 import numpy as np
 import torch
 import ase.io
+from ase.data import atomic_numbers
 
 import equiv_dens.utils.base as utils
 from schnetpack.md.calculators import MDCalculator, MDCalculatorError
 from schnetpack import properties
+
+
+_CYCLE_HEADER = re.compile(
+    r"cycle\s*=\s*(\d+)\s+SCF energy\s*=\s*(\S+)\s+"
+    r"\|dE/dxyz\|\s*=\s*(\S+)",
+    re.IGNORECASE,
+)
+
+
+def _finite_float(value: str, context: str) -> float:
+    """Read the Fortran exponent notation used by g-xTB, rejecting bad output."""
+    try:
+        number = float(value.replace("D", "E").replace("d", "e"))
+    except ValueError as exc:
+        raise ValueError(f"Invalid number {value!r} in {context}") from exc
+    if not np.isfinite(number):
+        raise ValueError(f"Nonfinite number {value!r} in {context}")
+    return number
+
+
+def _output_groups(path: Path, marker: str) -> list[list[str]]:
+    """Read complete Turbomole data groups; never reuse a truncated old result."""
+    groups = []
+    current = None
+    for line_number, line in enumerate(path.read_text().splitlines(), start=1):
+        line = line.strip()
+        if not line:
+            continue
+        if line.lower() == marker and current is None:
+            current = []
+        elif line.lower() == "$end" and current is not None:
+            if not current:
+                raise ValueError(f"Empty {marker} group in {path}")
+            groups.append(current)
+            current = None
+        elif line.startswith("$") or current is None:
+            raise ValueError(
+                f"Unexpected output in {path} at line {line_number}: {line}"
+            )
+        else:
+            current.append(line)
+    if current is not None or not groups:
+        raise ValueError(f"Missing or incomplete {marker}/$end group in {path}")
+    return groups
 
 
 class GxtbMDCalculator(MDCalculator):
@@ -123,52 +168,87 @@ class GxtbMDCalculator(MDCalculator):
         return energy, gradient
 
     def _parse_energy(self) -> float:
-        """Parse energy (Eh) from $energy or gradient file."""
+        """Read the final energy row, or the final complete gradient-cycle header."""
         energy_path = self.workdir / "energy"
         if energy_path.exists():
-            with open(energy_path) as f:
-                for line in f:
-                    if line.strip().startswith("$"):
-                        continue
+            for group in _output_groups(energy_path, "$energy"):
+                for line in group:
                     parts = line.split()
-                    if len(parts) >= 2:
-                        return float(parts[1])
+                    if len(parts) < 2 or not parts[0].isdigit() or int(parts[0]) < 1:
+                        raise ValueError(
+                            f"Malformed energy row in {energy_path}: {line}"
+                        )
+                    values = [
+                        _finite_float(part, str(energy_path)) for part in parts[1:]
+                    ]
+                    energy = values[0]
+            return energy
         grad_path = self.workdir / "gradient"
         if grad_path.exists():
-            with open(grad_path) as f:
-                for line in f:
-                    if "SCF energy" in line:
-                        match = re.search(r"SCF energy\s*=\s*([-\d.]+)", line)
-                        if match:
-                            return float(match.group(1))
+            return self._read_gradient_cycles()[0]
         raise FileNotFoundError("Could not parse energy from g-xtb output")
 
     def _parse_gradient(self, n: int) -> np.ndarray:
-        """Parse gradient (Eh/bohr) from gradient file."""
+        """Read derivatives from the final complete cycle, excluding coordinates."""
+        return self._read_gradient_cycles(n)[1]
+
+    def _read_gradient_cycles(self, n: int | None = None) -> tuple[float, np.ndarray]:
+        """Validate every cycle before accepting its energy and Eh/bohr derivatives.
+
+        Each cycle contains a header, labeled coordinate rows, then the same
+        number of unlabeled derivative rows. A malformed trailing cycle fails
+        rather than returning stale derivatives from an earlier cycle.
+        """
         grad_path = self.workdir / "gradient"
         if not grad_path.exists():
             raise FileNotFoundError(f"g-xtb did not produce {grad_path}")
+        if n is not None and n <= 0:
+            raise ValueError(f"Expected a positive atom count, got {n}")
 
-        gradient = np.zeros((n, 3), dtype=np.float64)
-        idx = 0
-        with open(grad_path) as f:
-            for line in f:
-                if "cycle" in line.lower() or line.strip().startswith("$"):
-                    continue
-                parts = line.split()
-                if len(parts) >= 3:
-                    try:
-                        gx, gy, gz = float(parts[0]), float(parts[1]), float(parts[2])
-                        if idx < n:
-                            gradient[idx] = [gx, gy, gz]
-                            idx += 1
-                    except ValueError:
-                        continue
-                if idx >= n:
-                    break
-        if idx != n:
-            raise ValueError(f"Expected {n} gradient rows, got {idx}")
-        return gradient
+        for group in _output_groups(grad_path, "$grad"):
+            cursor = 0
+            while cursor < len(group):
+                header = _CYCLE_HEADER.fullmatch(group[cursor])
+                if header is None or int(header[1]) < 1:
+                    raise ValueError(
+                        f"Malformed gradient cycle header in {grad_path}: {group[cursor]}"
+                    )
+                energy = _finite_float(header[2], str(grad_path))
+                _finite_float(header[3], str(grad_path))
+                cursor += 1
+
+                coordinate_count = 0
+                while cursor < len(group) and len(group[cursor].split()) == 4:
+                    parts = group[cursor].split()
+                    if not atomic_numbers.get(parts[3].capitalize(), 0):
+                        raise ValueError(
+                            f"Invalid coordinate atom label in {grad_path}: {parts[3]}"
+                        )
+                    for part in parts[:3]:
+                        _finite_float(part, str(grad_path))
+                    coordinate_count += 1
+                    cursor += 1
+                if not coordinate_count or (n is not None and coordinate_count != n):
+                    raise ValueError(
+                        f"Expected {n or 'nonzero'} coordinate rows in {grad_path}, "
+                        f"got {coordinate_count}"
+                    )
+
+                derivatives = []
+                for _ in range(coordinate_count):
+                    if cursor >= len(group):
+                        raise ValueError(f"Incomplete derivative rows in {grad_path}")
+                    parts = group[cursor].split()
+                    if len(parts) != 3:
+                        raise ValueError(
+                            f"Malformed derivative row in {grad_path}: {group[cursor]}"
+                        )
+                    derivatives.append(
+                        [_finite_float(part, str(grad_path)) for part in parts]
+                    )
+                    cursor += 1
+                gradient = np.asarray(derivatives, dtype=np.float64)
+        return energy, gradient
 
 
 def _atoms_from_arrays(atom_numbers: np.ndarray, positions: np.ndarray) -> "ase.Atoms":
