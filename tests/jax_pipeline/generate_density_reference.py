@@ -120,7 +120,7 @@ def make_head_reference(variant="learned"):
     features = [torch.linspace(-.4,.8,3*1*3).reshape(1,3,1,3).requires_grad_(),
                 torch.linspace(.7,-.2,3*3*3).reshape(1,3,3,3).requires_grad_()]
     atoms = {"batch_atom_numbers": nums, "batch_atom_mask": (nums!=0).double(),
-             "batch_positions": positions, "batch_idx_pos": active,
+             "batch_positions": positions, "positions": positions, "batch_idx_pos": active,
              "sph_repr": features}
     if variant == "delta":
         # Delta path appends existing core coefficients after newly learned ones.
@@ -140,10 +140,21 @@ def make_head_reference(variant="learned"):
             groups["radial_scale"].append(scale); groups["coeff_weights"].append(weights)
         atoms.update(groups)
     reference_inputs = copy.deepcopy(atoms)
+    atoms["sph_repr"] = torch.cat(features, dim=-2)  # Torch core takes packed features; the saved inputs stay per-L
+    if variant == "delta":
+        # The Torch head takes the existing core coefficients packed; the saved inputs keep the per-atom dicts.
+        for key in ("spherical_coeffs", "radial_width", "radial_scale", "coeff_weights"):
+            del atoms[key]
+        lay = module.layout.get(nums.max(0).values.tolist(), positions.device, positions.dtype)
+        atoms["packed_coeffs"] = {
+            L: {"atom": lay["atom"][L], "coeff": torch.full((2, len(lay["atom"][L]), 2*L+1), .07),
+                "width": torch.ones(2, len(lay["atom"][L]), module.layout.P[L]),
+                "scale": torch.full((2, len(lay["atom"][L]), module.layout.P[L]), .2)}
+            for L in range(len(lay["atom"])) if len(lay["atom"][L])}
     if variant == "constraint":
         constraint_layer = module.integral_constraint
         module.integral_constraint = None
-        unconstrained = module(copy.deepcopy(atoms))
+        unconstrained = module(dict(atoms))
         module.integral_constraint = constraint_layer
         integral_terms = []
         for i, values in enumerate(unconstrained["spherical_coeffs"]):
@@ -154,6 +165,25 @@ def make_head_reference(variant="learned"):
                     integral_terms.append((coeff * scale / gto_norm(0, width) / pyscf_gto_factor).sum(-1))
         print("constraint pre-scale integral", torch.cat(integral_terms, dim=1).sum(1).tolist())
     result = module(atoms)
+    if variant == "delta":
+        # CoeffsDict.to_dicts only views the learned shells; the legacy per-atom layout is learned shells followed by
+        # the appended core shells of the same (atom, L), rebuilt here from the concatenated packed coefficients.
+        packed, zs = result["packed_coeffs"], nums.max(0).values.tolist()
+        start = module.layout.get(zs, positions.device)["start"].tolist()
+        sph, width, scale = [], [], []
+        for a, z in enumerate(zs):
+            sph.append({}), width.append({}), scale.append({})
+            for L in range(module.layout.Lmax + 1):
+                if z == 0 or (z, L) not in module.layout.nshell:
+                    continue
+                n, r, S = module.layout.nshell[(z, L)], module.layout.rmax[(z, L)], len(lay["atom"][L])
+                rows = lambda name, w: torch.cat([packed[L][name][:, start[L][a]:start[L][a] + n, :w],
+                                                  packed[L][name][:, S + start[L][a]:S + start[L][a] + n, :w]], dim=1)
+                sph[a][(z, L)] = rows("coeff", 2*L+1).permute(0, 2, 1).unsqueeze(1)
+                width[a][(z, L)] = rows("width", r).permute(0, 2, 1).unsqueeze(1)
+                scale[a][(z, L)] = rows("scale", r).permute(0, 2, 1).unsqueeze(1)
+        result = dict(result, spherical_coeffs=sph, radial_width=width, radial_scale=scale,
+                      coeff_weights=reference_inputs["coeff_weights"])
     loss_terms = [result["df_coeffs"].square().sum()] if "df_coeffs" in result else []
     loss_terms.extend(x.square().sum() for group in ("radial_width","radial_scale")
                       for atom in result[group] for x in atom.values())
@@ -199,6 +229,24 @@ def make_head_reference(variant="learned"):
 
 def make_df_reference(kind="df"):
     torch.set_default_dtype(torch.float64)
+    from equiv_dens.utils.orbitals import PackedLayout
+
+    def from_df_vector(self, vec, zs, require_grads=False):
+        # PackedLayout.from_df_vector detaches the coefficients into new leaves; the reference gradient
+        # is w.r.t. the input df_coeffs, so keep the graph through the (linear) packing.
+        lay = self.get(zs, vec.device, vec.dtype)
+        flat = (vec * lay['sign'])[:, lay['inv']]
+        packed, off = {}, 0
+        for L in range(self.Lmax + 1):
+            S = len(lay['atom'][L])
+            coeff = flat[:, off:off + S * (2 * L + 1)].reshape(vec.shape[0], S, 2 * L + 1)
+            off += S * (2 * L + 1)
+            if S:
+                packed[L] = {'atom': lay['atom'][L], 'coeff': coeff,
+                             'width': lay['width0'][L].expand(vec.shape[0], -1, -1).clone().requires_grad_(require_grads),
+                             'scale': lay['scale0'][L].expand(vec.shape[0], -1, -1).clone().requires_grad_(require_grads)}
+        return packed
+    PackedLayout.from_df_vector = from_df_vector
     basis={1:[(1,1,0),(1,1,1)]}
     radial={1:[([.8],[1.1]),([.6],[.5])]}
     if kind=="df":

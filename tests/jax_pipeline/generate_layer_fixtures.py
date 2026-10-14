@@ -24,6 +24,8 @@ from equiv_dens.nn.representation.spherical_harmonic import EquivariantSpherical
 from equiv_dens.utils.spherical_harmonics import spherical_harmonics
 from equiv_dens.utils.spherical_harmonics_deriv import spherical_harmonics_deriv
 from equiv_dens_jax.convert import export_module
+import torch_layer_norm_patch
+torch_layer_norm_patch.apply()
 
 
 def export(module):
@@ -42,7 +44,20 @@ def pack(tree, arrays, prefix):
     return {"array": name}
 
 
-def save_case(root,name,module,inputs,representation=False,derivatives=True):
+def to_packed(arg):
+    """Per-L list of [..., 2L+1, F] -> packed [..., (L+1)^2, F] (Torch core format)."""
+    return torch.cat(arg,dim=-2) if isinstance(arg,list) else arg
+
+
+def to_per_L(tree):
+    """Packed [..., D, F] outputs -> per-L list, the format stored for the JAX tests."""
+    if isinstance(tree,tuple):
+        return tuple(to_per_L(v) for v in tree)
+    order = int(round(tree.shape[-2]**0.5))-1
+    return list(torch.split(tree,[2*L+1 for L in range(order+1)],dim=-2))
+
+
+def save_case(root,name,module,inputs,representation=False,derivatives=True,packed=True):
     module = module.double()
     # Exercise nonzero residual contributions, with exact shared parameter arrays.
     with torch.no_grad():
@@ -67,8 +82,10 @@ def save_case(root,name,module,inputs,representation=False,derivatives=True):
             return leaf
         return tree
     current = require(inputs)
-    result = module(current[0]) if representation else module(*current)
+    result = module(current[0]) if representation else module(*[to_packed(a) for a in current])
     outputs = result["sph_repr"] if representation else result
+    if packed:
+        outputs = to_per_L(outputs)
     data["outputs"] = pack(outputs,arrays,"output")
     if derivatives:
         def leaves(tree):
@@ -137,13 +154,13 @@ def main():
     idx_i = torch.tensor([0,0,1,1,2,2])
     idx_j = torch.tensor([1,2,0,2,0,1])
     for cls in (Swish,ShiftedSoftplus):
-        save_case(root,cls.__name__,cls(3),[torch.randn(2,3,3)])
+        save_case(root,cls.__name__,cls(3),[torch.randn(2,3,3)],packed=False)
     radial_classes = (BernsteinRadialBasisFunctions,GaussianRadialBasisFunctions,
                       ExponentialGaussianRadialBasisFunctions,ExponentialBernsteinRadialBasisFunctions,
                       OverlapBernsteinRadialBasisFunctions)
     for cls in radial_classes:
         r = torch.tensor([0.2,0.8,1.7,2.9]).reshape(1,4,1) if cls is BernsteinRadialBasisFunctions else torch.tensor([0.2,0.8,1.7,2.9,3.0,3.5]).reshape(2,3,1)
-        save_case(root,cls.__name__,cls(4,3.0),[r])
+        save_case(root,cls.__name__,cls(4,3.0),[r],packed=False)
     for parity in (False,True):
         save_case(root,f"self_parity{parity}",SelfMixing(2,3,3,cg,normalize=1,parity=parity),[xs()])
         save_case(root,f"pair_parity{parity}",PairMixing(2,2,3,4,3,cg,normalize=1,parity=parity),[pair(),pair(),rbf])
