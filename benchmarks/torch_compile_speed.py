@@ -145,73 +145,54 @@ def worker(args):
         data = arrays(bundle["inputs"])
         frames = [arrays(frame_inputs(bundle, i)) for i in range(len(bundle["frames"]["positions"]))]
         active = {k: p for k, p in model.named_parameters() if p.requires_grad}
-        if args.backend == "torch-eager":
-            optimizer = torch.optim.SGD(active.values(), lr=LR) if update else None
-            def execute(index=0):
-                atoms = (arrays(calculator_inputs(bundle, index)) if args.mode == "calculator" else
-                         frames[index % len(frames)] if args.mode == "ef" else data)
-                if update:
-                    optimizer.zero_grad(set_to_none=True)
-                out = model(dict(atoms))
-                result = {field: out[field] for field in fields}
-                if update:
-                    loss = sum(weight * (out[field]-data[field]).square().mean()
-                               for field, weight in zip(fields, weights))
-                    loss.backward()
-                    optimizer.step()
-                    result["loss"] = loss.detach()
-                return numpy_tree(result) if args.mode == "calculator" else result
-            def parameters():
-                return dict(model.named_parameters())
-            def gradients():
-                return {k: p.grad if p.grad is not None else torch.zeros_like(p) for k, p in active.items()}
-        else:
-            from equiv_dens.inference.compiled import FunctionalDenSNet
-            if args.compile_strategy == "regional-density":
-                if args.mode != "density_update":
-                    raise ValueError("Regional compilation is qualified only for density_update")
-                from equiv_dens.inference.regional import RegionalDensityDenSNet
-                adapter_type = RegionalDensityDenSNet
-                expected_graphs = 2
-            else:
-                adapter_type = FunctionalDenSNet
-                expected_graphs = 1
+        optimizer = torch.optim.SGD(active.values(), lr=LR) if update else None
+        compiled = args.backend == "torch-compile"
+        if compiled:
             torch._dynamo.config.suppress_errors = False
             compile_threads = int(os.environ.get("TORCHINDUCTOR_COMPILE_THREADS", "1"))
-            if compile_threads < 1:
-                raise ValueError("TORCHINDUCTOR_COMPILE_THREADS must be a positive integer")
             torch._inductor.config.compile_threads = compile_threads
             torch._dynamo.utils.counters.clear()
-            adapter = adapter_type(model, data)
-            parameters_state = adapter.parameters()
-            for atoms in frames:
-                adapter.validate_inputs(atoms)
-            operation = adapter.operation("ef" if args.mode == "calculator" else args.mode,
-                                          backend="inductor", learning_rate=LR,
-                                          loss_weights=dict(zip(fields, weights))).unchecked
-            last_gradient = {}
-            def execute(index=0):
-                nonlocal parameters_state, last_gradient
-                atoms = (arrays(calculator_inputs(bundle, index)) if args.mode == "calculator" else
-                         frames[index % len(frames)] if args.mode == "ef" else data)
-                out = operation(parameters_state, atoms, data)
-                if update:
-                    parameters_state = out["parameters"]
-                    last_gradient = out["gradients"]
-                result = {field: out[field] for field in (*fields, "loss") if field in out}
-                return numpy_tree(result) if args.mode == "calculator" else result
-            def parameters():
-                return parameters_state
-            def gradients():
-                return last_gradient
-            def compiler_diagnostics():
-                counters = {category: dict(values) for category, values in torch._dynamo.utils.counters.items()}
-                return {"backend": "inductor", "fullgraph": expected_graphs == 1,
-                        "compile_strategy": args.compile_strategy,
-                        "strict_fullgraph_regions": expected_graphs, "dynamic": False,
-                        "compile_threads": compile_threads,
-                        "suppress_errors": torch._dynamo.config.suppress_errors,
-                        "counters": counters}
+            if model.calculate_forces:
+                model.enable_compile()
+            else:  # density: compile representation + coefficient head, the grid expansion stays eager
+                from equiv_dens.nn.dft_network import DFTNetwork
+                repr_model, dens_head = model.density_repr_model[0], model.density_repr_model[1]
+                expansion = model.property_models["density"]
+                zs = data["batch_atom_numbers"].max(0)[0].tolist()
+                dens_head.warm_caches(zs, data["positions"].device, data["positions"].dtype)
+                coeffs_fn = torch.compile(lambda a: dens_head(repr_model(a)), dynamic=True)
+        def model_call(atoms):
+            if compiled and not model.calculate_forces:
+                inputs = {k: v for k, v in atoms.items()
+                          if isinstance(v, torch.Tensor) and k not in DFTNetwork.label_keys}
+                out = dict(atoms)
+                with torch.set_grad_enabled(update):
+                    out.update(coeffs_fn(dict(inputs)))
+                    return expansion(out, density_grad=True)
+            return model(dict(atoms))
+        def execute(index=0):
+            atoms = (arrays(calculator_inputs(bundle, index)) if args.mode == "calculator" else
+                     frames[index % len(frames)] if args.mode == "ef" else data)
+            if update:
+                optimizer.zero_grad(set_to_none=True)
+            out = model_call(atoms)
+            result = {field: out[field] for field in fields}
+            if update:
+                loss = sum(weight * (out[field]-data[field]).square().mean()
+                           for field, weight in zip(fields, weights))
+                loss.backward()
+                optimizer.step()
+                result["loss"] = loss.detach()
+            return numpy_tree(result) if args.mode == "calculator" else result
+        def parameters():
+            return dict(model.named_parameters())
+        def gradients():
+            return {k: p.grad if p.grad is not None else torch.zeros_like(p) for k, p in active.items()}
+        def compiler_diagnostics():
+            counters = {category: dict(values) for category, values in torch._dynamo.utils.counters.items()}
+            return {"backend": "inductor", "fullgraph": False, "compile_strategy": args.compile_strategy,
+                    "dynamic": True, "compile_threads": compile_threads,
+                    "suppress_errors": torch._dynamo.config.suppress_errors, "counters": counters}
         def synchronize(value=None):
             if args.device == "cuda":
                 torch.cuda.synchronize()
@@ -318,9 +299,6 @@ def worker(args):
         breaks = diagnostics["after_timing"]["counters"].get("graph_break", {})
         if breaks:
             raise AssertionError("Unexpected graph breaks in strict fullgraph workload")
-        graphs = diagnostics["after_timing"]["counters"].get("stats", {}).get("unique_graphs", 0)
-        if graphs != expected_graphs:
-            raise AssertionError(f"Expected {expected_graphs} strict compiled graph(s), got {graphs}")
     final = numpy_tree(result)
     if not all(np.isfinite(value).all() for value in final.values()):
         raise AssertionError("Nonfinite outputs")
@@ -365,7 +343,7 @@ def main():
     parser.add_argument("--warmup", type=int, default=2)
     parser.add_argument("--iterations", type=int, default=10)
     parser.add_argument("--device", choices=("cuda", "cpu"), default="cuda")
-    parser.add_argument("--compile-strategy", choices=("fullgraph", "regional-density"), default="fullgraph")
+    parser.add_argument("--compile-strategy", choices=("fullgraph",), default="fullgraph")
     parser.add_argument("--compare", nargs=2, type=Path)
     parser.add_argument("--comparison-output", type=Path)
     args = parser.parse_args()
