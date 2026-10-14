@@ -32,6 +32,8 @@ CONFIGS = {  # name -> (dataset, batch size, extra overrides)
     'dgrad': ('h2o_small', 2, ['--density_grad=True', '--density_grad_weight=1.0']),
     'norm2': ('h2o_small', 2, ['--normalize=2']),
     'water8': ('water8', 1, []),
+    'delta': ('h2o_small', 2, ['--remove_atom_density=True', '--append_atom_density=True', '--atom_dens_type=mo_coeffs', '--atom_dens_path=datasets/free_atom_densities_augccpvdz_augccpvqzjkfit_pyscf_minimized.npy']),
+    'delta_noappend': ('h2o_small', 2, ['--remove_atom_density=True', '--atom_dens_type=mo_coeffs', '--atom_dens_path=datasets/free_atom_densities_augccpvdz_augccpvqzjkfit_pyscf_minimized.npy']),
 }
 DEVICE = 'cpu'  # compare --device cuda runs the current code on the GPU (still float64)
 KEYS = ['sph_repr', 'df_coeffs', 'density', 'density_grad', 'energy', 'forces']
