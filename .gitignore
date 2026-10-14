@@ -90,3 +90,6 @@ results/
 # Local agent instructions / notes (Claude Code)
 .claude/
 CLAUDE.md
+
+# benchmark reference tensors (large)
+benchmarks/reference_data/
