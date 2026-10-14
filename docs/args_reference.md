@@ -39,7 +39,7 @@ The following options are among the most frequently overridden when running trai
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `--max_steps` | int | — | Maximum number of training steps |
-| `--save_dir` | str | `.` | Directory for checkpoints and logs |
+| `--save_dir` | str | scratch/training | Directory for checkpoints and logs |
 | `--np_dataset` | str | — | Path to atomic structures dataset (.npy) |
 | `--dens_dataset` | str | — | Path to density dataset (.npy) |
 | `--learning_rate` | float | 1e-3 | Optimizer learning rate |
@@ -49,6 +49,7 @@ The following options are among the most frequently overridden when running trai
 | `--density_weight` | float | 1.0 | Weight of density loss |
 | `--energy_weight` | float | 0.0 | Weight of energy loss |
 | `--forces_weight` | float | 0.0 | Weight of forces loss |
+| `--compile` | bool | False | Dynamic `torch.compile` of the model (`enable_compile()`): one graph for any molecule composition. The first compile takes minutes. |
 
 ---
 
@@ -65,6 +66,7 @@ These options control how training resumes from a previous run or how a model is
 | `--fix_hyperparams` | bool | False | After loading a checkpoint, do not change any arguments at all. |
 | `--args_file_name` | str | None | Base filename for saving the arguments file (e.g. `h2o_small_all_001`). Used for bookkeeping. |
 | `--ignore_missing_keywords` | bool | False | Ignore missing keywords when loading the model from a checkpoint. |
+| `--ignore_unexpected_keywords` | bool | False | Ignore unexpected keywords in the checkpoint (e.g. an older model with extra mixing parameters). |
 
 ---
 
@@ -112,7 +114,7 @@ These options define the equivariant neural network used for density and energy 
 | Argument | Type | Default | Description |
 |----------|------|--------|-------------|
 | `--basis_functions` | str | exp-bernstein | Radial basis type. Choices: `exp-bernstein`, `exp-gaussian`, `bernstein`, `gaussian`. |
-| `--cutoff` | float | 7.94 | Cutoff radius for interactions in Bohr (default ≈ 15 Bohr). |
+| `--cutoff` | float | 7.937658158457616 | Cutoff radius for interactions in Å (default = 15 Bohr). |
 | `--orthonormal_basis` | bool | False | Use orthonormal basis (overlap matrix is identity). Requires compatible reference data. |
 
 ### Density and Integral Constraints
@@ -230,8 +232,22 @@ These options define the equivariant neural network used for density and energy 
 | `--energy_weight` | float | 0.0 | Weight of energy loss. |
 | `--forces_weight` | float | 0.0 | Weight of forces loss. |
 | `--energy_min_weight` | float | 0.0 | Weight of energy minimization loss. |
+| `--density_weight_min` | float | 0.0 | Minimum weight of the density loss. |
+| `--density_grad_weight_min` | float | 0.0 | Minimum weight of the density gradient loss. |
+| `--df_weight_min` | float | 0.0 | Minimum weight of the density-fitting loss. |
+| `--dipole_moment_weight_min` | float | 0.0 | Minimum weight of the dipole moment loss. |
+| `--energy_weight_min` | float | 0.0 | Minimum weight of the energy loss. |
+| `--forces_weight_min` | float | 0.0 | Minimum weight of the forces loss. |
+| `--energy_min_weight_min` | float | 0.0 | Minimum weight of the energy minimization loss. |
+| `--density_weight_decay` | float | 1.0 | Decay factor of the weight of the density loss over training. |
+| `--density_grad_weight_decay` | float | 1.0 | Decay factor of the weight of the density gradient loss over training. |
+| `--df_weight_decay` | float | 1.0 | Decay factor of the weight of the density-fitting loss over training. |
+| `--dipole_moment_weight_decay` | float | 1.0 | Decay factor of the weight of the dipole moment loss over training. |
+| `--energy_weight_decay` | float | 1.0 | Decay factor of the weight of the energy loss over training. |
+| `--forces_weight_decay` | float | 1.0 | Decay factor of the weight of the forces loss over training. |
+| `--energy_min_weight_decay` | float | 1.0 | Decay factor of the weight of the energy minimization loss over training. |
 
-Each of the above has corresponding `_min`, `_decay` variants (e.g. `--density_weight_min`, `--density_weight_decay`) that control minimum weight and decay over training.
+The `_min` and `_decay` flags control the minimum weight and the decay of each loss weight over training.
 
 ### Loss Composition
 
@@ -276,6 +292,7 @@ Each of the above has corresponding `_min`, `_decay` variants (e.g. `--density_w
 |----------|------|--------|-------------|
 | `--density_subsamples` | int | 10000 | Number of grid points for density evaluation. |
 | `--density_grad` | bool | False | Include density gradient in the loss. |
+| `--use_gpu4pyscf` | bool | None | Use gpu4pyscf for PySCF grids/densities. If None (not set), the default is used: True if gpu4pyscf and CUDA are available. |
 | `--pyscf_grid` | bool | True | Use PySCF for grid generation. |
 | `--cube_grid` | bool | False | Use cubical grid for training. |
 | `--cube_grid_valid` | bool | False | Use cubical grid for validation. |
@@ -337,7 +354,7 @@ Each of the above has corresponding `_min`, `_decay` variants (e.g. `--density_w
 | `--verbose` | int | 0 | Verbosity level. |
 | `--timing` | bool | False | Print timing statistics. |
 | `--memory` | bool | False | Print memory statistics. |
-| `--compile` | bool | False | Compile model for higher efficiency (PyTorch 2.0+). |
+| `--compile` | bool | False | Dynamic `torch.compile` of the model (`enable_compile()`), for training and inference: one graph for any molecule composition, no recompiles. The first compile takes minutes. |
 
 ---
 
@@ -349,9 +366,10 @@ These options apply when running ML-enhanced molecular dynamics via the `md` sub
 |----------|------|--------|-------------|
 | `--temperature` | int | 300 | Temperature in Kelvin. |
 | `--new_run` | bool | True | Start a new simulation; if False, continue a previous one. |
-| `--log_dir` | str | `.` | Directory for simulation logs. |
+| `--log_dir` | str | scratch | Directory for simulation logs. |
 | `--log_suffix` | str | `` | Suffix for log filenames. |
 | `--md_steps` | int | 100 | Number of MD steps. |
+| `--md_timestep_fs` | float | 0.5 | MD timestep in femtoseconds (1.0 matches AIMNet for a 2x speedup). |
 | `--langevin` | bool | True | Use Langevin dynamics; if False, use velocity Verlet. |
 | `--warm_up` | bool | True | Use Langevin for first 5% of steps, then switch to Verlet. |
 | `--simulation_type` | str | md | Type of simulation. Choices: `md`, `opt`. |
@@ -360,6 +378,17 @@ These options apply when running ML-enhanced molecular dynamics via the `md` sub
 | `--position_conversion` | str | Ang | Unit for positions. |
 | `--energy_conversion` | str | kcal/mol | Unit for energy. |
 | `--start_idx` | int+ | [-1] | Start indices for simulation; -1 means auto. |
+| `--console_log_interval` | int | 100 | Print MD progress to the console every N steps. |
+| `--log_every_n_steps` | int | 1 | Write positions/dipoles to HDF5 every N steps (e.g. 4 for 4 fs spacing at 1 fs timestep). |
+| `--dipole_every_n_steps` | int | 10 | Compute the dipole every N MD steps when using `--dpm_intor`; use 1 for every step. |
+| `--enable_tf32` | bool | True | Enable TF32 for faster GPU matmul. |
+| `--enable_inference_mode` | bool | True | Use `torch.inference_mode` for faster inference. |
+| `--cache_grid` | bool | True | Cache grid coordinates between MD steps. |
+| `--grid_cache_threshold` | float | 0.1 | Maximum position displacement (Angstrom) for which the cached grid is reused. |
+| `--use_fast_inference` | bool | False | Use `FastInferenceWrapper` (can be slower). |
+| `--compile_model` | bool | False | MD fast-inference wrapper (`--use_fast_inference`): plain `torch.compile` of the model, can be slower. For the composition-agnostic compile use `--compile`, for fixed-size MD `--static_compile`. |
+| `--static_compile` | bool | False | MD only: compile energy/forces with static shapes and CUDA graphs. Fastest for fixed-size MD. |
+| `--cpu_per_path_cg` | bool | False | On CPU, use a low-memory per-path Clebsch-Gordan product instead of the default gather over all CG triples (which uses ~5-10x more memory and prints a warning). No effect on GPU. |
 
 ---
 
@@ -367,7 +396,7 @@ These options apply when running ML-enhanced molecular dynamics via the `md` sub
 
 | Argument | Type | Default | Description |
 |----------|------|--------|-------------|
-| `--save_dir` | str | `.` | Directory for checkpoints and logs. |
+| `--save_dir` | str | scratch/training | Directory for checkpoints and logs. |
 | `--write_parameter_summaries` | bool | False | Write parameter summaries. |
 | `--validation_interval` | int | 1 | Validate every N steps. |
 | `--summary_interval` | int | 1 | Log summaries every N steps. |
@@ -387,6 +416,9 @@ These options apply when running ML-enhanced molecular dynamics via the `md` sub
 | `--test_eval_all` | bool | False | Evaluate errors on training and validation data during testing. |
 | `--no_compare` | bool | False | Skip accuracy comparison; only compute predictions. |
 | `--dpm_intor` | bool | False | Compute dipole moments using analytic integrals. |
+| `--properties` | str | energy | Comma-separated properties for the benchmark script: `energy` or `energy,forces`. |
+| `--n-warmup` | int | 10 | Warmup iterations for the benchmark script. |
+| `--n-runs` | int | 100 | Timed iterations for the benchmark script. |
 
 ---
 
