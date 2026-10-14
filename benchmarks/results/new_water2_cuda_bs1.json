@@ -1,0 +1,73 @@
+{
+ "meta": {
+  "dataset": "water2",
+  "device": "cuda",
+  "batch_size": 1,
+  "reps": 3,
+  "config": [
+   "/workspace/.claude/worktrees/agent-ab1fb29d7a15a4439/config/training/h2o_small_all_001.txt"
+  ],
+  "overrides": [
+   "--train_batch_size=1",
+   "--np_dataset=/workspace/datasets/water_clusters/water2_augccpvdz.npy",
+   "--dens_dataset=/workspace/datasets/water_clusters/water2_augccpvdz_df_augccpvqzjkfit.npy",
+   "--np_dataset_valid=None",
+   "--dens_dataset_valid=None",
+   "--np_dataset_test=None",
+   "--dens_dataset_test=None",
+   "--num_train=4",
+   "--num_valid=0",
+   "--num_test=0",
+   "--use_gpu=True"
+  ],
+  "n_atoms_batch": 6,
+  "n_grid_points": 5000,
+  "n_params": 8679915,
+  "dtype": "torch.float32",
+  "gpu": "NVIDIA GeForce RTX 4070 Laptop GPU"
+ },
+ "results": {
+  "data_loading": {
+   "ms": 6.7917139967903495,
+   "peak_mb": 52.87255859375
+  },
+  "repr_forward": {
+   "ms": 21.597188999294303,
+   "peak_mb": 222.13623046875
+  },
+  "density_head": {
+   "ms": 1.4481440011877567,
+   "peak_mb": 142.6953125
+  },
+  "expansion": {
+   "ms": 1.507035005488433,
+   "peak_mb": 172.41650390625
+  },
+  "expansion_grad": {
+   "ms": 7.321159006096423,
+   "peak_mb": 206.78564453125
+  },
+  "energy_forces": {
+   "ms": 94.29783400264569,
+   "peak_mb": 223.08203125
+  },
+  "train_step": {
+   "ms": 311.78437199559994,
+   "peak_mb": 387.01708984375,
+   "fwd_loss_ms": 113.6465559975477,
+   "bwd_ms": 186.5939349954715
+  },
+  "infer_forces": {
+   "ms": 110.71274800633546,
+   "peak_mb": 297.529296875
+  },
+  "infer_coeffs": {
+   "ms": 18.968015006976202,
+   "peak_mb": 199.71728515625
+  },
+  "infer_density": {
+   "ms": 20.351947998278774,
+   "peak_mb": 199.71728515625
+  }
+ }
+}
