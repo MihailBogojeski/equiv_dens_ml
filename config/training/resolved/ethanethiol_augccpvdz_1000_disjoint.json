@@ -1,0 +1,473 @@
+{
+  "scope": "Resolved source-model construction arguments and native JAX stage controls for the supplied author configuration; not a claim of exact paper reproduction.",
+  "recorded_at_revision": "f7477671b1f9a751733fc45670dfd729ba7e7953",
+  "source_config": "config/training/ethanethiol_augccpvdz_1000_disjoint.txt",
+  "source_config_sha256": "295ed6f87188e9ff4d9e4aaf09911fae5f08310633121de1ed0b3d35dab1e8a4",
+  "export_source_revision": "b544f8c5a22c59a30c0fd154336195724a480598",
+  "export_provenance_note": "Export was made while handoff tools were uncommitted; recorded_at_revision identifies their committed implementation.",
+  "model_construction_args": {
+    "restart": null,
+    "load_from": null,
+    "no_restore": false,
+    "fix_arguments": true,
+    "fix_hyperparams": true,
+    "args_file_name": "ethanethiol_all_004_3_coreless",
+    "ignore_missing_keywords": false,
+    "ignore_unexpected_keywords": false,
+    "activation": "swish",
+    "order": [
+      1,
+      3,
+      5
+    ],
+    "mixing_order": null,
+    "order_en": [
+      3,
+      3,
+      3
+    ],
+    "mixing_order_en": null,
+    "num_features": 128,
+    "num_basis_functions": 128,
+    "num_en_basis_functions": 32,
+    "num_radial_components": 4,
+    "num_energy_features": 128,
+    "num_modules": 3,
+    "num_en_modules": 3,
+    "num_residual_pre_x": 1,
+    "num_residual_post_x": 1,
+    "num_residual_pre_vi": 1,
+    "num_residual_pre_vj": 1,
+    "num_residual_post_v": 1,
+    "num_residual_output": 1,
+    "num_energy_output": 2,
+    "num_neighbours": 10,
+    "basis_functions": "exp-bernstein",
+    "cutoff": 7.937658158457616,
+    "orthonormal_basis": false,
+    "expansion_constraint": null,
+    "integral_constraint": null,
+    "integral_scale": false,
+    "integral_min": null,
+    "energy_offset": false,
+    "positive_coeffs": false,
+    "compressed_extraction": false,
+    "energy_model": "spherical",
+    "pred_radial_coeffs": true,
+    "dummy_coeff_model": false,
+    "scale_sph_order": false,
+    "normalize": 0,
+    "normalize_en": 2,
+    "parity_dens": false,
+    "parity_en": false,
+    "ml_width_min": 0,
+    "ml_width_max": 2,
+    "nonmixing_interaction": false,
+    "nonmixing_interaction_residual": true,
+    "density_coeffs": true,
+    "append_atom_density": true,
+    "L0_start": true,
+    "max_steps": 200000,
+    "np_dataset": "/home/ml-dft/equiv_dens/datasets/ethanethiol_combo_Aidx-1000.npy",
+    "dens_dataset": "/home/ml-dft/equiv_dens/datasets/ethanethiol_combo_Aidx-1000_pyscf_augccpvdz.npy",
+    "np_dataset_test": "/home/ml-dft/equiv_dens/datasets/ethanethiol_rand-1000.npy",
+    "dens_dataset_test": "/home/ml-dft/equiv_dens/datasets/ethanethiol_rand-1000_pyscf_augccpvdz.npy",
+    "np_dataset_valid": "/home/ml-dft/equiv_dens/datasets/ethanethiol_augccpvdz_valid.npy",
+    "dens_dataset_valid": "/home/ml-dft/equiv_dens/datasets/ethanethiol_pyscf_augccpvdz_dft_valid_df_augccpvqzjkfit.npy",
+    "pseudo_pot_path": "/home/ml-dft/equiv_dens/pseudo_potentials",
+    "orbitals_file": "/home/ml-dft/equiv_dens/datasets/augccpvqzjkfit_orbital_basis_df.npy",
+    "calc_basis_file": null,
+    "radial_coeffs_file": "/home/ml-dft/equiv_dens/datasets/augccpvqzjkfit_radial_coeffs_libcint_df.npy",
+    "L0_coeffs_file": null,
+    "num_train": 1000,
+    "num_valid": 1000,
+    "num_test": 1000,
+    "ignore_split_indices": false,
+    "density_subsamples": 10000,
+    "train_batch_size": 10,
+    "valid_batch_size": 20,
+    "test_batch_size": 20,
+    "electron_num_batching": false,
+    "batch_efficiency": 0.7,
+    "num_workers": 0,
+    "split_seed": 42,
+    "optimizer": "amsgrad",
+    "lookahead_k": -1,
+    "learning_rate": 0.001,
+    "decay_factor": 0.5,
+    "decay_patience": 5,
+    "stop_at_learning_rate": 1e-05,
+    "stop_at_learning_rate_patience": 0,
+    "epsilon": 1e-08,
+    "beta1": 0.9,
+    "beta2": 0.99,
+    "momentum": 0.0,
+    "density_grad": false,
+    "density_weight": 1.0,
+    "density_grad_weight": 0.0,
+    "df_weight": 0.0,
+    "dipole_moment_weight": 0.0,
+    "energy_weight": 0.001,
+    "forces_weight": 0.999,
+    "energy_min_weight": 0.0,
+    "density_loss_comp": [
+      "perc_mae"
+    ],
+    "density_grad_loss_comp": [
+      "norm_int"
+    ],
+    "dipole_moment_loss_comp": [
+      "mae"
+    ],
+    "df_loss_comp": [
+      "mae"
+    ],
+    "energy_loss_comp": [
+      "mae"
+    ],
+    "forces_loss_comp": [
+      "mae"
+    ],
+    "density_loss_comp_weights": [
+      1.0
+    ],
+    "density_grad_loss_comp_weights": [
+      1.0
+    ],
+    "dipole_moment_loss_comp_weights": [
+      1.0
+    ],
+    "df_loss_comp_weights": [
+      1.0
+    ],
+    "energy_loss_comp_weights": [
+      1.0
+    ],
+    "forces_loss_comp_weights": [
+      1.0
+    ],
+    "density_weight_min": 1.0,
+    "density_grad_weight_min": 0.0,
+    "dipole_moment_weight_min": 0.0,
+    "df_weight_min": 0.0,
+    "energy_weight_min": 0.0,
+    "forces_weight_min": 0.0,
+    "energy_min_weight_min": 0.001,
+    "density_weight_decay": 1.0,
+    "density_grad_weight_decay": 1.0,
+    "dipole_moment_weight_decay": 1.0,
+    "df_weight_decay": 1.0,
+    "energy_weight_decay": 1.0,
+    "forces_weight_decay": 1.0,
+    "energy_min_weight_decay": 0.996,
+    "max_energy_error": 0.1,
+    "max_forces_error": 0.1,
+    "df_loss_weights": false,
+    "center_energy": true,
+    "atomic_energies": null,
+    "clip_norm": 1.0,
+    "use_parameter_averaging": true,
+    "ema_decay": 0.999,
+    "ema_start_epoch": 300,
+    "weight_decay": 0.0,
+    "en_weight_decay": 0.0,
+    "use_gpu": false,
+    "multiple_gpus": false,
+    "coord_weights": true,
+    "weights_balance": 1.0,
+    "softmax_norm": false,
+    "percentage_error": true,
+    "pyscf_grid": true,
+    "cube_grid": false,
+    "cube_grid_valid": false,
+    "cube_size": 50,
+    "cube_extent": 4.1483,
+    "cube_origin": -2.0318,
+    "spherical_grid_level": 1,
+    "verbose": 0,
+    "timing": false,
+    "memory": false,
+    "energy_unit_in": "hartree",
+    "energy_unit_out": "kcal",
+    "distance_unit_in": "angstrom",
+    "distance_unit_out": "angstrom",
+    "output_scaling": true,
+    "grid_scaling_factor": false,
+    "grid_scaling_annealing": 1.0,
+    "grid_scaling_start": 10000,
+    "projected_density": false,
+    "fast_df": true,
+    "core_density_basis": 0.0,
+    "density_fine_tuning": false,
+    "density_loss_comp_ft": [
+      "dpm_loss",
+      "dpm_abs_loss"
+    ],
+    "fine_tuning_lr_factor": 0.01,
+    "fine_tuning_stop_lr_factor": 0.1,
+    "density_loss_comp_ft_weights": [
+      1.0,
+      1.0
+    ],
+    "wandb_mode": "online",
+    "remove_atom_density": true,
+    "atom_dens_path": "/home/ml-dft/equiv_dens/datasets/free_atom_densities_augccpvdz_augccpvqzjkfit_pyscf_minimized.npy",
+    "atom_dens_type": "mo_coeffs",
+    "density_from_df": false,
+    "density_from_free_atoms": false,
+    "compile": false,
+    "rotate_grid": true,
+    "cutoff_dens_coords": false,
+    "temperature": 300,
+    "new_run": true,
+    "log_dir": "scratch",
+    "log_suffix": "",
+    "md_steps": 100,
+    "md_timestep_fs": 0.5,
+    "langevin": true,
+    "warm_up": true,
+    "simulation_type": "md",
+    "port_num": 50007,
+    "force_conversion": "kcal/mol/Ang",
+    "position_conversion": "Ang",
+    "energy_conversion": "kcal/mol",
+    "start_idx": null,
+    "console_log_interval": 100,
+    "log_every_n_steps": 1,
+    "dipole_every_n_steps": 10,
+    "enable_tf32": true,
+    "enable_inference_mode": true,
+    "cache_grid": true,
+    "grid_cache_threshold": 0.1,
+    "use_fast_inference": false,
+    "compile_model": false,
+    "save_dir": "scratch/mihail_jax/ethanethiol/export_1000_v1/runs",
+    "write_parameter_summaries": false,
+    "validation_interval": 1000,
+    "summary_interval": 100,
+    "checkpoint_interval": 1000,
+    "keep_checkpoints": 0,
+    "dtype": "float32",
+    "legacy": false,
+    "test_save": false,
+    "test_save_name": "test_save_results.pt",
+    "test_eval_all": false,
+    "no_compare": false,
+    "dpm_intor": false,
+    "properties": "energy",
+    "n_warmup": 10,
+    "n_runs": 100
+  },
+  "stages": {
+    "density": {
+      "stage": "density",
+      "seed": 42,
+      "shuffle": true,
+      "jit_validation": true,
+      "optimizer": {
+        "name": "amsgrad",
+        "learning_rate": 0.001,
+        "beta1": 0.9,
+        "beta2": 0.99,
+        "epsilon": 1e-08,
+        "weight_decay": 0.0,
+        "energy_weight_decay": 0.0,
+        "momentum": 0.0,
+        "clip_norm": 1.0,
+        "lookahead_k": 0,
+        "ema_decay": 0.999,
+        "ema_start_epoch": 300
+      },
+      "scheduler": {
+        "factor": 0.5,
+        "patience": 5,
+        "min_lr": 0.0
+      },
+      "loss": {
+        "loss_weights": {
+          "density": 1.0,
+          "density_grad": 0.0,
+          "dipole_moment": 0.0,
+          "df_coeffs": 0.0,
+          "energy": 0.0,
+          "forces": 0.0,
+          "energy_min": 0.0
+        },
+        "weights_balance": 1.0,
+        "percentage_error": true,
+        "weights_decay": {
+          "density": 1.0,
+          "density_grad": 1.0,
+          "dipole_moment": 1.0,
+          "df_coeffs": 1.0,
+          "energy": 1.0,
+          "forces": 1.0,
+          "energy_min": 0.996
+        },
+        "weights_min": {
+          "density": 1.0,
+          "density_grad": 0.0,
+          "dipole_moment": 0.0,
+          "df_coeffs": 0.0,
+          "energy": 0.0,
+          "forces": 0.0,
+          "energy_min": 0.001
+        },
+        "loss_comp": {
+          "dipole_moment": [
+            "mae"
+          ],
+          "df_coeffs": [
+            "mae"
+          ],
+          "energy": [
+            "mae"
+          ],
+          "forces": [
+            "mae"
+          ],
+          "density_grad": [
+            "norm_int"
+          ],
+          "density": [
+            "perc_mae"
+          ]
+        },
+        "loss_comp_weights": {
+          "df_coeffs": {
+            "mae": 1.0
+          },
+          "dipole_moment": {
+            "mae": 1.0
+          },
+          "energy": {
+            "mae": 1.0
+          },
+          "forces": {
+            "mae": 1.0
+          },
+          "density_grad": {
+            "norm_int": 1.0
+          },
+          "density": {
+            "perc_mae": 1.0
+          }
+        },
+        "relative_en": false,
+        "df_loss_weights": false
+      },
+      "source_control": {
+        "max_steps": 200000,
+        "validation_interval": 1000,
+        "checkpoint_interval": 1000,
+        "stop_at_learning_rate": 1e-05
+      }
+    },
+    "energy": {
+      "stage": "energy",
+      "seed": 42,
+      "shuffle": true,
+      "jit_validation": true,
+      "optimizer": {
+        "name": "amsgrad",
+        "learning_rate": 0.001,
+        "beta1": 0.9,
+        "beta2": 0.99,
+        "epsilon": 1e-08,
+        "weight_decay": 0.0,
+        "energy_weight_decay": 0.0,
+        "momentum": 0.0,
+        "clip_norm": 1.0,
+        "lookahead_k": 0,
+        "ema_decay": 0.999,
+        "ema_start_epoch": 300
+      },
+      "scheduler": {
+        "factor": 0.5,
+        "patience": 5,
+        "min_lr": 0.0
+      },
+      "loss": {
+        "loss_weights": {
+          "density": 0.0,
+          "density_grad": 0.0,
+          "dipole_moment": 0.0,
+          "df_coeffs": 0.0,
+          "energy": 0.001,
+          "forces": 0.999,
+          "energy_min": 0.0
+        },
+        "weights_balance": 1.0,
+        "percentage_error": true,
+        "weights_decay": {
+          "density": 1.0,
+          "density_grad": 1.0,
+          "dipole_moment": 1.0,
+          "df_coeffs": 1.0,
+          "energy": 1.0,
+          "forces": 1.0,
+          "energy_min": 0.996
+        },
+        "weights_min": {
+          "density": 1.0,
+          "density_grad": 0.0,
+          "dipole_moment": 0.0,
+          "df_coeffs": 0.0,
+          "energy": 0.0,
+          "forces": 0.0,
+          "energy_min": 0.001
+        },
+        "loss_comp": {
+          "dipole_moment": [
+            "mae"
+          ],
+          "df_coeffs": [
+            "mae"
+          ],
+          "energy": [
+            "mae"
+          ],
+          "forces": [
+            "mae"
+          ],
+          "density_grad": [
+            "norm_int"
+          ],
+          "density": [
+            "perc_mae"
+          ]
+        },
+        "loss_comp_weights": {
+          "df_coeffs": {
+            "mae": 1.0
+          },
+          "dipole_moment": {
+            "mae": 1.0
+          },
+          "energy": {
+            "mae": 1.0
+          },
+          "forces": {
+            "mae": 1.0
+          },
+          "density_grad": {
+            "norm_int": 1.0
+          },
+          "density": {
+            "perc_mae": 1.0
+          }
+        },
+        "relative_en": false,
+        "df_loss_weights": false
+      },
+      "source_control": {
+        "max_steps": 200000,
+        "validation_interval": 1000,
+        "checkpoint_interval": 1000,
+        "stop_at_learning_rate": 1e-05
+      }
+    }
+  },
+  "runtime_note": "use_gpu=false/save_dir refer to the one-time Torch construction. Native execution platform and output are explicit trainer/runtime arguments. Seed is native initialization seed, not a recovered historical paper seed.",
+  "data_protocol_note": "1000 train/1000 validation/1000 test in separate files is an intentional new baseline. Full native split preparation and original per-access grid rotation/resampling remain pending."
+}
