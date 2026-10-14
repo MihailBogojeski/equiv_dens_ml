@@ -1,7 +1,7 @@
 import torch.nn as nn
 import numpy as np
 import torch
-from torch.utils._pytree import tree_leaves
+from torch.utils._pytree import tree_leaves, tree_map
 from equiv_dens.utils.orbitals import CoeffsDict
 from equiv_dens.utils.scaling import UnitConversion, VarianceScaling
 
@@ -84,6 +84,7 @@ class DFTNetwork(nn.Module):
         print('no force props', self.no_force_props)
         self.remove_atom_density = remove_atom_density
         self.compiled = False
+        self.static = False
         # the density coefficient head of the representation model (its packed layout is passed in as data)
         self.coeffs_head = ([m for m in self.density_repr_model.modules() if hasattr(m, 'batch_layout')] + [None])[0]
         # Clebsch-Gordan buffers are not stored in checkpoints anymore, ignore them in old ones
@@ -200,14 +201,51 @@ class DFTNetwork(nn.Module):
         zs = None
         if self.coeffs_head is not None:
             zs, inputs['coeff_layout'] = self.coeffs_head.batch_layout(atoms)
-        self.mark_sizes({'positions': atoms['positions'], **inputs})
+        if not self.static:
+            self.mark_sizes({'positions': atoms['positions'], **inputs})
         return zs, inputs
 
-    def enable_compile(self):
-        """Compile the representation and force heads, the forces are then computed with torch.func.grad."""
+    def static_forces(self, zs, positions, inputs):
+        """Forces of the static compile: replays the CUDA graph of the compiled _forces captured for this composition
+        and these input shapes (no guards or launches per kernel). The inputs are copied into the static buffers of
+        the graph, the outputs are cloned out of its memory pool."""
+        key = (tuple(zs or ()), tuple(positions.shape),
+               tuple((k, tuple(v.shape)) for k, v in inputs.items() if k != 'coeff_layout'))
+        if key not in self._graphs:
+            # the layout tensors of this composition are the same cached tensors every step, the graph reads them
+            static_in = {k: v if k == 'coeff_layout' else v.clone() for k, v in inputs.items()}
+            static_pos = positions.detach().clone()
+            stream = torch.cuda.Stream()
+            stream.wait_stream(torch.cuda.current_stream())
+            with torch.cuda.stream(stream):
+                for _ in range(2):  # compile and warm up outside of the capture
+                    self._forces_compiled(static_pos, static_in)
+            torch.cuda.current_stream().wait_stream(stream)
+            graph = torch.cuda.CUDAGraph()
+            with torch.cuda.graph(graph, pool=self._graph_pool):
+                out = self._forces_compiled(static_pos, static_in)
+            self._graphs[key] = graph, static_pos, static_in, out
+        graph, static_pos, static_in, out = self._graphs[key]
+        static_pos.copy_(positions)
+        for k, v in inputs.items():
+            if k != 'coeff_layout':
+                static_in[k].copy_(v)
+        graph.replay()
+        return tree_map(torch.clone, out)
+
+    def enable_compile(self, static=False):
+        """Compile the representation and force heads, the forces are then computed with torch.func.grad.
+        static=True (MD / inference with a fixed composition): static shapes, and one CUDA graph per composition and
+        input shapes (see static_forces), a new composition or pair count recompiles and captures a new graph."""
         self.compiled = self.calculate_forces
+        self.static = static
         for key in self.force_props:
             self.property_models[key].calculate_forces = False
+        if static:
+            self._forces_compiled = torch.compile(self._forces, dynamic=False)
+            self._graphs = {}
+            self._graph_pool = torch.cuda.graph_pool_handle()
+            return
         # inductor with data-dependent sizes: the uniform-value constant folding checks contiguity it cannot decide, and
         # cat inputs realized into the cat output are saved for the backward with wrong strides
         torch._inductor.config.joint_graph_constant_folding = False
@@ -240,7 +278,10 @@ class DFTNetwork(nn.Module):
             # Only the model inputs go in: labels and python values would add guards and recompiles.
             positions = atoms['positions']
             zs, inputs = self.compiled_inputs(atoms)
-            grad, (energy, (aux, _)) = self._forces(positions, inputs)
+            if self.static:
+                grad, (energy, (aux, _)) = self.static_forces(zs, positions, inputs)
+            else:
+                grad, (energy, (aux, _)) = self._forces(positions, inputs)
             atoms.update(aux)
             atoms['positions'] = positions
             atoms['forces'] = -grad
