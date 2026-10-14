@@ -1,0 +1,19 @@
+Bootstrap: localimage
+From: /home/johannes/cont/densnet-jax-2026-10-11.sif
+
+# Extend the recorded qualified JAX image with the native pipeline's host DFT.
+%files
+    containers/jax-requirements.lock /opt/densnet-runtime/jax-requirements.lock
+
+%post
+    set -eux
+    export PATH=/opt/venv/bin:/usr/local/bin:$PATH
+    export VIRTUAL_ENV=/opt/venv UV_LINK_MODE=copy UV_NO_CACHE=1
+    uv pip install --python /opt/venv/bin/python -r /opt/densnet-runtime/jax-requirements.lock
+    python -m pip check
+    python -m pip freeze --all > /opt/densnet-runtime/installed.txt
+
+%labels
+    Project equiv_dens_ml
+    Runtime NativeJAXDenSnetCUDA12HostDFTpy
+    ScientificSource external-checkout
