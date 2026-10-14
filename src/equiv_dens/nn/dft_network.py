@@ -171,7 +171,11 @@ class DFTNetwork(nn.Module):
         else:
             if self.calculate_forces:
                 atoms['positions'].requires_grad_(True)
+            zs = atoms['batch_atom_numbers'].max(0)[0].tolist()
             atoms = self._core(atoms['positions'], atoms)[1][0]
+            # the tensor-only aux dict lost the lazy conversion of the packed coefficients, restore it
+            atoms['slot_z'] = zs
+            atoms = CoeffsDict(atoms, [m.layout for m in self.modules() if hasattr(m, 'warm_caches')][0])
 
         atoms['positions'].requires_grad_(False)
         if self.training:

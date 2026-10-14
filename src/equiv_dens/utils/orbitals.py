@@ -355,6 +355,7 @@ def coeffs_dict_to_tensors(coeffs, radial_coeffs=True, atom_df_coeffs=None, atom
 
 
 def convert_coeffs_to_pyscf(coeffs):
+    coeffs['spherical_coeffs']  # a CoeffsDict builds the per-atom dicts lazily
     new_coeffs = {key: coeffs[key] for key in coeffs.keys()}
     new_coeffs["spherical_coeffs"] = []
     for i in range(len(coeffs["spherical_coeffs"])):
