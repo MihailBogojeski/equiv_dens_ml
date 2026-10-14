@@ -85,7 +85,8 @@ class DFTNetwork(nn.Module):
         self.remove_atom_density = remove_atom_density
         self.compiled = False
         # the density coefficient head of the representation model (its packed layout is passed in as data)
-        self.coeffs_head = ([m for m in self.density_repr_model.modules() if hasattr(m, 'batch_layout')] + [None])[0]
+        # plain attribute (not a registered submodule), so its weights are not stored twice in the state dict
+        self.__dict__['coeffs_head'] = ([m for m in self.density_repr_model.modules() if hasattr(m, 'batch_layout')] + [None])[0]
         # Clebsch-Gordan buffers are not stored in checkpoints anymore, ignore them in old ones
         self._register_load_state_dict_pre_hook(self._drop_cg_keys)
         if self.verbose > 0:
