@@ -155,8 +155,14 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
             self.register_buffer('atom_df_width_table', tables[1], persistent=False)
             self.register_buffer('atom_df_scale_table', tables[2], persistent=False)
             self.atom_df = True
+            # per-element dicts, only read by the JAX exporter (equiv_dens_jax), unused by the Torch forward
+            dfb = {z: [shell[1][0] for shell in self.atom_dens[z]['df_basis'][z]] for z in self.spherical_spec}
+            self.atom_df_widths = {z: torch.tensor(dfb[z]) for z in self.spherical_spec}
+            self.atom_df_scales = {z: torch.tensor([gto_norm_pyscf(0, w) for w in dfb[z]]) for z in self.spherical_spec}
+            self.atom_df_coeffs = {z: self.atom_dens[z]['df_coeffs'] for z in self.spherical_spec}
         else:
             self.atom_df = None
+            self.atom_df_widths = self.atom_df_scales = self.atom_df_coeffs = None
 
         for key in self.spherical_spec.keys():
             curr_feats = [0] * (self.orbitals_max_order + 1)
