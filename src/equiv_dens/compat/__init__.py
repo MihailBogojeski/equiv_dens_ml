@@ -18,5 +18,24 @@ def _patch_schnetpack_t_co():
         dataloader_module.T_co = dataloader_module._T_co
 
 
-# Apply patch on import
+def _preload_cusolver():
+    """
+    If torch is imported before cupy/gpu4pyscf, gpu4pyscf fails with an undefined
+    cusolverDn symbol. Loading torch's bundled libcusolver globally first fixes this.
+    """
+    import ctypes
+    import glob
+    import importlib.util
+
+    spec = importlib.util.find_spec("nvidia")
+    if spec is None or not spec.submodule_search_locations:
+        return
+    for path in spec.submodule_search_locations:
+        for lib in glob.glob(f"{path}/cu*/lib/libcusolver.so.*"):
+            ctypes.CDLL(lib, mode=ctypes.RTLD_GLOBAL)
+            return
+
+
+# Apply patches on import
 _patch_schnetpack_t_co()
+_preload_cusolver()

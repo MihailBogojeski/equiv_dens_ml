@@ -1,7 +1,9 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from .activations import Swish, ShiftedSoftplus
-from .spherical_harmonic_layers import PairMixing, PairInteraction, SphericalLinear
+from .spherical_harmonic_layers import PairMixing, PairInteraction, SphericalLinear, \
+    l_of_m, order_of, fit_orders, apply_L0, order_scale
 import numpy as np
 
 class ModularBlock(nn.Module):
@@ -94,16 +96,11 @@ class ModularBlock(nn.Module):
             parity=parity,
         )
 
-    def forward(self, xs, rbf, sph, idx_i, idx_j, neighbor_mask=1):
-        # print('xs norm modular', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
+    def forward(self, xs, rbf, sph, idx_i, idx_j):
         xs = self.residual_pre_x(xs)
-        # print('xs norm modular residual pre', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
-        xs = self.interaction(xs, rbf, sph, idx_i, idx_j, neighbor_mask=neighbor_mask)
-        # print('xs norm modular interaction', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
+        xs = self.interaction(xs, rbf, sph, idx_i, idx_j)
         xs = self.residual_post_x(xs)
-        # print('xs norm modular residual post', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
         ys = self.residual_out(xs)
-        # print('ys norm modular residual out', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
         return xs, ys
 
 
@@ -271,124 +268,55 @@ class InteractionBlock(nn.Module):
         for L in range(self.order + 1):
             nn.init.orthogonal_(self.radial_fn[L].weight)
 
-    def forward(self, xs, rbf, sph, idx_i, idx_j, neighbor_mask=1):
-        ys = [1 * x for x in xs]
+    def forward(self, xs, rbf, sph, idx_i, idx_j):
         # path for atoms i
-        yi = self.residual_pre_vi(ys)
-        yi[0] = self.activation_i(yi[0])
-        # print('yi norm:', float(torch.mean(yi[0]**2)))
+        yi = self.residual_pre_vi(xs)
+        yi = apply_L0(self.activation_i, yi)
         if self.normalize > 1:
-            # print('yi before norm:', [float(torch.mean(yi[k]**2)) for k in range(len(yi))])
-            for L in range(len(yi)):
-                yi[L] = layer_norm(yi[L], dims=(-3, -2, -1)) 
-            # yi[0] = layer_norm(yi[0], dims=(-2, -1)) 
-            # print('yi after norm:', [float(torch.mean(yi[k]**2)) for k in range(len(yi))])
-        # print('yi norm:', float(torch.mean(yi[0]**2)))
-        # print('yi norm:', torch.mean(yi[0]**2, dim=(-2,-1)))
+            yi = layer_norm_orders(yi)
         yi = self.linear_i(yi)
-
-        for L in range(len(yi), self.mixing_order + 1):
-            yi.append(torch.zeros(*yi[0].shape[:2], (2 * L) + 1, yi[0].shape[-1], device=yi[0].device, dtype=yi[0].dtype))
+        yi = fit_orders(yi, (self.mixing_order + 1) ** 2)
 
         # path for atoms j
-        yj = self.residual_pre_vj(ys)
-        yj[0] = self.activation_j(yj[0])
+        yj = self.residual_pre_vj(xs)
+        yj = apply_L0(self.activation_j, yj)
         if self.normalize == 1:
-            yj[0] = layer_norm(yj[0], dims=(-3, -2, -1)) 
+            yj = apply_L0(lambda t: layer_norm(t, dims=(-3, -2, -1)), yj)
         elif self.normalize > 1:
-            # print('yj before norm:', [float(torch.mean(yj[k]**2)) for k in range(len(yj))])
-            for L in range(len(yj)):
-                yj[L] = layer_norm(yj[L], dims=(-3, -2, -1)) 
-            # print('yj after norm:', [float(torch.mean(yj[k]**2)) for k in range(len(yj))])
-        # print('yj norm:', float(torch.mean(yj[0]**2)))
+            yj = layer_norm_orders(yj)
         yj = self.linear_j(yj)
         # interaction function
-        for L in range(min(2 * self.input_order, self.order) + 1):
-            idx = idx_j.view(*(1,) * len(yj[L].shape[:-3]), -1, 1, 1).repeat(
-                *yj[L].shape[:-3], 1, *yj[L].shape[-2:]
-            )
-            yj[L] = torch.gather(yj[L], 1, idx) * neighbor_mask
+        yj = yj.index_select(1, idx_j)
 
-        # print('yj norm:', [float(torch.mean(yj[L]**2)) for L in range(len(yj))])
-        # print('rbf norm:', float(torch.mean(rbf**2)))
-        # print('rbf shape', rbf.shape)
-        # print('rbf sum:', float(torch.mean(torch.sum(rbf, dim=-1))))
         ang = self.angular_fn1(sph)
-        # print('sph norm:', [float(torch.mean(sph[L]**2)) for L in range(len(sph))])
-        # print('angular norm:', [float(torch.mean(ang[L]**2)) for L in range(len(ang))])
         vs = self.mixing(yj, ang, rbf)
-        # print('vs norm:', [float(torch.mean(vs[L]**2)) for L in range(len(vs))])
         a = self.angular_fn2(sph)
-        # print('a norm:', [float(torch.mean(a[L]**2)) for L in range(len(a))])
-        for L in range(self.mixing_order + 1):
-            # idx_i_scat = idx_i.view(*(1,) * len(vs[L].shape[:-3]), -1, 1, 1).repeat(
-            # *vs[L].shape[:-3], 1, *vs[L].shape[-2:])
-            # print('idx i scat', idx_i_scat.shape)
-            # if L == 0:
-            # #     print('idx_i', idx_i)
-            # #     print('vs[0]', vs[L])
-            # #     print('index add', torch.zeros_like(yi[L]).index_add(
-            # #         1, idx_i, vs[L] + self.radial_fn[L](rbf) * a[L] * yj[0]
-            # #         )
-            # #     )
-            #     print('vs 0', vs[L].shape)
-            #     print('a 0', a[L].shape)
-            #     print('y 0', yj[L].shape)
-            #     print('scatter add', torch.scatter_reduce(
-            #         vs[L] + self.radial_fn[L](rbf) * a[L] * yj[0], 1, idx_i_scat, 
-            #         'mean')
-            #     )
-            #     print('index add', torch.zeros_like(yj[L]).index_add(1, idx_i,
-            #         vs[L] + self.radial_fn[L](rbf) * a[L] * yj[0])
-            #     )
-            if not self.normalize or torch.mean(yi[L]**2) == 0 or torch.mean(vs[L]**2) == 0:
-                scale = 1
-            else:
-                scale = np.sqrt(1/2)
-            if self.normalize:
-                norm_rbf = np.sqrt(self.num_features / self.num_basis_functions)
-                norm_sph = np.sqrt(self.mixing_order + 1)
-            else:
-                norm_rbf = 1
-                norm_sph = 1
-            vs[L] = (yi[L] * scale).index_add(
-                1, idx_i, scale * (vs[L] + self.radial_fn[L](rbf) * norm_rbf * a[L] * yj[0])
-            )
-            # print('vs L norm 1:', float(torch.mean(vs[L]**2)))
-            # print('num neighbours', self.num_neighbours)
-            # print('norm sph', norm_sph)
-            if self.normalize:
-                vs[L] = vs[L] * norm_sph / self.num_neighbours
-            # print('vs L norm 2:', float(torch.mean(vs[L]**2)))
-            # print('vs ' + str(L) + ' norm:', float(torch.mean(vs[L]**2)))
-            # vs[L] = yi[L] + torch.scatter_reduce(
-            #         vs[L] + self.radial_fn[L](rbf) * a[L] * yj[0], 1, idx_i_scat, 
-            #         'mean')
-            #     print('yi[0]', yi[L])
-            # if L == 0:
-            #     print('vs[0]', vs[L])
-        # print('vs norm:', [float(torch.mean(vs[L]**2)) for L in range(len(vs))])
-
-        # print('vs norm after mixing:', [float(torch.mean(vs[L]**2)) for L in range(len(vs))])
+        if self.normalize:
+            norm_rbf = np.sqrt(self.num_features / self.num_basis_functions)
+            norm_sph = np.sqrt(self.mixing_order + 1)
+        else:
+            norm_rbf = 1
+            norm_sph = 1
+        radial = F.linear(rbf, torch.cat([fn.weight for fn in self.radial_fn]) * norm_rbf)
+        radial = radial.view(*radial.shape[:-2], self.mixing_order + 1, self.num_features)
+        radial = radial[..., l_of_m((self.mixing_order + 1) ** 2, rbf.device), :]
+        scale = order_scale(yi, vs, self.normalize)
+        vs = vs + radial * a * yj[..., :1, :]
+        if self.normalize:
+            vs = (yi * scale).index_add(1, idx_i, scale * vs) * norm_sph / self.num_neighbours
+        else:
+            vs = yi.index_add(1, idx_i, vs)
 
         if self.normalize > 1:
-            # print('vs before norm:', [float(torch.mean(vs[k]**2)) for k in range(len(vs))])
-            for L in range(len(vs)):
-                vs[L] = layer_norm(vs[L], dims=(-3, -2, -1))
-            # print('vs after norm:', [float(torch.mean(vs[k]**2)) for k in range(len(vs))])
+            vs = layer_norm_orders(vs)
         if self.mixing_order != self.order:
-            vs = self.linear_contract(vs)        # interaction refinement
+            vs = self.linear_contract(vs)
 
-        # print('vs norm before residual:', [float(torch.mean(vs[L]**2)) for L in range(len(vs))])
+        # interaction refinement
         vs = self.residual_post_v(vs)
-        vs[0] = self.activation_v(vs[0])
-        # print('vs norm after residual:', [float(torch.mean(vs[L]**2)) for L in range(len(vs))])
+        vs = apply_L0(self.activation_v, vs)
         vs = self.linear_v(vs)
-        for L in range(len(xs), len(vs)):
-            xs.append(torch.zeros_like(vs[L]))
-        # print('vs norm end interaction:', [float(torch.mean(vs[L]**2)) for L in range(len(vs))])
-        # print('xs norm end interaction:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
-        return [x + v for x, v in zip(xs, vs)]
+        return fit_orders(xs, vs.shape[-2]) + vs
 
 
 class NonmixingInteractionBlock(nn.Module):
@@ -533,109 +461,40 @@ class NonmixingInteractionBlock(nn.Module):
         for L in range(self.order + 1):
             nn.init.orthogonal_(self.radial_fn[L].weight)
 
-    def forward(self, xs, rbf, sph, idx_i, idx_j, neighbor_mask=1):
-        ys = [1 * x for x in xs]
-        # path for atoms i
-        yi = [torch.zeros_like(y) for y in ys]
-        # yi = self.residual_pre_vi(ys)
-        # yi[0] = self.activation_i(yi[0])
-        # print('yi norm:', float(torch.mean(yi[0]**2)))
-        # if self.normalize > 1:
-        #     for L in range(len(yi)):
-        #         yi[L] = layer_norm(yi[L], dims=(-2, -1))
-        # print('yi norm:', float(torch.mean(yi[0]**2)))
-        # print('yi norm:', torch.mean(yi[0]**2, dim=(-2,-1)))
-        # yi = self.linear_i(yi)
-
-        # for L in range(len(yi), self.order + 1):
-        #     yi.append(torch.zeros(*yi[0].shape[:2], (2 * L) + 1, yi[0].shape[-1]).to(yi[0]))
-
+    def forward(self, xs, rbf, sph, idx_i, idx_j):
         # path for atoms j
-        yj = self.residual_pre_vj(ys)
-        yj[0] = self.activation_j(yj[0])
+        yj = self.residual_pre_vj(xs)
+        yj = apply_L0(self.activation_j, yj)
         if self.normalize == 1:
-            yj[0] = layer_norm(yj[0], dims=(-3, -2, -1))
+            yj = apply_L0(lambda t: layer_norm(t, dims=(-3, -2, -1)), yj)
         elif self.normalize > 1:
-            for L in range(len(yj)):
-                yj[L] = layer_norm(yj[L], dims=(-3, -2, -1))
-        # print('yj norm:', float(torch.mean(yj[0]**2)))
+            yj = layer_norm_orders(yj)
         yj = self.linear_j(yj)
         # interaction function
-        for L in range(min(2 * self.order, self.order) + 1):
-            idx = idx_j.view(*(1,) * len(yj[L].shape[:-3]), -1, 1, 1).repeat(
-                *yj[L].shape[:-3], 1, *yj[L].shape[-2:]
-            )
-            yj[L] = torch.gather(yj[L], 1, idx) * neighbor_mask
+        yj = yj.index_select(1, idx_j)
 
-        # print('yj norm:', [float(torch.mean(yj[L]**2)) for L in range(len(yj))])
-        # print('rbf norm:', float(torch.mean(rbf**2)))
-        # print('rbf shape', rbf.shape)
-        # print('rbf sum:', float(torch.mean(torch.sum(rbf, dim=-1))))
         ang = self.angular_fn1(sph)
-        # print('sph norm:', [float(torch.mean(sph[L]**2)) for L in range(len(sph))])
-        # print('angular norm:', [float(torch.mean(ang[L]**2)) for L in range(len(ang))])
-        # print('rbf', rbf[:, :, :, 0])
         vs = self.mixing(yj, ang, rbf)
-        # print('vs 0', vs[0][:, :, :, 0])
-        # print('idx i', idx_i)
-        # print('vs norm:', [float(torch.mean(vs[L]**2)) for L in range(len(vs))])
         a = self.angular_fn2(sph)
-        # print('a norm:', [float(torch.mean(a[L]**2)) for L in range(len(a))])
-        for L in range(self.order + 1):
-            # idx_i_scat = idx_i.view(*(1,) * len(vs[L].shape[:-3]), -1, 1, 1).repeat(
-            # *vs[L].shape[:-3], 1, *vs[L].shape[-2:])
-            # print('idx i scat', idx_i_scat.shape)
-            # if L == 0:
-            # #     print('idx_i', idx_i)
-            # #     print('vs[0]', vs[L])
-            # #     print('index add', torch.zeros_like(yi[L]).index_add(
-            # #         1, idx_i, vs[L] + self.radial_fn[L](rbf) * a[L] * yj[0]
-            # #         )
-            # #     )
-            #     print('vs 0', vs[L].shape)
-            #     print('a 0', a[L].shape)
-            #     print('y 0', yj[L].shape)
-            #     print('scatter add', torch.scatter_reduce(
-            #         vs[L] + self.radial_fn[L](rbf) * a[L] * yj[0], 1, idx_i_scat, 
-            #         'mean')
-            #     )
-            #     print('index add', torch.zeros_like(yj[L]).index_add(1, idx_i,
-            #         vs[L] + self.radial_fn[L](rbf) * a[L] * yj[0])
-            #     )
-            if not self.normalize or torch.mean(yi[L]**2) == 0 or torch.mean(vs[L]**2) == 0:
-                scale = 1
-            else:
-                scale = np.sqrt(1/2)
-            if self.normalize:
-                norm_rbf = np.sqrt(self.num_features / self.num_basis_functions)
-                norm_sph = np.sqrt(self.order + 1)
-            else:
-                norm_rbf = 1
-                norm_sph = 1
-            vs[L] = (yi[L] * scale).index_add(
-                1, idx_i, scale * (vs[L] + self.radial_fn[L](rbf) * norm_rbf * a[L] * yj[0])
-            )
-            # print('vs L norm 1:', float(torch.mean(vs[L]**2)))
-            # print('num neighbours', self.num_neighbours)
-            # print('norm sph', norm_sph)
-            if self.normalize:
-                vs[L] = vs[L] * norm_sph / self.num_neighbours
-            # print('vs L norm 2:', float(torch.mean(vs[L]**2)))
-            # print('vs ' + str(L) + ' norm:', float(torch.mean(vs[L]**2)))
-            # vs[L] = yi[L] + torch.scatter_reduce(
-            #         vs[L] + self.radial_fn[L](rbf) * a[L] * yj[0], 1, idx_i_scat, 
-            #         'mean')
-            #     print('yi[0]', yi[L])
-            # if L == 0:
-            #     print('vs[0]', vs[L])
+        if self.normalize:
+            norm_rbf = np.sqrt(self.num_features / self.num_basis_functions)
+            norm_sph = np.sqrt(self.order + 1)
+        else:
+            norm_rbf = 1
+            norm_sph = 1
+        radial = F.linear(rbf, torch.cat([fn.weight for fn in self.radial_fn]) * norm_rbf)
+        radial = radial.view(*radial.shape[:-2], self.order + 1, self.num_features)
+        radial = radial[..., l_of_m((self.order + 1) ** 2, rbf.device), :]
+        vs = vs + radial * a * yj[..., :1, :]
+        vs = torch.zeros_like(xs).index_add(1, idx_i, vs)
+        if self.normalize:
+            vs = vs * norm_sph / self.num_neighbours
         vs = self.linear_v(vs)
         if self.residual:
             vs = self.residual_post_v(vs)
-            vs[0] = self.activation_v(vs[0])
+            vs = apply_L0(self.activation_v, vs)
             vs = self.linear_v(vs)
-            for L in range(len(xs), len(vs)):
-                xs.append(torch.zeros_like(vs[L]))
-            return [x + v for x, v in zip(xs, vs)]
+            return fit_orders(xs, vs.shape[-2]) + vs
         else:
             return vs
 
@@ -678,12 +537,9 @@ class ResidualStack(nn.Module):
         )
 
     def forward(self, xs):
-        if self.num_blocks > 0:
-            for residual_block in self.stack:
-                xs = residual_block(xs)
-            return xs
-        else:  # to prevent inplace modification
-            return [1 * x for x in xs]
+        for residual_block in self.stack:
+            xs = residual_block(xs)
+        return xs
 
 
 class ResidualBlock(nn.Module):
@@ -751,56 +607,40 @@ class ResidualBlock(nn.Module):
         pass
 
     def forward(self, xs):
-        # for L in range(len(xs)):
-        #     print('L', L)
-        #     print('xs[L] pre-residual', xs[L])
-        # print('xs pre residual norm:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
-        ys = [1 * x for x in xs]
-        ys[0] = self.activation_pre(ys[0])
+        ys = apply_L0(self.activation_pre, xs)
         ys = self.linear1(ys)
-        # for L in range(len(xs)):
-        #     print('L', L)
-        #     print('xs[L] post_linear1', xs[L])
-        ys[0] = self.activation_post(ys[0])
+        ys = apply_L0(self.activation_post, ys)
         if self.normalize > 1:
-            # print('ys before norm:', [float(torch.mean(ys[k]**2)) for k in range(len(ys))])
-            for L in range(len(ys)):
-                ys[L] = layer_norm(ys[L], dims=(-3, -2, -1))
-        #     # ys[0] = layer_norm(ys[0], dims=(-2, -1)) 
-        # for L in range(len(ys)):
-        #     if torch.mean(ys[L]**2) != 0:
-        #         ys[L] = ys[L] / torch.sqrt(torch.mean(ys[L]**2))
-        # if torch.mean(ys[0]**2) != 0:
-        #     ys[0] = ys[0] / torch.sqrt(torch.mean(ys[0]**2))
-        # print('ys residual norm:', [float(torch.mean(ys[L]**2)) for L in range(len(ys))])
+            ys = layer_norm_orders(ys)
         ys = self.linear2(ys)
-        if len(ys) > len(xs):
-            for L in range(len(xs), len(ys)):
-                xs.append(torch.zeros_like(ys[L]))
-
-        # print('xs post residual norm:', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
-        # print('ys pre residual norm:', [float(torch.mean(ys[L]**2)) for L in range(len(ys))])
-        for L in range(self.order_out + 1):
-            # print('L', L)
-            # print('xs[L] residual', xs[L])
-            # print('ys[L]', ys[L])
-            # print('xs[L]', xs[L])
-            if not self.normalize or torch.mean(xs[L]**2) == 0 or torch.mean(ys[L]**2) == 0:
-                scale = 1
-            else:
-                scale = np.sqrt(1/2)
-            ys[L] = ys[L] * scale + xs[L] * scale
-        # print('ys post residual norm:', [float(torch.mean(ys[L]**2)) for L in range(len(ys))])
-        return ys
+        xs = fit_orders(xs, ys.shape[-2])
+        scale = order_scale(xs, ys, self.normalize)
+        return ys * scale + xs * scale if self.normalize else ys + xs
 
 
 def layer_norm(x, dims):
     x_mean = torch.mean(x, dim=dims, keepdim=True)
     x_var = torch.var(x, dim=dims, keepdim=True)
-    if torch.sum(x_var) == 0:
-        x_std = 0
-    else:
-        x_std = torch.sqrt(x_var)
-    # print('x_std', x_std)
+    positive = x_var > 0
+    x_std = torch.where(positive, torch.sqrt(torch.where(positive, x_var, torch.ones_like(x_var))), torch.zeros_like(x_var))
     eps = 1e-8
     return (x - x_mean) / (x_std + eps)
+
+
+def layer_norm_orders(x):
+    """layer_norm over (atoms, m, features) separately for every order of a packed tensor [B, N, D, F]."""
+    D = x.shape[-2]
+    l = l_of_m(D, x.device)
+    nL = order_of(D) + 1
+    n = torch.zeros(nL, device=x.device, dtype=x.dtype).index_add(0, l, torch.ones(D, device=x.device, dtype=x.dtype))
+    n = n * (x.shape[-3] * x.shape[-1])
+
+    def per_order_sum(t):
+        return torch.zeros(t.shape[0], nL, device=x.device, dtype=x.dtype).index_add(1, l, t.sum(dim=(-3, -1)))
+
+    mean = per_order_sum(x) / n
+    xc = x - mean[:, l][:, None, :, None]
+    var = per_order_sum(xc * xc) / (n - 1)
+    positive = var > 0
+    std = torch.where(positive, torch.sqrt(torch.where(positive, var, torch.ones_like(var))), torch.zeros_like(var))
+    return xc / (std[:, l][:, None, :, None] + 1e-8)

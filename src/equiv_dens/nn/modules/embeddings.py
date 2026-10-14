@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from equiv_dens.utils.electron_configurations import electron_configurations
 
 
@@ -29,13 +30,8 @@ class Embedding(nn.Module):
         nn.init.orthogonal_(self.config_linear.weight)
 
     def forward(self, Z):
-        Z = Z.unsqueeze(-1).repeat(*(1,) * len(Z.shape), self.num_features)
-        embedding = (
-            self.element_embedding + self.config_linear(self.electron_config)
-        ).repeat(Z.size(0), 1, 1)
-        # print('element_embedding', self.element_embedding)
-        # print('embedding shape', embedding.shape)
-        return torch.gather(embedding, -2, Z)
+        embedding = self.element_embedding + self.config_linear(self.electron_config)
+        return embedding[Z]
 
 
 class SphericalEmbedding(nn.Module):
@@ -51,17 +47,6 @@ class SphericalEmbedding(nn.Module):
         self.embedding = Embedding(self.num_features, self.Zmax)
 
     def forward(self, Z):
-        # print('Z.shape', Z.shape)
-        xs = []
-        for L in range(self.order + 1):
-            if L == 0:
-                xs.append(
-                    self.embedding(Z)
-                    .view(*Z.shape, 1, -1)
-                    .repeat(*(1,) * len(Z.shape), 1, 1)
-                )
-            else:  # features for L>0 must be zero for rotational invariance
-                xs.append(
-                    torch.zeros_like(xs[0]).repeat(*(1,) * len(Z.shape), 2 * L + 1, 1)
-                )
-        return xs
+        """Packed features of shape [*Z.shape, (order + 1)**2, num_features] with only L=0 nonzero."""
+        x = self.embedding(Z).unsqueeze(-2)
+        return F.pad(x, (0, 0, 0, (self.order + 1) ** 2 - 1))
