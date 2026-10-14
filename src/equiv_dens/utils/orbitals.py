@@ -1720,10 +1720,9 @@ def sample_atom_density_sgauss(positions, atom_numbers, coords, tables, density_
         a, c = tables[zi]
         b_idx, a_idx = (z == zi).nonzero(as_tuple=True)
         p = pos[b_idx, a_idx]  # [M, 3]
-        cb = coords[b_idx]  # [M, N, 3]
         chunk = max(1, max_elements // (len(b_idx) * len(a)))
         for i in range(0, N, chunk):
-            d = (cb[:, i:i + chunk] - p[:, None]) / param.BOHR  # [M, n, 3]
+            d = (coords[b_idx, i:i + chunk] - p[:, None]) / param.BOHR  # [M, n, 3]
             term = c * torch.exp(-a * (d ** 2).sum(-1, keepdim=True))  # [M, n, K]
             rho = term.sum(-1)
             if density_grad:
