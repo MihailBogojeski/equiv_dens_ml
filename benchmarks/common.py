@@ -8,7 +8,7 @@ import torch
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, os.path.join(ROOT, 'src'))
 DATA = '/workspace'  # config paths are relative to this directory
-CLUSTERS = '/workspace/datasets/water_clusters'
+CLUSTERS = os.environ.get('CLUSTERS', '/workspace/datasets/water_clusters')
 
 from equiv_dens.training.parse_command_line_arguments import parse_command_line_arguments
 from equiv_dens.training.model_loader import load_model

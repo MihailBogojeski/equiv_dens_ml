@@ -9,6 +9,7 @@ max deviation of the outputs and parameter gradients (relative to max |eager|) a
 Unknown flags are training-arg overrides on top of the h2o_small config.
 """
 import argparse
+import os
 import time
 
 import numpy as np
@@ -25,9 +26,13 @@ p = argparse.ArgumentParser()
 p.add_argument('--device', default='cuda')
 p.add_argument('--grid', type=int, default=400)
 p.add_argument('--seed', type=int, default=0)
+p.add_argument('--chunk_bytes', type=int, default=None, help='grid chunk size of the density expansion (several chunks: checkpointing)')
+p.add_argument('--eval', action='store_true', help='compare eval-mode predictions (no loss / gradients)')
+p.add_argument('--no_compile_density', action='store_true', help='do not compile the density expansion')
 cli, overrides = p.parse_known_args()
 dev = torch.device(cli.device)
 D = '/workspace/datasets/'
+D2 = os.environ.get('DATASETS', D)  # ethanethiol, resorcinol
 
 args = C.parse_args([C.DEFAULT_CONFIG], [f'--use_gpu={cli.device == "cuda"}', '--num_train=10', '--num_valid=0',
                                          '--num_test=0', '--np_dataset_valid=None', '--dens_dataset_valid=None',
@@ -42,7 +47,9 @@ dataset.orbital_basis_num = {atomic_numbers[k]: v for k, v in basis.items() if a
 dataset.radial_coeffs = {atomic_numbers[k]: v for k, v in radial.items() if atomic_numbers[k] in els}
 model = load_model(args, dataset, train=True).to(dev).to(args.dtype)
 error_dict = train_utils.init_error_dict(args)
-model.train()
+if cli.chunk_bytes:
+    model.property_models['density'].chunk_bytes = cli.chunk_bytes
+model.eval() if cli.eval else model.train()
 torch._dynamo.config.suppress_errors = False  # fail loudly instead of falling back to eager
 print('basis elements', els)
 
@@ -66,15 +73,28 @@ def random_mol(zs):
     return np.array(zs), np.array(R)
 
 
-eth = np.load(D + 'ethanol.npz')
+eth = np.load(D + 'ethanol_train_10.npy', allow_pickle=True).item()
+
+
+def water_cluster(n):
+    """n waters at random orientations on a cubic lattice (3 A spacing)."""
+    from scipy.spatial.transform import Rotation
+    w = load(D + 'h2o_small_train_augccpvdz.npy', 0)
+    k = int(np.ceil(n ** (1 / 3)))
+    Z, R = [], []
+    for i in range(n):
+        pos = w[1] - w[1].mean(0)
+        R.append(Rotation.random(random_state=int(rng.integers(1 << 30))).apply(pos) + 3.0 * np.array(np.unravel_index(i, (k, k, k))))
+        Z.append(w[0])
+    return np.concatenate(Z), np.concatenate(R)
 mols = {
     'h2o': lambda: load(D + 'h2o_small_train_augccpvdz.npy', rng.integers(100)),
-    'w2': lambda: load(D + 'water_clusters/water2_augccpvdz.npy', 0),
-    'w4': lambda: load(D + 'water_clusters/water4_augccpvdz.npy', rng.integers(4)),
-    'w8': lambda: load(D + 'water_clusters/water8_augccpvdz.npy', 0),
-    'ethanol': lambda: (eth['z'], eth['R'][rng.integers(len(eth['R']))]),
-    'ethanethiol': lambda: load(D + 'ethanethiol_augccpvdz_train.npy', rng.integers(1000)),
-    'resorcinol': lambda: load(D + 'resorcinol_augccpvdz_train.npy', rng.integers(100)),
+    'w2': lambda: water_cluster(2),
+    'w4': lambda: water_cluster(4),
+    'w8': lambda: water_cluster(8),
+    'ethanol': lambda: (eth['atom_numbers'][0], eth['positions'][rng.integers(len(eth['positions']))]),
+    'ethanethiol': lambda: load(D2 + 'ethanethiol_augccpvdz_train.npy', rng.integers(1000)),
+    'resorcinol': lambda: load(D2 + 'resorcinol_augccpvdz_train.npy', rng.integers(100)),
     'rand': lambda n=None: random_mol(rng.choice(els, size=n or rng.integers(2, 12))),
 }
 compositions = [
@@ -140,6 +160,9 @@ def sync():
 def step(data):
     model.zero_grad()
     pred = model(dict(data))
+    if cli.eval:
+        sync()
+        return {k: pred[k].detach().clone() for k in KEYS if k in pred}
     loss = error_dict.compute(pred, data)['loss']
     loss.backward()
     sync()
@@ -154,7 +177,7 @@ def rel(a, b):
 
 
 eager = [step(b) for b in batches]
-model.enable_compile()
+model.enable_compile(compile_density=not cli.no_compile_density)
 counters = torch._dynamo.utils.counters
 worst = {}
 graphs = []
@@ -163,9 +186,10 @@ for i, (names, b) in enumerate(zip(compositions, batches)):
     out = step(b)
     dt = time.perf_counter() - t
     dev_ = {k: rel(out[k], eager[i][k]) for k in out if k != 'grads'}
-    g_dev = {n: ((g - eager[i]['grads'][n]).abs().max() / eager[i]['grads'][n].abs().max().clamp_min(1e-10)).item()
+    g_dev = {} if cli.eval else {n: ((g - eager[i]['grads'][n]).abs().max() / eager[i]['grads'][n].abs().max().clamp_min(1e-10)).item()
              for n, g in out['grads'].items()}
-    dev_['grads'] = max(g_dev.values())
+    if not cli.eval:
+        dev_['grads'] = max(g_dev.values())
     for k, v in dev_.items():
         worst[k] = max(worst.get(k, 0), v)
     graphs.append(counters['stats']['unique_graphs'])

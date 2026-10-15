@@ -54,7 +54,11 @@ def sync():
 
 def timeit(fn):
     """Median wall time in ms and peak GPU memory in MB over cli.reps calls (after warmup)."""
-    for _ in range(cli.warmup):
+    t = time.perf_counter()
+    fn()
+    sync()
+    first = (time.perf_counter() - t) * 1e3  # includes the compile
+    for _ in range(cli.warmup - 1):
         fn()
     sync()
     if cuda:
@@ -66,7 +70,7 @@ def timeit(fn):
         fn()
         sync()
         ts.append((time.perf_counter() - t) * 1e3)
-    return {'ms': statistics.median(ts), 'peak_mb': torch.cuda.max_memory_allocated() / 2**20 if cuda else None}
+    return {'ms': statistics.median(ts), 'first_ms': first, 'peak_mb': torch.cuda.max_memory_allocated() / 2**20 if cuda else None}
 
 
 # ---- (f) data loading: dataset __getitem__ + collate (get_properties), grid / density sampling ----
@@ -190,9 +194,9 @@ meta = {'dataset': cli.dataset, 'device': cli.device, 'batch_size': cli.batch_si
         'n_params': sum(p.numel() for p in model.parameters()), 'dtype': str(args.dtype),
         'gpu': torch.cuda.get_device_name() if cuda else None}
 print(f"\n{cli.dataset} {cli.device} bs={cli.batch_size} atoms/batch={n_atoms} grid={n_grid}")
-print(f"{'component':<16}{'ms':>12}{'peak MB':>12}")
+print(f"{'component':<16}{'ms':>12}{'peak MB':>12}{'first ms':>12}")
 for k, v in results.items():
-    print(f"{k:<16}{v['ms']:>12.1f}{('-' if v['peak_mb'] is None else format(v['peak_mb'], '.0f')):>12}")
+    print(f"{k:<16}{v['ms']:>12.1f}{('-' if v['peak_mb'] is None else format(v['peak_mb'], '.0f')):>12}{v['first_ms']:>12.0f}")
 print(f"  train_step: fwd+loss {results['train_step']['fwd_loss_ms']:.1f} ms, bwd {results['train_step']['bwd_ms']:.1f} ms")
 
 os.makedirs(cli.out_dir, exist_ok=True)

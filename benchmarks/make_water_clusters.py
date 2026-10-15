@@ -32,7 +32,7 @@ ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 sys.path.insert(0, os.path.join(ROOT, 'src'))
 import equiv_dens.utils.base as utils
 
-OUT = '/workspace/datasets/water_clusters'
+OUT = os.environ.get('CLUSTERS', '/workspace/datasets/water_clusters')
 BASIS, AUXBASIS = 'augccpvdz', 'augccpvqzjkfit'
 BOHR = ase.units.Bohr
 

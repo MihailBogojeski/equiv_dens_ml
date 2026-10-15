@@ -49,7 +49,8 @@ The following options are among the most frequently overridden when running trai
 | `--density_weight` | float | 1.0 | Weight of density loss |
 | `--energy_weight` | float | 0.0 | Weight of energy loss |
 | `--forces_weight` | float | 0.0 | Weight of forces loss |
-| `--compile` | bool | False | Dynamic `torch.compile` of the model (`enable_compile()`): one graph for any molecule composition. The first compile takes minutes. |
+| `--compile` | bool | False | Dynamic `torch.compile` of the model (`enable_compile()`): one graph for any molecule composition. Compiles the representation with the density coefficients (plus energy/forces heads if present) and the density expansion on the grid. The first compile takes minutes. |
+| `--compile_density` | bool | True | With `--compile`: also compile the density expansion on the grid (set False to keep it eager). |
 
 ---
 
