@@ -754,11 +754,15 @@ class DensityExpansion(nn.Module):
         chunk = max(1, min(G, int(self.chunk_bytes // (floats * coords.element_size()))))
         create_graph = torch.is_grad_enabled()
 
-        if self.compiled:
+        checkpointed = create_graph and chunk < G
+        # torch.func.grad does not work under the saved tensor hooks of checkpoint: the gradient of several chunks is eager
+        compiled = self.compiled and not (density_grad and checkpointed)
+        if compiled:
             self.mark_sizes(coords, positions, packed)
 
         def eval_chunk(c):
-            if self.compiled:
+            if compiled:
+                c = c.clone(memory_format=torch.contiguous_format)  # a view of the grid trips the guards on its base and strides
                 self.mark_sizes(c, positions, packed)
                 return (self._density_and_grad_at if density_grad else self._density_at)(c, positions, packed, Lmax)
             if not density_grad:
@@ -775,7 +779,7 @@ class DensityExpansion(nn.Module):
         for i in range(0, G, chunk):
             c = coords[:, i:i + chunk]
             # with several chunks only one chunk graph is kept in memory, the rest is recomputed in the backward pass
-            out.append(checkpoint(eval_chunk, c, use_reentrant=False) if create_graph and chunk < G else eval_chunk(c))
+            out.append(checkpoint(eval_chunk, c, use_reentrant=False) if checkpointed else eval_chunk(c))
         if density_grad:
             dens, grads = zip(*out)
         else:
