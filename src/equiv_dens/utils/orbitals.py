@@ -2213,7 +2213,8 @@ def eval_packed_density(rb, Y, packed):
         r = rb[:, :, p['atom']]  # [B, G, S]
         rad = (p['scale'].unsqueeze(1) / pyscf_gto_factor
                * torch.exp(-p['width'].unsqueeze(1) * (r * r).unsqueeze(-1))).sum(-1) * r ** L
-        ang = torch.einsum('bgsm,bsm->bgs', Y[L][:, :, p['atom']], p['coeff'])
+        dt = torch.promote_types(Y[L].dtype, p['coeff'].dtype)  # einsum does not promote mixed dtypes
+        ang = torch.einsum('bgsm,bsm->bgs', Y[L][:, :, p['atom']].to(dt), p['coeff'].to(dt))
         density = density + (rad * ang).sum(-1)
     return density
 
