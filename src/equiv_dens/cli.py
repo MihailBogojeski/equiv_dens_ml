@@ -112,7 +112,7 @@ def _cmd_test(args: argparse.Namespace) -> int:
         print(f"Error: args file not found: {args_file}", file=sys.stderr)
         return 1
     script = _REPO_ROOT / "tests" / "eval_model.py"
-    cmd = [sys.executable, str(script), f"@{args_file}"] + (args.extra or [])
+    cmd = [sys.executable, str(script), f"@{args_file}"] + args.extra
     return subprocess.call(cmd, cwd=str(_REPO_ROOT), env=_env_with_src())
 
 
@@ -194,9 +194,8 @@ def main() -> int:
         "-C",
         type=str,
         required=True,
-        help="Path to model directory (contains args.txt)",
+        help="Path to model directory (contains args.txt) or args file",
     )
-    p_test.add_argument("extra", nargs="*", help="Extra args passed to test.py")
     p_test.set_defaults(func=_cmd_test)
 
     p_dipole = subparsers.add_parser("dipole", help="Dipole recomputation (parallel/SLURM)")
@@ -209,7 +208,11 @@ def main() -> int:
     p_dipole.add_argument("--output_dir", "-o", type=str, default="scratch/dipole", help="Output directory")
     p_dipole.set_defaults(func=_cmd_dipole)
 
-    args = parser.parse_args()
+    args, unknown = parser.parse_known_args()
+    if args.command == "test":
+        args.extra = unknown  # args files and flags for eval_model.py, in their order
+    elif unknown:
+        parser.error(f"unrecognized arguments: {' '.join(unknown)}")
     return args.func(args)
 
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Evaluate trained model on test dataset. Run via: run.py test -C <checkpoint_dir> [@args.txt]"""
+"""Evaluate trained model on test dataset. Run via: run.py test -C <checkpoint_dir or args file> [@extra_args.txt] [--flag=value ...]"""
 
 import os
 import torch
@@ -153,7 +153,6 @@ if args.test_save:
     print('saving test output in ', os.path.join(test_vars['directory'], args.test_save_name))
     torch.save(saved_results, os.path.join(test_vars['directory'], args.test_save_name))
 for key in prop_stats.keys():
-    # print(prop_stats[key])
-    prop_stats[key] = np.concatenate(prop_stats[key], axis=0)
-    print(key, 'mean magnitude:', np.mean(np.linalg.norm(prop_stats[key], axis=-1)))
-    print(key, 'std:', np.std(prop_stats[key]))
+    # batches can have different padded sizes (e.g. grid points), so only flattened values are concatenated
+    print(key, 'mean magnitude:', np.mean(np.concatenate([np.linalg.norm(p, axis=-1).ravel() for p in prop_stats[key]])))
+    print(key, 'std:', np.std(np.concatenate([p.ravel() for p in prop_stats[key]])))
