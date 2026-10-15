@@ -11,6 +11,8 @@ from __future__ import annotations
 import numpy as np
 from pyscf import gto
 
+import equiv_dens.compat  # noqa: F401  (before cupy/gpu4pyscf)
+
 def _check_cupy():
     try:
         import cupy as _cp

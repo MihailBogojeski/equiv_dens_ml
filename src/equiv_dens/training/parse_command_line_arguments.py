@@ -295,6 +295,8 @@ def parse_command_line_arguments(arg_file=None):
                                choices=[True, False], help="Normalize the coefficients using softmax.")
     args_training.add_argument("--percentage_error", metavar='True|False', type=str2bool, default=True,
                                choices=[True, False], help="Measure error as a percentage of the density integral.")
+    args_training.add_argument("--use_gpu4pyscf", metavar='True|False', type=str2bool, default=None,
+                               help="use gpu4pyscf for PySCF grids/densities (default: True if gpu4pyscf and CUDA are available)")
     args_training.add_argument("--pyscf_grid", metavar='True|False', type=str2bool, default=True,
                                choices=[True, False], help="Use pyscf for density grid generation.")
     args_training.add_argument("--cube_grid", metavar='True|False', type=str2bool, default=False,
@@ -367,6 +369,8 @@ def parse_command_line_arguments(arg_file=None):
                                choices=[True, False], help="Set density coeffs to free atom coeffs instead of predicting them")
     args_training.add_argument("--compile", metavar='True|False', type=str2bool, default=False,
                                choices=[True, False], help="Compile the model for higher efficiency.")
+    args_training.add_argument("--compile_density", metavar='True|False', type=str2bool, default=True,
+                               choices=[True, False], help="With --compile: also compile the density expansion on the grid.")
     args_training.add_argument("--rotate_grid", metavar='True|False', type=str2bool, default=True,
                                choices=[True, False], help="Rotate density grid during training.")
     args_training.add_argument("--cutoff_dens_coords", metavar='True|False', type=str2bool, default=False,
@@ -415,6 +419,13 @@ def parse_command_line_arguments(arg_file=None):
                                  choices=[True, False], help="Use FastInferenceWrapper (default: False, can be slower).")
     args_simulation.add_argument("--compile_model", metavar='True|False', type=str2bool, default=False,
                                  choices=[True, False], help="Use torch.compile for model (default: False, can be slower).")
+    args_simulation.add_argument("--static_compile", metavar='True|False', type=str2bool, default=False,
+                                 choices=[True, False],
+                                 help="Compile energy/forces with static shapes and CUDA graphs for MD (default: False).")
+    args_simulation.add_argument("--cpu_per_path_cg", metavar='True|False', type=str2bool, default=False,
+                                 choices=[True, False],
+                                 help="CPU only: low-memory per-path Clebsch-Gordan products instead of the "
+                                      "memory-heavy triples gather/scatter (default: False).")
 
     # arguments for logging and checkpoints
     args_logging = parser.add_argument_group("logging and checkpoints")

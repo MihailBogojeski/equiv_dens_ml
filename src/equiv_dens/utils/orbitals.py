@@ -20,7 +20,8 @@ from equiv_dens.utils.hirshfeld_analysis import eval_spline_density
 
 hf.MUTE_CHKFILE = True
 
-pyscf_gto_factor = 2 * np.sqrt(np.pi)
+# Preserve the FP64 value without a NumPy scalar guard inside torch.func graphs.
+pyscf_gto_factor = float(2 * np.sqrt(np.pi))
 
 top_n_elec_per_atom_full = {'H':1,
                             'C':4,
@@ -105,7 +106,7 @@ def get_max_order(orbital_basis, per_atom=False):
     if per_atom:
         return order_max
     else:
-        return max(order_max.values())
+        return int(max(order_max.values()))
 
 
 def get_n_electrons(atom_numbers, valence=False, full_valence=False):
@@ -226,7 +227,47 @@ def get_invariant_features(
     return invariant_feats
 
 
-def coeffs_dict_to_tensors(coeffs, radial_coeffs=True, atom_df_coeffs=None, atom_df_widths=None, atom_df_scales=None):
+def packed_to_tensors(packed, chan, A, radial_coeffs=True):
+    """Packed coefficients -> per-L tensors [1, B * A, 2L+1 (or P_L), n_feature_channels] (see coeffs_dict_to_tensors),
+    the atom slots of all molecules flattened (row b * A + a)."""
+    all_sph, all_scale, all_width = [], [], []
+    ref = packed[0]['coeff']
+    B = ref.shape[0]
+    for L in range(len(chan['counts'])):
+        p = packed[L]
+        C = chan['counts'][L]
+        idx = (torch.arange(B, device=ref.device)[:, None] * A + p['atom'], chan['sph'][L])
+        sph = ref.new_zeros(B * A, C, 2 * L + 1).index_put(idx, p['coeff'])
+        all_sph.append(sph.permute(0, 2, 1).unsqueeze(0))
+        if radial_coeffs:
+            for out, name in ((all_width, 'width'), (all_scale, 'scale')):
+                t = ref.new_zeros(B * A, C, chan['P'][L]).index_put(idx, p[name])
+                out.append(t.permute(0, 2, 1).unsqueeze(0))
+    return all_sph, all_scale, all_width
+
+
+def append_atom_df(fs, Z, l0_map, table):
+    """Moves the L=0 channels of fs [1, B * A, X, C] to l0_map and adds the per-element free-atom channels
+    table[Z] [B * A, C'] (broadcast over X) -> [1, B * A, X, C']."""
+    out = fs.new_zeros(*fs.shape[:-1], table.shape[-1]).index_copy(-1, l0_map, fs)
+    return out + table.to(fs.dtype)[Z][None, :, None, :]
+
+
+def coeffs_dict_to_tensors(coeffs, radial_coeffs=True, atom_df=None, atom_df_coeffs=None, atom_df_widths=None,
+                           atom_df_scales=None):
+    """atom_df: (l0_map [C0], coeffs, widths, scales [n_z, C0']) appends the free-atom DF coefficients of the element of
+    each atom to the L=0 channels (packed coefficients)."""
+    if 'packed_chan' in coeffs and atom_df_coeffs is None:
+        sph, scale, width = packed_to_tensors(coeffs['packed_coeffs'], coeffs['packed_chan'],
+                                              coeffs['batch_atom_numbers'].shape[1], radial_coeffs)
+        if atom_df is not None:
+            l0_map, c, w, s = atom_df
+            Z = coeffs['batch_atom_numbers'].reshape(-1)
+            sph[0] = append_atom_df(sph[0], Z, l0_map, c)
+            if radial_coeffs:
+                width[0] = append_atom_df(width[0], Z, l0_map, w)
+                scale[0] = append_atom_df(scale[0], Z, l0_map, s)
+        return sph, scale, width
     sph_coeffs = coeffs["spherical_coeffs"]
     rad_width = coeffs["radial_width"]
     rad_scale = coeffs["radial_scale"]
@@ -330,6 +371,7 @@ def coeffs_dict_to_tensors(coeffs, radial_coeffs=True, atom_df_coeffs=None, atom
 
 
 def convert_coeffs_to_pyscf(coeffs):
+    coeffs['spherical_coeffs']  # a CoeffsDict builds the per-atom dicts lazily
     new_coeffs = {key: coeffs[key] for key in coeffs.keys()}
     new_coeffs["spherical_coeffs"] = []
     for i in range(len(coeffs["spherical_coeffs"])):
@@ -374,40 +416,28 @@ def coeffs_dict_to_vector(
     if convert_to_pyscf:
         coeffs = convert_coeffs_to_pyscf(coeffs)
 
-    all_coeffs = {key: None for key in relevant_keys}
+    all_coeffs = {key: [] for key in relevant_keys}
     # all_sph = None
     # all_scale = None
     # all_width = None
     # all_weights = None
 
-    for i, z in enumerate(torch.max(a_num, dim=0)[0]):
+    # Transfer topology metadata once, rather than synchronizing each CUDA scalar.
+    for i, z in enumerate(torch.max(a_num, dim=0)[0].detach().cpu().tolist()):
         orb_ind = {}
-        z = int(z)
         basis = orbital_basis[z]
         for orb in basis:
             L = orb[2]
             key = (z, L)
             if key not in orb_ind.keys():
                 orb_ind[key] = 0
-            if all_coeffs["spherical_coeffs"] is None:
-                for coeff_type in relevant_keys:
-                    all_coeffs[coeff_type] = (
-                        1 * coeffs[coeff_type][i][key][..., orb_ind[key]]
-                    )
-            else:
-                for coeff_type in relevant_keys:
-                    all_coeffs[coeff_type] = torch.cat(
-                        [
-                            all_coeffs[coeff_type],
-                            coeffs[coeff_type][i][key][..., orb_ind[key]],
-                        ],
-                        dim=2,
-                    )
+            for coeff_type in relevant_keys:
+                all_coeffs[coeff_type].append(coeffs[coeff_type][i][key][..., orb_ind[key]])
             orb_ind[key] += 1
 
     vector_coeffs = {}
     for coeff_type in relevant_keys:
-        vector_coeffs[coeff_type] = all_coeffs[coeff_type].squeeze(1)
+        vector_coeffs[coeff_type] = torch.cat(all_coeffs[coeff_type], dim=2).squeeze(1)
 
     return vector_coeffs
 
@@ -873,14 +903,7 @@ def intor_dipole_moment_ml(
     batch_dip_intor = []
     for i in range(atoms['batch_atom_numbers'].shape[0]):
         auxmol_ml = ml_basis_to_auxmol(atoms, i, skip_zero=False)
-        helper_mol = build_1c1e_helper_mol(auxmol_ml)
-        intor_idx = [
-            auxmol_ml.bas_atom(ibas)
-            for ibas in range(auxmol_ml.nbas) for _ in range(auxmol_ml.bas_angular(ibas) * 2 + 1)
-        ]
-        int1e_r = gto.mole.intor_cross('int1e_r', helper_mol, auxmol_ml)
-        int1e_r = int1e_r[:, intor_idx, range(auxmol_ml.nao)]
-        int1e_r = utils.bohr_to_angstrom(torch.from_numpy(int1e_r).to(nucl_dip))
+        int1e_r = utils.bohr_to_angstrom(torch.from_numpy(int1e_r_one_center(auxmol_ml)).to(df_coeffs_ml))
         # ml_dip = utils.bohr_to_angstrom(nucl_dip - torch.einsum('ji,i->j', int1e_r, df_coeffs_ml))
         el_dip = torch.einsum('ji,i->j', int1e_r, df_coeffs_ml[i])
         batch_dens_dip.append(el_dip)
@@ -933,6 +956,43 @@ def intor_dipole_moment_mo(
     return atoms
 
 
+def int1e_r_one_center(mol):
+    """int1e_r between a constant and every basis function of mol ([3, nao], Bohr), in closed form.
+    Only s (charge, times atom position) and p (dipole) functions contribute. Assumes nctr == 1."""
+    bas, env, xyz = mol._bas, mol._env, mol.atom_coords()
+    out = np.zeros((3, mol.nao))
+    p0 = 0
+    for ib in range(mol.nbas):
+        l, nprim, ptr_e, ptr_c = bas[ib, 1], bas[ib, 2], bas[ib, 5], bas[ib, 6]
+        exps, coef = env[ptr_e:ptr_e + nprim], env[ptr_c:ptr_c + nprim]
+        if l == 0:
+            out[:, p0] = xyz[bas[ib, 0]] * np.sum(coef * 0.282094791773878143 * (np.pi / exps) ** 1.5)
+        elif l == 1:
+            d = np.sum(coef * 0.488602511902919921 * (np.pi / exps) ** 1.5 / (2 * exps))
+            out[range(3), range(p0, p0 + 3)] = d
+        p0 += 2 * l + 1
+    return out
+
+
+_dipole_tables = {}
+
+
+def _atom_dipole_table(basis, z):
+    """(d, q) of the DF basis functions of a single atom: int1e_r at the origin and the charge
+    integral of each function, both [3, nao_atom] / [1, nao_atom], from two cheap intor calls."""
+    if (basis, z) not in _dipole_tables:
+        tabs = []
+        for shift in (0.0, utils.to_angstrom):  # 1 Bohr in Angstrom
+            mol = utils.npy_to_pyscf(np.array([[[shift, 0., 0.]]]), np.array([[z]]), basis,
+                                     build=True, skip_zero=False)[0]
+            helper_mol = build_1c1e_helper_mol(mol)
+            intor_idx = [mol.bas_atom(ibas) for ibas in range(mol.nbas)
+                         for _ in range(mol.bas_angular(ibas) * 2 + 1)]
+            tabs.append(gto.mole.intor_cross('int1e_r', helper_mol, mol)[:, intor_idx, range(mol.nao)])
+        _dipole_tables[(basis, z)] = (tabs[0], tabs[1][0:1] - tabs[0][0:1])
+    return _dipole_tables[(basis, z)]
+
+
 def intor_dipole_moment_df(
     atoms,
     basis,
@@ -947,22 +1007,33 @@ def intor_dipole_moment_df(
         df_coeff = 'df_coeffs'
 
     batch_dens_dip = []
-    mols = utils.npy_to_pyscf(atoms['batch_positions'].numpy(force=True),
-                              atoms['batch_atom_numbers'].numpy(force=True),
-                              basis, build=True)
-    for i in range(atoms['batch_atom_numbers'].shape[0]):
-        auxmol = mols[i] 
-        helper_mol = build_1c1e_helper_mol(auxmol)
-        intor_idx = [
-            auxmol.bas_atom(ibas)
-            for ibas in range(auxmol.nbas) for _ in range(auxmol.bas_angular(ibas) * 2 + 1)
-        ]
-        int1e_r = gto.mole.intor_cross('int1e_r', helper_mol, auxmol)
-        int1e_r = int1e_r[:, intor_idx, range(auxmol.nao)]
-        int1e_r = utils.bohr_to_angstrom(torch.from_numpy(int1e_r).to(coords))
-        # ml_dip = utils.bohr_to_angstrom(nucl_dip - torch.einsum('ji,i->j', int1e_r, df_coeffs_ml))
-        el_dip = torch.einsum('ji,i->j', int1e_r, atoms[df_coeff][i])
-        batch_dens_dip.append(el_dip)
+    if isinstance(basis, str):
+        # int1e_r of an atom-centered function is exactly d + R * q (d: dipole about its center,
+        # q: charge integral), so only a per-element table is needed, no per-sample Mole
+        for i in range(atoms['batch_atom_numbers'].shape[0]):
+            z = atoms['batch_atom_numbers'][i].numpy(force=True).astype(int)
+            pos = atoms['batch_positions'][i].numpy(force=True) * utils.to_bohr
+            int1e_r = np.concatenate(
+                [_atom_dipole_table(basis, zj)[0] + pos[j][:, None] * _atom_dipole_table(basis, zj)[1]
+                 for j, zj in enumerate(z) if zj > 0], axis=1)
+            int1e_r = utils.bohr_to_angstrom(torch.from_numpy(int1e_r).to(coords))
+            batch_dens_dip.append(torch.einsum('ji,i->j', int1e_r, atoms[df_coeff][i]))
+    else:
+        mols = utils.npy_to_pyscf(atoms['batch_positions'].numpy(force=True),
+                                  atoms['batch_atom_numbers'].numpy(force=True),
+                                  basis, build=True)
+        for i in range(atoms['batch_atom_numbers'].shape[0]):
+            auxmol = mols[i]
+            helper_mol = build_1c1e_helper_mol(auxmol)
+            intor_idx = [
+                auxmol.bas_atom(ibas)
+                for ibas in range(auxmol.nbas) for _ in range(auxmol.bas_angular(ibas) * 2 + 1)
+            ]
+            int1e_r = gto.mole.intor_cross('int1e_r', helper_mol, auxmol)
+            int1e_r = int1e_r[:, intor_idx, range(auxmol.nao)]
+            int1e_r = utils.bohr_to_angstrom(torch.from_numpy(int1e_r).to(coords))
+            el_dip = torch.einsum('ji,i->j', int1e_r, atoms[df_coeff][i])
+            batch_dens_dip.append(el_dip)
 
     dens_dip = torch.stack(batch_dens_dip, dim=0)
 
@@ -1047,6 +1118,7 @@ def sample_density_base(mols, coords, coeffs, scale_coords=False, projected=Fals
         dens = torch.zeros((coords.shape[0], coords.shape[1], coords.shape[2] + 1))
     else:
         dens = torch.zeros((coords.shape[0], coords.shape[1]))
+    gpu_dens = []
     for i in range(len(mols)):
         mol = mols[i]
         if not mol._built:
@@ -1060,6 +1132,12 @@ def sample_density_base(mols, coords, coeffs, scale_coords=False, projected=Fals
         #     print('coords vals', torch.max(coords[i]), torch.min(coords[i]), torch.min(torch.abs(coords[i])))
         # else:
         #     print('coords vals', np.max(coords[i]), np.min(coords[i]), np.min(np.abs(coords[i])))
+        if utils.USE_GPU4PYSCF:
+            from equiv_dens.utils import gpu_pyscf
+            rho = torch.from_dlpack(
+                gpu_pyscf.sample_density(mol, coords[i], coeffs[i], projected, density_grad))
+            gpu_dens.append((i, rho.T if density_grad else rho))
+            continue
         ao = numint.eval_ao(mol, coords[i], deriv=deriv)
         if projected:
             rho = _expand_pyscf_projected_density(mol, ao, coeffs[i], density_grad=density_grad)
@@ -1068,6 +1146,9 @@ def sample_density_base(mols, coords, coeffs, scale_coords=False, projected=Fals
         if density_grad:
             rho = np.transpose(rho)
         dens[i, :] = torch.from_numpy(rho)
+    if gpu_dens:
+        gpu_out = torch.stack([r for _, r in gpu_dens]).cpu()
+        dens[[i for i, _ in gpu_dens]] = gpu_out.to(dens)
     return dens
 
 
@@ -1571,7 +1652,11 @@ def sample_single_atom_density_spline(position, atom_number,
         anum_nz = anum_nz.view(-1, 1, 1)
     else:
         anum_nz = anum_nz.view(-1, 1)
-    dens_spline = eval_spline_density(spline_basis, atom_coords, density_grad=density_grad)
+    if atom_coords.is_cuda:
+        from equiv_dens.utils import gpu_pyscf
+        dens_spline = gpu_pyscf.eval_spline_density(spline_basis, atom_coords, density_grad=density_grad)
+    else:
+        dens_spline = eval_spline_density(spline_basis, atom_coords, density_grad=density_grad)
 
     return dens_spline * anum_nz
 
@@ -1608,6 +1693,63 @@ def sample_single_atom_density_mo(position, atom_number, coords, mo_coeffs, dens
     return dens
 
 
+_sgauss_tables = {}
+
+
+def build_sgauss_tables(atom_dens_dict, device):
+    """Per-element {Z: (exponents [K_Z], coefficients [K_Z])} (coefficients include the pyscf
+    s normalization (2a/pi)^(3/4)) for s-only df free atom densities, else None."""
+    zs = [z for z in atom_dens_dict if z > 0]
+    bases = {z: atom_dens_dict[z]["df_basis"][z] for z in zs}
+    if not all(len(sh) == 2 and sh[0] == 0 for z in zs for sh in bases[z]):
+        return None
+    tables = {}
+    for z in zs:
+        a = torch.tensor([sh[1][0] for sh in bases[z]], dtype=torch.float64)
+        c = atom_dens_dict[z]["df_coeffs"].reshape(-1).double()
+        tables[z] = (a.to(device), (c * (2 * a / np.pi) ** 0.75).to(device))
+    return tables
+
+
+def sgauss_tables(atom_dens_dict, device):
+    """build_sgauss_tables, cached per free-atom dict (kept alive by the cache entry)."""
+    key = (id(atom_dens_dict), str(device))
+    if key not in _sgauss_tables:
+        _sgauss_tables[key] = (build_sgauss_tables(atom_dens_dict, device), atom_dens_dict)
+    return _sgauss_tables[key][0]
+
+
+def sample_atom_density_sgauss(positions, atom_numbers, coords, tables, density_grad=False,
+                               max_elements=2 ** 25):
+    """Free atom densities of s-type Gaussians for all atoms at once, in torch on the device of
+    the tables, each element with its own number of functions. positions [B, A, 3], coords
+    [B, N, 3] in Angstrom, exponents in Bohr^-2.
+    Returns [B, A, N] (or [B, A, N, 4] with the gradient w.r.t. Bohr coordinates), float64."""
+    dev = next(iter(tables.values()))[0].device
+    z = atom_numbers.long().to(dev)
+    pos = positions.double().to(dev)
+    coords = coords.double().to(dev)
+    B, A = z.shape
+    N = coords.shape[1]
+    out = torch.zeros((B, A, N, 4) if density_grad else (B, A, N), dtype=torch.float64, device=dev)
+    for zi in z.unique().tolist():
+        if zi <= 0:
+            continue
+        a, c = tables[zi]
+        b_idx, a_idx = (z == zi).nonzero(as_tuple=True)
+        p = pos[b_idx, a_idx]  # [M, 3]
+        chunk = max(1, max_elements // (len(b_idx) * len(a)))
+        for i in range(0, N, chunk):
+            d = (coords[b_idx, i:i + chunk] - p[:, None]) / param.BOHR  # [M, n, 3]
+            term = c * torch.exp(-a * (d ** 2).sum(-1, keepdim=True))  # [M, n, K]
+            rho = term.sum(-1)
+            if density_grad:
+                grad = -2 * (term * a).sum(-1, keepdim=True) * d
+                rho = torch.cat([rho.unsqueeze(-1), grad], dim=-1)
+            out[b_idx, a_idx, i:i + chunk] = rho
+    return out
+
+
 def sample_single_atom_density_df(position, atom_number, coords, basis, df_coeffs, density_grad=False):
     """
     Sample the free atom density of a single atom on a given coordinate grid using a density fitting basis.
@@ -1620,6 +1762,11 @@ def sample_single_atom_density_df(position, atom_number, coords, basis, df_coeff
     Returns:
         density (torch.Tensor): Free atom density of the atom
     """
+    if all(len(sh) == 2 and sh[0] == 0 for z in basis for sh in basis[z]):
+        z = int(atom_number.max())
+        tables = build_sgauss_tables({z: {"df_basis": basis, "df_coeffs": df_coeffs}}, coords.device)
+        dens = sample_atom_density_sgauss(position, atom_number, coords, tables, density_grad)[:, 0]
+        return dens.to(torch.get_default_dtype())
     df_coeffs = [df_coeffs] * coords.shape[0]
     atom = utils.npy_to_pyscf(
         position.detach().cpu().numpy(), atom_number.detach().cpu().numpy(), basis
@@ -1655,11 +1802,20 @@ def sample_atom_density(
         (density, atom_wise_density) (torch.Tensor, torch.Tensor): Tuple containing free atom
         density of the molecule, plus the individual density of each atom in the molecule
     """
-    gc.collect()  # To release circular referred objects
+    if atom_dens_type == "df_coeffs":
+        device = "cuda" if utils.USE_GPU4PYSCF else coords.device
+        tables = sgauss_tables(atom_dens_dict, device)
+        if tables is not None:
+            atom_dens = sample_atom_density_sgauss(positions, atom_numbers, coords, tables, density_grad)
+            atom_dens = atom_dens.to(torch.get_default_dtype()).cpu()
+            return atom_dens.sum(1), (atom_dens if individual_dens else torch.zeros(1))
+    gpu = utils.USE_GPU4PYSCF and atom_dens_type == "spline"
+    if gpu:
+        positions, atom_numbers, coords = positions.cuda(), atom_numbers.cuda(), coords.cuda()
     if density_grad:
-        dens = torch.zeros((coords.shape[0], coords.shape[1], coords.shape[2] + 1))
+        dens = torch.zeros((coords.shape[0], coords.shape[1], coords.shape[2] + 1), device=coords.device)
     else:
-        dens = torch.zeros((coords.shape[0], coords.shape[1]))
+        dens = torch.zeros((coords.shape[0], coords.shape[1]), device=coords.device)
     atom_densities = []
     for i in range(positions.shape[1]):
         start = time.time()
@@ -1700,7 +1856,7 @@ def sample_atom_density(
         atom_densities = torch.stack(atom_densities, dim=1)
     else:
         atom_densities = torch.zeros(1)
-    return dens, atom_densities
+    return dens.cpu(), atom_densities.cpu()
 
 
 def model_input_from_atoms(
@@ -1840,6 +1996,227 @@ def model_input_from_atoms(
             inputs[prop] = inputs[prop].to(dtype)
 
     return inputs
+
+
+class PackedLayout:
+    """
+    Packed representation of the density basis coefficients of a molecule.
+
+    For every L all shells of all atoms are stacked along one axis (atom-major, shells in orbital_basis order):
+        coeff [B, S_L, 2L+1], width / scale [B, S_L, P_L] (zero padded primitives), atom [S_L] (atom slot of each shell).
+    The shells of each L of all elements of the basis are enumerated once (element shells e, see eshell). A layout
+    (get) holds only index tensors, built by tensor ops from per-element tables, so it can go into a compiled region
+    as data. Layouts are cached per element list zs.
+    """
+
+    def __init__(self, orbital_basis, radial_coeffs=None, round_f32=False):
+        self.orbital_basis = orbital_basis
+        self.radial_coeffs = radial_coeffs
+        self.round_f32 = round_f32  # DensityCoeffsNetwork has always used float32-rounded radial coefficients
+        self.Lmax = get_max_order(orbital_basis)
+        self.shells = {}  # z -> [(L, k, n_primitives, j)], k = index of the shell among the shells of this L
+        for z, basis in orbital_basis.items():
+            cnt = [0] * (self.Lmax + 1)
+            self.shells[z] = []
+            for j, orb in enumerate(basis):
+                L, n = int(orb[2]), int(orb[1])
+                self.shells[z].append((L, cnt[L], n, j))
+                cnt[L] += 1
+        self.P = [max([n for z in self.shells for (l, _, n, _) in self.shells[z] if l == L] + [1])
+                  for L in range(self.Lmax + 1)]
+        self.rmax = {}  # (z, L) -> max number of primitives of the shells
+        self.nshell = {}
+        for z in self.shells:
+            for (L, _, n, _) in self.shells[z]:
+                self.rmax[(z, L)] = max(self.rmax.get((z, L), 0), n)
+                self.nshell[(z, L)] = self.nshell.get((z, L), 0) + 1
+        # element shells of each L: eshell[L][e] = (z, k, j), eid[L][z, k] = e, nsh[L][z] = number of shells
+        Zmax = max(self.shells) + 1
+        K = [max([self.nshell.get((z, L), 0) for z in self.shells] + [1]) for L in range(self.Lmax + 1)]
+        self.eshell = [[] for _ in range(self.Lmax + 1)]
+        self.eid = [torch.zeros(Zmax, K[L], dtype=torch.long) for L in range(self.Lmax + 1)]
+        self.nsh = [torch.zeros(Zmax, dtype=torch.long) for L in range(self.Lmax + 1)]
+        # per element its coefficients in PySCF order: L, k and m (index in the 2L+1 block) of each
+        T = max(sum(2 * orb[2] + 1 for orb in basis) for basis in orbital_basis.values())
+        self.tL = torch.zeros(Zmax, T, dtype=torch.long)
+        self.tk = torch.zeros(Zmax, T, dtype=torch.long)
+        self.tm = torch.zeros(Zmax, T, dtype=torch.long)
+        self.tvalid = torch.zeros(Zmax, T, dtype=torch.bool)
+        for z in sorted(self.shells):
+            t = 0
+            for (L, k, n, j) in self.shells[z]:
+                self.eid[L][z, k] = len(self.eshell[L])
+                self.eshell[L].append((z, k, j))
+                self.nsh[L][z] += 1
+                for m in range(2 * L + 1):
+                    self.tL[z, t], self.tk[z, t], self.tm[z, t] = L, k, ([2, 0, 1][m] if L == 1 else m)
+                    self.tvalid[z, t] = True
+                    t += 1
+        # radial parameters of the element shells [E_L, P_L] (float64)
+        if radial_coeffs is not None:
+            self.width0, self.scale0 = [], []
+            for L in range(self.Lmax + 1):
+                w0 = np.zeros((len(self.eshell[L]), self.P[L]))
+                s0 = np.zeros((len(self.eshell[L]), self.P[L]))
+                for e, (z, k, j) in enumerate(self.eshell[L]):
+                    rc = radial_coeffs[z][j]
+                    w0[e, :len(rc[0])] = rc[0]
+                    s0[e, :len(rc[1])] = rc[1]
+                if round_f32:
+                    w0, s0 = w0.astype(np.float32), s0.astype(np.float32)
+                self.width0.append(torch.tensor(w0, dtype=torch.float64))
+                self.scale0.append(torch.tensor(s0, dtype=torch.float64))
+        self._cache = {}
+
+    def get(self, zs, device, dtype=None):
+        """
+        Layout of the atom slots with elements zs (0 = empty slot), a dict of tensors only:
+            atom[L], e[L] [S_L]: atom slot and element shell of every packed shell,
+            start [Lmax + 1, A]: index of the first shell of every atom slot in the L stacks,
+            perm / inv [n_coeffs]: packed (flattened, L-major) <-> PySCF order, sign [n_coeffs]: PySCF sign convention,
+            with a dtype also width0[L] / scale0[L] [S_L, P_L]: radial parameters of the basis (if radial_coeffs).
+        """
+        key = (tuple(zs), str(device), dtype)
+        if key not in self._cache:
+            if len(self._cache) > 2000:
+                self._cache.clear()
+            self._cache[key] = self._build(zs, device, dtype)
+        return self._cache[key]
+
+    def _build(self, zs, device, dtype):
+        z = torch.as_tensor(zs, dtype=torch.long)
+        A = len(z)
+        lay = {'atom': [], 'e': []}
+        start, off = [], [0]
+        for L in range(self.Lmax + 1):
+            n = self.nsh[L][z]
+            atom = torch.repeat_interleave(torch.arange(A), n)
+            first = torch.cumsum(n, 0) - n
+            k = torch.arange(len(atom)) - first[atom]
+            lay['atom'].append(atom)
+            lay['e'].append(self.eid[L][z[atom], k])
+            start.append(first)
+            off.append(off[-1] + len(atom) * (2 * L + 1))
+        start = torch.stack(start)
+        tL, valid = self.tL[z], self.tvalid[z]
+        idx = torch.tensor(off)[tL] + (start[tL, torch.arange(A)[:, None]] + self.tk[z]) * (2 * tL + 1) + self.tm[z]
+        perm = idx[valid]
+        sign = 1 - 2 * (tL[valid] % 2)
+        lay['start'] = start
+        lay['perm'] = perm
+        lay['inv'] = torch.argsort(perm)
+        lay['sign'] = sign if dtype is None else sign.to(dtype)
+        if dtype is not None and self.radial_coeffs is not None:
+            lay['width0'] = [self.width0[L][e].to(dtype) for L, e in enumerate(lay['e'])]
+            lay['scale0'] = [self.scale0[L][e].to(dtype) for L, e in enumerate(lay['e'])]
+        return {k: ([t.to(device) for t in v] if isinstance(v, list) else v.to(device)) for k, v in lay.items()}
+
+    def to_df_vector(self, packed, lay):
+        """Packed coefficients -> flat coefficient vector in PySCF order [B, n_coeffs]."""
+        c = packed[0]['coeff']
+        flat = torch.cat([packed[L]['coeff'].reshape(c.shape[0], packed[L]['coeff'].shape[1] * (2 * L + 1))
+                          for L in sorted(packed)], dim=1)
+        return flat[:, lay['perm']] * lay['sign']
+
+    def from_df_vector(self, vec, zs, require_grads=False):
+        """Flat PySCF-ordered coefficient vector -> packed coefficients, with the radial parameters of the basis."""
+        lay = self.get(zs, vec.device, vec.dtype)
+        flat = (vec * lay['sign'])[:, lay['inv']]
+        packed = {}
+        off = 0
+        for L in range(self.Lmax + 1):
+            S = len(lay['atom'][L])
+            coeff = flat[:, off:off + S * (2 * L + 1)].reshape(vec.shape[0], S, 2 * L + 1)
+            off += S * (2 * L + 1)
+            if S == 0:
+                continue
+            width = lay['width0'][L].expand(vec.shape[0], -1, -1)
+            scale = lay['scale0'][L].expand(vec.shape[0], -1, -1)
+            packed[L] = {'atom': lay['atom'][L], 'coeff': coeff.detach().requires_grad_(require_grads),
+                         'width': width.clone().requires_grad_(require_grads),
+                         'scale': scale.clone().requires_grad_(require_grads)}
+        return packed
+
+    def pack_dicts(self, sph, width, scale, zs):
+        """Per-atom {(z, L): tensor} dicts (see to_dicts) -> packed coefficients."""
+        dev = next(iter(sph[0].values())).device
+        lay = self.get(zs, dev)
+        packed = {}
+        for L in range(self.Lmax + 1):
+            if len(lay['atom'][L]) == 0:
+                continue
+            cs, ws, ss = [], [], []
+            for a, z in enumerate(zs):
+                if z == 0 or (z, L) not in sph[a]:
+                    continue
+                cs.append(sph[a][(z, L)][:, 0].permute(0, 2, 1))
+                pad = (0, self.P[L] - self.rmax[(z, L)])
+                ws.append(torch.nn.functional.pad(width[a][(z, L)][:, 0].permute(0, 2, 1), pad))
+                ss.append(torch.nn.functional.pad(scale[a][(z, L)][:, 0].permute(0, 2, 1), pad))
+            packed[L] = {'atom': lay['atom'][L], 'coeff': torch.cat(cs, 1), 'width': torch.cat(ws, 1),
+                         'scale': torch.cat(ss, 1)}
+        return packed
+
+    def to_dicts(self, packed, zs):
+        """Packed coefficients -> per-atom dicts {(z, L): [B, 1, 2L+1 (or r_max), n_shells]} (views)."""
+        start = self.get(zs, next(iter(packed.values()))['coeff'].device)['start'].tolist()
+        sph, width, scale = [], [], []
+        for a, z in enumerate(zs):
+            sph.append({})
+            width.append({})
+            scale.append({})
+            if z == 0:
+                continue
+            for L in range(self.Lmax + 1):
+                if (z, L) not in self.nshell:
+                    continue
+                s0 = start[L][a]
+                s1 = s0 + self.nshell[(z, L)]
+                r = self.rmax[(z, L)]
+                sph[a][(z, L)] = packed[L]['coeff'][:, s0:s1].permute(0, 2, 1).unsqueeze(1)
+                width[a][(z, L)] = packed[L]['width'][:, s0:s1, :r].permute(0, 2, 1).unsqueeze(1)
+                scale[a][(z, L)] = packed[L]['scale'][:, s0:s1, :r].permute(0, 2, 1).unsqueeze(1)
+        return sph, width, scale
+
+
+class CoeffsDict(dict):
+    """
+    Model output dict that holds the packed coefficients ('packed_coeffs') and builds the legacy per-atom dicts
+    ('spherical_coeffs', 'radial_width', 'radial_scale') the first time they are accessed.
+    """
+
+    def __init__(self, atoms, layout):
+        super().__init__(atoms)
+        self.layout = layout
+
+    def __missing__(self, key):
+        if key in ('spherical_coeffs', 'radial_width', 'radial_scale'):
+            self['spherical_coeffs'], self['radial_width'], self['radial_scale'] = \
+                self.layout.to_dicts(self['packed_coeffs'], self['slot_z'])
+            return self[key]
+        raise KeyError(key)
+
+
+def eval_packed_density(rb, Y, packed):
+    """
+    Density of all packed shells at a set of grid points.
+
+    Args:
+        rb: distances of the grid points to the atoms in Bohr [B, G, A]
+        Y: real spherical harmonics of the directions to the atoms, list over L of [B, G, A, 2L+1]
+        packed: {L: {'atom', 'coeff', 'width', 'scale'}}, see PackedLayout
+    Returns:
+        density [B, G]
+    """
+    density = 0
+    for L, p in packed.items():
+        r = rb[:, :, p['atom']]  # [B, G, S]
+        rad = (p['scale'].unsqueeze(1) / pyscf_gto_factor
+               * torch.exp(-p['width'].unsqueeze(1) * (r * r).unsqueeze(-1))).sum(-1) * r ** L
+        dt = torch.promote_types(Y[L].dtype, p['coeff'].dtype)  # einsum does not promote mixed dtypes
+        ang = torch.einsum('bgsm,bsm->bgs', Y[L][:, :, p['atom']].to(dt), p['coeff'].to(dt))
+        density = density + (rad * ang).sum(-1)
+    return density
 
 
 def eval_gto(s, d, L, sph_coeff, width, scale):

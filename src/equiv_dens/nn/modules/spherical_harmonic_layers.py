@@ -1,8 +1,65 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import numpy as np
-# import equiv_dens.utils.base as utils
-# from equiv_dens.nn.modules.clebsch_gordan import sparsify_cg_matrix
+from equiv_dens.nn.modules.cg_product import CGProduct
+
+"""
+Spherical features are packed tensors of shape [..., (order + 1)**2, num_features].
+The m axis is ordered by L: [L=0 | L=1 (3) | L=2 (5) | ...], the same ordering as ClebschGordanMatrix.
+"""
+
+
+_l_of_m_cache = {}
+
+
+def l_of_m(D, device):
+    """Order L of every entry of a packed m axis of length D (cached in eager mode, saves 3 kernels per call)."""
+    if torch.compiler.is_compiling():
+        return torch.arange(D, device=device).float().sqrt().floor().long()
+    key = (D, str(device))
+    if key not in _l_of_m_cache:
+        _l_of_m_cache[key] = torch.arange(D, device=device).float().sqrt().floor().long()
+    return _l_of_m_cache[key]
+
+
+def order_of(D):
+    return int(round(D ** 0.5)) - 1
+
+
+def unpack_orders(x):
+    """List of the per order slices [..., 2L + 1, F] (views) of a packed tensor."""
+    return [x[..., L ** 2:(L + 1) ** 2, :] for L in range(order_of(x.shape[-2]) + 1)]
+
+
+def fit_orders(x, D):
+    """Cut or zero-pad the packed m axis of x to length D."""
+    if x.shape[-2] > D:
+        return x[..., :D, :]
+    if x.shape[-2] < D:
+        return F.pad(x, (0, 0, 0, D - x.shape[-2]))
+    return x
+
+
+def apply_L0(fn, x):
+    """Apply fn to the L=0 slice of a packed tensor."""
+    if x.shape[-2] == 1:
+        return fn(x)
+    return torch.cat([fn(x[..., :1, :]), x[..., 1:, :]], dim=-2)
+
+
+def order_scale(x, y, normalize):
+    """Residual scale per order: sqrt(1/2), or 1 if x or y is exactly zero for that order."""
+    if not normalize:
+        return 1
+    D = x.shape[-2]
+    l = l_of_m(D, x.device)
+    nL = order_of(D) + 1
+    dims = [d for d in range(x.dim()) if d != x.dim() - 2]
+    nz_x = torch.zeros(nL, device=x.device, dtype=x.dtype).index_add(0, l, x.pow(2).sum(dim=dims)) != 0
+    nz_y = torch.zeros(nL, device=x.device, dtype=x.dtype).index_add(0, l, y.pow(2).sum(dim=dims)) != 0
+    scale = torch.where(nz_x & nz_y, x.new_full((), np.sqrt(1 / 2)), x.new_full((), 1.0))
+    return scale[l].unsqueeze(-1)
 
 
 class SphericalLinear(nn.Module):
@@ -37,18 +94,15 @@ class SphericalLinear(nn.Module):
             parity (bool): whether to preserve parity of spherical features
         """
         super().__init__()
-        self.order_in = order_in
-        self.num_in = num_in
-        self.order_out = order_out
-        self.num_out = num_out
+        self.order_in = int(order_in)
+        self.num_in = int(num_in)
+        self.order_out = int(order_out)
+        self.num_out = int(num_out)
         self.bias = bias
         self.mix_orders = mix_orders
         self.zero_init = zero_init
         self.parity = parity
         if self.mix_orders:
-            assert (
-                clebsch_gordan is not None
-            )  # Clebsch-Gordan coefficients are necessary for mixing
             self.mixing = SelfMixing(
                 self.order_in, self.order_out, self.num_in, clebsch_gordan, normalize, parity,
             )
@@ -60,6 +114,7 @@ class SphericalLinear(nn.Module):
                 for L in range(self.order_out + 1)
             ]
         )
+        self.register_buffer("l_idx", l_of_m((self.order_out + 1) ** 2, "cpu"), persistent=False)
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -73,24 +128,41 @@ class SphericalLinear(nn.Module):
         if self.bias:
             nn.init.zeros_(self.linear[0].bias)
 
-    def forward(self, xs):
+    def forward(self, x):
         """
         Forward pass of the layer.
 
         Args:
-            xs (list of torch.Tensor): input features
+            x (torch.Tensor): packed input features [..., (order_in + 1)**2, num_in]
         Returns:
-            ys (list of torch.Tensor): output features
+            y (torch.Tensor): packed output features [..., (order_out + 1)**2, num_out]
         """
+        D = (self.order_out + 1) ** 2
         if self.mix_orders:
-            ys = self.mixing(xs)
-            for L in range(self.order_out + 1):
-                ys[L] = self.linear[L](ys[L])
+            x = self.mixing(x)
         else:
-            ys = []
-            for x, linear in zip(xs, self.linear):
-                ys.append(linear(x) * np.sqrt(self.num_out))
-        return ys
+            x = x[..., :D, :]
+        weight = torch.stack([lin.weight for lin in self.linear])[self.l_idx]  # [D, num_out, num_in]
+        y = torch.einsum('...mi,moi->...mo', x, weight)
+        if self.bias:
+            y = y + F.pad(self.linear[0].bias.unsqueeze(0), (0, 0, 0, D - 1))
+        if not self.mix_orders:
+            y = y * np.sqrt(self.num_out)
+        return y
+
+
+def mixing_paths(order_in1, order_in2, order_out, parity, only_upper=False):
+    """List of (l1, l2, L) paths of a tensor product, in the order the coefficients are registered."""
+    paths = []
+    for l1 in range(order_in1 + 1):
+        for l2 in range(l1 + 1 if only_upper else 0, order_in2 + 1):
+            for L in range(abs(l1 - l2), min(l1 + l2, order_out) + 1):
+                # NOTE: parsed as l1 + (l2 % 2), a precedence bug that is kept on purpose so that
+                # trained parity models stay compatible
+                if l1 + l2 % 2 != L % 2 and parity:
+                    continue
+                paths.append((l1, l2, L))
+    return paths
 
 
 class SelfMixing(nn.Module):
@@ -111,41 +183,35 @@ class SelfMixing(nn.Module):
             parity (bool): whether to preserve parity of spherical features
         """
         super().__init__()
-        self.order_in = order_in
-        self.order_out = order_out
-        self.num_features = num_features
-        self.clebsch_gordan = clebsch_gordan
+        self.order_in = int(order_in)
+        self.order_out = int(order_out)
+        self.num_features = int(num_features)
         self.normalize = normalize
         self.parity = parity
+        self.paths = mixing_paths(order_in, order_in, order_out, parity, only_upper=True)
+        self.order_keep = min(order_in, order_out)
         # coefficients for mixing
-        for l1 in range(self.order_in + 1):
-            for l2 in range(l1 + 1, self.order_in + 1):
-                for L in range(abs(l1 - l2), min(l1 + l2, self.order_out) + 1):
-                    if l1 + l2 % 2 != L % 2 and self.parity:
-                        continue
-                    name = "mixcoeff_{}_{}_{}".format(l1, l2, L)
-                    self.register_parameter(
-                        name, nn.Parameter(torch.Tensor(self.num_features))
-                    )
-        for L in range(min(self.order_in, self.order_out) + 1):
+        for l1, l2, L in self.paths:
+            name = "mixcoeff_{}_{}_{}".format(l1, l2, L)
+            self.register_parameter(
+                name, nn.Parameter(torch.Tensor(self.num_features))
+            )
+        for L in range(self.order_keep + 1):
             name = "keepcoeff_{}".format(L)
             self.register_parameter(name, nn.Parameter(torch.Tensor(self.num_features)))
+        self.register_buffer("l_keep", l_of_m((self.order_keep + 1) ** 2, "cpu"), persistent=False)
+        if self.paths:
+            cg_matrix, _ = clebsch_gordan(order_in, order_in, order_out)
+            self.product = CGProduct(cg_matrix, self.paths)
         self.reset_parameters()
 
     def reset_parameters(self):
         """Initialize/reset the layer's parameters."""
         count = [1 for L in range(self.order_out + 1)]
-        # for L in range(min(self.order_in, self.order_out) + 1):
-        #     count[L] += 1
-        for l1 in range(self.order_in + 1):
-            for l2 in range(l1 + 1, self.order_in + 1):
-                for L in range(abs(l1 - l2), min(l1 + l2, self.order_out) + 1):
-                    if l1 + l2 % 2 != L % 2 and self.parity:
-                        continue
-                    count[L] += 1
+        for l1, l2, L in self.paths:
+            count[L] += 1
 
-        # print('count L', count)
-        for L in range(min(self.order_in, self.order_out) + 1):
+        for L in range(self.order_keep + 1):
             if self.normalize:
                 norm_factor = (L + 1)
             else:
@@ -154,20 +220,16 @@ class SelfMixing(nn.Module):
                 self.keepcoeff(L), a=-np.sqrt(3 * norm_factor/count[L]), b=np.sqrt(3 * norm_factor/count[L])
             )
 
-        for l1 in range(self.order_in + 1):
-            for l2 in range(l1 + 1, self.order_in + 1):
-                for L in range(abs(l1 - l2), min(l1 + l2, self.order_out) + 1):
-                    if l1 + l2 % 2 != L % 2 and self.parity:
-                        continue
-                    if self.normalize:
-                        norm_factor = (L + 1)
-                    else:
-                        norm_factor = 1
-                    nn.init.uniform_(
-                        self.mixcoeff(l1, l2, L),
-                        a=-np.sqrt(3 * norm_factor/count[L]),
-                        b=np.sqrt(3 * norm_factor/count[L]),
-                    )
+        for l1, l2, L in self.paths:
+            if self.normalize:
+                norm_factor = (L + 1)
+            else:
+                norm_factor = 1
+            nn.init.uniform_(
+                self.mixcoeff(l1, l2, L),
+                a=-np.sqrt(3 * norm_factor/count[L]),
+                b=np.sqrt(3 * norm_factor/count[L]),
+            )
 
     def keepcoeff(self, L):
         """
@@ -193,65 +255,22 @@ class SelfMixing(nn.Module):
         """
         return getattr(self, "mixcoeff_{}_{}_{}".format(l1, l2, L))
 
-    def forward(self, xs):
+    def forward(self, x):
         """
         Compute the spherical tensor product between the different orders of the same atomic features.
 
         Args:
-            x1 (list of torch.Tensor): set of spherical features
+            x (torch.Tensor): packed spherical features [..., (order_in + 1)**2, num_features]
         Returns:
-            ys (list of torch.Tensor): features after self-mixing
+            y (torch.Tensor): packed features after self-mixing [..., (order_out + 1)**2, num_features]
         """
-        # print('in', self.order_in, 'out', self.order_out)
-        # print('xs norm selfmix', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
-        # initialize output
-        ys = [
-            self.keepcoeff(L) * xs[L]
-            if L <= self.order_in
-            else torch.zeros_like(xs[0]).repeat(
-                *(1,) * len(xs[0].shape[:-2]), 2 * L + 1, 1
-            )
-            for L in range(self.order_out + 1)
-        ]
-        _, cg_matrix = self.clebsch_gordan(self.order_in, self.order_in, self.order_out)
-        # print('ys', [float(torch.mean(ys[L]**2)) for L in range(len(ys))])
-        # loop over all combinations of orders
-        for l1 in range(self.order_in + 1):
-            # get view of x[l1] that enables broadcasting to compute the spherical tensor product
-            x1 = xs[l1].view(
-                *xs[l1].shape[:-2], xs[l1].size(-2), 1, 1, self.num_features
-            )
-            for l2 in range(l1 + 1, self.order_in + 1):
-                # get view of x[l2] that enables broadcasting to compute the spherical tensor product
-                x2 = xs[l2].view(
-                    *xs[l2].shape[:-2], 1, xs[l2].size(-2), 1, self.num_features
-                )
-                # compute spherical tensor product
-                tp = x1 * x2
-                # print('tp norm', float(torch.mean(tp ** 2)))
-                # decompose tensor product into irreducible representations and collect contributions
-                for L in range(abs(l1 - l2), min(l1 + l2, self.order_out) + 1):
-                    if l1 + l2 % 2 != L % 2 and self.parity:
-                        continue
-                    # get Clebsch - Gordan coefficients in broadcastable form
-                    cg = cg_matrix[
-                        l1 ** 2:(l1 + 1) ** 2,
-                        l2 ** 2:(l2 + 1) ** 2,
-                        L ** 2:(L + 1) ** 2,
-                    ]
-                    cg = cg.view((*(1,) * len(tp.shape[:-4]), *cg.shape, 1))
-                    # get coefficients in broadcastable form
-                    coeff = self.mixcoeff(l1, l2, L).view(
-                        *(1,) * len(tp.shape[:-4]), 1, -1
-                    )
-
-                    # contract and add
-                    # print('L', L)
-                    # print('cg * tp norm', float(torch.mean((coeff * (cg * tp).sum(-3).sum(-3)) ** 2)))
-                    # print('norm coeff', float(torch.mean((coeff / np.sqrt(2 * L + 1)) ** 2)))
-                    ys[L] = ys[L] + coeff * ((cg * tp).sum(-3).sum(-3))
-        # print('ys norm selfmix', [float(torch.mean(ys[L]**2)) for L in range(len(ys))])
-        return ys
+        x = x[..., :(self.order_in + 1) ** 2, :]
+        keep = torch.stack([self.keepcoeff(L) for L in range(self.order_keep + 1)])[self.l_keep]
+        y = fit_orders(keep * x[..., :(self.order_keep + 1) ** 2, :], (self.order_out + 1) ** 2)
+        if self.paths:
+            w = torch.stack([self.mixcoeff(*path) for path in self.paths])
+            y = y + self.product(x, x, w)
+        return y
 
 
 class PairMixing(nn.Module):
@@ -282,39 +301,42 @@ class PairMixing(nn.Module):
             parity (bool): whether to preserve parity of spherical features
         """
         super().__init__()
-        self.order_in1 = order_in1
-        self.order_in2 = order_in2
-        self.order_out = order_out
-        self.num_basis_functions = num_basis_functions
-        self.num_features = num_features
-        self.clebsch_gordan = clebsch_gordan
+        self.order_in1 = int(order_in1)
+        self.order_in2 = int(order_in2)
+        self.order_out = int(order_out)
+        self.num_basis_functions = int(num_basis_functions)
+        self.num_features = int(num_features)
         self.normalize = normalize
         self.parity = parity
+        self.paths = mixing_paths(order_in1, order_in2, order_out, parity)
         # distance - dependent coefficients for mixing
-        for l1 in range(self.order_in1 + 1):
-            for l2 in range(self.order_in2 + 1):
-                for L in range(abs(l1 - l2), min(l1 + l2, self.order_out) + 1):
-                    if l1 + l2 % 2 != L % 2 and self.parity:
-                        continue
-                    name = "coeff_{}_{}_{}".format(l1, l2, L)
-                    self.add_module(
-                        name,
-                        nn.Linear(
-                            self.num_basis_functions, self.num_features, bias=False
-                        ),
-                    )
+        for l1, l2, L in self.paths:
+            name = "coeff_{}_{}_{}".format(l1, l2, L)
+            self.add_module(
+                name,
+                nn.Linear(
+                    self.num_basis_functions, self.num_features, bias=False
+                ),
+            )
         self.L_count = [0 for L in range(self.order_out + 1)]
+        for l1, l2, L in self.paths:
+            self.L_count[L] += 1
+        # per path factor that is applied to the coefficients
+        path_scale = []
+        for l1, l2, L in self.paths:
+            norm_factor = 1
+            if self.normalize:
+                norm_factor = np.sqrt(L + 1) * np.sqrt(self.num_features / self.num_basis_functions)
+            path_scale.append(norm_factor / np.sqrt(self.L_count[L]))
+        self.register_buffer("path_scale", torch.tensor(path_scale, dtype=torch.float64), persistent=False)
+        cg_matrix, _ = clebsch_gordan(order_in1, order_in2, order_out)
+        self.product = CGProduct(cg_matrix, self.paths)
         self.reset_parameters()
 
     def reset_parameters(self):
         """Initialize/reset the layer's parameters."""
-        for l1 in range(self.order_in1 + 1):
-            for l2 in range(self.order_in2 + 1):
-                for L in range(abs(l1 - l2), min(l1 + l2, self.order_out) + 1):
-                    if l1 + l2 % 2 != L % 2 and self.parity:
-                        continue
-                    nn.init.orthogonal_(self.coeff(l1, l2, L).weight)
-                    self.L_count[L] += 1
+        for l1, l2, L in self.paths:
+            nn.init.orthogonal_(self.coeff(l1, l2, L).weight)
 
     def coeff(self, l1, l2, L):
         """
@@ -329,77 +351,24 @@ class PairMixing(nn.Module):
         """
         return getattr(self, "coeff_{}_{}_{}".format(l1, l2, L))
 
-    def forward(self, x1s, x2s, rbf):
+    def forward(self, x1, x2, rbf):
         """
         Compute the spherical tensor product between two spherical features by mixing orders.
 
         Args:
-            x1s (list of torch.Tensor): first set of spherical features
-            x2s (list of torch.Tensor): second set of spherical features
-            rbf (torch.Tensor): radial basis function
+            x1 (torch.Tensor): first set of packed spherical features [..., (order_in1 + 1)**2, F]
+            x2 (torch.Tensor): second set of packed spherical features [..., (order_in2 + 1)**2, F]
+            rbf (torch.Tensor): radial basis function [..., 1, num_basis_functions]
         Returns:
-            ys (list of torch.Tensor): features after pair interaction
+            y (torch.Tensor): packed features after pair interaction [..., (order_out + 1)**2, F]
         """
-        # initialize output to zeros
-        ys = [
-            torch.zeros_like(x1s[0]).repeat(
-                *(1,) * len(x1s[0].shape[:-2]), 2 * L + 1, 1
-            )
-            for L in range(self.order_out + 1)
-        ]
-        if self.clebsch_gordan is not None:
-            cg_matrix, _ = self.clebsch_gordan(
-                self.order_in1, self.order_in2, self.order_out
-            )
-        else:
-            cg_matrix = torch.ones((1, 1, 1), device=x1s[0].device, dtype=x1s[0].dtype)
-        # loop over all combinations of orders
-        # print('xs1 pairmix norm', [float(torch.mean(x1s[L] ** 2)) for L in range(len(x1s))])
-        # print('xs2 pairmix norm', [float(torch.mean(x2s[L] ** 2)) for L in range(len(x2s))])
-        # print('L_counts', self.L_count)
-        for l1 in range(self.order_in1 + 1):
-            # get view of x1s[l1] that enables broadcasting to compute the spherical tensor product
-            x1 = x1s[l1].view(
-                *x1s[l1].shape[:-2], x1s[l1].size(-2), 1, 1, self.num_features
-            )
-            for l2 in range(self.order_in2 + 1):
-                # get view of x2s[l2] that enables broadcasting to compute the spherical tensor product
-                x2 = x2s[l2].view(
-                    *x2s[l2].shape[:-2], 1, x2s[l2].size(-2), 1, self.num_features
-                )
-                # compute spherical tensor product
-                # print('ls', l1, l2)
-                # print('x1 norm', float(torch.mean(x1 ** 2)))
-                # print('x2 norm', float(torch.mean(x2 ** 2)))
-                tp = x1 * x2
-                # print('tp norm', float(torch.mean(tp ** 2)))
-                # decompose tensor product into irreducible representations and collect contributions
-                for L in range(abs(l1 - l2), min(l1 + l2, self.order_out) + 1):
-                    if l1 + l2 % 2 != L % 2 and self.parity:
-                        continue
-                    # get Clebsch - Gordan coefficients in broadcastable form
-
-                    cg = cg_matrix[
-                        l1 ** 2:(l1 + 1) ** 2,
-                        l2 ** 2:(l2 + 1) ** 2,
-                        L ** 2:(L + 1) ** 2,
-                    ]
-                    cg = cg.view((*(1,) * len(tp.shape[:-4]), *cg.shape, 1))
-                    # contract and addi
-                    # print("L", L)
-                    # print('cg * tp norm', float(torch.mean((self.coeff(l1, l2, L)(rbf) * np.sqrt(2* L + 1) * (cg * tp).sum(-3).sum(-3)) ** 2)))
-                    # print('coeff norm', float(torch.mean((self.coeff(l1, l2, L)(rbf) * np.sqrt(self.num_features/self.num_basis_functions)) ** 2)))
-                    # print('num basis functions', self.num_basis_functions)
-                    # print('num features', self.num_features)
-                    if self.normalize:
-                        norm_factor = np.sqrt(L + 1) * np.sqrt(self.num_features / self.num_basis_functions)
-                    else:
-                        norm_factor = 1
-                    ys[L] = ys[L] + self.coeff(l1, l2, L)(rbf) * (norm_factor) * (
-                        (cg * tp).sum(-3).sum(-3) / np.sqrt(self.L_count[L])
-                    )
-        # print('ys pairmix norm', [float(torch.mean(ys[L] ** 2)) for L in range(len(ys))])
-        return ys
+        x1 = x1[..., :(self.order_in1 + 1) ** 2, :]
+        x2 = x2[..., :(self.order_in2 + 1) ** 2, :]
+        weight = torch.cat([self.coeff(*path).weight for path in self.paths])  # [num_paths * F, num_basis]
+        weight = weight.view(len(self.paths), self.num_features, -1) * self.path_scale.to(weight.dtype).view(-1, 1, 1)
+        coeff = F.linear(rbf, weight.view(-1, weight.shape[-1]))  # [..., 1, num_paths * F]
+        coeff = coeff.view(*coeff.shape[:-2], len(self.paths), self.num_features)
+        return self.product(x1, x2, coeff)
 
 
 class PairInteraction(nn.Module):
@@ -424,11 +393,11 @@ class PairInteraction(nn.Module):
             normalize (int): whether to normalize the output features
         """
         super().__init__()
-        self.order = order
-        self.num_basis_functions = num_basis_functions
-        self.num_features = num_features
-        self.clebsch_gordan = clebsch_gordan
+        self.order = int(order)
+        self.num_basis_functions = int(num_basis_functions)
+        self.num_features = int(num_features)
         self.normalize = normalize
+        self.paths = [(L, L, L) for L in range(self.order + 1)]
         # distance - dependent coefficients for mixing
         for L in range(self.order + 1):
             name = "coeff_{}".format(L)
@@ -438,14 +407,22 @@ class PairInteraction(nn.Module):
                     self.num_basis_functions, self.num_features, bias=False
                 ),
             )
-        self.L_count = [0 for L in range(self.order + 1)]
+        self.L_count = [1 for L in range(self.order + 1)]
+        path_scale = []
+        for L in range(self.order + 1):
+            norm_factor = 1
+            if self.normalize:
+                norm_factor = np.sqrt(L + 1) * np.sqrt(self.num_features / self.num_basis_functions)
+            path_scale.append(norm_factor)
+        self.register_buffer("path_scale", torch.tensor(path_scale, dtype=torch.float64), persistent=False)
+        cg_matrix, _ = clebsch_gordan(order, order, order)
+        self.product = CGProduct(cg_matrix, self.paths)
         self.reset_parameters()
 
     def reset_parameters(self):
         """Initialize/reset the layer's parameters."""
         for L in range(self.order + 1):
             nn.init.orthogonal_(self.coeff(L).weight)
-            self.L_count[L] += 1
 
     def coeff(self, L):
         """
@@ -458,178 +435,21 @@ class PairInteraction(nn.Module):
         """
         return getattr(self, "coeff_{}".format(L))
 
-    def forward(self, x1s, x2s, rbf):
+    def forward(self, x1, x2, rbf):
         """
         Compute the spherical tensor product between the same orders only.
 
         Args:
-            x1s (list of torch.Tensor): first set of spherical features
-            x2s (list of torch.Tensor): second set of spherical features
-            rbf (torch.Tensor): radial basis function
+            x1 (torch.Tensor): first set of packed spherical features [..., (order + 1)**2, F]
+            x2 (torch.Tensor): second set of packed spherical features [..., (order + 1)**2, F]
+            rbf (torch.Tensor): radial basis function [..., 1, num_basis_functions]
         Returns:
-            ys (list of torch.Tensor): features after pair interaction
+            y (torch.Tensor): packed features after pair interaction [..., (order + 1)**2, F]
         """
-        # initialize output to zeros
-        ys = [
-            torch.zeros_like(x1s[0]).repeat(
-                *(1,) * len(x1s[0].shape[:-2]), 2 * L + 1, 1
-            )
-            for L in range(self.order + 1)
-        ]
-        if self.clebsch_gordan is not None:
-            cg_matrix, _ = self.clebsch_gordan(
-                self.order, self.order, self.order
-            )
-        else:
-            cg_matrix = torch.ones((1, 1, 1), device=x1s[0].device, dtype=x1s[0].dtype)
-        # loop over all combinations of orders
-        # print('xs1 pairmix norm', [float(torch.mean(x1s[L] ** 2)) for L in range(len(x1s))])
-        # print('xs2 pairmix norm', [float(torch.mean(x2s[L] ** 2)) for L in range(len(x2s))])
-        # print('L_counts', self.L_count)
-        for L in range(self.order + 1):
-            # get view of x1s[l1] that enables broadcasting to compute the spherical tensor product
-            x1 = x1s[L].view(
-                *x1s[L].shape[:-2], x1s[L].size(-2), 1, 1, self.num_features
-            )
-            # get view of x2s[l2] that enables broadcasting to compute the spherical tensor product
-            x2 = x2s[L].view(
-                *x2s[L].shape[:-2], 1, x2s[L].size(-2), 1, self.num_features
-            )
-            # compute spherical tensor product
-            # print('ls', l1, l2)
-            # print('x1 norm', float(torch.mean(x1 ** 2)))
-            # print('x2 norm', float(torch.mean(x2 ** 2)))
-            tp = x1 * x2
-            # print('tp norm', float(torch.mean(tp ** 2)))
-            # decompose tensor product into irreducible representations and collect contributions
-
-            cg = cg_matrix[
-                L ** 2:(L + 1) ** 2,
-                L ** 2:(L + 1) ** 2,
-                L ** 2:(L + 1) ** 2,
-            ]
-            cg = cg.view((*(1,) * len(tp.shape[:-4]), *cg.shape, 1))
-            # contract and addi
-            # print("L", L)
-            # print('cg * tp norm', float(torch.mean((self.coeff(l1, l2, L)(rbf) * np.sqrt(2* L + 1) * (cg * tp).sum(-3).sum(-3)) ** 2)))
-            # print('coeff norm', float(torch.mean((self.coeff(l1, l2, L)(rbf) * np.sqrt(self.num_features/self.num_basis_functions)) ** 2)))
-            # print('num basis functions', self.num_basis_functions)
-            # print('num features', self.num_features)
-            if self.normalize:
-                norm_factor = np.sqrt(L + 1) * np.sqrt(self.num_features / self.num_basis_functions)
-            else:
-                norm_factor = 1
-            ys[L] = ys[L] + self.coeff(L)(rbf) * (norm_factor) * (
-                (cg * tp).sum(-3).sum(-3) / np.sqrt(self.L_count[L])
-            )
-        # print('ys pairmix norm', [float(torch.mean(ys[L] ** 2)) for L in range(len(ys))])
-        return ys
-# class SelfMixing_new(nn.Module):
-#     """
-#     Mixes features of different orders
-#     """
-#
-#     def __init__(self, order_in, order_out, num_features, clebsch_gordan, normalize=0):
-#         super().__init__()
-#         self.order_in = order_in
-#         self.order_out = order_out
-#         self.num_features = num_features
-#         self.clebsch_gordan = clebsch_gordan
-#         self.normalize = normalize
-#         # coefficients for mixing
-#         for l1 in range(self.order_in + 1):
-#             for l2 in range(l1 + 1, self.order_in + 1):
-#                 for L in range(abs(l1 - l2), min(l1 + l2, self.order_out) + 1):
-#                     name = "mixcoeff_{}_{}_{}".format(l1, l2, L)
-#                     self.register_parameter(
-#                         name, nn.Parameter(torch.Tensor(self.num_features))
-#                     )
-#         for L in range(min(self.order_in, self.order_out) + 1):
-#             name = "keepcoeff_{}".format(L)
-#             self.register_parameter(name, nn.Parameter(torch.Tensor(self.num_features)))
-#         _, cg_matrix = self.clebsch_gordan(self.order_in, self.order_in, self.order_out)
-#         cg_matrix, in_idx_1, in_idx_2, out_idx = sparsify_cg_matrix(cg_matrix) 
-#         self.register_buffer("in_idx_1", in_idx_1, persistent=False)
-#         self.register_buffer("in_idx_2", in_idx_2, persistent=False)
-#         self.register_buffer("out_idx",  out_idx, persistent=False)
-#         self.register_buffer("cg_matrix", cg_matrix, persistent=False)
-#         mix_idx_1 = torch.floor(torch.sqrt(in_idx_1)).to(torch.long)
-#         mix_idx_2 = torch.floor(torch.sqrt(in_idx_2)).to(torch.long)
-#         mix_idx_out = torch.floor(torch.sqrt(out_idx)).to(torch.long)
-#         self.register_buffer("mix_idx_1", mix_idx_1, persistent=False)
-#         self.register_buffer("mix_idx_2", mix_idx_2, persistent=False)
-#         self.register_buffer("mix_idx_out",  mix_idx_out, persistent=False)
-#         self.register_parameter(
-#             'mixcoeffs', nn.Parameter(torch.Tensor(self.order_in + 1, self.order_in + 1, self.order_out + 1, self.num_features))
-#         )
-#         self.reset_parameters()
-#
-#     def reset_parameters(self):
-#         count = [1 for L in range(self.order_out + 1)]
-#         # for L in range(min(self.order_in, self.order_out) + 1):
-#         #     count[L] += 1
-#         for l1 in range(self.order_in + 1):
-#             for l2 in range(l1 + 1, self.order_in + 1):
-#                 for L in range(abs(l1 - l2), min(l1 + l2, self.order_out) + 1):
-#                     count[L] += 1
-#
-#         # print('count L', count)
-#         for L in range(min(self.order_in, self.order_out) + 1):
-#             if self.normalize:
-#                 norm_factor = (L + 1)
-#             else:
-#                 norm_factor = 1
-#             nn.init.uniform_(
-#                 self.keepcoeff(L), a=-np.sqrt(3 * norm_factor/count[L]), b=np.sqrt(3 * norm_factor/count[L])
-#             )
-#
-#         for l1 in range(self.order_in + 1):
-#             for l2 in range(l1 + 1, self.order_in + 1):
-#                 for L in range(abs(l1 - l2), min(l1 + l2, self.order_out) + 1):
-#                     if self.normalize:
-#                         norm_factor = (L + 1)
-#                     else:
-#                         norm_factor = 1
-#                     # nn.init.uniform_(
-#                     #     self.mixcoeff(l1, l2, L),
-#                     #     a=-np.sqrt(3 * norm_factor/count[L]),
-#                     #     b=np.sqrt(3 * norm_factor/count[L]),
-#                     # )
-#                     nn.init.uniform_(
-#                         self.mixcoeffs[l1, l2, L, :],
-#                         a=-np.sqrt(3 * norm_factor/count[L]),
-#                         b=np.sqrt(3 * norm_factor/count[L]),
-#                     )
-#
-#     def keepcoeff(self, L):
-#         return getattr(self, "keepcoeff_{}".format(L))
-#
-#     def mixcoeff(self, l1, l2, L):
-#         return getattr(self, "mixcoeff_{}_{}_{}".format(l1, l2, L))
-#
-#     def forward(self, xs):
-#         # print('in', self.order_in, 'out', self.order_out)
-#         # print('xs norm selfmix', [float(torch.mean(xs[L]**2)) for L in range(len(xs))])
-#         # initialize output
-#         ys = [
-#             self.keepcoeff(L) * xs[L]
-#             if L <= self.order_in
-#             else torch.zeros_like(xs[0]).repeat(
-#                 *(1,) * len(xs[0].shape[:-2]), 2 * L + 1, 1
-#             )
-#             for L in range(self.order_out + 1)
-#         ]
-#         xs = torch.cat(xs, dim=2)
-#         ys = torch.cat(ys, dim=2)
-#         # print('ys', [float(torch.mean(ys[L]**2)) for L in range(len(ys))])
-#         # loop over all combinations of orders
-#         # print('ys norm selfmix', [float(torch.mean(ys[L]**2)) for L in range(len(ys))])
-#         x1 = xs[:, :, self.in_idx_1, :]
-#         x2 = xs[:, :, self.in_idx_2, :]
-#         # print(self.cg_matrix.shape)
-#         mixcoeff = self.mixcoeffs[self.mix_idx_1, self.mix_idx_2, self.mix_idx_out]
-#         # print(mixcoeff.shape)
-#         y = x1 * x2 * self.cg_matrix[None, None, :, None] * mixcoeff[None, None, :]
-#         ys += utils.scatter_add(y, self.out_idx, dim_size=(self.order_out + 1) ** 2, dim=2)
-#
-#         return [ys[:, :, l ** 2:(l + 1) ** 2] for l in range(self.order_out + 1)]
+        x1 = x1[..., :(self.order + 1) ** 2, :]
+        x2 = x2[..., :(self.order + 1) ** 2, :]
+        weight = torch.cat([self.coeff(L).weight for L in range(self.order + 1)])
+        weight = weight.view(self.order + 1, self.num_features, -1) * self.path_scale.to(weight.dtype).view(-1, 1, 1)
+        coeff = F.linear(rbf, weight.view(-1, weight.shape[-1]))
+        coeff = coeff.view(*coeff.shape[:-2], self.order + 1, self.num_features)
+        return self.product(x1, x2, coeff)

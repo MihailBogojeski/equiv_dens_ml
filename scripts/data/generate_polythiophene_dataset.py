@@ -28,6 +28,7 @@ _SCRIPT_DIR = Path(__file__).resolve().parent
 _REPO_ROOT = _SCRIPT_DIR.parent
 sys.path.insert(0, str(_REPO_ROOT / "src"))
 
+import equiv_dens.compat  # noqa: F401  (must come before cupy/gpu4pyscf)
 import equiv_dens.utils.base as utils
 import dftd4.pyscf as d4disp
 
@@ -204,17 +205,16 @@ def compute_frame(
     mf.max_cycle = 1000
 
     if use_gpu and _try_import_gpu4pyscf():
+        # D4, energy and gradient all run in gpu4pyscf
         mf = mf.to_gpu()
-
-    mf.kernel()
-
-    # dftd4.pyscf requires standard PySCF SCF; convert GPU object to CPU
-    if use_gpu:
-        mf = mf.to_cpu()
-
-    d4mf = d4disp.energy(mf).run()
-    grad = d4mf.nuc_grad_method()
-    gradients = grad.kernel()
+        mf.disp = "d4"
+        mf.kernel()
+        gradients = mf.nuc_grad_method().kernel()
+        d4mf = mf
+    else:
+        mf.kernel()
+        d4mf = d4disp.energy(mf).run()
+        gradients = d4mf.nuc_grad_method().kernel()
 
     res = [mol.pack()]
     calc_dict = {
@@ -226,17 +226,19 @@ def compute_frame(
 
     if use_df:
         dm1 = d4mf.make_rdm1(d4mf.mo_coeff, d4mf.mo_occ)
-        dm1 = _to_numpy(dm1)
         auxmol = df.addons.make_auxmol(mol, AUXBASIS)
-        ints_3c2e = df.incore.aux_e2(mol, auxmol, intor="int3c2e")
-        ints_2c2e = auxmol.intor("int2c2e")
-        nao = mol.nao
-        naux = auxmol.nao
-        df_coef = scipy.linalg.solve(
-            ints_2c2e, ints_3c2e.reshape(nao * nao, naux).T
-        )
-        df_coef = df_coef.reshape(naux, nao, nao)
-        df_basis = np.einsum("Pij,ij->P", df_coef, dm1)
+        # df coeffs c = J^-1 (P|ij) dm_ij; contract with dm first instead of
+        # forming the full (naux, nao, nao) fitting tensor
+        if use_gpu and _try_import_gpu4pyscf():
+            import cupy
+            from gpu4pyscf.df.int3c2e_bdiv import contract_int3c2e_dm, int2c2e
+            rho_aux = contract_int3c2e_dm(mol, auxmol, cupy.asarray(dm1))
+            df_basis = cupy.linalg.solve(int2c2e(auxmol), rho_aux).get()
+        else:
+            dm1 = _to_numpy(dm1)
+            ints_3c2e = df.incore.aux_e2(mol, auxmol, intor="int3c2e")
+            rho_aux = np.einsum("ijP,ij->P", ints_3c2e, dm1)
+            df_basis = scipy.linalg.solve(auxmol.intor("int2c2e"), rho_aux)
         calc_dict["df_coeff"] = df_basis
         calc_dict["auxbasis"] = AUXBASIS
 
