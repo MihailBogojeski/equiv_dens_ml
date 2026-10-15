@@ -168,6 +168,10 @@ class DFTNetwork(nn.Module):
     def _forces(self, positions, atoms):
         return torch.func.grad_and_value(self._core, has_aux=True)(positions, atoms)
 
+    def _repr(self, positions, atoms):
+        """Compiled region of the models without force properties: representation and density coefficients."""
+        return self._core(positions, atoms)[1][0]
+
     # data-dependent dims of the compiled-region inputs and their sizes: molecules B, atom columns A, atoms N,
     # neighbor pairs P, packed shells S<L> of every L and coefficients C
     batch_dims = {'positions': {1: 'N'}, 'atom_numbers': {1: 'N'}, 'atom_batch_idx': {1: 'N'}, 'batch_idx_pos': {0: 'N'},
@@ -234,11 +238,13 @@ class DFTNetwork(nn.Module):
         graph.replay()
         return tree_map(torch.clone, out)
 
-    def enable_compile(self, static=False):
-        """Compile the representation and force heads, the forces are then computed with torch.func.grad.
+    def enable_compile(self, static=False, compile_density=True):
+        """Compile the representation and force heads, the forces are then computed with torch.func.grad (models
+        without force properties: only the representation with the density coefficients). The density on the grid is
+        compiled too (compile_density, see DensityExpansion).
         static=True (MD / inference with a fixed composition): static shapes, and one CUDA graph per composition and
         input shapes (see static_forces), a new composition or pair count recompiles and captures a new graph."""
-        self.compiled = self.calculate_forces
+        self.compiled = self.calculate_forces or not static
         self.static = static
         for key in self.force_props:
             self.property_models[key].calculate_forces = False
@@ -253,6 +259,9 @@ class DFTNetwork(nn.Module):
         torch._inductor.config.force_pointwise_cat = True
         exact_unbacked_output_strides()
         self._forces = torch.compile(self._forces, dynamic=True)
+        self._repr = torch.compile(self._repr, dynamic=True)
+        if compile_density and 'density' in self.property_models:
+            self.property_models['density'].enable_compile()
 
     def forward(self, data):
         """
@@ -279,13 +288,16 @@ class DFTNetwork(nn.Module):
             # Only the model inputs go in: labels and python values would add guards and recompiles.
             positions = atoms['positions']
             zs, inputs = self.compiled_inputs(atoms)
-            if self.static:
+            if not self.calculate_forces:
+                aux = self._repr(positions, inputs)
+            elif self.static:
                 grad, (energy, (aux, _)) = self.static_forces(zs, positions, inputs)
             else:
                 grad, (energy, (aux, _)) = self._forces(positions, inputs)
             atoms.update(aux)
             atoms['positions'] = positions
-            atoms['forces'] = -grad
+            if self.calculate_forces:
+                atoms['forces'] = -grad
         else:
             if self.calculate_forces:
                 atoms['positions'].requires_grad_(True)

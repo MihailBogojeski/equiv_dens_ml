@@ -686,6 +686,34 @@ class DensityExpansion(nn.Module):
         self.orbitals_max_order_dict = get_max_order(self.orbital_basis, per_atom=True)
         self.orbitals_max_order = max(self.orbitals_max_order_dict.values())
         self.layout = PackedLayout(self.orbital_basis)
+        self.compiled = False
+
+    def enable_compile(self):
+        """Compile the density (and its gradient w.r.t. the coordinates) of a chunk of grid points. The sizes that
+        depend on the batch (molecules, grid points, atom columns, shells per L) are unbacked: one graph for all."""
+        self.compiled = True
+        self._density_at = torch.compile(self.density_at, dynamic=True)
+        self._density_and_grad_at = torch.compile(self.density_and_grad_at, dynamic=True)
+
+    @staticmethod
+    def mark_sizes(coords, positions, packed):
+        from equiv_dens.nn.dft_network import DFTNetwork
+        mark = DFTNetwork.mark
+        mark(coords, {0: 'B', 1: 'G'})
+        mark(positions, {0: 'B', 1: 'A'})
+        for L, p in packed.items():
+            mark(p['atom'], {0: 'S'}, str(L))
+            for k in ('coeff', 'width', 'scale'):
+                mark(p[k], {0: 'B', 1: 'S'}, str(L))
+
+    @staticmethod
+    def density_and_grad_at(coords, positions, packed, Lmax):
+        """Density and its gradient w.r.t. coords, by torch.func.grad (differentiable, also inside torch.compile)."""
+        def f(c):
+            d = DensityExpansion.density_at(c, positions, packed, Lmax)
+            return d.sum(), d
+        g, d = torch.func.grad(f, has_aux=True)(coords)
+        return d, g
 
     @staticmethod
     def density_at(coords, positions, packed, Lmax):
@@ -726,7 +754,13 @@ class DensityExpansion(nn.Module):
         chunk = max(1, min(G, int(self.chunk_bytes // (floats * coords.element_size()))))
         create_graph = torch.is_grad_enabled()
 
+        if self.compiled:
+            self.mark_sizes(coords, positions, packed)
+
         def eval_chunk(c):
+            if self.compiled:
+                self.mark_sizes(c, positions, packed)
+                return (self._density_and_grad_at if density_grad else self._density_at)(c, positions, packed, Lmax)
             if not density_grad:
                 return self.density_at(c, positions, packed, Lmax)
             with torch.enable_grad():

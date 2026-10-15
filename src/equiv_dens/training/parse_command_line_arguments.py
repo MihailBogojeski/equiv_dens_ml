@@ -369,6 +369,8 @@ def parse_command_line_arguments(arg_file=None):
                                choices=[True, False], help="Set density coeffs to free atom coeffs instead of predicting them")
     args_training.add_argument("--compile", metavar='True|False', type=str2bool, default=False,
                                choices=[True, False], help="Compile the model for higher efficiency.")
+    args_training.add_argument("--compile_density", metavar='True|False', type=str2bool, default=True,
+                               choices=[True, False], help="With --compile: also compile the density expansion on the grid.")
     args_training.add_argument("--rotate_grid", metavar='True|False', type=str2bool, default=True,
                                choices=[True, False], help="Rotate density grid during training.")
     args_training.add_argument("--cutoff_dens_coords", metavar='True|False', type=str2bool, default=False,

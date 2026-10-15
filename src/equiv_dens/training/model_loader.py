@@ -435,7 +435,7 @@ def load_model(args, dataset, train=False):
             model = torch.nn.DataParallel(model)
 
     if args.compile:
-        model.enable_compile()
+        model.enable_compile(compile_density=args.compile_density)
 
     # print('train', train)
     # print('density model end of load_model:', model.density_repr_model[1].spherical_output.linear[0].weight[:5, :5])
