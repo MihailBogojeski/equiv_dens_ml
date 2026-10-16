@@ -317,7 +317,7 @@ def parse_command_line_arguments(arg_file=None):
     args_training.add_argument("--memory", metavar='True|False', type=str2bool, default=False,
                                choices=[True, False], help="Memory statistics.")
     args_training.add_argument("--energy_unit_in", metavar='STR', type=str, default='kcal/mol',
-                               choices=['kcal/mol', 'hartree', 'eV', 'kelvin', 'millihartree'],
+                               choices=['kcal/mol', 'kcal', 'hartree', 'eV', 'kelvin', 'millihartree'],
                                help="energy input unit")
     args_training.add_argument("--energy_unit_out", metavar='STR', type=str, default='kcal/mol',
                                choices=['kcal/mol', 'kcal', 'hartree', 'eV', 'kelvin', 'millihartree'],
