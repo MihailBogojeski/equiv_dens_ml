@@ -317,10 +317,10 @@ def parse_command_line_arguments(arg_file=None):
     args_training.add_argument("--memory", metavar='True|False', type=str2bool, default=False,
                                choices=[True, False], help="Memory statistics.")
     args_training.add_argument("--energy_unit_in", metavar='STR', type=str, default='kcal/mol',
-                               choices=['kcal/mol', 'hartree', 'eV', 'kelvin', 'millihartree'],
+                               choices=['kcal/mol', 'kcal', 'hartree', 'eV', 'kelvin', 'millihartree'],
                                help="energy input unit")
     args_training.add_argument("--energy_unit_out", metavar='STR', type=str, default='kcal/mol',
-                               choices=['kcal/mol', 'hartree', 'eV', 'kelvin', 'millihartree'],
+                               choices=['kcal/mol', 'kcal', 'hartree', 'eV', 'kelvin', 'millihartree'],
                                help="energy output unit")
     args_training.add_argument("--distance_unit_in", metavar='STR', type=str, default='angstrom',
                                choices=['angstrom', 'bohr'], help="distance input unit")
@@ -460,9 +460,9 @@ def parse_command_line_arguments(arg_file=None):
     # benchmark script arguments (optional, have defaults)
     args_misc.add_argument('--properties', metavar='STR', type=str, default='energy',
                            help="Comma-separated properties for benchmark: energy or energy,forces")
-    args_misc.add_argument('--n-warmup', metavar='INT', type=int, default=10,
+    args_misc.add_argument('--n-warmup', '--n_warmup', metavar='INT', type=int, default=10,
                            help="Warmup iterations for benchmark")
-    args_misc.add_argument('--n-runs', metavar='INT', type=int, default=100,
+    args_misc.add_argument('--n-runs', '--n_runs', metavar='INT', type=int, default=100,
                            help="Timed iterations for benchmark")
 
     # actually parse command line arguments

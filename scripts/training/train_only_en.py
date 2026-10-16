@@ -41,9 +41,10 @@ if args.restart is None:
         for key in args.__dict__.keys():
             # special case for list input
             if isinstance(args.__dict__[key], list):
+                f.write('--' + key + "\n")
                 for entry in args.__dict__[key]:
-                    f.write('--' + key + '=' + str(entry) + "\n")
-            else:
+                    f.write(str(entry) + "\n")
+            elif args.__dict__[key] is not None:
                 f.write('--' + key + '=' + str(args.__dict__[key]) + "\n")
     checkpoint = None
     latest_checkpoint = 0

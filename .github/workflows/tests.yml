@@ -43,3 +43,5 @@ jobs:
         run: python run.py train --mode joint @config/training/h2o_small_all_001.txt @config/training/test_overrides.txt --use_gpu=False --save_dir=scratch/ci_joint --max_steps=10
       - name: Smoke train (density)
         run: python run.py train --mode density @config/training/h2o_small_all_001.txt @config/training/test_overrides.txt --use_gpu=False --save_dir=scratch/ci_density --max_steps=10
+      - name: Smoke test (eval from the joint run's saved args.txt)
+        run: python run.py test -C scratch/ci_joint/*/
