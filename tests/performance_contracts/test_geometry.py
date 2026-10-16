@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 import torch
 
+from benchmarks.fixtures import REFERENCE_ROOT
 from benchmarks.geometry import (fixture, load_reference, make_calculator,
                                  make_system)
 from equiv_dens.md import dft_network_calculator as md
@@ -12,7 +13,7 @@ from equiv_dens.utils import base
 from schnetpack import properties
 
 
-REFERENCE = Path(__file__).resolve().parents[2].with_name('equiv_dens_ml-paper-reference')
+REFERENCE = REFERENCE_ROOT
 
 
 @pytest.fixture(scope='module')

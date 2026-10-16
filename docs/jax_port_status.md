@@ -40,7 +40,8 @@ Remaining failures:
   the tests expect Torch to return `None` gradients for structurally unused parameters (156 in the pipeline fixture). The packed Torch core returns zero tensors instead. The gradient values agree.
 
 Environment caveats (from a run in the Hydra sandbox, where the suite gave 60 passed, 30 failed, 76 errors, identically before and after rebasing `dev`):
-- Many tests expect a reference checkout at `/workspace/scratch/equiv_dens_ml-paper-reference` and check which `equiv_dens` copy they import.
+- `tests/performance_contracts` uses the b15a0ff paper reference, created automatically under `scratch/equiv_dens_ml-paper-reference` (or set `DENSNET_REFERENCE_ROOT`). The JAX tests read reference bundles under `scratch/jax_pipeline/...` (env vars `DENSNET_JAX_*_REFERENCE`) that must be generated in the Torch runtime.
+- The JAX suite needs the JAX image (`containers/jax-pipeline.def`, run via `tools/runtime/run.sh jax`). The Hydra sandbox image is Python 3.10 and `jax==0.9.2` needs Python >= 3.11.
 - Some tests need a GPU or reference data that isn't in the repo.
 - `tests/jax_pipeline/test_pipeline.py` and `tests/performance_contracts/test_pipeline.py` share a basename, so `pytest tests` stops at collection. Run the two directories separately. CI (`.github/workflows/tests.yml`) runs only `tests/test_*.py` and does not run the JAX suite.
 
