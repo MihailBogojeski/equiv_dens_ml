@@ -31,3 +31,6 @@ cupy-dipole = ["cupy"]  # GPU dipole integrals; use cupy-cuda12x etc. to match C
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
