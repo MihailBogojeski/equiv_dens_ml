@@ -2,7 +2,7 @@
 
 Example (CPU; coordinator controls allocation and serialized measurements):
 DENSNET_NUM_THREADS=1 tools/runtime/run.sh torch python benchmarks/geometry.py \
-  --reference-root /home/johannes/equiv_dens_ml-paper-reference \
+  --reference-root scratch/equiv_dens_ml-paper-reference \
   --allocation 5051234 --output /tmp/geometry.json
 """
 import argparse

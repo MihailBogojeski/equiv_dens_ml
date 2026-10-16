@@ -9,11 +9,11 @@ import sys
 import pytest
 import torch
 
-from benchmarks.fixtures import build_model, clone_tree, fixture_spec, load_fixture, tensor_hash
+from benchmarks.fixtures import REFERENCE_ROOT, build_model, clone_tree, fixture_spec, load_fixture, tensor_hash
 from benchmarks.pipeline import compare_snapshots
 
 ROOT = Path(__file__).resolve().parents[2]
-REFERENCE = Path(os.environ.get("DENSNET_REFERENCE_ROOT", ROOT.parent / "equiv_dens_ml-paper-reference"))
+REFERENCE = REFERENCE_ROOT
 
 
 def accumulator():

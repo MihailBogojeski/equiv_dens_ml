@@ -20,7 +20,7 @@ from equiv_dens.nn.property_output import density
 from equiv_dens.utils import orbitals
 from benchmarks.timing import paired_benchmark
 
-REFERENCE_ROOT = Path(os.environ.get('DENSNET_REFERENCE_ROOT', '/home/johannes/equiv_dens_ml-paper-reference'))
+from benchmarks.fixtures import REFERENCE_ROOT
 
 
 def load_reference(reference_root=REFERENCE_ROOT):

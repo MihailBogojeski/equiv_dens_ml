@@ -14,10 +14,10 @@ import sys
 import pytest
 import torch
 
-from benchmarks.fixtures import load_fixture, tensor_hash
+from benchmarks.fixtures import REFERENCE_ROOT, load_fixture, tensor_hash
 
 ROOT = Path(__file__).resolve().parents[2]
-REFERENCE = Path(os.environ.get("DENSNET_REFERENCE_ROOT", str(ROOT.parent / "equiv_dens_ml-paper-reference")))
+REFERENCE = REFERENCE_ROOT
 
 
 def run_arm(source, *arguments):

@@ -4,18 +4,14 @@ These instruments compare identical saved **initialized** tensors and generated
 inputs against the paper source. No trained checkpoint or labeled dataset is
 required. Predictive accuracy and replacement-backbone quality are separate work.
 
-The clean neighboring reference is `/home/johannes/equiv_dens_ml-paper-reference`
-at `b15a0ff7c1e6070265c36d80a75706749778e9da`. Do not edit it. Each scientific
+The paper reference is the `src/` tree of commit
+`b15a0ff7c1e6070265c36d80a75706749778e9da`. It is extracted automatically to
+`scratch/equiv_dens_ml-paper-reference` when missing (`ensure_reference_source`
+in `benchmarks/fixtures.py`), or set `DENSNET_REFERENCE_ROOT` to an existing
+checkout of that commit. Do not edit it. Each scientific
 source arm imports in a fresh process; full-model provenance checks every import
 path and saves source/input/state hashes. Local component adapters explicitly
 state which neighboring code is shared to isolate one worker.
-
-For a fresh checkout, create that source reference before running these tests:
-
-```bash
-GIT_LFS_SKIP_SMUDGE=1 git worktree add --detach ../equiv_dens_ml-paper-reference \
-  b15a0ff7c1e6070265c36d80a75706749778e9da
-```
 
 The reference source and generated test inputs suffice for numerical tests.
 Fixtures, reference arrays and timing records are generated locally. Historical
@@ -35,7 +31,7 @@ On an established compute allocation, use the qualified runtime wrapper:
 ```bash
 DENSNET_NUM_THREADS=1 tools/runtime/run.sh torch python -m pytest tests/performance_contracts -q -ra
 tools/runtime/run.sh torch python -m benchmarks.pipeline \
-  --source-root /home/johannes/equiv_dens_ml-paper-reference \
+  --source-root scratch/equiv_dens_ml-paper-reference \
   generate --dtype float32 --output /absolute/output/fixture.pt
 ```
 

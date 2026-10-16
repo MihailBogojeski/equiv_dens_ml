@@ -3,6 +3,12 @@ import pytest
 import torch
 
 
+@pytest.fixture(autouse=True, scope="session")
+def reference_source():
+    from benchmarks.fixtures import ensure_reference_source
+    ensure_reference_source()
+
+
 @pytest.fixture(autouse=True)
 def full_precision_contracts():
     from benchmarks.precision import use_full_precision

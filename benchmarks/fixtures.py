@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import hashlib
 import importlib
+import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -14,6 +16,21 @@ import torch
 
 MODES = ("coefficients", "density", "ef", "force_training")
 CASES = ("tiny", "batch", "wide")
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+REFERENCE_COMMIT = "b15a0ff7c1e6070265c36d80a75706749778e9da"
+REFERENCE_ROOT = Path(os.environ.get("DENSNET_REFERENCE_ROOT", REPO_ROOT / "scratch" / "equiv_dens_ml-paper-reference"))
+
+
+def ensure_reference_source(root=REFERENCE_ROOT):
+    """Extract src/ of the paper-reference commit into root if it is missing."""
+    root = Path(root)
+    if not (root / "src" / "equiv_dens").is_dir():
+        root.mkdir(parents=True, exist_ok=True)
+        archive = subprocess.run(["git", "-C", REPO_ROOT, "archive", REFERENCE_COMMIT, "src"],
+                                 capture_output=True, check=True).stdout
+        subprocess.run(["tar", "-x", "-C", root], input=archive, check=True)
+    return root
 
 
 def select_source(root):

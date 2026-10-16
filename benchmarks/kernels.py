@@ -15,7 +15,7 @@ from benchmarks.timing import paired_benchmark
 from equiv_dens.nn.modules.clebsch_gordan import ClebschGordanMatrix
 from benchmarks import experimental_kernels as candidate
 
-REFERENCE_ROOT = Path(os.environ.get('DENSNET_REFERENCE_ROOT', '/home/johannes/equiv_dens_ml-paper-reference'))
+from benchmarks.fixtures import REFERENCE_ROOT
 
 
 def load_reference(root=REFERENCE_ROOT):
