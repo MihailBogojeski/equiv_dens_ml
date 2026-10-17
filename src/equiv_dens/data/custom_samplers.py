@@ -269,12 +269,10 @@ class PrefetchIterator:
         use_cuda = torch.cuda.is_available()
         if use_cuda:
             stream = torch.cuda.Stream()
-            cp_stream = None
             if base_utils.USE_GPU4PYSCF:
                 import equiv_dens.compat  # noqa: F401  (before cupy)
                 import cupy as cp
-                cp_stream = cp.cuda.Stream(non_blocking=True)
-                cp_stream.use()
+                cp.cuda.ExternalStream(stream.cuda_stream).use()  # cupy and torch share the producer stream
         while not self.stop.is_set():
             try:
                 if use_cuda:
@@ -284,8 +282,6 @@ class PrefetchIterator:
                             if isinstance(data[key], torch.Tensor):
                                 data[key] = data[key].cuda(non_blocking=True)
                     stream.synchronize()
-                    if cp_stream is not None:
-                        cp_stream.synchronize()
                 else:
                     data = next(iterator)
             except StopIteration:
