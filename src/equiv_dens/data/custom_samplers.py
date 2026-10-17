@@ -3,7 +3,6 @@ import threading
 import torch
 from torch.utils.data import Sampler, Dataset
 import numpy as np
-from equiv_dens.utils import base as base_utils
 from typing import Iterator, List, Iterable, Union
 
 
@@ -257,33 +256,24 @@ def set_up_data_loader(dataset: Dataset, batch_size: int = 1,
 
 
 class PrefetchIterator:
-    """Produces batches of `loader` in a background thread (own CUDA streams) while the main thread trains."""
+    """Produces batches of `loader` in a background thread while the main thread trains.
+
+    The thread uses the default CUDA stream (like the main thread), because gpu4pyscf launches its
+    kernels there; this keeps all GPU work ordered, only the CPU side of batch preparation overlaps.
+    """
 
     def __init__(self, loader, depth=2):
         self.queue = queue.Queue(maxsize=depth)
-        self.stop = threading.Event()
         self.thread = threading.Thread(target=self._produce, args=(iter(loader),), daemon=True)
         self.thread.start()
 
     def _produce(self, iterator):
-        use_cuda = torch.cuda.is_available()
-        if use_cuda:
-            stream = torch.cuda.Stream()
-            if base_utils.USE_GPU4PYSCF:
-                import equiv_dens.compat  # noqa: F401  (before cupy)
-                import cupy as cp
-                cp.cuda.ExternalStream(stream.cuda_stream).use()  # cupy and torch share the producer stream
-        while not self.stop.is_set():
+        while True:
             try:
-                if use_cuda:
-                    with torch.cuda.stream(stream):
-                        data = next(iterator)
-                        for key in data.keys():
-                            if isinstance(data[key], torch.Tensor):
-                                data[key] = data[key].cuda(non_blocking=True)
-                    stream.synchronize()
-                else:
-                    data = next(iterator)
+                data = next(iterator)
+                for key in data.keys():
+                    if isinstance(data[key], torch.Tensor) and torch.cuda.is_available():
+                        data[key] = data[key].cuda(non_blocking=True)
             except StopIteration:
                 self.queue.put(None)
                 return
@@ -293,10 +283,6 @@ class PrefetchIterator:
         data = self.queue.get()
         if data is None:
             raise StopIteration
-        if torch.cuda.is_available():
-            for value in data.values():
-                if isinstance(value, torch.Tensor) and value.is_cuda:
-                    value.record_stream(torch.cuda.current_stream())
         return data
 
     def __iter__(self):
