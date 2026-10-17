@@ -2,6 +2,7 @@ import os
 import torch
 import math
 import time
+from equiv_dens.data.custom_samplers import PrefetchIterator
 from equiv_dens.training.exponential_moving_average import ExponentialMovingAverage
 import sys
 import wandb
@@ -268,7 +269,7 @@ class Trainer:
         self.train_batch_num = -1
         # initialize state
         self._module.train()
-        self.train_iterator = iter(self.train_loader)
+        self.train_iterator = self._make_train_iterator()
         new_valid = False
         new_best = False
         stop_patience_count = 0
@@ -339,13 +340,18 @@ class Trainer:
                       str(self.stop_at_learning_rate) + "! Training stopped.")
                 break
 
+    def _make_train_iterator(self):
+        if self.args.prefetch_batches > 0:
+            return PrefetchIterator(self.train_loader, self.args.prefetch_batches)
+        return iter(self.train_loader)
+
     def _train_step(self, use_gpu, backprop=True):
         start = time.time()
         try:
             data = next(self.train_iterator)
         except StopIteration:
             self.epoch += 1
-            self.train_iterator = iter(self.train_loader)
+            self.train_iterator = self._make_train_iterator()
             return
         self.train_batch_num += 1
         # print('train loading time', time.time() - start_load)
@@ -446,7 +452,7 @@ class Trainer:
             # apply gradient clipping
             if self.clip_norm > 0:
                 norm = torch.nn.utils.clip_grad_norm_(
-                    self._module.parameters(), self.clip_norm)
+                    self._module.parameters(), self.clip_norm, foreach=True)
                 self.gradient_norm += (norm - self.gradient_norm) / (self.train_batch_num + 1)
 
             # optimization step
