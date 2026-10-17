@@ -328,10 +328,10 @@ if args.optimizer == 'adam':  # Adam
 elif args.optimizer == 'amsgrad':  # AMSGrad
     print("using AMSGrad optimizer")
     optimizers.append(torch.optim.Adam(parameter_list, lr=args.learning_rate, eps=args.epsilon, betas=(
-        args.beta1, args.beta2), weight_decay=0.0, amsgrad=True))
+        args.beta1, args.beta2), weight_decay=0.0, amsgrad=True, fused=True))
     if args.energy_offset:
         optimizers.append(torch.optim.Adam(offset_param, lr=100 * args.learning_rate, eps=args.epsilon, betas=(
-            args.beta1, args.beta2), weight_decay=0.0, amsgrad=True))
+            args.beta1, args.beta2), weight_decay=0.0, amsgrad=True, fused=True))
 elif args.optimizer == 'sgd':  # Stochastic Gradient Descent
     print("using Stochastic Gradient Descent optimizer")
     optimizers.append(torch.optim.SGD(

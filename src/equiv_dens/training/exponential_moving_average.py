@@ -33,8 +33,9 @@ class ExponentialMovingAverage():
             alpha = (1 - self.decay)
         else:
             alpha = 1
-        #apply averaging
-        for name, param in self.model.named_parameters():
-            if param.requires_grad:
-                with torch.no_grad():
-                    self.ema[name].data -= alpha * (self.ema[name] - param.data)
+        #apply averaging (lists are built per call since swap()/overwrite() replace the tensors)
+        names = [name for name, param in self.model.named_parameters() if param.requires_grad]
+        ema_list = [self.ema[name] for name in names]
+        param_list = [param.data for name, param in self.model.named_parameters() if param.requires_grad]
+        with torch.no_grad():
+            torch._foreach_lerp_(ema_list, param_list, alpha)
