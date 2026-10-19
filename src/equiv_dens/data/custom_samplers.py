@@ -1,3 +1,5 @@
+import queue
+import threading
 import torch
 from torch.utils.data import Sampler, Dataset
 import numpy as np
@@ -251,3 +253,37 @@ def set_up_data_loader(dataset: Dataset, batch_size: int = 1,
                                                   shuffle=shuffle,
                                                   collate_fn=collate_fn)
     return data_loader
+
+
+class PrefetchIterator:
+    """Produces batches of `loader` in a background thread while the main thread trains.
+
+    The thread uses the default CUDA stream (like the main thread), because gpu4pyscf launches its
+    kernels there; this keeps all GPU work ordered, only the CPU side of batch preparation overlaps.
+    """
+
+    def __init__(self, loader, depth=2):
+        self.queue = queue.Queue(maxsize=depth)
+        self.thread = threading.Thread(target=self._produce, args=(iter(loader),), daemon=True)
+        self.thread.start()
+
+    def _produce(self, iterator):
+        while True:
+            try:
+                data = next(iterator)
+                for key in data.keys():
+                    if isinstance(data[key], torch.Tensor) and torch.cuda.is_available():
+                        data[key] = data[key].cuda(non_blocking=True)
+            except StopIteration:
+                self.queue.put(None)
+                return
+            self.queue.put(data)
+
+    def __next__(self):
+        data = self.queue.get()
+        if data is None:
+            raise StopIteration
+        return data
+
+    def __iter__(self):
+        return self

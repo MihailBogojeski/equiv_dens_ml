@@ -164,6 +164,8 @@ def parse_command_line_arguments(arg_file=None):
     args_training.add_argument("--batch_efficiency", metavar='FLOAT', type=float, default=0.7,
                                help="Efficiency of batching based on number of electrons, expressed as the fraction of non-padded entries.")
     args_training.add_argument("--num_workers", metavar='INT', type=int, default=0, help="number of worker threads for preparing batches")
+    args_training.add_argument("--prefetch_batches", metavar='INT', type=int, default=2,
+                               help="prepare this many training batches ahead in a background thread (0 = off)")
     args_training.add_argument("--split_seed", metavar='INT', type=int, default=42,
                                help="seed for splitting the dataset in training, validation and test sets")
     args_training.add_argument("--optimizer", metavar='adam|amsgrad|sgd', type=str, default='sgd',
