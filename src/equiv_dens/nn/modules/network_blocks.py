@@ -96,11 +96,11 @@ class ModularBlock(nn.Module):
             parity=parity,
         )
 
-    def forward(self, xs, rbf, sph, idx_i, idx_j):
-        xs = self.residual_pre_x(xs)
-        xs = self.interaction(xs, rbf, sph, idx_i, idx_j)
-        xs = self.residual_post_x(xs)
-        ys = self.residual_out(xs)
+    def forward(self, xs, rbf, sph, idx_i, idx_j, seg=None):
+        xs = self.residual_pre_x(xs, seg)
+        xs = self.interaction(xs, rbf, sph, idx_i, idx_j, seg)
+        xs = self.residual_post_x(xs, seg)
+        ys = self.residual_out(xs, seg)
         return xs, ys
 
 
@@ -268,22 +268,22 @@ class InteractionBlock(nn.Module):
         for L in range(self.order + 1):
             nn.init.orthogonal_(self.radial_fn[L].weight)
 
-    def forward(self, xs, rbf, sph, idx_i, idx_j):
+    def forward(self, xs, rbf, sph, idx_i, idx_j, seg=None):
         # path for atoms i
-        yi = self.residual_pre_vi(xs)
+        yi = self.residual_pre_vi(xs, seg)
         yi = apply_L0(self.activation_i, yi)
         if self.normalize > 1:
-            yi = layer_norm_orders(yi)
+            yi = layer_norm_orders(yi, seg)
         yi = self.linear_i(yi)
         yi = fit_orders(yi, (self.mixing_order + 1) ** 2)
 
         # path for atoms j
-        yj = self.residual_pre_vj(xs)
+        yj = self.residual_pre_vj(xs, seg)
         yj = apply_L0(self.activation_j, yj)
         if self.normalize == 1:
-            yj = apply_L0(lambda t: layer_norm(t, dims=(-3, -2, -1)), yj)
+            yj = apply_L0(lambda t: layer_norm_orders(t, seg), yj)
         elif self.normalize > 1:
-            yj = layer_norm_orders(yj)
+            yj = layer_norm_orders(yj, seg)
         yj = self.linear_j(yj)
         # interaction function
         yj = yj.index_select(1, idx_j)
@@ -308,12 +308,12 @@ class InteractionBlock(nn.Module):
             vs = yi.index_add(1, idx_i, vs)
 
         if self.normalize > 1:
-            vs = layer_norm_orders(vs)
+            vs = layer_norm_orders(vs, seg)
         if self.mixing_order != self.order:
             vs = self.linear_contract(vs)
 
         # interaction refinement
-        vs = self.residual_post_v(vs)
+        vs = self.residual_post_v(vs, seg)
         vs = apply_L0(self.activation_v, vs)
         vs = self.linear_v(vs)
         return fit_orders(xs, vs.shape[-2]) + vs
@@ -461,14 +461,14 @@ class NonmixingInteractionBlock(nn.Module):
         for L in range(self.order + 1):
             nn.init.orthogonal_(self.radial_fn[L].weight)
 
-    def forward(self, xs, rbf, sph, idx_i, idx_j):
+    def forward(self, xs, rbf, sph, idx_i, idx_j, seg=None):
         # path for atoms j
-        yj = self.residual_pre_vj(xs)
+        yj = self.residual_pre_vj(xs, seg)
         yj = apply_L0(self.activation_j, yj)
         if self.normalize == 1:
-            yj = apply_L0(lambda t: layer_norm(t, dims=(-3, -2, -1)), yj)
+            yj = apply_L0(lambda t: layer_norm_orders(t, seg), yj)
         elif self.normalize > 1:
-            yj = layer_norm_orders(yj)
+            yj = layer_norm_orders(yj, seg)
         yj = self.linear_j(yj)
         # interaction function
         yj = yj.index_select(1, idx_j)
@@ -491,7 +491,7 @@ class NonmixingInteractionBlock(nn.Module):
             vs = vs * norm_sph / self.num_neighbours
         vs = self.linear_v(vs)
         if self.residual:
-            vs = self.residual_post_v(vs)
+            vs = self.residual_post_v(vs, seg)
             vs = apply_L0(self.activation_v, vs)
             vs = self.linear_v(vs)
             return fit_orders(xs, vs.shape[-2]) + vs
@@ -536,9 +536,9 @@ class ResidualStack(nn.Module):
             ]
         )
 
-    def forward(self, xs):
+    def forward(self, xs, seg=None):
         for residual_block in self.stack:
-            xs = residual_block(xs)
+            xs = residual_block(xs, seg)
         return xs
 
 
@@ -606,41 +606,55 @@ class ResidualBlock(nn.Module):
     def reset_parameters(self):
         pass
 
-    def forward(self, xs):
+    def forward(self, xs, seg=None):
         ys = apply_L0(self.activation_pre, xs)
         ys = self.linear1(ys)
         ys = apply_L0(self.activation_post, ys)
         if self.normalize > 1:
-            ys = layer_norm_orders(ys)
+            ys = layer_norm_orders(ys, seg)
         ys = self.linear2(ys)
         xs = fit_orders(xs, ys.shape[-2])
         scale = order_scale(xs, ys, self.normalize)
         return ys * scale + xs * scale if self.normalize else ys + xs
 
 
-def layer_norm(x, dims):
-    x_mean = torch.mean(x, dim=dims, keepdim=True)
-    x_var = torch.var(x, dim=dims, keepdim=True)
-    positive = x_var > 0
-    x_std = torch.where(positive, torch.sqrt(torch.where(positive, x_var, torch.ones_like(x_var))), torch.zeros_like(x_var))
-    eps = 1e-8
-    return (x - x_mean) / (x_std + eps)
+class Identity(nn.Module):
+    def forward(self, xs, seg=None):
+        return xs
 
 
-def layer_norm_orders(x):
-    """layer_norm over (atoms, m, features) separately for every order of a packed tensor [B, N, D, F]."""
+def batch_segments(atoms):
+    """Molecule index of every atom of the packed batch and the number of molecules, for per-molecule statistics."""
+    return atoms['atom_batch_idx'][0], atoms['batch_atom_numbers'].shape[0]
+
+
+def layer_norm_orders(x, seg=None):
+    """layer_norm over (atoms, m, features) separately for every order of a packed tensor [B, N, D, F], and for every
+    molecule if seg = (molecule index of every atom [N], number of molecules) is given."""
     D = x.shape[-2]
     l = l_of_m(D, x.device)
     nL = order_of(D) + 1
     n = torch.zeros(nL, device=x.device, dtype=x.dtype).index_add(0, l, torch.ones(D, device=x.device, dtype=x.dtype))
-    n = n * (x.shape[-3] * x.shape[-1])
+    if seg is None:
+        n = n * (x.shape[-3] * x.shape[-1])
 
-    def per_order_sum(t):
-        return torch.zeros(t.shape[0], nL, device=x.device, dtype=x.dtype).index_add(1, l, t.sum(dim=(-3, -1)))
+        def per_order_sum(t):
+            return torch.zeros(t.shape[0], nL, device=x.device, dtype=x.dtype).index_add(1, l, t.sum(dim=(-3, -1)))
+
+        expand = lambda t: t[:, l][:, None, :, None]
+    else:
+        mol, n_mol = seg
+        n = torch.zeros(n_mol, device=x.device, dtype=x.dtype).index_add(0, mol, torch.ones_like(mol, dtype=x.dtype))[:, None] * n * x.shape[-1]
+
+        def per_order_sum(t):
+            per_atom = torch.zeros(*t.shape[:2], nL, device=x.device, dtype=x.dtype).index_add(2, l, t.sum(dim=-1))
+            return torch.zeros(t.shape[0], n_mol, nL, device=x.device, dtype=x.dtype).index_add(1, mol, per_atom)
+
+        expand = lambda t: t[:, mol][:, :, l, None]
 
     mean = per_order_sum(x) / n
-    xc = x - mean[:, l][:, None, :, None]
+    xc = x - expand(mean)
     var = per_order_sum(xc * xc) / (n - 1)
     positive = var > 0
     std = torch.where(positive, torch.sqrt(torch.where(positive, var, torch.ones_like(var))), torch.zeros_like(var))
-    return xc / (std[:, l][:, None, :, None] + 1e-8)
+    return xc / (expand(std) + 1e-8)

@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from equiv_dens.nn.modules.network_blocks import ModularBlock, ResidualBlock, layer_norm_orders
+from equiv_dens.nn.modules.network_blocks import ModularBlock, ResidualBlock, Identity, layer_norm_orders, batch_segments
 from equiv_dens.nn.modules.radial_basis_functions import BernsteinRadialBasisFunctions,\
     GaussianRadialBasisFunctions, ExponentialBernsteinRadialBasisFunctions, ExponentialGaussianRadialBasisFunctions
 from equiv_dens.nn.modules.activations import Swish, ShiftedSoftplus
@@ -232,7 +232,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
                                                    activation=self.activation,
                                                    order_out=0, normalize=normalize,
                                                    parity=parity)
-            self.order_change.append(nn.Identity())
+            self.order_change.append(Identity())
         elif self.orbitals_max_order != self._order[0]:
             print('orbitals max order', self.orbitals_max_order)
             self.order_change.append(ResidualBlock(self.orbitals_max_order, self.num_features,
@@ -241,7 +241,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
                                                    order_out=self._order[0], normalize=normalize,
                                                    parity=parity))
         else:
-            self.order_change.append(nn.Identity())
+            self.order_change.append(Identity())
         for i in range(1, self.num_modules):
             if self._order[i] != self._order[i - 1]:
                 self.order_change.append(ResidualBlock(self._order[i - 1], self.num_features,
@@ -250,7 +250,7 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
                                                        order_out=self._order[i], normalize=normalize,
                                                        parity=parity))
             else:
-                self.order_change.append(nn.Identity())
+                self.order_change.append(Identity())
         self.order_change = nn.ModuleList(self.order_change)
 
         if self.activation == 'swish':
@@ -309,16 +309,17 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
 
         xs = torch.cat([self.input_layer[L](xs[L]) for L in range(len(xs))], dim=-2)
 
+        seg = batch_segments(atoms)
         if self.L0_start:
-            xs = self.L0_change(xs)
+            xs = self.L0_change(xs, seg)
 
         if self.normalize > 1 or self.L0_start:
-            xs = layer_norm_orders(xs)
+            xs = layer_norm_orders(xs, seg)
         # perform iterations over modular building blocks to get environment - dependent features
         fs = None
         for i, module in enumerate(self.module):
-            xs = self.order_change[i](xs)
-            xs, ys = module(xs, rbf, sph, idx_i, idx_j)
+            xs = self.order_change[i](xs, seg)
+            xs, ys = module(xs, rbf, sph, idx_i, idx_j, seg)
             fs = accumulate_features(fs, ys, self.normalize)
         fs = apply_L0(self.out_activation, fs)
 
@@ -740,7 +741,7 @@ class SphericalHarmonicsEmbeddingEnergyNetwork(nn.Module):
                                                    order_out=self.order[0], normalize=normalize,
                                                    parity=parity))
         else:
-            self.order_change.append(nn.Identity())
+            self.order_change.append(Identity())
         for i in range(1, self.num_modules):
             if self.order[i] != self.order[i - 1]:
                 self.order_change.append(ResidualBlock(self.order[i - 1], self.num_features,
@@ -749,7 +750,7 @@ class SphericalHarmonicsEmbeddingEnergyNetwork(nn.Module):
                                                        order_out=self.order[i], normalize=normalize,
                                                        parity=parity))
             else:
-                self.order_change.append(nn.Identity())
+                self.order_change.append(Identity())
         self.order_change = nn.ModuleList(self.order_change)
 
         if self.activation == 'swish':
@@ -797,14 +798,15 @@ class SphericalHarmonicsEmbeddingEnergyNetwork(nn.Module):
         D = min(xs.shape[-2], sum(2 * L + 1 for L in range(len(dens_fs))))
         dens_fs = torch.cat([self.input_layer[L](dens_fs[L]) for L in range(len(dens_fs))], dim=-2)
 
+        seg = batch_segments(atoms)
         if self.normalize > 1:
-            dens_fs = layer_norm_orders(dens_fs)
+            dens_fs = layer_norm_orders(dens_fs, seg)
 
         xs = xs[..., :D, :] + dens_fs[..., :D, :]
         fs = xs
         for i, module in enumerate(self.module):
-            xs = self.order_change[i](xs)
-            xs, ys = module(xs, rbf, sph, idx_i, idx_j)
+            xs = self.order_change[i](xs, seg)
+            xs, ys = module(xs, rbf, sph, idx_i, idx_j, seg)
             fs = accumulate_features(fs, ys, self.normalize)
         fs = apply_L0(self.out_activation, fs)
 
