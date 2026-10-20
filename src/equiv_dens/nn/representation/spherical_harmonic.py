@@ -3,7 +3,7 @@ import torch.nn as nn
 from equiv_dens.nn.modules.radial_basis_functions import BernsteinRadialBasisFunctions, GaussianRadialBasisFunctions,\
     ExponentialBernsteinRadialBasisFunctions, ExponentialGaussianRadialBasisFunctions
 from equiv_dens.nn.modules.embeddings import SphericalEmbedding
-from equiv_dens.nn.modules.network_blocks import ModularBlock, ResidualBlock, NonmixingInteractionBlock
+from equiv_dens.nn.modules.network_blocks import ModularBlock, ResidualBlock, NonmixingInteractionBlock, Identity, batch_segments
 from equiv_dens.nn.modules.spherical_harmonic_layers import SphericalLinear, order_scale
 from equiv_dens.utils.spherical_harmonics import spherical_harmonics
 from equiv_dens.utils.base import calculate_distances_and_directions
@@ -172,7 +172,7 @@ class EquivariantSphericalHarmonics(nn.Module):
                                      activation=self.activation, num_neighbours=self.num_neighbours,
                                      normalize=normalize, parity=parity) for i in range(1, self.num_modules)])
         self.module = nn.ModuleList(modules)
-        self.order_change = [nn.Identity()]
+        self.order_change = [Identity()]
         for i in range(1, self.num_modules):
             if self.order[i] != self.order[i - 1]:
                 self.order_change.append(ResidualBlock(order=self.order[i - 1], num_features=self.num_features,
@@ -181,7 +181,7 @@ class EquivariantSphericalHarmonics(nn.Module):
                                                        order_out=self.order[i], normalize=normalize,
                                                        parity=parity))
             else:
-                self.order_change.append(nn.Identity())
+                self.order_change.append(Identity())
         self.order_change = nn.ModuleList(self.order_change)
         if self.nonmixing_interaction:
             self.nonmixing_interaction_block = NonmixingInteractionBlock(order=self.order[-1],
@@ -227,9 +227,10 @@ class EquivariantSphericalHarmonics(nn.Module):
 
         # perform iterations over modular building blocks to get environment - dependent features
         fs = torch.zeros_like(xs)  # output features
+        seg = batch_segments(atoms)
         for i, module in enumerate(self.module):
-            xs = self.order_change[i](xs)
-            xs, ys = module(xs, rbf, sph, idx_i, idx_j)
+            xs = self.order_change[i](xs, seg)
+            xs, ys = module(xs, rbf, sph, idx_i, idx_j, seg)
             D = ys.shape[-2]
             fs_low = fs[..., :D, :]
             scale = order_scale(fs_low, fs_low, self.normalize)
@@ -240,7 +241,7 @@ class EquivariantSphericalHarmonics(nn.Module):
                 print('Memory allocated', torch.cuda.memory_allocated() / 1024**2)
                 print('Memory cached', torch.cuda.memory_cached() / 1024**2)
         if self.nonmixing_interaction:
-            fs = self.nonmixing_interaction_block(fs, rbf, sph, idx_i, idx_j)
+            fs = self.nonmixing_interaction_block(fs, rbf, sph, idx_i, idx_j, seg)
         atoms['sph_repr'] = fs
         if self.memory:
             print('repr forward end:')

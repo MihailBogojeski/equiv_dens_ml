@@ -55,14 +55,14 @@ class MDConsoleLogger(SimulationHook):
         system = simulator.system
         step = simulator.step
 
-        # Energies: E_pot already in user units, E_kin in internal (kJ/mol)
-        e_pot = system.energy.detach().cpu().squeeze().item()
-        e_kin_internal = system.kinetic_energy.detach().cpu().squeeze().item()
+        # Energies: E_pot already in user units, E_kin in internal (kJ/mol); averaged over molecules
+        e_pot = system.energy.detach().cpu().mean().item()
+        e_kin_internal = system.kinetic_energy.detach().cpu().mean().item()
         e_kin = e_kin_internal * self._kinetic_to_display
         e_tot = e_pot + e_kin
 
         # Temperature (Kelvin)
-        t_k = system.temperature.detach().cpu().squeeze().item()
+        t_k = system.temperature.detach().cpu().mean().item()
 
         # Time in ps
         time_ps = step * self.time_step_fs / 1000.0
