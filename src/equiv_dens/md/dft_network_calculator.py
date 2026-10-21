@@ -160,6 +160,11 @@ class DFTNetworkCalculator(MDCalculator):
         results['radial_width'] = vector_coeffs['radial_width']
         results['radial_scale'] = vector_coeffs['radial_scale']
         results = utils.batch_compressed_atoms(results, ['positions', 'forces'])
+        if 'forces' in results:
+            # packed (element-grouped) order -> system atom order
+            forces = results['forces'].masked_fill(~self._unpack_mask.unsqueeze(-1), 0)
+            idx = self._unpack_idx.unsqueeze(-1).expand_as(forces)
+            results['forces'] = torch.zeros_like(forces).scatter_add_(1, idx, forces)
         self.results = {}
         for p in self.required_properties:
             if p not in results:
@@ -211,11 +216,15 @@ class DFTNetworkCalculator(MDCalculator):
                 layout = utils.TorchAtomBatchLayout(atom_types, positions.dtype, positions.device)
                 self._geometry_layout = layout
             atom_numbers = layout.numpy_numbers
+            self._unpack_idx, self._unpack_mask = layout.gather_indices, layout.mask
             # Preserve the original MD adapter's detached coordinate boundary.
             positions = layout.pack_positions(positions - center.unsqueeze(1)).detach()
         else:
-            props = {'positions': (positions - center.unsqueeze(1)).cpu().numpy()}
+            props = {'positions': (positions - center.unsqueeze(1)).cpu().numpy(),
+                     'indices': np.broadcast_to(np.arange(natoms), atom_types.shape)}
             atom_numbers, props = utils.compress_batch_atoms(atom_types.cpu().numpy(), props)
+            self._unpack_idx = torch.from_numpy(props['indices']).long().to(positions.device)
+            self._unpack_mask = torch.from_numpy(atom_numbers > 0).to(positions.device)
             positions = torch.from_numpy(props['positions']).to(positions)
         inputs = {}
         if self.density_expansion:
