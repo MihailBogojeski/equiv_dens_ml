@@ -126,6 +126,7 @@ def run_molecular_dynamics(args, dataset, model, directory=None, model_code=None
         use_fast_inference=getattr(args, 'use_fast_inference', False),
         compile_model=getattr(args, 'compile_model', False),
         static_compile=getattr(args, 'static_compile', False),
+        geometry_backend=args.geometry_backend,
     )
 
     simulation_hooks = []
