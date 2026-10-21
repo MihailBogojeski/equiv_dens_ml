@@ -2,6 +2,7 @@
 import equiv_dens.compat  # noqa: F401 - apply T_co patch before schnetpack import
 
 import os
+import h5py
 import torch
 from equiv_dens.training.parse_command_line_arguments import parse_command_line_arguments
 from equiv_dens.data.density_dataset import AtomsDensityData
@@ -11,6 +12,7 @@ import equiv_dens.utils.base as utils
 from equiv_dens.training.model_loader import load_model
 from equiv_dens.md.dft_network_calculator import DFTNetworkCalculator
 from equiv_dens.md.md_console_logger import MDConsoleLogger
+from equiv_dens.md.hdf5_utils import clear_status_flags
 
 import numpy as np
 from functools import partial
@@ -207,7 +209,13 @@ def run_molecular_dynamics(args, dataset, model, directory=None, model_code=None
 
     if os.path.exists(chk_file):
         print('restarting past model')
-        state_dict = torch.load(chk_file, weights_only=False)
+        state_dict = torch.load(chk_file, weights_only=False, map_location='cpu')
+        if os.path.exists(log_file):
+            # a killed writer leaves the "open for write" flag set and frames past the last checkpoint
+            clear_status_flags(log_file)
+            with h5py.File(log_file, 'a') as f:
+                for g in f.values():
+                    g.attrs['entries'] = min(g.attrs['entries'], state_dict['step'] // log_every_n)
         md_simulator.restart_simulation(state_dict)
     if args.use_gpu:
         md_simulator = md_simulator.to('cuda')
@@ -327,7 +335,8 @@ if __name__ == "__main__":
     model = load_model(args, dataset)
 
     print('model is loaded')
-    args.md_log_dir = os.path.join(args.log_dir, 'md_logs', args.restart.split('/')[-1])
+    if args.md_log_dir is None:
+        args.md_log_dir = os.path.join(args.log_dir, 'md_logs', args.restart.split('/')[-1])
     if not os.path.exists(args.md_log_dir):
         os.makedirs(args.md_log_dir)
 
