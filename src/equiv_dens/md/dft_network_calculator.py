@@ -164,7 +164,7 @@ class DFTNetworkCalculator(MDCalculator):
             # packed (element-grouped) order -> system atom order
             forces = results['forces'].masked_fill(~self._unpack_mask.unsqueeze(-1), 0)
             idx = self._unpack_idx.unsqueeze(-1).expand_as(forces)
-            results['forces'] = torch.zeros_like(forces).scatter_add_(1, idx, forces)
+            results['forces'] = forces.new_zeros(forces.shape[0], self._natoms, 3).scatter_add_(1, idx, forces)
         self.results = {}
         for p in self.required_properties:
             if p not in results:
@@ -205,6 +205,7 @@ class DFTNetworkCalculator(MDCalculator):
             positions = positions.cuda()
             atom_types = atom_types.cuda()
         natoms = int(sys_mols[properties.n_atoms][0])
+        self._natoms = natoms
         positions = positions.view(-1, natoms, 3)
         atom_types = atom_types.view(-1, natoms)
         center = torch.sum(positions * atom_types.unsqueeze(-1), 1) / torch.sum(atom_types, 1).unsqueeze(-1)
