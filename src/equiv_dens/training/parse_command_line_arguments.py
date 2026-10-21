@@ -386,6 +386,9 @@ def parse_command_line_arguments(arg_file=None):
                                  help="If true start new simulation, otherwise continue previous one.")
     args_simulation.add_argument("--log_dir", metavar='STR', default='scratch', type=str,
                                  help="Path to simulation and logs directory (default: scratch).")
+    args_simulation.add_argument("--md_log_dir", metavar='STR', type=str, default=None,
+                                 help="Directory for the MD .hdf5/.chk files (default: <log_dir>/md_logs/<restart dir name>). "
+                                      "Point it at an earlier run's MD log dir to continue that trajectory from its .chk.")
     args_simulation.add_argument("--log_suffix", metavar='STR', default='', type=str, help="Suffix for the log file.")
     args_simulation.add_argument("--md_steps", metavar='INT', type=int, default=100,
                                  help="Number of molecular dynamic steps.")
