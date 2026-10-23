@@ -121,7 +121,7 @@ def run_molecular_dynamics(args, dataset, model, directory=None, model_code=None
         atom_dens_type=args.atom_dens_type,
         remove_atom_density=args.remove_atom_density,
         dpm_intor=getattr(args, 'dpm_intor', False),
-        enable_tf32=getattr(args, 'enable_tf32', True),
+        enable_tf32=getattr(args, 'enable_tf32', False),
         enable_inference_mode=getattr(args, 'enable_inference_mode', True),
         cache_grid=getattr(args, 'cache_grid', True),
         grid_cache_threshold=getattr(args, 'grid_cache_threshold', 0.1),

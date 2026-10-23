@@ -412,8 +412,8 @@ def parse_command_line_arguments(arg_file=None):
                                  help="Write positions/dipoles to HDF5 every N steps (default 1). Use 4 for 4 fs spacing at 1 fs timestep.")
     args_simulation.add_argument("--dipole_every_n_steps", metavar='INT', type=int, default=10,
                                  help="Compute dipole every N MD steps when using dpm_intor (default 10, use 1 for every step).")
-    args_simulation.add_argument("--enable_tf32", metavar='True|False', type=str2bool, default=True,
-                                 choices=[True, False], help="Enable TF32 for faster GPU matmul (default: True).")
+    args_simulation.add_argument("--enable_tf32", metavar='True|False', type=str2bool, default=False,
+                                 choices=[True, False], help="Enable TF32 for faster GPU matmul (default: False; TF32 noise through the energy head's signed-sqrt normalisation causes rare large force spikes in MD).")
     args_simulation.add_argument("--enable_inference_mode", metavar='True|False', type=str2bool, default=True,
                                  choices=[True, False], help="Use torch.inference_mode for faster inference (default: True).")
     args_simulation.add_argument("--cache_grid", metavar='True|False', type=str2bool, default=True,

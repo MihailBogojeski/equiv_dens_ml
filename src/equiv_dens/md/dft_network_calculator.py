@@ -39,7 +39,7 @@ class DFTNetworkCalculator(MDCalculator):
         atom_dens_type=None,
         remove_atom_density=False,
         dpm_intor=False,
-        enable_tf32=True,
+        enable_tf32=False,
         enable_inference_mode=True,
         cache_grid=True,
         grid_cache_threshold=0.1,
@@ -101,13 +101,13 @@ class DFTNetworkCalculator(MDCalculator):
         self._cached_positions = None
         self._cached_atom_density = None
         
-        # Apply TF32 optimization if enabled
-        if self.enable_tf32 and torch.cuda.is_available():
-            torch.backends.cuda.matmul.allow_tf32 = True
-            torch.backends.cudnn.allow_tf32 = True
-            if self.verbose > 0:
-                print("TF32 enabled for faster matrix operations")
-        
+        # Set TF32 explicitly (model_loader enables it globally at import)
+        torch.backends.cuda.matmul.allow_tf32 = self.enable_tf32
+        torch.backends.cudnn.allow_tf32 = self.enable_tf32
+        torch.set_float32_matmul_precision('high' if self.enable_tf32 else 'highest')
+        if self.verbose > 0:
+            print(f"TF32 {'enabled' if self.enable_tf32 else 'disabled'}")
+
         # Optional FastInferenceWrapper integration
         self.use_fast_inference = use_fast_inference
         self.compile_model = compile_model
