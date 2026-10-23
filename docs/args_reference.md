@@ -382,7 +382,7 @@ These options apply when running ML-enhanced molecular dynamics via the `md` sub
 | `--console_log_interval` | int | 100 | Print MD progress to the console every N steps. |
 | `--log_every_n_steps` | int | 1 | Write positions/dipoles to HDF5 every N steps (e.g. 4 for 4 fs spacing at 1 fs timestep). |
 | `--dipole_every_n_steps` | int | 10 | Compute the dipole every N MD steps when using `--dpm_intor`; use 1 for every step. |
-| `--enable_tf32` | bool | True | Enable TF32 for faster GPU matmul. |
+| `--enable_tf32` | bool | False | Enable TF32 for faster GPU matmul (off by default: TF32 noise causes rare large force spikes in MD). |
 | `--enable_inference_mode` | bool | True | Use `torch.inference_mode` for faster inference. |
 | `--cache_grid` | bool | True | Cache grid coordinates between MD steps. |
 | `--grid_cache_threshold` | float | 0.1 | Maximum position displacement (Angstrom) for which the cached grid is reused. |
