@@ -4,6 +4,16 @@ SE3-equivariant neural network for predicting molecular electron densities. The 
 
 Any publication that uses this code or its outputs should cite the associated manuscript (see [Citing this work](#citing-this-work)).
 
+## Repository organization
+
+The reusable implementation is in `src/equiv_dens/`; JACS campaign code is in
+`experiments/jacs_revision/`. Existing script and config paths remain compatible.
+See [the repository map](docs/repository_layout.md) for canonical locations and
+[the refactor workflow](docs/refactor/workflow.md) for validation and adoption gates.
+
+Use `python run.py experiment jacs list` to inspect the experiment interface.
+This lists tasks without running calculations or submitting scheduler jobs.
+
 ## Requirements
 
 - Python >= 3.10
@@ -252,11 +262,24 @@ See [docs/SETUP.md](docs/SETUP.md) for missing datasets, configs, and how to gen
 
 ## Git LFS and large datasets
 
-Large files (`*.npy`, `*.xyz`, `*.pth`, `*.pt`, `*.zip`) are stored with Git LFS. After cloning, run `git lfs pull` if files appear as pointers. See `.gitattributes` for patterns.
+Large paper-era trajectories and archives may still use Git LFS or external hosting.
+After cloning, run `git lfs pull` if pointer files remain. See [DATA.md](DATA.md)
+and `./scripts/download_data.sh` for Zenodo/Figshare assets.
 
-Some large trajectories (~9.7 GB) were moved off LFS to external hosting (Zenodo/Figshare). See [DATA.md](DATA.md) and run `./scripts/download_data.sh` to fetch them when needed.
+**Local-only (gitignored):** all `datasets/**/*.npy` label/basis arrays, revision
+campaign bulk under `datasets/revision/` (ORCA shards, assembled labels, QM7-X,
+OMol25 CSH HDF5, MD expansions), model checkpoints (`*.pth` / `*.pt`), training
+run directories, and raw `results/revision/` ORCA/MD/eval trees. Regenerate labels
+with `scripts/revision/` (SAD via `build_sad_prior.py`; QM7-X via
+`./scripts/setup_qm7x.sh`).
 
-If models are missing after clone, run `./scripts/setup_paper_models.sh` (requires zip archives in `paper/archives/` or set `ARCHIVES_DIR`). For QM7x, run `./scripts/setup_qm7x.sh` (zip may be in parent directory or `paper/archives/`).
+**Still tracked:** small authored campaign geometry inputs (`*.xyz`, manifest
+`*.json` under `datasets/revision/water_clusters/`, `water_ood/`, `malonaldehyde/`,
+`ood/`, `pbe0/`, and `omol_csh/manifests/`), plus compact analysis summaries
+(`results/revision/**/*.json|jsonl|md`).
+
+If models are missing after clone, run `./scripts/setup_paper_models.sh` (requires
+zip archives in `paper/archives/` or set `ARCHIVES_DIR`).
 
 ## Citing this work
 
