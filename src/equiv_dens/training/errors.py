@@ -74,7 +74,17 @@ class ErrorDict:
                     error_dict[key + "_mae"] = loss
                     error_dict[key + "_rmse"] = loss
                 else:
-                    diff = predictions[key] - (data[key])
+                    target = data[key]
+                    if key == "energy" and predictions[key].shape != target.shape:
+                        # The model returns (B, 1); the revision label files store
+                        # energies as (N,), so the subtraction broadcast to (B, B)
+                        # and scored every prediction against every label in the
+                        # batch, which made energies unlearnable.
+                        if predictions[key].numel() != target.numel():
+                            raise ValueError(f"energy predictions {tuple(predictions[key].shape)} and "
+                                             f"labels {tuple(target.shape)} differ in size")
+                        target = target.reshape(predictions[key].shape)
+                    diff = predictions[key] - target
                     if key == 'df_coeffs':
                         if self.df_loss_weights:
                             diff = diff * predictions['df_weights']
@@ -186,5 +196,22 @@ class ErrorDict:
             if self.loss_weights[key] > 0:
                 error_dict[key + "_mae"] = fill_value
                 error_dict[key + "_rmse"] = fill_value
+                error_dict[key + "_mse"] = fill_value
                 error_dict[key + "_loss"] = fill_value
         return error_dict
+
+
+def accumulate_running_errors(running: dict, batch: dict, n: int) -> dict:
+    """Update a running mean with one ``ErrorDict.compute`` result.
+
+    ``compute`` can emit keys that ``empty`` does not pre-allocate (density
+    extras, or a newly added metric). Missing keys are inserted rather than
+    raising, which is what killed energy test eval with ``energy_mse``.
+    """
+    for key, value in batch.items():
+        item = value.item() if hasattr(value, "item") else float(value)
+        if key not in running:
+            running[key] = item
+        else:
+            running[key] += (item - running[key]) / n
+    return running

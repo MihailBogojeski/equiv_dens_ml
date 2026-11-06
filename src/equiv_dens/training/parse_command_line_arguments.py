@@ -13,7 +13,7 @@ def str2bool(s):
         return s
 
 
-def parse_command_line_arguments(arg_file=None):
+def parse_command_line_arguments(arg_file=None, *, argv=None):
     # declare parser
     parser = argparse.ArgumentParser(fromfile_prefix_chars='@')
     parser._action_groups.pop()
@@ -24,6 +24,9 @@ def parse_command_line_arguments(arg_file=None):
                               help="restart training from the given folder (all other arguments are ignored)")
     args_restart.add_argument("--load_from", metavar='STR', type=str, default=None,
                               help="initialize model from given pth file (other architecture hyperparameters are ignored)")
+    args_restart.add_argument("--init_from", metavar='FOLDER', type=str, default=None,
+                              help="energy mode: start the energy head from this energy run's best checkpoint "
+                                   "(a new run with a fresh optimizer; density weights still come from --load_from)")
     args_restart.add_argument("--no_restore", metavar='True|False', type=str2bool, default=False,
                               choices=[True, False], help="Do not restore checkpoint.")
     args_restart.add_argument("--fix_arguments", metavar='True|False', type=str2bool, default=False,
@@ -168,6 +171,12 @@ def parse_command_line_arguments(arg_file=None):
                                help="prepare this many training batches ahead in a background thread (0 = off)")
     args_training.add_argument("--split_seed", metavar='INT', type=int, default=42,
                                help="seed for splitting the dataset in training, validation and test sets")
+    args_training.add_argument("--init_seed", metavar='INT', type=int, default=None,
+                               help="seed for weight initialisation and batch shuffling. Distinct from "
+                                    "--split_seed, which only chooses the train/valid/test partition: an "
+                                    "ensemble built by varying --split_seed measures sensitivity to the "
+                                    "split, not the run-to-run spread of the model. Unset keeps the "
+                                    "previous non-deterministic behaviour.")
     args_training.add_argument("--optimizer", metavar='adam|amsgrad|sgd', type=str, default='sgd',
                                choices=['adam', 'amsgrad', 'sgd'], help="optimizer used for training")
     args_training.add_argument("--lookahead_k", metavar='INT', type=int, default=5,
@@ -305,6 +314,9 @@ def parse_command_line_arguments(arg_file=None):
                                choices=[True, False], help="Use cubical densty grid for training.")
     args_training.add_argument("--cube_grid_valid", metavar='True|False', type=str2bool, default=False,
                                choices=[True, False], help="also use cube densty grid for validation.")
+    args_training.add_argument("--train_eval_size", metavar='INT', type=int, default=0,
+                               help="Score this many training structures like the validation set (EMA weights, "
+                                    "eval mode) at every validation, logged as *_train_eval; 0 disables.")
     args_training.add_argument("--cube_size", metavar='INT', type=int, default=50,
                                help="Size of the cubical grid")
     args_training.add_argument("--cube_extent", metavar='FLOAT', type=float, default=4.1483,
@@ -474,7 +486,7 @@ def parse_command_line_arguments(arg_file=None):
                            help="Timed iterations for benchmark")
 
     # actually parse command line arguments
-    if arg_file is None and len(sys.argv) == 1:  # no arguments were specified, print help message
+    if arg_file is None and not (sys.argv[1:] if argv is None else argv):  # no arguments were specified, print help message
         args = parser.parse_args(["--help"])
     else:
         if arg_file is not None:
@@ -482,7 +494,7 @@ def parse_command_line_arguments(arg_file=None):
                 args_str = f.read()
                 args = parser.parse_args(args_str.split())
         else:
-            args = parser.parse_args()
+            args = parser.parse_args(argv)
         # convert dtype argument to the proper torch type
         if args.dtype == 'torch.float32':
             args.dtype = torch.float32

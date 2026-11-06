@@ -5,6 +5,20 @@ from torch.utils._pytree import tree_leaves, tree_map
 from equiv_dens.utils.orbitals import CoeffsDict
 from equiv_dens.utils.scaling import UnitConversion, VarianceScaling
 
+# Grid-expanded density heads. Energy/forces already come from
+# ``density_repr_model`` features; these heads only need ``atoms['coords']``.
+_GRID_PROPERTIES = ("density", "core_density")
+
+
+def _skip_grid_property(key, atoms):
+    """True when a grid-expanded head cannot (and need not) run.
+
+    ASE energy/force calls do not attach an integration grid. Expanding ρ
+    on a DFT quadrature at every BFGS step is what made
+    ``relax_water_clusters.py`` take hours per frame.
+    """
+    return key in _GRID_PROPERTIES and "coords" not in atoms
+
 
 def exact_unbacked_output_strides():
     """Make inductor return graph outputs whose strides depend on data-dependent (unbacked) sizes with exactly the strides
@@ -302,7 +316,12 @@ class DFTNetwork(nn.Module):
             if self.calculate_forces:
                 atoms['positions'].requires_grad_(True)
             zs = atoms['batch_atom_numbers'].max(0)[0].tolist()
+            inputs = atoms
             atoms = self._core(atoms['positions'], atoms)[1][0]
+            # _core returns the tensor outputs only; inputs that are not tensors (the free-atom basis of the
+            # dipole head, grid specs) are not among them and the heads below still need them
+            for key, value in inputs.items():
+                atoms.setdefault(key, value)
         if self.coeffs_head is not None:
             # the tensor-only aux dict lost the lazy conversion of the packed coefficients, restore it
             atoms['slot_z'] = zs
@@ -311,6 +330,8 @@ class DFTNetwork(nn.Module):
         atoms['positions'].requires_grad_(False)
         if self.training:
             for key in self.no_force_props:
+                if _skip_grid_property(key, atoms):
+                    continue
                 atoms = self.property_models[key](atoms)
                 if key == 'density' and self.remove_atom_density:
                     atoms['density'] += atoms['atom_density']
@@ -323,6 +344,8 @@ class DFTNetwork(nn.Module):
         else:
             with torch.no_grad():
                 for key in self.no_force_props:
+                    if _skip_grid_property(key, atoms):
+                        continue
                     atoms = self.property_models[key](atoms)
                     if key == 'density' and self.remove_atom_density:
                         atoms['density'] += atoms['atom_density']
