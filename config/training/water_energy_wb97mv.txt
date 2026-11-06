@@ -1,0 +1,1 @@
+../../experiments/jacs_revision/config/training/water_energy_wb97mv.txt

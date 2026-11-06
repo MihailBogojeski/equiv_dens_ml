@@ -1,0 +1,16 @@
+--num_workers=4
+--energy_weight=0
+--forces_weight=0
+--density_loss_comp
+perc_mae
+--density_loss_comp_weights
+1.0
+--density_fine_tuning=True
+--density_loss_comp_ft
+perc_mae
+--density_loss_comp_ft_weights
+1.0
+--fine_tuning_lr_factor=0.1
+--fine_tuning_stop_lr_factor=0.1
+--integral_constraint=None
+--positive_coeffs=False

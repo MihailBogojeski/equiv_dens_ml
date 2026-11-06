@@ -1,0 +1,1 @@
+../../experiments/jacs_revision/slurm/submit_score_curve_ckpts.sbatch

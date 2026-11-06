@@ -1,0 +1,1 @@
+../../experiments/jacs_revision/config/training/ethanol_pbe0_001.txt
