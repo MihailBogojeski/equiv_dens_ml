@@ -28,19 +28,23 @@ from scipy.interpolate import BSpline
 _PATCHED_FLAG = "_equiv_dens_legacy_setstate"
 
 
-def enable_legacy_bspline_unpickling() -> None:
+def enable_legacy_bspline_unpickling(cls=BSpline) -> None:
     """Teach ``BSpline`` to accept the pre-1.15 pickle format.
 
     Idempotent, and modern two-tuple payloads still take the original path, so
-    this is safe to call unconditionally before loading any prior.
+    this is safe to call unconditionally before loading any prior. SciPy
+    releases whose ``BSpline`` defines no ``__setstate__`` (up to 1.15.x)
+    unpickle the old payload natively, so nothing is patched there.
     """
-    original = BSpline.__setstate__
+    original = cls.__dict__.get("__setstate__")
+    if original is None:
+        return
     if getattr(original, _PATCHED_FLAG, False):
         return
 
     def __setstate__(self, state):
         if isinstance(state, dict) and {"t", "c", "k"} <= set(state):
-            rebuilt = BSpline(
+            rebuilt = cls(
                 state["t"],
                 state["c"],
                 state["k"],
@@ -52,4 +56,4 @@ def enable_legacy_bspline_unpickling() -> None:
         original(self, state)
 
     setattr(__setstate__, _PATCHED_FLAG, True)
-    BSpline.__setstate__ = __setstate__
+    cls.__setstate__ = __setstate__
