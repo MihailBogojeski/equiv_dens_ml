@@ -1,0 +1,50 @@
+{
+  "sources": [
+    "datasets/revision/water_clusters_md40x",
+    "datasets/revision/water_clusters_newmotifs_md40x"
+  ],
+  "splits": {
+    "train": {
+      "xyz": "datasets/revision/water_clusters_md40x_merged/train.xyz",
+      "n_frames": 59539,
+      "by_n": {
+        "2": 5494,
+        "3": 13524,
+        "4": 12055,
+        "5": 12688,
+        "6": 15778
+      }
+    },
+    "val": {
+      "xyz": "datasets/revision/water_clusters_md40x_merged/val.xyz",
+      "n_frames": 13899,
+      "by_n": {
+        "2": 1826,
+        "3": 3309,
+        "4": 2564,
+        "5": 2728,
+        "6": 3472
+      }
+    },
+    "id_test": {
+      "xyz": "datasets/revision/water_clusters_md40x_merged/id_test.xyz",
+      "n_frames": 13961,
+      "by_n": {
+        "2": 1875,
+        "3": 3322,
+        "4": 2614,
+        "5": 2675,
+        "6": 3475
+      }
+    },
+    "ood_size": {
+      "xyz": "datasets/revision/water_clusters_md40x_merged/ood_size.xyz",
+      "n_frames": 23893,
+      "by_n": {
+        "8": 6622,
+        "10": 8593,
+        "12": 8678
+      }
+    }
+  }
+}

@@ -1,0 +1,2 @@
+--keep_checkpoints=-1
+--checkpoint_interval=5000

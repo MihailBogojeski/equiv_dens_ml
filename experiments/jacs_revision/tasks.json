@@ -1,0 +1,722 @@
+{
+  "analysis/analyze_density_metrics": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.analyze_density_metrics"
+  },
+  "analysis/analyze_train_test_overlap": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.analyze_train_test_overlap"
+  },
+  "analysis/ase_densnet_md": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.ase_densnet_md"
+  },
+  "analysis/benchmark_figure2": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.benchmark_figure2"
+  },
+  "analysis/build_gallery_reps": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.build_gallery_reps"
+  },
+  "analysis/calibrate_output_scaling": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.calibrate_output_scaling"
+  },
+  "analysis/calibrate_theory": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.calibrate_theory"
+  },
+  "analysis/collect_gpu_hours": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.collect_gpu_hours"
+  },
+  "analysis/cpu_mlip_suite": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.cpu_mlip_suite"
+  },
+  "analysis/dipole_vs_mer": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.dipole_vs_mer"
+  },
+  "analysis/error_vs_distance": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.error_vs_distance"
+  },
+  "analysis/eval_cutoff_sweep": {
+    "kind": "shell",
+    "target": "analysis/eval_cutoff_sweep.sh"
+  },
+  "analysis/eval_dipole_mae": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.eval_dipole_mae"
+  },
+  "analysis/eval_distance_scaling": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.eval_distance_scaling"
+  },
+  "analysis/eval_ethanol_ood_available": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.eval_ethanol_ood_available"
+  },
+  "analysis/fetch_ethanethiol_nist_ir": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.fetch_ethanethiol_nist_ir"
+  },
+  "analysis/fit_atomic_energies": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.fit_atomic_energies"
+  },
+  "analysis/generate_extreme_modes": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.generate_extreme_modes"
+  },
+  "analysis/generate_ood_geometries": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.generate_ood_geometries"
+  },
+  "analysis/install_pymol_open_source": {
+    "kind": "shell",
+    "target": "analysis/install_pymol_open_source.sh"
+  },
+  "analysis/ir_vs_length": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.ir_vs_length"
+  },
+  "analysis/ir_vs_length_npy": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.ir_vs_length_npy"
+  },
+  "analysis/launch_local_gpu": {
+    "kind": "shell",
+    "target": "analysis/launch_local_gpu.sh"
+  },
+  "analysis/launch_ood_geometry_dft": {
+    "kind": "shell",
+    "target": "analysis/launch_ood_geometry_dft.sh"
+  },
+  "analysis/lda_hf_ape_benchmark": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.lda_hf_ape_benchmark"
+  },
+  "analysis/merge_ethanol_dft_shards": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.merge_ethanol_dft_shards"
+  },
+  "analysis/merge_polythiophene_dipoles_ir": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.merge_polythiophene_dipoles_ir"
+  },
+  "analysis/nve_energy_drift": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.nve_energy_drift"
+  },
+  "analysis/ood_overlap_report": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.ood_overlap_report"
+  },
+  "analysis/optimize_densnet": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.optimize_densnet"
+  },
+  "analysis/overlay_mace_vs_densnet_ir": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.overlay_mace_vs_densnet_ir"
+  },
+  "analysis/pbe_vs_hybrid_table": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.pbe_vs_hybrid_table"
+  },
+  "analysis/plot_cv_overlap_histograms": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.plot_cv_overlap_histograms"
+  },
+  "analysis/plot_ethanethiol_ir_compare": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.plot_ethanethiol_ir_compare"
+  },
+  "analysis/plot_response_letter_figures": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.plot_response_letter_figures"
+  },
+  "analysis/poll_dft_counts": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.poll_dft_counts"
+  },
+  "analysis/prepare_pbe0_subset": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.prepare_pbe0_subset"
+  },
+  "analysis/probe_grid_sensitivity": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.probe_grid_sensitivity"
+  },
+  "analysis/project_mode_cv": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.project_mode_cv"
+  },
+  "analysis/recompute_polythiophene_dipoles_npy": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.recompute_polythiophene_dipoles_npy"
+  },
+  "analysis/render_dataset_structures": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.render_dataset_structures"
+  },
+  "analysis/run_dft_campaign": {
+    "kind": "shell",
+    "target": "analysis/run_dft_campaign.sh"
+  },
+  "analysis/run_gpu_campaign": {
+    "kind": "shell",
+    "target": "analysis/run_gpu_campaign.sh"
+  },
+  "analysis/run_gxtb_labels": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.run_gxtb_labels"
+  },
+  "analysis/run_mace_ethanol_ir": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.run_mace_ethanol_ir"
+  },
+  "analysis/run_mlip_ir_md": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.run_mlip_ir_md"
+  },
+  "analysis/run_ood_analysis": {
+    "kind": "shell",
+    "target": "analysis/run_ood_analysis.sh"
+  },
+  "analysis/score_extreme_modes": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.score_extreme_modes"
+  },
+  "analysis/score_learning_curve_ckpts": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.score_learning_curve_ckpts"
+  },
+  "analysis/score_ood_forces": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.score_ood_forces"
+  },
+  "analysis/search_ethanol_train_npy": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.search_ethanol_train_npy"
+  },
+  "analysis/submit_revision_gpu_jobs": {
+    "kind": "shell",
+    "target": "analysis/submit_revision_gpu_jobs.sh"
+  },
+  "analysis/summarize_gxtb": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.summarize_gxtb"
+  },
+  "analysis/validate_training_recipe": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.analysis.validate_training_recipe"
+  },
+  "campaign/collect_learning_curves": {
+    "kind": "shell",
+    "target": "campaign/collect_learning_curves.sh"
+  },
+  "csh/csh_build_manifest": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.csh.csh_build_manifest"
+  },
+  "csh/csh_evaluate": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.csh.csh_evaluate"
+  },
+  "csh/csh_shard_to_df": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.csh.csh_shard_to_df"
+  },
+  "csh/csh_shards_to_npy": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.csh.csh_shards_to_npy"
+  },
+  "csh/download_omol25_index": {
+    "kind": "shell",
+    "target": "csh/download_omol25_index.sh"
+  },
+  "csh/inspect_omol_csh": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.csh.inspect_omol_csh"
+  },
+  "csh/omol_csh_ao_table": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.csh.omol_csh_ao_table"
+  },
+  "csh/omol_csh_compare_reference": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.csh.omol_csh_compare_reference"
+  },
+  "csh/omol_csh_discover_permutation": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.csh.omol_csh_discover_permutation"
+  },
+  "csh/omol_csh_extract_permutation": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.csh.omol_csh_extract_permutation"
+  },
+  "csh/omol_csh_identify_convention": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.csh.omol_csh_identify_convention"
+  },
+  "csh/omol_csh_orca_overlap": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.csh.omol_csh_orca_overlap"
+  },
+  "csh/omol_csh_probe_layout": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.csh.omol_csh_probe_layout"
+  },
+  "csh/omol_csh_reference_scf": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.csh.omol_csh_reference_scf"
+  },
+  "csh/omol_csh_scan_layouts": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.csh.omol_csh_scan_layouts"
+  },
+  "csh/omol_csh_solve_ordering": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.csh.omol_csh_solve_ordering"
+  },
+  "csh/omol_csh_solve_permutation": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.csh.omol_csh_solve_permutation"
+  },
+  "csh/omol_csh_validate_ordering": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.csh.omol_csh_validate_ordering"
+  },
+  "hbonds/assemble_hbond_labels": {
+    "kind": "shell",
+    "target": "hbonds/assemble_hbond_labels.sh"
+  },
+  "hbonds/generate_acac": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.hbonds.generate_acac"
+  },
+  "hbonds/generate_all": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.hbonds.generate_all"
+  },
+  "hbonds/generate_crambin_frags": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.hbonds.generate_crambin_frags"
+  },
+  "hbonds/generate_meoh_water": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.hbonds.generate_meoh_water"
+  },
+  "hbonds/generate_nma_dimer": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.hbonds.generate_nma_dimer"
+  },
+  "hbonds/generate_paracetamol": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.hbonds.generate_paracetamol"
+  },
+  "hbonds/generate_pgg": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.hbonds.generate_pgg"
+  },
+  "hbonds/launch_hbond_campaign": {
+    "kind": "shell",
+    "target": "hbonds/launch_hbond_campaign.sh"
+  },
+  "hbonds/launch_wave1_orca": {
+    "kind": "shell",
+    "target": "hbonds/launch_wave1_orca.sh"
+  },
+  "hbonds/overlap_gates": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.hbonds.overlap_gates"
+  },
+  "campaign/hold_duplicate_gpu_trains": {
+    "kind": "shell",
+    "target": "campaign/hold_duplicate_gpu_trains.sh"
+  },
+  "lib/build_orbital_basis": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.lib.build_orbital_basis"
+  },
+  "lib/build_sad_prior": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.lib.build_sad_prior"
+  },
+  "lib/build_shards_from_xyz": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.lib.build_shards_from_xyz"
+  },
+  "lib/fetch_dftbplus": {
+    "kind": "shell",
+    "target": "lib/fetch_dftbplus.sh"
+  },
+  "lib/fetch_mlip_extras": {
+    "kind": "shell",
+    "target": "lib/fetch_mlip_extras.sh"
+  },
+  "lib/fetch_python_headers": {
+    "kind": "shell",
+    "target": "lib/fetch_python_headers.sh"
+  },
+  "lib/generate_dft_labels": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.lib.generate_dft_labels"
+  },
+  "lib/latest_run_dir": {
+    "kind": "shell",
+    "target": "lib/latest_run_dir.sh"
+  },
+  "lib/merge_label_parts": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.lib.merge_label_parts"
+  },
+  "lib/patch_sad_mo_basis": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.lib.patch_sad_mo_basis"
+  },
+  "lib/qm7x_orca_worker": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.lib.qm7x_orca_worker"
+  },
+  "lib/slice_labeled_pair": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.lib.slice_labeled_pair"
+  },
+  "lib/xyz_to_npy": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.lib.xyz_to_npy"
+  },
+  "qm7x/download_qm7x": {
+    "kind": "shell",
+    "target": "qm7x/download_qm7x.sh"
+  },
+  "qm7x/qm7x_assemble_npy": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.qm7x.qm7x_assemble_npy"
+  },
+  "qm7x/qm7x_build_shards": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.qm7x.qm7x_build_shards"
+  },
+  "qm7x/qm7x_extract_geoms": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.qm7x.qm7x_extract_geoms"
+  },
+  "qm7x/qm7x_orca_status": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.qm7x.qm7x_orca_status"
+  },
+  "qm7x/submit_qm7x_orca": {
+    "kind": "shell",
+    "target": "qm7x/submit_qm7x_orca.sh"
+  },
+  "qm7x/submit_qm7x_orca_remaining_train": {
+    "kind": "shell",
+    "target": "qm7x/submit_qm7x_orca_remaining_train.sh"
+  },
+  "qm7x/watch_qm7x_campaign": {
+    "kind": "shell",
+    "target": "qm7x/watch_qm7x_campaign.sh"
+  },
+  "campaign/run_energy_pack": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.campaign.run_energy_pack"
+  },
+  "campaign/run_ood_geometry_campaign": {
+    "kind": "shell",
+    "target": "campaign/run_ood_geometry_campaign.sh"
+  },
+  "campaign/schedule_ethanol_dft_relabel": {
+    "kind": "shell",
+    "target": "campaign/schedule_ethanol_dft_relabel.sh"
+  },
+  "campaign/schedule_polythiophene_dipole_pilot": {
+    "kind": "shell",
+    "target": "campaign/schedule_polythiophene_dipole_pilot.sh"
+  },
+  "submit_12mer_timing": {
+    "kind": "slurm",
+    "target": "slurm/submit_12mer_timing.sbatch"
+  },
+  "submit_calibration": {
+    "kind": "slurm",
+    "target": "slurm/submit_calibration.sbatch"
+  },
+  "submit_csh_cpu": {
+    "kind": "slurm",
+    "target": "slurm/submit_csh_cpu.sbatch"
+  },
+  "submit_csh_gpu": {
+    "kind": "slurm",
+    "target": "slurm/submit_csh_gpu.sbatch"
+  },
+  "submit_csh_train_8el": {
+    "kind": "slurm",
+    "target": "slurm/submit_csh_train_8el.sbatch"
+  },
+  "submit_energy_head_evals": {
+    "kind": "slurm",
+    "target": "slurm/submit_energy_head_evals.sbatch"
+  },
+  "submit_ethanethiol_ir_compare": {
+    "kind": "slurm",
+    "target": "slurm/submit_ethanethiol_ir_compare.sbatch"
+  },
+  "submit_ethanol_dft_relabel": {
+    "kind": "slurm",
+    "target": "slurm/submit_ethanol_dft_relabel.sbatch"
+  },
+  "submit_geoopt_ethanethiol": {
+    "kind": "slurm",
+    "target": "slurm/submit_geoopt_ethanethiol.sbatch"
+  },
+  "submit_gpu_campaign": {
+    "kind": "slurm",
+    "target": "slurm/submit_gpu_campaign.sbatch"
+  },
+  "submit_hbond_relax": {
+    "kind": "slurm",
+    "target": "slurm/submit_hbond_relax.sbatch"
+  },
+  "submit_hybrid_ensemble_eval": {
+    "kind": "slurm",
+    "target": "slurm/submit_hybrid_ensemble_eval.sbatch"
+  },
+  "submit_ir_md": {
+    "kind": "slurm",
+    "target": "slurm/submit_ir_md.sbatch"
+  },
+  "campaign/submit_learning_curves": {
+    "kind": "shell",
+    "target": "campaign/submit_learning_curves.sh"
+  },
+  "submit_mace_ethanol_ir": {
+    "kind": "slurm",
+    "target": "slurm/submit_mace_ethanol_ir.sbatch"
+  },
+  "submit_md40x_geometry": {
+    "kind": "slurm",
+    "target": "slurm/submit_md40x_geometry.sbatch"
+  },
+  "submit_md40x_launch_pbe": {
+    "kind": "slurm",
+    "target": "slurm/submit_md40x_launch_pbe.sbatch"
+  },
+  "submit_ood_analysis": {
+    "kind": "slurm",
+    "target": "slurm/submit_ood_analysis.sbatch"
+  },
+  "submit_ood_geometry_watch": {
+    "kind": "slurm",
+    "target": "slurm/submit_ood_geometry_watch.sbatch"
+  },
+  "submit_polythiophene_dipole_pilot": {
+    "kind": "slurm",
+    "target": "slurm/submit_polythiophene_dipole_pilot.sbatch"
+  },
+  "submit_qm7x_energy": {
+    "kind": "slurm",
+    "target": "slurm/submit_qm7x_energy.sbatch"
+  },
+  "submit_qm7x_orca": {
+    "kind": "slurm",
+    "target": "slurm/submit_qm7x_orca.sbatch"
+  },
+  "campaign/submit_retrain_campaign": {
+    "kind": "shell",
+    "target": "campaign/submit_retrain_campaign.sh"
+  },
+  "submit_score_curve_ckpts": {
+    "kind": "slurm",
+    "target": "slurm/submit_score_curve_ckpts.sbatch"
+  },
+  "campaign/submit_score_learning_curves": {
+    "kind": "shell",
+    "target": "campaign/submit_score_learning_curves.sh"
+  },
+  "submit_water_gpu": {
+    "kind": "slurm",
+    "target": "slurm/submit_water_gpu.sbatch"
+  },
+  "submit_water_orca": {
+    "kind": "slurm",
+    "target": "slurm/submit_water_orca.sbatch"
+  },
+  "submit_water_orca_large": {
+    "kind": "slurm",
+    "target": "slurm/submit_water_orca_large.sbatch"
+  },
+  "submit_water_train": {
+    "kind": "slurm",
+    "target": "slurm/submit_water_train.sbatch"
+  },
+  "submit_water_train_energy": {
+    "kind": "slurm",
+    "target": "slurm/submit_water_train_energy.sbatch"
+  },
+  "submit_water_watchdog": {
+    "kind": "slurm",
+    "target": "slurm/submit_water_watchdog.sbatch"
+  },
+  "thiophene/analyze_mh_minima": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.thiophene.analyze_mh_minima"
+  },
+  "thiophene/analyze_train_cv_density": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.thiophene.analyze_train_cv_density"
+  },
+  "thiophene/minima_hopping_densnet": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.thiophene.minima_hopping_densnet"
+  },
+  "thiophene/plot_thiophene_mh_figures": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.thiophene.plot_thiophene_mh_figures"
+  },
+  "submit_mh_dft": {
+    "kind": "slurm",
+    "target": "slurm/submit_mh_dft.sbatch"
+  },
+  "submit_minima_hopping": {
+    "kind": "slurm",
+    "target": "slurm/submit_minima_hopping.sbatch"
+  },
+  "thiophene/thiophene_collective_variables": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.thiophene.thiophene_collective_variables"
+  },
+  "thiophene/validate_mh_minima_dft": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.thiophene.validate_mh_minima_dft"
+  },
+  "campaign/watch_ood_geometry_dft": {
+    "kind": "shell",
+    "target": "campaign/watch_ood_geometry_dft.sh"
+  },
+  "water/assemble_water_labels": {
+    "kind": "shell",
+    "target": "water/assemble_water_labels.sh"
+  },
+  "water/campaign_status": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.water.campaign_status"
+  },
+  "water/density_log_finished": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.water.density_log_finished"
+  },
+  "water/evaluate_hbond_metrics": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.water.evaluate_hbond_metrics"
+  },
+  "water/extract_rackers_pkls": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.water.extract_rackers_pkls"
+  },
+  "water/finish_hbond_when_relaxed": {
+    "kind": "shell",
+    "target": "water/finish_hbond_when_relaxed.sh"
+  },
+  "water/finish_md40x_and_launch_pbe": {
+    "kind": "shell",
+    "target": "water/finish_md40x_and_launch_pbe.sh"
+  },
+  "water/generate_malonaldehyde": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.water.generate_malonaldehyde"
+  },
+  "water/generate_new_motif_parents": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.water.generate_new_motif_parents"
+  },
+  "water/generate_ood_distance_scale": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.water.generate_ood_distance_scale"
+  },
+  "water/generate_ood_water": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.water.generate_ood_water"
+  },
+  "water/generate_water_cluster_geoms": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.water.generate_water_cluster_geoms"
+  },
+  "water/import_rackers_parents": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.water.import_rackers_parents"
+  },
+  "water/launch_md40x_waves": {
+    "kind": "shell",
+    "target": "water/launch_md40x_waves.sh"
+  },
+  "water/launch_md_expansion_waves": {
+    "kind": "shell",
+    "target": "water/launch_md_expansion_waves.sh"
+  },
+  "water/launch_water_campaign": {
+    "kind": "shell",
+    "target": "water/launch_water_campaign.sh"
+  },
+  "water/make_learning_curve_splits": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.water.make_learning_curve_splits"
+  },
+  "water/malonaldehyde_collective_variables": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.water.malonaldehyde_collective_variables"
+  },
+  "water/merge_xyz_trees": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.water.merge_xyz_trees"
+  },
+  "water/plan_md40x_budget": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.water.plan_md40x_budget"
+  },
+  "water/relax_water_clusters": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.water.relax_water_clusters"
+  },
+  "water/run_geometry_expansion": {
+    "kind": "shell",
+    "target": "water/run_geometry_expansion.sh"
+  },
+  "water/select_stratified_subset": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.water.select_stratified_subset"
+  },
+  "water/sync_density_training_markers": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.water.sync_density_training_markers"
+  },
+  "water/thicken_with_md": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.water.thicken_with_md"
+  },
+  "water/wait_and_train_water": {
+    "kind": "shell",
+    "target": "water/wait_and_train_water.sh"
+  },
+  "water/watch_and_resubmit": {
+    "kind": "shell",
+    "target": "water/watch_and_resubmit.sh"
+  },
+  "water/watch_energy_heads": {
+    "kind": "shell",
+    "target": "water/watch_energy_heads.sh"
+  },
+  "water/watch_water_campaign": {
+    "kind": "shell",
+    "target": "water/watch_water_campaign.sh"
+  },
+  "water/water_collective_variables": {
+    "kind": "python",
+    "target": "experiments.jacs_revision.water.water_collective_variables"
+  }
+}

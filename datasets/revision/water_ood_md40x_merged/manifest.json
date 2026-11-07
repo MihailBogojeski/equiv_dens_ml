@@ -1,0 +1,29 @@
+{
+  "sources": [
+    "datasets/revision/water_ood_md40x",
+    "datasets/revision/water_ood_newmotifs_md40x",
+    "datasets/revision/water_ood_rackers"
+  ],
+  "splits": {
+    "ood_order": {
+      "xyz": "datasets/revision/water_ood_md40x_merged/ood_order.xyz",
+      "n_frames": 1614,
+      "by_n": {
+        "12": 466,
+        "16": 406,
+        "20": 397,
+        "24": 345
+      }
+    },
+    "ood_rackers": {
+      "xyz": "datasets/revision/water_ood_md40x_merged/ood_rackers.xyz",
+      "n_frames": 3728,
+      "by_n": {
+        "15": 988,
+        "20": 997,
+        "25": 802,
+        "30": 941
+      }
+    }
+  }
+}

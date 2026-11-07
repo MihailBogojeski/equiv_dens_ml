@@ -1,0 +1,1 @@
+../../../experiments/jacs_revision/config/md/nn/polythiophene_2mer_500ps.txt
