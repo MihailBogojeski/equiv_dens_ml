@@ -11,6 +11,7 @@ import pytest
 _REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_REPO / "scripts" / "revision" / "analysis"))
 
+pytest.importorskip("tblite")  # GFN2-xTB backend of the script; optional in CI
 import eval_distance_scaling as eds  # noqa: E402
 
 

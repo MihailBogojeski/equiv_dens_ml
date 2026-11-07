@@ -12,6 +12,7 @@ _REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_REPO / "scripts" / "revision" / "lib"))
 sys.path.insert(0, str(_REPO / "scripts" / "revision" / "analysis"))
 
+pytest.importorskip("tblite")  # GFN2-xTB backend of the script; optional in CI
 import generate_extreme_modes as gen  # noqa: E402
 import normal_modes as nm  # noqa: E402
 import project_mode_cv as pmc  # noqa: E402
