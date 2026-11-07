@@ -292,24 +292,35 @@ def coeffs_dict_to_tensors(coeffs, radial_coeffs=True, atom_df=None, atom_df_coe
             first_idx = i
             break
 
+    # Width must match the density network's global DF layout (dens_features),
+    # not the sum of features for Z present in this molecule.  sph_dict/L_dict
+    # holds that full layout; molecule-local sums produced the QM7x energy
+    # failure (scale_fs width 38 vs filters 66).
     max_num_coeffs = [0] * (max_order + 1)
     max_num_radial = [0] * (max_order + 1)
-    seen_z = []
 
-    for i in range(len(sph_coeffs)):
-        curr_coeffs = [0] * (max_order + 1)
-        for key in sph_coeffs[i].keys():
-            L = key[1]
+    for key, inds in sph_dict.items():
+        L = key[1]
+        if L > max_order:
+            continue
+        last = int(inds[-1])
+        needed = last + 1
+        if L == 0 and atom_df_coeffs is not None:
             z = key[0]
-            curr_coeffs[L] += sph_coeffs[i][key].shape[-1]
-            if L==0 and atom_df_coeffs is not None:
-                curr_coeffs[0] += atom_df_coeffs[z].shape[1]
-            if rad_scale[i][key].shape[-2] > max_num_radial[L]:
-                max_num_radial[L] = rad_scale[i][key].shape[-2]
-        if z not in seen_z:
-            seen_z.append(z)
-            for L in range(len(curr_coeffs)):
-                max_num_coeffs[L] += curr_coeffs[L]
+            if z in atom_df_coeffs:
+                first = int(inds[0])
+                n_inds = int(inds.shape[0]) if hasattr(inds, "shape") else len(inds)
+                needed = max(needed, last + first + n_inds + 1)
+                needed = max(needed, first + int(atom_df_coeffs[z].shape[1]))
+        if needed > max_num_coeffs[L]:
+            max_num_coeffs[L] = needed
+
+    if radial_coeffs:
+        for i in range(len(rad_scale)):
+            for key in rad_scale[i].keys():
+                L = key[1]
+                if rad_scale[i][key].shape[-2] > max_num_radial[L]:
+                    max_num_radial[L] = rad_scale[i][key].shape[-2]
 
     all_sph = [
         [

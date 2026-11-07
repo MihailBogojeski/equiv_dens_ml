@@ -1,4 +1,5 @@
 # !/usr/bin/env python3
+import glob
 import os
 import torch
 import torch.nn as nn
@@ -22,6 +23,78 @@ import torch._dynamo
 
 torch._dynamo.config.suppress_errors = True
 torch.set_float32_matmul_precision('high')
+
+
+def _scaling_std_recoverable(args, dataset) -> bool:
+    """True when the training-set force std can be rebuilt at load time."""
+    return bool(
+        args.output_scaling
+        and 'forces' in getattr(dataset, 'required_properties', [])
+        and getattr(dataset, 'forces', None) is not None
+    )
+
+
+def _recover_scaling_std(model, force_scaling) -> None:
+    """Copy a freshly computed std onto a checkpoint that predates the buffer."""
+    with torch.no_grad():
+        model.scaling.std.copy_(force_scaling.std)
+    print(
+        'recovered scaling.std={:.6g} from training-set forces'.format(
+            float(model.scaling.std)
+        )
+    )
+
+
+def _is_fatal_missing_key(key: str, args) -> bool:
+    """True when a missing state-dict key is a real load error.
+
+    ``init_`` buffers are written after construction and are never checkpointed.
+    ``integral_constraint`` is created only in ``density_fine_tuning`` (SI S1.3);
+    ``load_state_dict(strict=False)`` initialises it to ones.
+    """
+    if getattr(args, 'ignore_missing_keywords', False):
+        return False
+    if 'init_' in key:
+        return False
+    if 'integral_constraint' in key:
+        return False
+    if args.df_weight > 0 and 'property_models.density' not in key:
+        return True
+    if args.density_weight > 0:
+        if 'property_models.density' not in key and not (args.core_density_basis > 0) \
+                and 'energy' not in key:
+            return True
+    return False
+
+
+def _is_fatal_unexpected_key(key: str, args) -> bool:
+    """True when an unexpected state-dict key is a real load error.
+
+    Mirror of ``_is_fatal_missing_key`` for the opposite direction. A
+    checkpoint that went through ``density_fine_tuning`` (SI S1.3) carries
+    ``integral_constraint.integral_scale``, but that flag is set only
+    transiently during that training phase and is never written to
+    ``args.txt``. Reconstructing the model for evaluation therefore builds it
+    without the constraint submodule, and the trained key comes back on the
+    *unexpected* side of ``load_state_dict(strict=False)``. Treating a
+    missing constraint key as recoverable but an unexpected one as fatal
+    would make every fine-tuned checkpoint unloadable for eval while still
+    being loadable for further training, so the same tolerance applies here.
+    """
+    if getattr(args, 'ignore_unexpected_keywords', False):
+        return False
+    if 'integral_constraint' in key:
+        return False
+    if args.density_weight + args.df_weight > 0 \
+            and 'property_models.energy' not in key \
+            and 'property_models.density.init_' not in key \
+            and 'property_models.density.integral_scale' not in key \
+            and 'property_models.density.softmax_norm' not in key \
+            and 'property_models.core_density' not in key:
+        return True
+    if args.energy_weight + args.forces_weight > 0 and 'density' not in key:
+        return True
+    return False
 
 
 def load_model(args, dataset, train=False):
@@ -329,12 +402,25 @@ def load_model(args, dataset, train=False):
         directory = args.restart  # load directory name
     # load latest checkpoint
         checkpoint_path = os.path.join(directory, 'checkpoints')  # checkpoint directory
-        checkpoint = torch.load(
-            os.path.join(checkpoint_path, 'latest_checkpoint.pth'),
-            map_location='cpu',
-            weights_only=False,
-        )
-        model_code = checkpoint['ID']
+        latest_path = os.path.join(checkpoint_path, 'latest_checkpoint.pth')
+        if os.path.isfile(latest_path):
+            checkpoint = torch.load(
+                latest_path,
+                map_location='cpu',
+                weights_only=False,
+            )
+            model_code = checkpoint['ID']
+        else:
+            # Recovered paper models often have only best_<id>.pth at the run root.
+            root_bests = sorted(glob.glob(os.path.join(directory, 'best_*.pth')))
+            if not root_bests:
+                root_bests = sorted(glob.glob(os.path.join(checkpoint_path, 'best_*.pth')))
+            if not root_bests:
+                raise FileNotFoundError(
+                    f"No latest_checkpoint.pth or best_*.pth under {directory}"
+                )
+            model_code = os.path.basename(root_bests[0])[len('best_'):-len('.pth')]
+            checkpoint = {'ID': model_code}
         best_model_path = 'best_' + model_code + '.pth'
         if train:
             state_dict = checkpoint['model_state_dict']
@@ -395,43 +481,42 @@ def load_model(args, dataset, train=False):
                 if 'property_models.density' in key:
                     state_dict[key] = model_dict[key]
         missing, unexpected = model.load_state_dict(state_dict, strict=False)
-        if len(unexpected) > 0 and not getattr(args, 'ignore_unexpected_keywords', False):
+        if 'scaling.std' in missing and _scaling_std_recoverable(args, dataset):
+            _recover_scaling_std(model, force_scaling)
+            missing = [key for key in missing if key != 'scaling.std']
+        if len(unexpected) > 0:
             for key in unexpected:
-                if args.density_weight + args.df_weight > 0 \
-                        and 'property_models.energy' not in key \
-                        and 'property_models.density.init_' not in key \
-                        and 'property_models.density.integral_scale' not in key \
-                        and 'property_models.density.softmax_norm' not in key \
-                        and 'property_models.core_density' not in key:
+                if _is_fatal_unexpected_key(key, args):
                     print('Unexpected keywords', key)
-                    raise Exception('Unexpected keywords in density model state dict')
-                elif args.energy_weight + args.forces_weight > 0 and 'density' not in key:
-                    print('Unexpected keywords', key)
+                    if args.density_weight + args.df_weight > 0:
+                        raise Exception('Unexpected keywords in density model state dict')
                     raise Exception('Unexpected keywords in energy model state dict')
+                if 'integral_constraint' in key and args.verbose:
+                    print(
+                        f'Ignoring trained {key}: model was built with '
+                        "args.integral_constraint unset, so the checkpoint's "
+                        'fine-tuned integral scale is dropped rather than applied.'
+                    )
         if len(missing) > 0 and not args.ignore_missing_keywords:
             print('missing', missing)
             for key in missing:
-                if 'init_' not in key:
-                    if args.df_weight > 0 and 'property_models.density' not in key:
-                        print('Missing keywords', key)
-
-                        raise Exception('Missing keywords in df model state dict')
-                    elif args.density_weight > 0:
-                        if 'property_models.density' not in key and not (args.core_density_basis > 0) \
-                                and 'energy' not in key:
-                            print('Missing keywords', key)
-                            raise Exception('Missing keywords in density coeffs model state dict')
+                if not _is_fatal_missing_key(key, args):
+                    continue
+                print('Missing keywords', key)
+                if args.df_weight > 0 and 'property_models.density' not in key:
+                    raise Exception('Missing keywords in df model state dict')
+                raise Exception('Missing keywords in density coeffs model state dict')
     if not train:
         # print('dtype type', type(args.dtype))
         model.to(args.dtype)
-        if args.use_gpu:
+        if use_gpu:
             print('using GPU')
             model.cuda()
         # if there are multiple GPUs, wrap the model in DataParallel
         # "module" is used whenever direct access is needed, e.g. for parameters,
         # whereas "model" may be DataParallel and is used for inference only
 
-        if args.use_gpu and args.multiple_gpus and torch.cuda.device_count() > 1:
+        if use_gpu and args.multiple_gpus and torch.cuda.device_count() > 1:
             model = torch.nn.DataParallel(model)
 
     if args.compile:

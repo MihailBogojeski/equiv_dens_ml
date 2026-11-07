@@ -14,6 +14,10 @@ from equiv_dens.utils.base import calculate_distances_and_directions, batch_comp
 import time
 
 
+# Denominator floor for charge projection / N_elec rescaling. Below this the
+# constraint is undefined (all-zero SAD scales, or a vanishing L0 integral)
+# and must be skipped rather than emitting NaNs into the density grid.
+_CONSTRAINT_EPS = 1e-12
 def linear(x, lin):
     """nn.Linear lin on x as matmul + bias: F.linear (addmm) of a strided view does not trace with data-dependent
     (unbacked) atom counts."""
@@ -41,11 +45,21 @@ class CoeffsIntegralConstraint(nn.Module):
             v = torch.where(scale[..., 0] != 0, coeff, torch.zeros_like(coeff))
             w = (scale * norms)[..., 0]
             w_dot_w = torch.einsum('bi,bi->b', w, w)
-            v = v - (torch.einsum('bi,bi->b', v, w) / w_dot_w)[:, None] * w
+            proj = torch.where(
+                w_dot_w > _CONSTRAINT_EPS,
+                torch.einsum('bi,bi->b', v, w) / w_dot_w,
+                torch.zeros_like(w_dot_w),
+            )
+            v = v - proj[:, None] * w
             p['coeff'] = v.unsqueeze(-1)
         else:
             coeffs_sum = torch.sum(coeff.unsqueeze(-1) * scale * norms, dim=(1, 2)).unsqueeze(-1)
-            p['coeff'] = p['coeff'] * (n_electrons / coeffs_sum).unsqueeze(-1)
+            scale_factor = torch.where(
+                coeffs_sum.abs() > _CONSTRAINT_EPS,
+                n_electrons / coeffs_sum,
+                torch.ones_like(coeffs_sum),
+            )
+            p['coeff'] = p['coeff'] * scale_factor.unsqueeze(-1)
         return atoms
 
 

@@ -51,6 +51,7 @@ class Trainer:
         stop_at_learning_rate=1e-5,
         stop_at_learning_rate_patience=0,
         valid_check_best=None,
+        valid_names=None,
         verbose=0,
         timing=False,
         memory=False,
@@ -89,6 +90,10 @@ class Trainer:
             self.valid_check_best[0] = True
         else:
             self.valid_check_best = valid_check_best
+        # W&B / console key of each validation loader; the first keeps the historical '_valid' suffix
+        if valid_names is None:
+            valid_names = ['valid'] + ['valid%d' % i for i in range(1, len(validation_loaders))]
+        self.valid_names = list(valid_names)
 
         self._model = model
         self._module = model
@@ -211,6 +216,9 @@ class Trainer:
         self.epoch = checkpoint['epoch']
         self.best_errors = checkpoint['best_errors']
         self.valid_errors = checkpoint['valid_errors']
+        # a loader added after the checkpoint was written (e.g. --train_eval_size) has no stored errors yet
+        while len(self.valid_errors) < len(self.validation_loaders):
+            self.valid_errors.append(self.error_dict.empty(fill_value=math.inf))
         missing, unexpected = self._module.load_state_dict(checkpoint['model_state_dict'], strict=False)
 
         self.data_split_indices = checkpoint['data_split_indices']
@@ -633,9 +641,9 @@ class Trainer:
                 wandb_uncommited_log({key + '_train': self.train_errors[key]})
 
             if new_valid:
-                for valid_err in self.valid_errors:
+                for name, valid_err in zip(self.valid_names, self.valid_errors):
                     for key in valid_err.keys():
-                        wandb_uncommited_log({key + '_valid': valid_err[key]})
+                        wandb_uncommited_log({key + '_' + name: valid_err[key]})
                 new_valid = False
 
             if new_best:

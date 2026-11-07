@@ -15,6 +15,26 @@ from equiv_dens.data.hamiltonian_dataset import seeded_random_split
 from equiv_dens.training.lookahead import Lookahead
 from equiv_dens.training.errors import ErrorDict
 import numpy as np
+import random
+
+
+def seed_everything(seed):
+    """Seed python, numpy and torch so a run can be reproduced or repeated.
+
+    Used to build the R3.3 ensemble: three runs differing only in this seed give
+    a mean and a standard deviation over independent fits of the same data,
+    which is the uncertainty the reviewer asked for. Varying ``--split_seed``
+    instead would change which frames the model sees and answer a different
+    question.
+
+    cudnn determinism is deliberately left alone; it costs throughput and the
+    ensemble only needs runs that are independent and reproducible from the
+    seed, not bitwise-identical across hardware.
+    """
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
 import equiv_dens.utils.base as base_utils
 
 
@@ -164,6 +184,15 @@ def modify_args_by_phase(args, orig_args, phase):
             * orig_args.fine_tuning_stop_lr_factor
         args.density_loss_comp = orig_args.density_loss_comp_ft
         args.density_loss_comp_weights = orig_args.density_loss_comp_ft_weights
+        # Charge conservation after the unconstrained density fit (SI S1.3).
+        # Positivity (softplus L0 + tanh scales) is a change of
+        # parameterization. On a SAD residual it also applies to Δρ, which the
+        # manuscript forbids. Turning it on after water PBE density early-stop
+        # jumped valid MAE from 0.007 to 17 and NaN'd the first backprop
+        # (80000 grid NaNs, job 16812586). Keep it for total-density models.
+        args.integral_constraint = 'coeffs_in_coeffs_net'
+        if not getattr(orig_args, 'remove_atom_density', False):
+            args.positive_coeffs = True
     elif phase == 'dipole_moment':
         args.dipole_moment_weight = orig_args.dipole_moment_weight
         if orig_args.density_weight > 0:

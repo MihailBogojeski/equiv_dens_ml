@@ -134,7 +134,14 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
         if self.L0_start:
             self._order[0] = 0
         
-        if self.atom_dens is not None:
+        has_df_sad = (
+            self.atom_dens is not None
+            and all(
+                isinstance(self.atom_dens.get(z), dict) and "df_basis" in self.atom_dens[z]
+                for z in self.spherical_spec.keys()
+            )
+        )
+        if has_df_sad:
             # free-atom DF coefficients (s-type) of each element, in front of its L=0 channels: element z with n_z
             # predicted L=0 channels and m_z free-atom ones occupies [off_z, off_z + m_z + n_z), the free-atom ones first
             n0 = {z: sum(orb[1] for orb in spec if orb[2] == 0) for z, spec in self.spherical_spec.items()}
@@ -164,7 +171,12 @@ class SphericalHarmonicsEnergyNetwork(nn.Module):
                 L = orb[2]
                 curr_feats[L] += orb[1]
                 z = orb[0]
-                if self.atom_dens is not None and L==0:
+                if (
+                    self.atom_dens is not None
+                    and L == 0
+                    and isinstance(self.atom_dens.get(z), dict)
+                    and "df_coeffs" in self.atom_dens[z]
+                ):
                     curr_feats[0] += self.atom_dens[z]['df_coeffs'].shape[1]
 
             if self.compressed_extraction:

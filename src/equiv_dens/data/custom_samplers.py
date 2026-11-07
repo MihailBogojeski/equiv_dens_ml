@@ -220,10 +220,31 @@ class AdaptiveBatchSampler(Sampler[List[int]]):
         else:
             return (len(self.sampler) + self.max_elec_num - 1) // self.max_elec_num  # type: ignore[arg-type]
 
+class _PropertyCollate:
+    """Picklable ``collate_fn`` for spawn workers.
+
+    A nested function inside ``set_up_data_loader`` is not picklable. Density
+    jobs that finally honored ``--num_workers`` died at ``iter(loader)`` with
+    ``Can't get local object 'set_up_data_loader.<locals>.collate_fn'``.
+    """
+
+    def __init__(self, dataset: Dataset) -> None:
+        self.dataset = dataset
+
+    def __call__(self, batch):
+        source = (
+            self.dataset.dataset
+            if isinstance(self.dataset, torch.utils.data.Subset)
+            else self.dataset
+        )
+        return source.get_properties(batch)
+
+
 def set_up_data_loader(dataset: Dataset, batch_size: int = 1,
                        electron_num_batching: bool = False,
                        batch_efficiency: float = 0.7,
-                       use_gpu: bool = False, shuffle: bool = True):
+                       use_gpu: bool = False, shuffle: bool = True,
+                       num_workers: int = 0):
     """Set up data loader for the dataset.
 
     Args:
@@ -231,27 +252,33 @@ def set_up_data_loader(dataset: Dataset, batch_size: int = 1,
     batch_size (int): The batch size.
     electron_num_batching (bool): True to use adaptive batching based on number of electrons.
     use_gpu (bool): True to use GPU.
+    num_workers (int): DataLoader workers. Collate (``get_properties``) runs in
+        the worker when this is > 0, so the GPU process is not stuck on CPU
+        neighbor-list / grid work between steps. Default 0 keeps older runs
+        single-process.
     """
     if len(dataset) == 0:
         raise ValueError("Cannot create DataLoader for empty dataset")
-    if isinstance(dataset, torch.utils.data.Subset):
-        def collate_fn(batch):
-            return dataset.dataset.get_properties(batch)
-    else:
-        def collate_fn(batch):
-            return dataset.get_properties(batch)
+    worker_kwargs = {
+        "num_workers": num_workers,
+        "pin_memory": use_gpu,
+        "collate_fn": _PropertyCollate(dataset),
+    }
+    if num_workers > 0:
+        worker_kwargs["prefetch_factor"] = 2
+        worker_kwargs["persistent_workers"] = True
+        # Fork after the trainer has called ``cuda()`` raises
+        # ``Cannot re-initialize CUDA in forked subprocess``.
+        worker_kwargs["multiprocessing_context"] = "spawn"
     if electron_num_batching:
         sampler = SimilarSizeSampler(dataset, shuffle=shuffle, electron_batch_size=batch_size)
         batch_sampler = AdaptiveBatchSampler(sampler, max_num_elec=batch_size,
                                              batch_efficiency=batch_efficiency, drop_last=False)
         data_loader = torch.utils.data.DataLoader(dataset, batch_sampler=batch_sampler,
-                                                  num_workers=0, pin_memory=use_gpu,
-                                                  collate_fn=collate_fn)
+                                                  **worker_kwargs)
     else:
         data_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size,
-                                                  num_workers=0, pin_memory=use_gpu,
-                                                  shuffle=shuffle,
-                                                  collate_fn=collate_fn)
+                                                  shuffle=shuffle, **worker_kwargs)
     return data_loader
 
 
