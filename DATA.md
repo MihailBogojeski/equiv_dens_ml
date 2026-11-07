@@ -25,6 +25,18 @@ checkout into place without touching tracked or local files. The kit's
 `README.md` lists the command behind each figure. `scripts/data/build_reproduction_kit.py`
 builds, uploads and verifies the kit.
 
+Since 6 November 2026 the project's Hugging Face data live in three repositories:
+
+| Repository | Visibility | Contents |
+|---|---|---|
+| [equiv_dens_ml](https://huggingface.co/datasets/muhammadhasyim/equiv_dens_ml) | public | the canonical `datasets/` tree (paper-era labels, JACS revision label sets), plus the original-paper polythiophene trajectories (`paper/trajectories/`), QM9 (`qm9/`) and the QM9 basis tables (`basis/qm9_b3lyp_d4/`) that used to be separate topic repos |
+| [equiv_dens_ml_dataset](https://huggingface.co/datasets/muhammadhasyim/equiv_dens_ml_dataset) | private | the self-contained figure-reproduction kit described above |
+| [equiv-dens-research-archive](https://huggingface.co/datasets/muhammadhasyim/equiv-dens-research-archive) | private | cold storage of the 26 October 2026 snapshot (checkpoints, results, trajectories) as verified `.tar.zst` parts, with a catalog |
+
+The former topic repos (`equiv-dens-polythiophene`, `equiv-dens-qm9`, `equiv-dens-basis-assets`,
+`equiv-dens-paper-molecules`, `equiv-dens-qm7x`) were merged into `equiv_dens_ml` and retired; the
+"Merged collections" section of its dataset card maps every old path to its new location.
+
 ## `datasets/` (Hugging Face Hub)
 
 The `datasets/` tree (~103 GB of paper-era `.npy` labels plus the JACS revision
