@@ -79,6 +79,11 @@ def main(argv=None):
 
     for phase in training_phases:
         args = train_utils.modify_args_by_phase(args, orig_args, phase)
+        if phase == 'density_fine_tuning':
+            # the fine-tuning phase changes the density head; record it so args.txt rebuilds the trained model
+            with open(train_vars['directory'] + '/args.txt', 'a') as f:
+                f.write('--integral_constraint=' + str(args.integral_constraint) + "\n")
+                f.write('--positive_coeffs=' + str(args.positive_coeffs) + "\n")
 
         required_properties = train_utils.get_required_properties_from_args(args)
 
