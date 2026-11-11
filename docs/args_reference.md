@@ -373,6 +373,7 @@ These options apply when running ML-enhanced molecular dynamics via the `md` sub
 | `--md_timestep_fs` | float | 0.5 | MD timestep in femtoseconds (1.0 matches AIMNet for a 2x speedup). |
 | `--langevin` | bool | True | Use Langevin dynamics; if False, use velocity Verlet. |
 | `--warm_up` | bool | True | Use Langevin for first 5% of steps, then switch to Verlet. |
+| `--warm_up_steps` | int | None | Number of Langevin warm-up steps (rounded up to a multiple of 100); default `md_steps//20`. |
 | `--simulation_type` | str | md | Type of simulation. Choices: `md`, `opt`. |
 | `--port_num` | int | 50007 | Port for client-server communication. |
 | `--force_conversion` | str | kcal/mol/Ang | Unit for forces. |

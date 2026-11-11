@@ -197,7 +197,7 @@ def run_molecular_dynamics(args, dataset, model, directory=None, model_code=None
                 warmup_simulator = warmup_simulator.to('cuda')
             warmup_simulator = warmup_simulator.to(args.dtype)
             steps = 0
-            while steps < args.md_steps//20:
+            while steps < (args.warm_up_steps if args.warm_up_steps is not None else args.md_steps//20):
                 steps += 100
                 warmup_simulator.simulate(100)
                 wandb_summary(wandb_run, md_system)
