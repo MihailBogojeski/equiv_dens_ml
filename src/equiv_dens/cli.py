@@ -1,6 +1,6 @@
 """CLI for run.py and the equiv-dens entry point.
 
-Subcommands dispatch to scripts/training/ and scripts/md/. Run with
+Core subcommands dispatch to installed package modules. Run with
 ``python run.py --help`` or ``equiv-dens --help`` after pip install.
 """
 
@@ -12,21 +12,25 @@ import subprocess
 import sys
 from pathlib import Path
 
-_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+from equiv_dens.paths import checkout_root, project_root
+
+_REPO_ROOT = project_root()
 _SRC = str(_REPO_ROOT / "src")
 
 
 def _env_with_src():
     env = os.environ.copy()
-    env["PYTHONPATH"] = _SRC + os.pathsep + env.get("PYTHONPATH", "")
+    # A wheel must not accidentally load an unrelated cwd/src checkout.
+    if checkout_root() is not None:
+        env["PYTHONPATH"] = _SRC + os.pathsep + env.get("PYTHONPATH", "")
     return env
 
 
 TRAIN_SCRIPTS = {
-    "density": "scripts/training/train_dens.py",
-    "joint": "scripts/training/train.py",
-    "multiphase": "scripts/training/train_all.py",
-    "energy": "scripts/training/train_only_en.py",
+    "density": "equiv_dens.training.workflows.density",
+    "joint": "equiv_dens.training.workflows.joint",
+    "multiphase": "equiv_dens.training.workflows.multiphase",
+    "energy": "equiv_dens.training.workflows.energy",
 }
 
 
@@ -42,8 +46,8 @@ def _cmd_train(args: argparse.Namespace) -> int:
         )
         return 1
     config_arg = config if config.startswith("@") else f"@{config}"
-    script = _REPO_ROOT / TRAIN_SCRIPTS[args.mode]
-    cmd = [sys.executable, str(script), config_arg] + extra
+    module = TRAIN_SCRIPTS[args.mode]
+    cmd = [sys.executable, "-m", module, config_arg] + extra
     return subprocess.call(cmd, cwd=str(_REPO_ROOT), env=_env_with_src())
 
 
@@ -59,8 +63,8 @@ def _cmd_md(args: argparse.Namespace) -> int:
         )
         return 1
     config_arg = config if config.startswith("@") else f"@{config}"
-    script = _REPO_ROOT / "scripts" / "md" / "schnetpack_md_run.py"
-    cmd = [sys.executable, str(script), config_arg] + extra
+    module = "equiv_dens.commands.md"
+    cmd = [sys.executable, "-m", module, config_arg] + extra
     return subprocess.call(cmd, cwd=str(_REPO_ROOT), env=_env_with_src())
 
 
@@ -76,8 +80,8 @@ def _cmd_gxtb_md(args: argparse.Namespace) -> int:
         )
         return 1
     config_arg = config if config.startswith("@") else f"@{config}"
-    script = _REPO_ROOT / "scripts" / "md" / "gxtb_md_run.py"
-    cmd = [sys.executable, str(script), config_arg] + extra
+    module = "equiv_dens.commands.gxtb_md"
+    cmd = [sys.executable, "-m", module, config_arg] + extra
     return subprocess.call(cmd, cwd=str(_REPO_ROOT), env=_env_with_src())
 
 
@@ -91,10 +95,10 @@ def _cmd_infer(args: argparse.Namespace) -> int:
     if not traj.exists():
         print(f"Error: trajectory not found: {traj}", file=sys.stderr)
         return 1
-    script = _REPO_ROOT / "scripts" / "training" / "eval_model_npy.py"
+    module = "equiv_dens.commands.infer"
     cmd = [
         sys.executable,
-        str(script),
+        "-m", module,
         str(args_file),
         str(traj),
         "--batch_size",
@@ -111,19 +115,16 @@ def _cmd_test(args: argparse.Namespace) -> int:
     if not args_file.exists():
         print(f"Error: args file not found: {args_file}", file=sys.stderr)
         return 1
-    script = _REPO_ROOT / "tests" / "eval_model.py"
-    cmd = [sys.executable, str(script), f"@{args_file}"] + args.extra
+    module = "equiv_dens.commands.evaluate"
+    cmd = [sys.executable, "-m", module, f"@{args_file}"] + (args.extra or [])
     return subprocess.call(cmd, cwd=str(_REPO_ROOT), env=_env_with_src())
 
 
 def _cmd_dipole(args: argparse.Namespace) -> int:
-    script = _REPO_ROOT / "scripts" / "recompute_polythiophene_dipoles_parallel.py"
-    if not script.exists():
-        print(f"Error: {script} not found", file=sys.stderr)
-        return 1
+    module = "equiv_dens.commands.dipole"
     cmd = [
         sys.executable,
-        str(script),
+        "-m", module,
         "--trajectory",
         str(args.trajectory),
         "--model_path",
@@ -142,7 +143,7 @@ def _cmd_dipole(args: argparse.Namespace) -> int:
     return subprocess.call(cmd, cwd=str(_REPO_ROOT), env=_env_with_src())
 
 
-def main() -> int:
+def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
         description="equiv_dens_ml unified entry point",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -208,9 +209,18 @@ def main() -> int:
     p_dipole.add_argument("--output_dir", "-o", type=str, default="scratch/dipole", help="Output directory")
     p_dipole.set_defaults(func=_cmd_dipole)
 
-    args, unknown = parser.parse_known_args()
+    p_experiment = subparsers.add_parser("experiment", help="Run repository-local experiments")
+    p_experiment.add_argument("campaign", choices=["jacs"])
+    p_experiment.add_argument("action", choices=["list", "run", "submit"])
+    p_experiment.add_argument("task", nargs="?")
+    p_experiment.add_argument("extra", nargs=argparse.REMAINDER)
+    from equiv_dens.commands.experiment import dispatch
+    p_experiment.set_defaults(func=dispatch)
+
+    args, unknown = parser.parse_known_args(argv)
     if args.command == "test":
-        args.extra = unknown  # args files and flags for eval_model.py, in their order
+        # args files and flags for the evaluation, in their order (the test subparser has no REMAINDER argument)
+        args.extra = list(getattr(args, "extra", None) or []) + unknown
     elif unknown:
         parser.error(f"unrecognized arguments: {' '.join(unknown)}")
     return args.func(args)

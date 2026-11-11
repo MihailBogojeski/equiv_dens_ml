@@ -1,0 +1,111 @@
+{
+  "baseline": {
+    "passed": 503,
+    "failed": 14,
+    "skipped": 19
+  },
+  "final_verified_outcomes": {
+    "passed": 521,
+    "failed": 14,
+    "skipped": 19
+  },
+  "compatibility_checks": {
+    "passed": 18,
+    "failed": 0,
+    "skipped": 0
+  },
+  "new_failures": {},
+  "known_failures": [
+    "tests.revision.test_ethanethiol_ir_compare::test_synthetic_spectra_write_overlay_and_metrics",
+    "tests.test_atomic_energy_baseline::test_energy_overlay_names_an_existing_atomic_energy_file[overlay0]",
+    "tests.test_atomic_energy_baseline::test_energy_overlay_names_an_existing_atomic_energy_file[overlay1]",
+    "tests.test_atomic_energy_baseline::test_energy_overlay_names_an_existing_atomic_energy_file[overlay2]",
+    "tests.test_dataset_structure_gallery::test_gallery_uses_thermal_and_rackers_frames_not_only_minima",
+    "tests.test_training_configs::test_stack_references_files_that_exist[cutoff_4/pbe_d4_avdz]",
+    "tests.test_training_configs::test_stack_references_files_that_exist[cutoff_5/pbe_d4_avdz]",
+    "tests.test_training_configs::test_stack_references_files_that_exist[cutoff_6/pbe_d4_avdz]",
+    "tests.test_training_configs::test_stack_references_files_that_exist[cutoff_8/pbe_d4_avdz]",
+    "tests.test_training_configs::test_stack_references_files_that_exist[malonaldehyde/pbe_d4_avdz]",
+    "tests.test_training_configs::test_stack_references_files_that_exist[malonaldehyde/wb97mv_def2tzvpd]",
+    "tests.test_training_configs::test_stack_references_files_that_exist[water/pbe_d4_avdz]",
+    "tests.test_training_configs::test_stack_references_files_that_exist[water/wb97mv_def2tzvpd]",
+    "tests.test_training_configs::test_stack_references_files_that_exist[water_direct/wb97mv_def2tzvpd]"
+  ],
+  "skipped": [
+    "tests.test_atomic_energy_baseline::test_least_squares_water_train_residual_is_conformational",
+    "tests.test_inference_benchmark.TestBaselineInference::test_baseline_runs_without_error",
+    "tests.test_inference_benchmark.TestBaselineInference::test_baseline_produces_energy",
+    "tests.test_inference_benchmark.TestBaselineInference::test_baseline_energy_is_finite",
+    "tests.test_inference_benchmark.TestBaselineInference::test_baseline_forces_shape",
+    "tests.test_inference_benchmark.TestBaselineInference::test_baseline_forces_are_finite",
+    "tests.test_inference_benchmark.TestTF32Inference::test_tf32_produces_close_energy",
+    "tests.test_inference_benchmark.TestCompiledInference::test_compiled_produces_same_energy",
+    "tests.test_inference_benchmark.TestCUDAGraphInference::test_cuda_graph_wrapper_does_not_crash",
+    "tests.test_inference_benchmark.TestCUDAGraphInference::test_cuda_graph_or_fallback_matches_baseline",
+    "tests.test_inference_benchmark.TestCUDAGraphInference::test_cuda_graph_replay_consistency",
+    "tests.test_inference_benchmark.TestCUDAGraphInference::test_cuda_graph_skipped_when_forces",
+    "tests.test_inference_benchmark.TestCUDAGraphInference::test_cuda_graph_failed_flag",
+    "tests.test_inference_benchmark.TestGPUProfiling::test_cuda_events_timing_baseline",
+    "tests.test_inference_benchmark.TestGPUProfiling::test_cuda_events_timing_tf32",
+    "tests.test_inference_benchmark.TestGPUProfiling::test_cuda_events_timing_cuda_graph",
+    "tests.test_inference_benchmark.TestGPUProfiling::test_memory_usage",
+    "tests.test_inference_benchmark.TestGPUProfiling::test_speedup_tf32",
+    "tests.test_inference_benchmark.TestGPUProfiling::test_speedup_cuda_graph"
+  ],
+  "evidence": "Final outcomes merge the original broad refactor run with subsequent focused reruns. Focused results override the earlier outcome of the same test.",
+  "sources": [
+    "baseline.xml",
+    "refactor.xml",
+    "compatibility.xml",
+    "targeted_fixes.xml",
+    "compatibility_fast.xml"
+  ],
+  "paper_model_probe": {
+    "status": "unverified: shared baseline error before predictions",
+    "model": "ethanol/2024-03-22_96w7KyGG",
+    "baseline_error": "ValueError: No free atom MO or DF coefficients found!",
+    "refactor_error": "ValueError: No free atom MO or DF coefficients found!",
+    "inputs": [
+      {
+        "path": "paper/models/ethanol/2024-03-22_96w7KyGG/args.txt",
+        "bytes": 2983,
+        "sha256": "1ce691633547203581809c506758dc06f53b46421c800b8f12ef9e43d9901e06"
+      },
+      {
+        "path": "paper/models/ethanol/2024-03-22_96w7KyGG/best_96w7KyGG.pth",
+        "bytes": 52797491,
+        "sha256": "d150c3e48b67975846e4bcbebb43e890ea270f5f8fa604afa46019f864def83a"
+      },
+      {
+        "path": "datasets/ethanol_dft_pyscf_ccpvdz_train.npy",
+        "bytes": 483125,
+        "sha256": "d06a6775ed8da02896c4cf8fa79c0127df39fc3fcf0ed113d43259bd34071bf6"
+      },
+      {
+        "path": "datasets/augccpvqzjkfit_orbital_basis_df.npy",
+        "bytes": 14191,
+        "sha256": "4452556d0ddb2d5bd78f1dfe1e39043aee471924cfb4fb6bcfb3d7f04f5ec322"
+      },
+      {
+        "path": "datasets/augccpvqzjkfit_radial_coeffs_libcint_df.npy",
+        "bytes": 31735,
+        "sha256": "9b22adb850316aa20588b908230e49b3d67be0edd8e64d74c32fc7f069727029"
+      },
+      {
+        "path": "datasets/free_atom_densities_augccpvdz_augccpvqzjkfit.npy",
+        "bytes": 155197,
+        "sha256": "7bf3529a19eb51cb77eaa895b35c0d457396af7c7c584a5dcf64e4920ae42511"
+      }
+    ],
+    "reproducer": "tests/fixtures/refactor/paper_model_parity.py",
+    "notes": "Each workspace has independent copies of stable inputs. Source/copy SHA-256 matched before and after copying. No model heads or scientific defaults modified."
+  },
+  "final_isolation_audit": {
+    "checked_at_utc": "2026-09-27T20:20:34.112527+00:00",
+    "production_branch": "main",
+    "production_commit": "2bd1cfb839416aa18a32c11d4b42eafa69c2f431",
+    "protected_production_files_unchanged": 693,
+    "old_paths_retained_within_development_checkout": 421,
+    "manuscript_gitlinks": "unchanged"
+  }
+}
