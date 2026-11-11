@@ -3996,16 +3996,6 @@
     ]
   },
   {
-    "old_path": "config/training/qm7x_energy_001.txt",
-    "canonical_target": "experiments/jacs_revision/config/training/qm7x_energy_001.txt",
-    "adapter": "relative_symlink",
-    "preserve": [
-      "contents",
-      "argument_order",
-      "relative_path_semantics"
-    ]
-  },
-  {
     "old_path": "config/training/qm7x_energy_overlay.txt",
     "canonical_target": "experiments/jacs_revision/config/training/qm7x_energy_overlay.txt",
     "adapter": "relative_symlink",

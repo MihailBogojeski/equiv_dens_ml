@@ -28,7 +28,7 @@ WATER_TRAIN_PBE = (
 ENERGY_OVERLAYS = (
     _REPO_ROOT / "config/training/water_energy_pbe.txt",
     _REPO_ROOT / "config/training/water_energy_wb97mv.txt",
-    _REPO_ROOT / "config/training/qm7x_energy_001.txt",
+    _REPO_ROOT / "experiments/jacs_revision/config/training/qm7x_energy_001.txt",
 )
 
 

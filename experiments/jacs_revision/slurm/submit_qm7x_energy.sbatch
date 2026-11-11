@@ -84,7 +84,7 @@ if [[ -n "$energy_resume" ]]; then
   extra+=(--restart="$energy_resume")
 fi
 
-./.venv/bin/python run.py train --mode energy @config/training/qm7x_energy_001.txt \
+./.venv/bin/python run.py train --mode energy @experiments/jacs_revision/config/training/qm7x_energy_001.txt \
   "${extra[@]}" 2>&1 | tee -a "logs/train_qm7x_energy.log"
 
 energy_run=$(scripts/revision/lib/latest_run_dir.sh "$save_dir")
