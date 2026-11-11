@@ -1,0 +1,5196 @@
+[
+  {
+    "old_path": "scripts/training/train_dens.py",
+    "canonical_target": "equiv_dens.training.workflows.density",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports"
+    ]
+  },
+  {
+    "old_path": "scripts/training/train.py",
+    "canonical_target": "equiv_dens.training.workflows.joint",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports"
+    ]
+  },
+  {
+    "old_path": "scripts/training/train_all.py",
+    "canonical_target": "equiv_dens.training.workflows.multiphase",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports"
+    ]
+  },
+  {
+    "old_path": "scripts/training/train_only_en.py",
+    "canonical_target": "equiv_dens.training.workflows.energy",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports"
+    ]
+  },
+  {
+    "old_path": "scripts/training/eval_model_npy.py",
+    "canonical_target": "equiv_dens.commands.infer",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports"
+    ]
+  },
+  {
+    "old_path": "tests/eval_model.py",
+    "canonical_target": "equiv_dens.commands.evaluate",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports"
+    ]
+  },
+  {
+    "old_path": "src/equiv_dens/train_all.py",
+    "canonical_target": "equiv_dens.training.workflows.multiphase",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports"
+    ]
+  },
+  {
+    "old_path": "scripts/md/schnetpack_md_run.py",
+    "canonical_target": "equiv_dens.commands.md",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports"
+    ]
+  },
+  {
+    "old_path": "scripts/md/gxtb_md_run.py",
+    "canonical_target": "equiv_dens.commands.gxtb_md",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports"
+    ]
+  },
+  {
+    "old_path": "scripts/recompute_polythiophene_dipoles_parallel.py",
+    "canonical_target": "equiv_dens.commands.dipole",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/README.md",
+    "canonical_target": "experiments/jacs_revision/README.md",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/analyze_density_metrics.py",
+    "canonical_target": "experiments/jacs_revision/analysis/analyze_density_metrics.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/analyze_train_test_overlap.py",
+    "canonical_target": "experiments/jacs_revision/analysis/analyze_train_test_overlap.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/ase_densnet_md.py",
+    "canonical_target": "experiments/jacs_revision/analysis/ase_densnet_md.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/benchmark_figure2.py",
+    "canonical_target": "experiments/jacs_revision/analysis/benchmark_figure2.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/build_gallery_reps.py",
+    "canonical_target": "experiments/jacs_revision/analysis/build_gallery_reps.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/calibrate_output_scaling.py",
+    "canonical_target": "experiments/jacs_revision/analysis/calibrate_output_scaling.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/calibrate_theory.py",
+    "canonical_target": "experiments/jacs_revision/analysis/calibrate_theory.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/collect_gpu_hours.py",
+    "canonical_target": "experiments/jacs_revision/analysis/collect_gpu_hours.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/cpu_mlip_suite.py",
+    "canonical_target": "experiments/jacs_revision/analysis/cpu_mlip_suite.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/dipole_vs_mer.py",
+    "canonical_target": "experiments/jacs_revision/analysis/dipole_vs_mer.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/error_vs_distance.py",
+    "canonical_target": "experiments/jacs_revision/analysis/error_vs_distance.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/eval_cutoff_sweep.sh",
+    "canonical_target": "experiments/jacs_revision/analysis/eval_cutoff_sweep.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/eval_dipole_mae.py",
+    "canonical_target": "experiments/jacs_revision/analysis/eval_dipole_mae.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/eval_distance_scaling.py",
+    "canonical_target": "experiments/jacs_revision/analysis/eval_distance_scaling.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/eval_ethanol_ood_available.py",
+    "canonical_target": "experiments/jacs_revision/analysis/eval_ethanol_ood_available.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/fetch_ethanethiol_nist_ir.py",
+    "canonical_target": "experiments/jacs_revision/analysis/fetch_ethanethiol_nist_ir.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/fit_atomic_energies.py",
+    "canonical_target": "experiments/jacs_revision/analysis/fit_atomic_energies.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/generate_extreme_modes.py",
+    "canonical_target": "experiments/jacs_revision/analysis/generate_extreme_modes.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/generate_ood_geometries.py",
+    "canonical_target": "experiments/jacs_revision/analysis/generate_ood_geometries.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/install_pymol_open_source.sh",
+    "canonical_target": "experiments/jacs_revision/analysis/install_pymol_open_source.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/ir_vs_length.py",
+    "canonical_target": "experiments/jacs_revision/analysis/ir_vs_length.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/ir_vs_length_npy.py",
+    "canonical_target": "experiments/jacs_revision/analysis/ir_vs_length_npy.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/launch_local_gpu.sh",
+    "canonical_target": "experiments/jacs_revision/analysis/launch_local_gpu.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/launch_ood_geometry_dft.sh",
+    "canonical_target": "experiments/jacs_revision/analysis/launch_ood_geometry_dft.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/lda_hf_ape_benchmark.py",
+    "canonical_target": "experiments/jacs_revision/analysis/lda_hf_ape_benchmark.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/learning_curve_records.py",
+    "canonical_target": "experiments/jacs_revision/analysis/learning_curve_records.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/merge_ethanol_dft_shards.py",
+    "canonical_target": "experiments/jacs_revision/analysis/merge_ethanol_dft_shards.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/merge_polythiophene_dipoles_ir.py",
+    "canonical_target": "experiments/jacs_revision/analysis/merge_polythiophene_dipoles_ir.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/mpl_classic_tex.py",
+    "canonical_target": "experiments/jacs_revision/analysis/mpl_classic_tex.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/nve_energy_drift.py",
+    "canonical_target": "experiments/jacs_revision/analysis/nve_energy_drift.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/ood_overlap_report.py",
+    "canonical_target": "experiments/jacs_revision/analysis/ood_overlap_report.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/optimize_densnet.py",
+    "canonical_target": "experiments/jacs_revision/analysis/optimize_densnet.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/overlay_mace_vs_densnet_ir.py",
+    "canonical_target": "experiments/jacs_revision/analysis/overlay_mace_vs_densnet_ir.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/pbe_vs_hybrid_table.py",
+    "canonical_target": "experiments/jacs_revision/analysis/pbe_vs_hybrid_table.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/plot_cv_overlap_histograms.py",
+    "canonical_target": "experiments/jacs_revision/analysis/plot_cv_overlap_histograms.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/plot_ethanethiol_ir_compare.py",
+    "canonical_target": "experiments/jacs_revision/analysis/plot_ethanethiol_ir_compare.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/plot_response_letter_figures.py",
+    "canonical_target": "experiments/jacs_revision/analysis/plot_response_letter_figures.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/poll_dft_counts.py",
+    "canonical_target": "experiments/jacs_revision/analysis/poll_dft_counts.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/prepare_pbe0_subset.py",
+    "canonical_target": "experiments/jacs_revision/analysis/prepare_pbe0_subset.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/probe_grid_sensitivity.py",
+    "canonical_target": "experiments/jacs_revision/analysis/probe_grid_sensitivity.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/project_mode_cv.py",
+    "canonical_target": "experiments/jacs_revision/analysis/project_mode_cv.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/recompute_polythiophene_dipoles_npy.py",
+    "canonical_target": "experiments/jacs_revision/analysis/recompute_polythiophene_dipoles_npy.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/render_dataset_structures.py",
+    "canonical_target": "experiments/jacs_revision/analysis/render_dataset_structures.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/run_dft_campaign.sh",
+    "canonical_target": "experiments/jacs_revision/analysis/run_dft_campaign.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/run_gpu_campaign.sh",
+    "canonical_target": "experiments/jacs_revision/analysis/run_gpu_campaign.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/run_gxtb_labels.py",
+    "canonical_target": "experiments/jacs_revision/analysis/run_gxtb_labels.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/run_mace_ethanol_ir.py",
+    "canonical_target": "experiments/jacs_revision/analysis/run_mace_ethanol_ir.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/run_mlip_ir_md.py",
+    "canonical_target": "experiments/jacs_revision/analysis/run_mlip_ir_md.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/run_ood_analysis.sh",
+    "canonical_target": "experiments/jacs_revision/analysis/run_ood_analysis.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/score_extreme_modes.py",
+    "canonical_target": "experiments/jacs_revision/analysis/score_extreme_modes.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/score_learning_curve_ckpts.py",
+    "canonical_target": "experiments/jacs_revision/analysis/score_learning_curve_ckpts.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/score_ood_forces.py",
+    "canonical_target": "experiments/jacs_revision/analysis/score_ood_forces.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/search_ethanol_train_npy.py",
+    "canonical_target": "experiments/jacs_revision/analysis/search_ethanol_train_npy.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/submit_revision_gpu_jobs.sh",
+    "canonical_target": "experiments/jacs_revision/analysis/submit_revision_gpu_jobs.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/summarize_gxtb.py",
+    "canonical_target": "experiments/jacs_revision/analysis/summarize_gxtb.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/timing_policy.py",
+    "canonical_target": "experiments/jacs_revision/analysis/timing_policy.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/train_log_curve.py",
+    "canonical_target": "experiments/jacs_revision/analysis/train_log_curve.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analysis/validate_training_recipe.py",
+    "canonical_target": "experiments/jacs_revision/analysis/validate_training_recipe.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analyze_density_metrics.py",
+    "canonical_target": "experiments/jacs_revision/analysis/analyze_density_metrics.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/analyze_train_test_overlap.py",
+    "canonical_target": "experiments/jacs_revision/analysis/analyze_train_test_overlap.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/ase_densnet_md.py",
+    "canonical_target": "experiments/jacs_revision/analysis/ase_densnet_md.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/assemble_water_labels.sh",
+    "canonical_target": "experiments/jacs_revision/water/assemble_water_labels.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/benchmark_figure2.py",
+    "canonical_target": "experiments/jacs_revision/analysis/benchmark_figure2.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/build_orbital_basis.py",
+    "canonical_target": "experiments/jacs_revision/lib/build_orbital_basis.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/build_sad_prior.py",
+    "canonical_target": "experiments/jacs_revision/lib/build_sad_prior.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/build_shards_from_xyz.py",
+    "canonical_target": "experiments/jacs_revision/lib/build_shards_from_xyz.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/calibrate_output_scaling.py",
+    "canonical_target": "experiments/jacs_revision/analysis/calibrate_output_scaling.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/calibrate_theory.py",
+    "canonical_target": "experiments/jacs_revision/analysis/calibrate_theory.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/campaign_status.py",
+    "canonical_target": "experiments/jacs_revision/water/campaign_status.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/collect_learning_curves.sh",
+    "canonical_target": "experiments/jacs_revision/campaign/collect_learning_curves.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/cpu_mlip_suite.py",
+    "canonical_target": "experiments/jacs_revision/analysis/cpu_mlip_suite.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/csh/csh_build_manifest.py",
+    "canonical_target": "experiments/jacs_revision/csh/csh_build_manifest.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/csh/csh_evaluate.py",
+    "canonical_target": "experiments/jacs_revision/csh/csh_evaluate.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/csh/csh_shard_to_df.py",
+    "canonical_target": "experiments/jacs_revision/csh/csh_shard_to_df.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/csh/csh_shards_to_npy.py",
+    "canonical_target": "experiments/jacs_revision/csh/csh_shards_to_npy.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/csh/download_omol25_index.sh",
+    "canonical_target": "experiments/jacs_revision/csh/download_omol25_index.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/csh/inspect_omol_csh.py",
+    "canonical_target": "experiments/jacs_revision/csh/inspect_omol_csh.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/csh/omol_csh_ao_table.py",
+    "canonical_target": "experiments/jacs_revision/csh/omol_csh_ao_table.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/csh/omol_csh_common.py",
+    "canonical_target": "experiments/jacs_revision/csh/omol_csh_common.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/csh/omol_csh_compare_reference.py",
+    "canonical_target": "experiments/jacs_revision/csh/omol_csh_compare_reference.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/csh/omol_csh_discover_permutation.py",
+    "canonical_target": "experiments/jacs_revision/csh/omol_csh_discover_permutation.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/csh/omol_csh_extract_permutation.py",
+    "canonical_target": "experiments/jacs_revision/csh/omol_csh_extract_permutation.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/csh/omol_csh_identify_convention.py",
+    "canonical_target": "experiments/jacs_revision/csh/omol_csh_identify_convention.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/csh/omol_csh_orca_labels.py",
+    "canonical_target": "experiments/jacs_revision/csh/omol_csh_orca_labels.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/csh/omol_csh_orca_overlap.py",
+    "canonical_target": "experiments/jacs_revision/csh/omol_csh_orca_overlap.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/csh/omol_csh_probe_layout.py",
+    "canonical_target": "experiments/jacs_revision/csh/omol_csh_probe_layout.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/csh/omol_csh_reference_scf.py",
+    "canonical_target": "experiments/jacs_revision/csh/omol_csh_reference_scf.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/csh/omol_csh_scan_layouts.py",
+    "canonical_target": "experiments/jacs_revision/csh/omol_csh_scan_layouts.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/csh/omol_csh_solve_ordering.py",
+    "canonical_target": "experiments/jacs_revision/csh/omol_csh_solve_ordering.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/csh/omol_csh_solve_permutation.py",
+    "canonical_target": "experiments/jacs_revision/csh/omol_csh_solve_permutation.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/csh/omol_csh_validate_ordering.py",
+    "canonical_target": "experiments/jacs_revision/csh/omol_csh_validate_ordering.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/csh_build_manifest.py",
+    "canonical_target": "experiments/jacs_revision/csh/csh_build_manifest.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/csh_evaluate.py",
+    "canonical_target": "experiments/jacs_revision/csh/csh_evaluate.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/csh_shard_to_df.py",
+    "canonical_target": "experiments/jacs_revision/csh/csh_shard_to_df.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/csh_shards_to_npy.py",
+    "canonical_target": "experiments/jacs_revision/csh/csh_shards_to_npy.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/download_omol25_index.sh",
+    "canonical_target": "experiments/jacs_revision/csh/download_omol25_index.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/download_qm7x.sh",
+    "canonical_target": "experiments/jacs_revision/qm7x/download_qm7x.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/error_vs_distance.py",
+    "canonical_target": "experiments/jacs_revision/analysis/error_vs_distance.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/eval_ethanol_ood_available.py",
+    "canonical_target": "experiments/jacs_revision/analysis/eval_ethanol_ood_available.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/evaluate_hbond_metrics.py",
+    "canonical_target": "experiments/jacs_revision/water/evaluate_hbond_metrics.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/generate_dft_labels.py",
+    "canonical_target": "experiments/jacs_revision/lib/generate_dft_labels.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/generate_extreme_modes.py",
+    "canonical_target": "experiments/jacs_revision/analysis/generate_extreme_modes.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/generate_malonaldehyde.py",
+    "canonical_target": "experiments/jacs_revision/water/generate_malonaldehyde.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/generate_ood_distance_scale.py",
+    "canonical_target": "experiments/jacs_revision/water/generate_ood_distance_scale.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/generate_ood_geometries.py",
+    "canonical_target": "experiments/jacs_revision/analysis/generate_ood_geometries.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/generate_ood_water.py",
+    "canonical_target": "experiments/jacs_revision/water/generate_ood_water.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/generate_water_cluster_geoms.py",
+    "canonical_target": "experiments/jacs_revision/water/generate_water_cluster_geoms.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/hbonds/assemble_hbond_labels.sh",
+    "canonical_target": "experiments/jacs_revision/hbonds/assemble_hbond_labels.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/hbonds/collective_variables.py",
+    "canonical_target": "experiments/jacs_revision/hbonds/collective_variables.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/hbonds/common.py",
+    "canonical_target": "experiments/jacs_revision/hbonds/common.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/hbonds/generate_acac.py",
+    "canonical_target": "experiments/jacs_revision/hbonds/generate_acac.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/hbonds/generate_all.py",
+    "canonical_target": "experiments/jacs_revision/hbonds/generate_all.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/hbonds/generate_crambin_frags.py",
+    "canonical_target": "experiments/jacs_revision/hbonds/generate_crambin_frags.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/hbonds/generate_meoh_water.py",
+    "canonical_target": "experiments/jacs_revision/hbonds/generate_meoh_water.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/hbonds/generate_nma_dimer.py",
+    "canonical_target": "experiments/jacs_revision/hbonds/generate_nma_dimer.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/hbonds/generate_paracetamol.py",
+    "canonical_target": "experiments/jacs_revision/hbonds/generate_paracetamol.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/hbonds/generate_pgg.py",
+    "canonical_target": "experiments/jacs_revision/hbonds/generate_pgg.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/hbonds/generator_defaults.py",
+    "canonical_target": "experiments/jacs_revision/hbonds/generator_defaults.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/hbonds/launch_hbond_campaign.sh",
+    "canonical_target": "experiments/jacs_revision/hbonds/launch_hbond_campaign.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/hbonds/launch_wave1_orca.sh",
+    "canonical_target": "experiments/jacs_revision/hbonds/launch_wave1_orca.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/hbonds/overlap_gates.py",
+    "canonical_target": "experiments/jacs_revision/hbonds/overlap_gates.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/hbonds/xyz_io.py",
+    "canonical_target": "experiments/jacs_revision/hbonds/xyz_io.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/hold_duplicate_gpu_trains.sh",
+    "canonical_target": "experiments/jacs_revision/campaign/hold_duplicate_gpu_trains.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/inspect_omol_csh.py",
+    "canonical_target": "experiments/jacs_revision/csh/inspect_omol_csh.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/ir_vs_length.py",
+    "canonical_target": "experiments/jacs_revision/analysis/ir_vs_length.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/latest_run_dir.sh",
+    "canonical_target": "experiments/jacs_revision/lib/latest_run_dir.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/launch_local_gpu.sh",
+    "canonical_target": "experiments/jacs_revision/analysis/launch_local_gpu.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/launch_ood_geometry_dft.sh",
+    "canonical_target": "experiments/jacs_revision/analysis/launch_ood_geometry_dft.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/launch_water_campaign.sh",
+    "canonical_target": "experiments/jacs_revision/water/launch_water_campaign.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/lib/build_orbital_basis.py",
+    "canonical_target": "experiments/jacs_revision/lib/build_orbital_basis.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/lib/build_sad_prior.py",
+    "canonical_target": "experiments/jacs_revision/lib/build_sad_prior.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/lib/build_shards_from_xyz.py",
+    "canonical_target": "experiments/jacs_revision/lib/build_shards_from_xyz.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/lib/dftb_calculator.py",
+    "canonical_target": "experiments/jacs_revision/lib/dftb_calculator.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/lib/dipole_gate.py",
+    "canonical_target": "experiments/jacs_revision/lib/dipole_gate.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/lib/energy_pack.py",
+    "canonical_target": "experiments/jacs_revision/lib/energy_pack.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/lib/energy_train_spec.py",
+    "canonical_target": "experiments/jacs_revision/lib/energy_train_spec.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/lib/fetch_dftbplus.sh",
+    "canonical_target": "experiments/jacs_revision/lib/fetch_dftbplus.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/lib/fetch_mlip_extras.sh",
+    "canonical_target": "experiments/jacs_revision/lib/fetch_mlip_extras.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/lib/fetch_python_headers.sh",
+    "canonical_target": "experiments/jacs_revision/lib/fetch_python_headers.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/lib/generate_dft_labels.py",
+    "canonical_target": "experiments/jacs_revision/lib/generate_dft_labels.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/lib/geoopt_metrics.py",
+    "canonical_target": "experiments/jacs_revision/lib/geoopt_metrics.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/lib/gpu_queue_policy.sh",
+    "canonical_target": "experiments/jacs_revision/lib/gpu_queue_policy.sh",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/lib/latest_run_dir.sh",
+    "canonical_target": "experiments/jacs_revision/lib/latest_run_dir.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/lib/merge_label_parts.py",
+    "canonical_target": "experiments/jacs_revision/lib/merge_label_parts.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/lib/normal_modes.py",
+    "canonical_target": "experiments/jacs_revision/lib/normal_modes.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/lib/omol_csh_density_fit.py",
+    "canonical_target": "experiments/jacs_revision/lib/omol_csh_density_fit.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/lib/patch_sad_mo_basis.py",
+    "canonical_target": "experiments/jacs_revision/lib/patch_sad_mo_basis.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/lib/paths.py",
+    "canonical_target": "experiments/jacs_revision/lib/paths.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/lib/pyscf_labeler.py",
+    "canonical_target": "experiments/jacs_revision/lib/pyscf_labeler.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/lib/qm7x_orca_common.py",
+    "canonical_target": "experiments/jacs_revision/lib/qm7x_orca_common.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/lib/qm7x_orca_worker.py",
+    "canonical_target": "experiments/jacs_revision/lib/qm7x_orca_worker.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/lib/rigid_scale.py",
+    "canonical_target": "experiments/jacs_revision/lib/rigid_scale.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/lib/shard_claim.py",
+    "canonical_target": "experiments/jacs_revision/lib/shard_claim.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/lib/slice_labeled_pair.py",
+    "canonical_target": "experiments/jacs_revision/lib/slice_labeled_pair.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/lib/theory_levels.py",
+    "canonical_target": "experiments/jacs_revision/lib/theory_levels.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/lib/triton_headers.py",
+    "canonical_target": "experiments/jacs_revision/lib/triton_headers.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/lib/xyz_to_npy.py",
+    "canonical_target": "experiments/jacs_revision/lib/xyz_to_npy.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/malonaldehyde_collective_variables.py",
+    "canonical_target": "experiments/jacs_revision/water/malonaldehyde_collective_variables.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/merge_label_parts.py",
+    "canonical_target": "experiments/jacs_revision/lib/merge_label_parts.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/nve_energy_drift.py",
+    "canonical_target": "experiments/jacs_revision/analysis/nve_energy_drift.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/omol_csh_ao_table.py",
+    "canonical_target": "experiments/jacs_revision/csh/omol_csh_ao_table.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/omol_csh_common.py",
+    "canonical_target": "experiments/jacs_revision/csh/omol_csh_common.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/omol_csh_compare_reference.py",
+    "canonical_target": "experiments/jacs_revision/csh/omol_csh_compare_reference.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/omol_csh_density_fit.py",
+    "canonical_target": "experiments/jacs_revision/lib/omol_csh_density_fit.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/omol_csh_discover_permutation.py",
+    "canonical_target": "experiments/jacs_revision/csh/omol_csh_discover_permutation.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/omol_csh_extract_permutation.py",
+    "canonical_target": "experiments/jacs_revision/csh/omol_csh_extract_permutation.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/omol_csh_identify_convention.py",
+    "canonical_target": "experiments/jacs_revision/csh/omol_csh_identify_convention.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/omol_csh_orca_labels.py",
+    "canonical_target": "experiments/jacs_revision/csh/omol_csh_orca_labels.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/omol_csh_orca_overlap.py",
+    "canonical_target": "experiments/jacs_revision/csh/omol_csh_orca_overlap.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/omol_csh_probe_layout.py",
+    "canonical_target": "experiments/jacs_revision/csh/omol_csh_probe_layout.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/omol_csh_reference_scf.py",
+    "canonical_target": "experiments/jacs_revision/csh/omol_csh_reference_scf.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/omol_csh_scan_layouts.py",
+    "canonical_target": "experiments/jacs_revision/csh/omol_csh_scan_layouts.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/omol_csh_solve_ordering.py",
+    "canonical_target": "experiments/jacs_revision/csh/omol_csh_solve_ordering.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/omol_csh_solve_permutation.py",
+    "canonical_target": "experiments/jacs_revision/csh/omol_csh_solve_permutation.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/omol_csh_validate_ordering.py",
+    "canonical_target": "experiments/jacs_revision/csh/omol_csh_validate_ordering.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/ood_overlap_report.py",
+    "canonical_target": "experiments/jacs_revision/analysis/ood_overlap_report.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/optimize_densnet.py",
+    "canonical_target": "experiments/jacs_revision/analysis/optimize_densnet.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/patch_sad_mo_basis.py",
+    "canonical_target": "experiments/jacs_revision/lib/patch_sad_mo_basis.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/pbe_vs_hybrid_table.py",
+    "canonical_target": "experiments/jacs_revision/analysis/pbe_vs_hybrid_table.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/plot_cv_overlap_histograms.py",
+    "canonical_target": "experiments/jacs_revision/analysis/plot_cv_overlap_histograms.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/poll_dft_counts.py",
+    "canonical_target": "experiments/jacs_revision/analysis/poll_dft_counts.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/prepare_pbe0_subset.py",
+    "canonical_target": "experiments/jacs_revision/analysis/prepare_pbe0_subset.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/probe_grid_sensitivity.py",
+    "canonical_target": "experiments/jacs_revision/analysis/probe_grid_sensitivity.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/pyscf_labeler.py",
+    "canonical_target": "experiments/jacs_revision/lib/pyscf_labeler.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/qm7x/download_qm7x.sh",
+    "canonical_target": "experiments/jacs_revision/qm7x/download_qm7x.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/qm7x/qm7x_assemble_npy.py",
+    "canonical_target": "experiments/jacs_revision/qm7x/qm7x_assemble_npy.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/qm7x/qm7x_build_shards.py",
+    "canonical_target": "experiments/jacs_revision/qm7x/qm7x_build_shards.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/qm7x/qm7x_extract_geoms.py",
+    "canonical_target": "experiments/jacs_revision/qm7x/qm7x_extract_geoms.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/qm7x/qm7x_orca_status.py",
+    "canonical_target": "experiments/jacs_revision/qm7x/qm7x_orca_status.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/qm7x/submit_qm7x_orca.sh",
+    "canonical_target": "experiments/jacs_revision/qm7x/submit_qm7x_orca.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/qm7x/submit_qm7x_orca_remaining_train.sh",
+    "canonical_target": "experiments/jacs_revision/qm7x/submit_qm7x_orca_remaining_train.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/qm7x/watch_qm7x_campaign.sh",
+    "canonical_target": "experiments/jacs_revision/qm7x/watch_qm7x_campaign.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/qm7x_assemble_npy.py",
+    "canonical_target": "experiments/jacs_revision/qm7x/qm7x_assemble_npy.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/qm7x_build_shards.py",
+    "canonical_target": "experiments/jacs_revision/qm7x/qm7x_build_shards.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/qm7x_extract_geoms.py",
+    "canonical_target": "experiments/jacs_revision/qm7x/qm7x_extract_geoms.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/qm7x_orca_common.py",
+    "canonical_target": "experiments/jacs_revision/lib/qm7x_orca_common.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/qm7x_orca_worker.py",
+    "canonical_target": "experiments/jacs_revision/lib/qm7x_orca_worker.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/relax_water_clusters.py",
+    "canonical_target": "experiments/jacs_revision/water/relax_water_clusters.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/run_dft_campaign.sh",
+    "canonical_target": "experiments/jacs_revision/analysis/run_dft_campaign.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/run_energy_pack.py",
+    "canonical_target": "experiments/jacs_revision/campaign/run_energy_pack.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/run_gpu_campaign.sh",
+    "canonical_target": "experiments/jacs_revision/analysis/run_gpu_campaign.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/run_gxtb_labels.py",
+    "canonical_target": "experiments/jacs_revision/analysis/run_gxtb_labels.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/run_ood_analysis.sh",
+    "canonical_target": "experiments/jacs_revision/analysis/run_ood_analysis.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/run_ood_geometry_campaign.sh",
+    "canonical_target": "experiments/jacs_revision/campaign/run_ood_geometry_campaign.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/schedule_ethanol_dft_relabel.sh",
+    "canonical_target": "experiments/jacs_revision/campaign/schedule_ethanol_dft_relabel.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/schedule_polythiophene_dipole_pilot.sh",
+    "canonical_target": "experiments/jacs_revision/campaign/schedule_polythiophene_dipole_pilot.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/score_extreme_modes.py",
+    "canonical_target": "experiments/jacs_revision/analysis/score_extreme_modes.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/score_ood_forces.py",
+    "canonical_target": "experiments/jacs_revision/analysis/score_ood_forces.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/shard_claim.py",
+    "canonical_target": "experiments/jacs_revision/lib/shard_claim.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/slice_labeled_pair.py",
+    "canonical_target": "experiments/jacs_revision/lib/slice_labeled_pair.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/submit_12mer_timing.sbatch",
+    "canonical_target": "experiments/jacs_revision/slurm/submit_12mer_timing.sbatch",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/submit_calibration.sbatch",
+    "canonical_target": "experiments/jacs_revision/slurm/submit_calibration.sbatch",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/submit_csh_cpu.sbatch",
+    "canonical_target": "experiments/jacs_revision/slurm/submit_csh_cpu.sbatch",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/submit_csh_gpu.sbatch",
+    "canonical_target": "experiments/jacs_revision/slurm/submit_csh_gpu.sbatch",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/submit_csh_train_8el.sbatch",
+    "canonical_target": "experiments/jacs_revision/slurm/submit_csh_train_8el.sbatch",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/submit_energy_head_evals.sbatch",
+    "canonical_target": "experiments/jacs_revision/slurm/submit_energy_head_evals.sbatch",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/submit_ethanethiol_ir_compare.sbatch",
+    "canonical_target": "experiments/jacs_revision/slurm/submit_ethanethiol_ir_compare.sbatch",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/submit_ethanol_dft_relabel.sbatch",
+    "canonical_target": "experiments/jacs_revision/slurm/submit_ethanol_dft_relabel.sbatch",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/submit_geoopt_ethanethiol.sbatch",
+    "canonical_target": "experiments/jacs_revision/slurm/submit_geoopt_ethanethiol.sbatch",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/submit_gpu_campaign.sbatch",
+    "canonical_target": "experiments/jacs_revision/slurm/submit_gpu_campaign.sbatch",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/submit_hbond_relax.sbatch",
+    "canonical_target": "experiments/jacs_revision/slurm/submit_hbond_relax.sbatch",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/submit_hybrid_ensemble_eval.sbatch",
+    "canonical_target": "experiments/jacs_revision/slurm/submit_hybrid_ensemble_eval.sbatch",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/submit_ir_md.sbatch",
+    "canonical_target": "experiments/jacs_revision/slurm/submit_ir_md.sbatch",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/submit_learning_curves.sh",
+    "canonical_target": "experiments/jacs_revision/campaign/submit_learning_curves.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/submit_mace_ethanol_ir.sbatch",
+    "canonical_target": "experiments/jacs_revision/slurm/submit_mace_ethanol_ir.sbatch",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/submit_md40x_geometry.sbatch",
+    "canonical_target": "experiments/jacs_revision/slurm/submit_md40x_geometry.sbatch",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/submit_md40x_launch_pbe.sbatch",
+    "canonical_target": "experiments/jacs_revision/slurm/submit_md40x_launch_pbe.sbatch",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/submit_ood_analysis.sbatch",
+    "canonical_target": "experiments/jacs_revision/slurm/submit_ood_analysis.sbatch",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/submit_ood_geometry_watch.sbatch",
+    "canonical_target": "experiments/jacs_revision/slurm/submit_ood_geometry_watch.sbatch",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/submit_polythiophene_dipole_pilot.sbatch",
+    "canonical_target": "experiments/jacs_revision/slurm/submit_polythiophene_dipole_pilot.sbatch",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/submit_qm7x_energy.sbatch",
+    "canonical_target": "experiments/jacs_revision/slurm/submit_qm7x_energy.sbatch",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/submit_qm7x_orca.sbatch",
+    "canonical_target": "experiments/jacs_revision/slurm/submit_qm7x_orca.sbatch",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/submit_qm7x_orca.sh",
+    "canonical_target": "experiments/jacs_revision/qm7x/submit_qm7x_orca.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/submit_retrain_campaign.sh",
+    "canonical_target": "experiments/jacs_revision/campaign/submit_retrain_campaign.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/submit_revision_gpu_jobs.sh",
+    "canonical_target": "experiments/jacs_revision/analysis/submit_revision_gpu_jobs.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/submit_score_curve_ckpts.sbatch",
+    "canonical_target": "experiments/jacs_revision/slurm/submit_score_curve_ckpts.sbatch",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/submit_score_learning_curves.sh",
+    "canonical_target": "experiments/jacs_revision/campaign/submit_score_learning_curves.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/submit_water_gpu.sbatch",
+    "canonical_target": "experiments/jacs_revision/slurm/submit_water_gpu.sbatch",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/submit_water_orca.sbatch",
+    "canonical_target": "experiments/jacs_revision/slurm/submit_water_orca.sbatch",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/submit_water_orca_large.sbatch",
+    "canonical_target": "experiments/jacs_revision/slurm/submit_water_orca_large.sbatch",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/submit_water_train.sbatch",
+    "canonical_target": "experiments/jacs_revision/slurm/submit_water_train.sbatch",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/submit_water_train_energy.sbatch",
+    "canonical_target": "experiments/jacs_revision/slurm/submit_water_train_energy.sbatch",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/submit_water_watchdog.sbatch",
+    "canonical_target": "experiments/jacs_revision/slurm/submit_water_watchdog.sbatch",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/summarize_gxtb.py",
+    "canonical_target": "experiments/jacs_revision/analysis/summarize_gxtb.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/theory_levels.py",
+    "canonical_target": "experiments/jacs_revision/lib/theory_levels.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/thiophene/analyze_mh_minima.py",
+    "canonical_target": "experiments/jacs_revision/thiophene/analyze_mh_minima.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/thiophene/analyze_train_cv_density.py",
+    "canonical_target": "experiments/jacs_revision/thiophene/analyze_train_cv_density.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/thiophene/minima_hopping.py",
+    "canonical_target": "experiments/jacs_revision/thiophene/minima_hopping.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/thiophene/minima_hopping_densnet.py",
+    "canonical_target": "experiments/jacs_revision/thiophene/minima_hopping_densnet.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/thiophene/plot_thiophene_mh_figures.py",
+    "canonical_target": "experiments/jacs_revision/thiophene/plot_thiophene_mh_figures.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/thiophene/submit_mh_dft.sbatch",
+    "canonical_target": "experiments/jacs_revision/slurm/submit_mh_dft.sbatch",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/thiophene/submit_minima_hopping.sbatch",
+    "canonical_target": "experiments/jacs_revision/slurm/submit_minima_hopping.sbatch",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/thiophene/thiophene_collective_variables.py",
+    "canonical_target": "experiments/jacs_revision/thiophene/thiophene_collective_variables.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/thiophene/validate_mh_minima_dft.py",
+    "canonical_target": "experiments/jacs_revision/thiophene/validate_mh_minima_dft.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/wait_and_train_water.sh",
+    "canonical_target": "experiments/jacs_revision/water/wait_and_train_water.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/watch_and_resubmit.sh",
+    "canonical_target": "experiments/jacs_revision/water/watch_and_resubmit.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/watch_ood_geometry_dft.sh",
+    "canonical_target": "experiments/jacs_revision/campaign/watch_ood_geometry_dft.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/watch_water_campaign.sh",
+    "canonical_target": "experiments/jacs_revision/water/watch_water_campaign.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/water/assemble_water_labels.sh",
+    "canonical_target": "experiments/jacs_revision/water/assemble_water_labels.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/water/campaign_status.py",
+    "canonical_target": "experiments/jacs_revision/water/campaign_status.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/water/density_log_finished.py",
+    "canonical_target": "experiments/jacs_revision/water/density_log_finished.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/water/evaluate_hbond_metrics.py",
+    "canonical_target": "experiments/jacs_revision/water/evaluate_hbond_metrics.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/water/extract_rackers_pkls.py",
+    "canonical_target": "experiments/jacs_revision/water/extract_rackers_pkls.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/water/finish_hbond_when_relaxed.sh",
+    "canonical_target": "experiments/jacs_revision/water/finish_hbond_when_relaxed.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/water/finish_md40x_and_launch_pbe.sh",
+    "canonical_target": "experiments/jacs_revision/water/finish_md40x_and_launch_pbe.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/water/generate_malonaldehyde.py",
+    "canonical_target": "experiments/jacs_revision/water/generate_malonaldehyde.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/water/generate_new_motif_parents.py",
+    "canonical_target": "experiments/jacs_revision/water/generate_new_motif_parents.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/water/generate_ood_distance_scale.py",
+    "canonical_target": "experiments/jacs_revision/water/generate_ood_distance_scale.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/water/generate_ood_water.py",
+    "canonical_target": "experiments/jacs_revision/water/generate_ood_water.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/water/generate_water_cluster_geoms.py",
+    "canonical_target": "experiments/jacs_revision/water/generate_water_cluster_geoms.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/water/import_rackers_parents.py",
+    "canonical_target": "experiments/jacs_revision/water/import_rackers_parents.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/water/launch_md40x_waves.sh",
+    "canonical_target": "experiments/jacs_revision/water/launch_md40x_waves.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/water/launch_md_expansion_waves.sh",
+    "canonical_target": "experiments/jacs_revision/water/launch_md_expansion_waves.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/water/launch_water_campaign.sh",
+    "canonical_target": "experiments/jacs_revision/water/launch_water_campaign.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/water/make_learning_curve_splits.py",
+    "canonical_target": "experiments/jacs_revision/water/make_learning_curve_splits.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/water/malonaldehyde_collective_variables.py",
+    "canonical_target": "experiments/jacs_revision/water/malonaldehyde_collective_variables.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/water/md_sampling.py",
+    "canonical_target": "experiments/jacs_revision/water/md_sampling.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/water/merge_xyz_trees.py",
+    "canonical_target": "experiments/jacs_revision/water/merge_xyz_trees.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/water/plan_md40x_budget.py",
+    "canonical_target": "experiments/jacs_revision/water/plan_md40x_budget.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/water/relax_water_clusters.py",
+    "canonical_target": "experiments/jacs_revision/water/relax_water_clusters.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/water/run_geometry_expansion.sh",
+    "canonical_target": "experiments/jacs_revision/water/run_geometry_expansion.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/water/select_stratified_subset.py",
+    "canonical_target": "experiments/jacs_revision/water/select_stratified_subset.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/water/sync_density_training_markers.py",
+    "canonical_target": "experiments/jacs_revision/water/sync_density_training_markers.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/water/thicken_with_md.py",
+    "canonical_target": "experiments/jacs_revision/water/thicken_with_md.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/water/wait_and_train_water.sh",
+    "canonical_target": "experiments/jacs_revision/water/wait_and_train_water.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/water/watch_and_resubmit.sh",
+    "canonical_target": "experiments/jacs_revision/water/watch_and_resubmit.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/water/watch_energy_heads.sh",
+    "canonical_target": "experiments/jacs_revision/water/watch_energy_heads.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/water/watch_water_campaign.sh",
+    "canonical_target": "experiments/jacs_revision/water/watch_water_campaign.sh",
+    "adapter": "shell_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/water/water_collective_variables.py",
+    "canonical_target": "experiments/jacs_revision/water/water_collective_variables.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/water_collective_variables.py",
+    "canonical_target": "experiments/jacs_revision/water/water_collective_variables.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "scripts/revision/xyz_to_npy.py",
+    "canonical_target": "experiments/jacs_revision/lib/xyz_to_npy.py",
+    "adapter": "python_wrapper",
+    "preserve": [
+      "arguments",
+      "cwd",
+      "output_paths",
+      "defaults",
+      "imports",
+      "scheduler_directives"
+    ]
+  },
+  {
+    "old_path": "config/md/nn/ethanol_500ps.txt",
+    "canonical_target": "experiments/jacs_revision/config/md/nn/ethanol_500ps.txt",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "argument_order",
+      "relative_path_semantics"
+    ]
+  },
+  {
+    "old_path": "config/md/nn/polythiophene_2mer_500ps.txt",
+    "canonical_target": "experiments/jacs_revision/config/md/nn/polythiophene_2mer_500ps.txt",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "argument_order",
+      "relative_path_semantics"
+    ]
+  },
+  {
+    "old_path": "config/training/ethanol_pbe0_001.txt",
+    "canonical_target": "experiments/jacs_revision/config/training/ethanol_pbe0_001.txt",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "argument_order",
+      "relative_path_semantics"
+    ]
+  },
+  {
+    "old_path": "config/training/eval_ethanol_ood.txt",
+    "canonical_target": "experiments/jacs_revision/config/training/eval_ethanol_ood.txt",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "argument_order",
+      "relative_path_semantics"
+    ]
+  },
+  {
+    "old_path": "config/training/malonaldehyde_pbe_orca_overlay.txt",
+    "canonical_target": "experiments/jacs_revision/config/training/malonaldehyde_pbe_orca_overlay.txt",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "argument_order",
+      "relative_path_semantics"
+    ]
+  },
+  {
+    "old_path": "config/training/malonaldehyde_pt_001.txt",
+    "canonical_target": "experiments/jacs_revision/config/training/malonaldehyde_pt_001.txt",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "argument_order",
+      "relative_path_semantics"
+    ]
+  },
+  {
+    "old_path": "config/training/omol_csh_neutral_001.txt",
+    "canonical_target": "experiments/jacs_revision/config/training/omol_csh_neutral_001.txt",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "argument_order",
+      "relative_path_semantics"
+    ]
+  },
+  {
+    "old_path": "config/training/omol_csh_neutral_8el_001.txt",
+    "canonical_target": "experiments/jacs_revision/config/training/omol_csh_neutral_8el_001.txt",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "argument_order",
+      "relative_path_semantics"
+    ]
+  },
+  {
+    "old_path": "config/training/qm7x_energy_overlay.txt",
+    "canonical_target": "experiments/jacs_revision/config/training/qm7x_energy_overlay.txt",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "argument_order",
+      "relative_path_semantics"
+    ]
+  },
+  {
+    "old_path": "config/training/water_clusters_001.txt",
+    "canonical_target": "experiments/jacs_revision/config/training/water_clusters_001.txt",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "argument_order",
+      "relative_path_semantics"
+    ]
+  },
+  {
+    "old_path": "config/training/water_clusters_md40x_001.txt",
+    "canonical_target": "experiments/jacs_revision/config/training/water_clusters_md40x_001.txt",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "argument_order",
+      "relative_path_semantics"
+    ]
+  },
+  {
+    "old_path": "config/training/water_direct_multiphase_overlay.txt",
+    "canonical_target": "experiments/jacs_revision/config/training/water_direct_multiphase_overlay.txt",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "argument_order",
+      "relative_path_semantics"
+    ]
+  },
+  {
+    "old_path": "config/training/water_direct_overlay.txt",
+    "canonical_target": "experiments/jacs_revision/config/training/water_direct_overlay.txt",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "argument_order",
+      "relative_path_semantics"
+    ]
+  },
+  {
+    "old_path": "config/training/water_energy_base.txt",
+    "canonical_target": "experiments/jacs_revision/config/training/water_energy_base.txt",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "argument_order",
+      "relative_path_semantics"
+    ]
+  },
+  {
+    "old_path": "config/training/water_energy_pbe.txt",
+    "canonical_target": "experiments/jacs_revision/config/training/water_energy_pbe.txt",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "argument_order",
+      "relative_path_semantics"
+    ]
+  },
+  {
+    "old_path": "config/training/water_energy_wb97mv.txt",
+    "canonical_target": "experiments/jacs_revision/config/training/water_energy_wb97mv.txt",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "argument_order",
+      "relative_path_semantics"
+    ]
+  },
+  {
+    "old_path": "config/training/water_learning_curve_ckpt.txt",
+    "canonical_target": "experiments/jacs_revision/config/training/water_learning_curve_ckpt.txt",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "argument_order",
+      "relative_path_semantics"
+    ]
+  },
+  {
+    "old_path": "config/training/water_multiphase_overlay.txt",
+    "canonical_target": "experiments/jacs_revision/config/training/water_multiphase_overlay.txt",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "argument_order",
+      "relative_path_semantics"
+    ]
+  },
+  {
+    "old_path": "config/training/water_pbe_orca_overlay.txt",
+    "canonical_target": "experiments/jacs_revision/config/training/water_pbe_orca_overlay.txt",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "argument_order",
+      "relative_path_semantics"
+    ]
+  },
+  {
+    "old_path": "config/training/water_wb97mv_001.txt",
+    "canonical_target": "experiments/jacs_revision/config/training/water_wb97mv_001.txt",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "argument_order",
+      "relative_path_semantics"
+    ]
+  },
+  {
+    "old_path": "experiments_scripts/eval_mbd.py",
+    "canonical_target": "experiments/legacy/experiments_scripts/eval_mbd.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "experiments_scripts/eval_mbd_des15k.py",
+    "canonical_target": "experiments/legacy/experiments_scripts/eval_mbd_des15k.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "experiments_scripts/eval_overlaps.py",
+    "canonical_target": "experiments/legacy/experiments_scripts/eval_overlaps.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "experiments_scripts/eval_overlaps_des15k.py",
+    "canonical_target": "experiments/legacy/experiments_scripts/eval_overlaps_des15k.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "experiments_scripts/eval_overlaps_l14.py",
+    "canonical_target": "experiments/legacy/experiments_scripts/eval_overlaps_l14.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "experiments_scripts/eval_overlaps_old.py",
+    "canonical_target": "experiments/legacy/experiments_scripts/eval_overlaps_old.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "experiments_scripts/eval_overlaps_vl11.py",
+    "canonical_target": "experiments/legacy/experiments_scripts/eval_overlaps_vl11.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "experiments_scripts/eval_overlaps_water.py",
+    "canonical_target": "experiments/legacy/experiments_scripts/eval_overlaps_water.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "experiments_scripts/eval_sapt0.py",
+    "canonical_target": "experiments/legacy/experiments_scripts/eval_sapt0.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "experiments_scripts/eval_sapt0_des15k.py",
+    "canonical_target": "experiments/legacy/experiments_scripts/eval_sapt0_des15k.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "experiments_scripts/mbd_eval.py",
+    "canonical_target": "experiments/legacy/experiments_scripts/mbd_eval.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/CO-analysis.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/CO-analysis.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/CO-analysis.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/CO-analysis.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/CO_calc.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/CO_calc.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/GTO_integrals.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/GTO_integrals.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/H2_experiments.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/H2_experiments.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/adaptive_batching_test.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/adaptive_batching_test.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/aspirin_calc.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/aspirin_calc.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/atomization_energy_calc.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/atomization_energy_calc.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/benzene_water_dimer.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/benzene_water_dimer.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/calc_dipole_libcint.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/calc_dipole_libcint.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/calc_mbd.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/calc_mbd.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/calculate_atomic_densities.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/calculate_atomic_densities.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/check_density_consistency.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/check_density_consistency.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/check_grid_consistency.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/check_grid_consistency.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/compare_densities.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/compare_densities.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/coords_loading_speed.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/coords_loading_speed.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/coreless_density.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/coreless_density.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/coreless_density.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/coreless_density.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/def2svp_jkfit_test.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/def2svp_jkfit_test.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/dendrimer_pyscf_calc.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/dendrimer_pyscf_calc.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/density_analysis.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/density_analysis.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/density_constraints.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/density_constraints.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/density_error_experiments.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/density_error_experiments.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/density_expansion_test.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/density_expansion_test.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/density_fitting_coeffs.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/density_fitting_coeffs.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/density_fitting_coeffs_in_scf.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/density_fitting_coeffs_in_scf.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/density_fitting_test.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/density_fitting_test.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/df_free_atom_with_nn.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/df_free_atom_with_nn.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/dipole_heuristic.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/dipole_heuristic.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/dipole_norms_and_training.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/dipole_norms_and_training.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/electric_field.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/electric_field.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/ethanethiol_calc.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/ethanethiol_calc.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/ethanethiol_density_fitting.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/ethanethiol_density_fitting.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/ethanethiol_density_fitting.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/ethanethiol_density_fitting.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/ethanethiol_md_calc.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/ethanethiol_md_calc.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/ethanethiol_md_dipole.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/ethanethiol_md_dipole.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/ethanol_calc.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/ethanol_calc.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/ethanol_compare_initial_coeffs.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/ethanol_compare_initial_coeffs.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/ethanol_density_fitting.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/ethanol_density_fitting.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/ethanol_initial_coeffs.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/ethanol_initial_coeffs.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/ethanol_pyscf_calc.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/ethanol_pyscf_calc.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/ethanol_pyscf_test.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/ethanol_pyscf_test.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/evaluate_atomic_densities.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/evaluate_atomic_densities.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/evaluate_density_errors.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/evaluate_density_errors.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/extract_orbital_coeffs.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/extract_orbital_coeffs.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/extract_orbital_coeffs_libcint.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/extract_orbital_coeffs_libcint.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/get_orbital_gradients.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/get_orbital_gradients.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/gto_derivatives.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/gto_derivatives.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/gto_derivatives.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/gto_derivatives.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/h2_plots.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/h2_plots.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/hirshfeld_volumes.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/hirshfeld_volumes.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/internal_normalization.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/internal_normalization.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/jupy_test.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/jupy_test.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/loading_free_atom_densities.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/loading_free_atom_densities.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/loading_free_atom_densities.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/loading_free_atom_densities.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/match_pyscf_df_coeffs.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/match_pyscf_df_coeffs.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/ml_basis_to_energy.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/ml_basis_to_energy.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/ml_basis_to_energy.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/ml_basis_to_energy.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/ml_to_df_coeffs.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/ml_to_df_coeffs.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/ml_to_df_coeffs.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/ml_to_df_coeffs.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/multiple_radial_coeffs_test.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/multiple_radial_coeffs_test.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/nenci.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/nenci.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/orbital_coeffs_convention.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/orbital_coeffs_convention.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/orbital_coeffs_experiments.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/orbital_coeffs_experiments.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/partial_density_experiments.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/partial_density_experiments.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/playing_around_with_histograms.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/playing_around_with_histograms.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/plot_spherical_harmonics.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/plot_spherical_harmonics.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/resorcinol_and_ethanol_plots.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/resorcinol_and_ethanol_plots.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/resorcinol_calc.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/resorcinol_calc.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/resorcinol_density_fitting.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/resorcinol_density_fitting.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/resorcinol_md_calc.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/resorcinol_md_calc.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/resorcinol_md_calc.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/resorcinol_md_calc.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/s66x8_sapt0_calc.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/s66x8_sapt0_calc.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/save_atomic_densities.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/save_atomic_densities.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/schnetpack_md_ir_spectra.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/schnetpack_md_ir_spectra.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/test_bardi_data.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/test_bardi_data.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/thiophene_calc.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/thiophene_calc.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/thiophene_calc_d4.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/thiophene_calc_d4.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/thiophene_d4.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/thiophene_d4.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/thiophene_d4_update.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/thiophene_d4_update.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/thiophene_evaluate_dpm.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/thiophene_evaluate_dpm.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/thiophene_multisize_datasets.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/thiophene_multisize_datasets.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/visualize_density_error.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/visualize_density_error.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/visualize_density_error.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/visualize_density_error.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/water_hamiltonian_and_dm.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/water_hamiltonian_and_dm.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/water_pyscf_calc.ipynb",
+    "canonical_target": "experiments/legacy/notebooks/water_pyscf_calc.ipynb",
+    "adapter": "relative_symlink",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  },
+  {
+    "old_path": "notebooks/water_pyscf_calc.ju.py",
+    "canonical_target": "experiments/legacy/notebooks/water_pyscf_calc.ju.py",
+    "adapter": "legacy_exec_wrapper",
+    "preserve": [
+      "contents",
+      "cwd",
+      "arguments",
+      "logical_file_location"
+    ]
+  }
+]

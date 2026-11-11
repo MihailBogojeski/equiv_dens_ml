@@ -1,0 +1,1 @@
+../../experiments/jacs_revision/slurm/submit_geoopt_ethanethiol.sbatch

@@ -1,20 +1,24 @@
-"""SchNetPack MD calculator backed by g-xtb (subprocess, parse energy/gradient)."""
+"""g-xTB calculators: ASE single-points and SchNetPack MD."""
 
 import equiv_dens.compat  # noqa: F401 - apply T_co patch before schnetpack import
 
 import os
 import re
 import subprocess
+import tempfile
 from pathlib import Path
 
+import ase.io
+import ase.units
 import numpy as np
 import torch
+from ase.calculators.calculator import Calculator, all_changes
 import ase.io
 from ase.data import atomic_numbers
 
 import equiv_dens.utils.base as utils
-from schnetpack.md.calculators import MDCalculator, MDCalculatorError
 from schnetpack import properties
+from schnetpack.md.calculators import MDCalculator
 
 
 _CYCLE_HEADER = re.compile(
@@ -59,6 +63,87 @@ def _output_groups(path: Path, marker: str) -> list[list[str]]:
     if current is not None or not groups:
         raise ValueError(f"Missing or incomplete {marker}/$end group in {path}")
     return groups
+
+
+def _parse_energy(workdir: Path) -> float:
+    """Read the final energy row, or the final complete gradient-cycle header."""
+    energy_path = workdir / "energy"
+    if energy_path.exists():
+        for group in _output_groups(energy_path, "$energy"):
+            for line in group:
+                parts = line.split()
+                if len(parts) < 2 or not parts[0].isdigit() or int(parts[0]) < 1:
+                    raise ValueError(
+                        f"Malformed energy row in {energy_path}: {line}"
+                    )
+                values = [
+                    _finite_float(part, str(energy_path)) for part in parts[1:]
+                ]
+                energy = values[0]
+        return energy
+    grad_path = workdir / "gradient"
+    if grad_path.exists():
+        return _read_gradient_cycles(workdir)[0]
+    raise FileNotFoundError("Could not parse energy from g-xtb output")
+
+
+def _read_gradient_cycles(workdir: Path, n: int | None = None) -> tuple[float, np.ndarray]:
+    """Validate every cycle before accepting its energy and Eh/bohr derivatives.
+
+    Each cycle contains a header, labeled coordinate rows, then the same
+    number of unlabeled derivative rows. A malformed trailing cycle fails
+    rather than returning stale derivatives from an earlier cycle.
+    """
+    grad_path = workdir / "gradient"
+    if not grad_path.exists():
+        raise FileNotFoundError(f"g-xtb did not produce {grad_path}")
+    if n is not None and n <= 0:
+        raise ValueError(f"Expected a positive atom count, got {n}")
+
+    for group in _output_groups(grad_path, "$grad"):
+        cursor = 0
+        while cursor < len(group):
+            header = _CYCLE_HEADER.fullmatch(group[cursor])
+            if header is None or int(header[1]) < 1:
+                raise ValueError(
+                    f"Malformed gradient cycle header in {grad_path}: {group[cursor]}"
+                )
+            energy = _finite_float(header[2], str(grad_path))
+            _finite_float(header[3], str(grad_path))
+            cursor += 1
+
+            coordinate_count = 0
+            while cursor < len(group) and len(group[cursor].split()) == 4:
+                parts = group[cursor].split()
+                if not atomic_numbers.get(parts[3].capitalize(), 0):
+                    raise ValueError(
+                        f"Invalid coordinate atom label in {grad_path}: {parts[3]}"
+                    )
+                for part in parts[:3]:
+                    _finite_float(part, str(grad_path))
+                coordinate_count += 1
+                cursor += 1
+            if not coordinate_count or (n is not None and coordinate_count != n):
+                raise ValueError(
+                    f"Expected {n or 'nonzero'} coordinate rows in {grad_path}, "
+                    f"got {coordinate_count}"
+                )
+
+            derivatives = []
+            for _ in range(coordinate_count):
+                if cursor >= len(group):
+                    raise ValueError(f"Incomplete derivative rows in {grad_path}")
+                parts = group[cursor].split()
+                if len(parts) != 3:
+                    raise ValueError(
+                        f"Malformed derivative row in {grad_path}: {group[cursor]}"
+                    )
+                derivatives.append(
+                    [_finite_float(part, str(grad_path)) for part in parts]
+                )
+                cursor += 1
+            gradient = np.asarray(derivatives, dtype=np.float64)
+    return energy, gradient
 
 
 class GxtbMDCalculator(MDCalculator):
@@ -115,7 +200,9 @@ class GxtbMDCalculator(MDCalculator):
         # Positions from _get_system_molecules are in position_unit (Angstrom)
         atoms = _atoms_from_arrays(atom_types_flat, positions_flat)
 
-        energy_hartree, gradient_eh_bohr = self._run_gxtb(atoms)
+        energy_hartree, gradient_eh_bohr = _run_gxtb_binary(
+            atoms, self.gxtb_path, self.gxtb_params_dir, self.workdir
+        )
 
         # Convert: energy Eh -> kcal/mol; gradient Eh/bohr -> forces kcal/mol/Å
         energy_kcal = utils.hartree_to_kcal(energy_hartree)
@@ -140,115 +227,16 @@ class GxtbMDCalculator(MDCalculator):
 
     def _run_gxtb(self, atoms: "ase.Atoms") -> tuple[float, np.ndarray]:
         """Run g-xtb -grad and return (energy_Eh, gradient_Eh_bohr)."""
-        self.workdir.mkdir(parents=True, exist_ok=True)
-        coord_path = self.workdir / self._coord_file
-        ase.io.write(coord_path, atoms, format="xyz")
-
-        env = os.environ.copy()
-        env["GXTBHOME"] = self.gxtb_params_dir
-        gxtb_dir = str(Path(self.gxtb_path).resolve().parent)
-        env["PATH"] = gxtb_dir + os.pathsep + env.get("PATH", "")
-
-        result = subprocess.run(
-            [self.gxtb_path, "-grad", "-c", self._coord_file],
-            cwd=str(self.workdir),
-            env=env,
-            capture_output=True,
-            text=True,
-            timeout=600,
-        )
-        if result.returncode != 0:
-            tail = (result.stdout or "")[-2000:] if result.stdout else ""
-            raise RuntimeError(
-                f"g-xtb failed (exit {result.returncode}). Output:\n{tail}"
-            )
-
-        energy = self._parse_energy()
-        gradient = self._parse_gradient(len(atoms))
-        return energy, gradient
+        return _run_gxtb_binary(atoms, self.gxtb_path, self.gxtb_params_dir, self.workdir)
 
     def _parse_energy(self) -> float:
-        """Read the final energy row, or the final complete gradient-cycle header."""
-        energy_path = self.workdir / "energy"
-        if energy_path.exists():
-            for group in _output_groups(energy_path, "$energy"):
-                for line in group:
-                    parts = line.split()
-                    if len(parts) < 2 or not parts[0].isdigit() or int(parts[0]) < 1:
-                        raise ValueError(
-                            f"Malformed energy row in {energy_path}: {line}"
-                        )
-                    values = [
-                        _finite_float(part, str(energy_path)) for part in parts[1:]
-                    ]
-                    energy = values[0]
-            return energy
-        grad_path = self.workdir / "gradient"
-        if grad_path.exists():
-            return self._read_gradient_cycles()[0]
-        raise FileNotFoundError("Could not parse energy from g-xtb output")
+        return _parse_energy(self.workdir)
 
     def _parse_gradient(self, n: int) -> np.ndarray:
-        """Read derivatives from the final complete cycle, excluding coordinates."""
-        return self._read_gradient_cycles(n)[1]
+        return _read_gradient_cycles(self.workdir, n)[1]
 
     def _read_gradient_cycles(self, n: int | None = None) -> tuple[float, np.ndarray]:
-        """Validate every cycle before accepting its energy and Eh/bohr derivatives.
-
-        Each cycle contains a header, labeled coordinate rows, then the same
-        number of unlabeled derivative rows. A malformed trailing cycle fails
-        rather than returning stale derivatives from an earlier cycle.
-        """
-        grad_path = self.workdir / "gradient"
-        if not grad_path.exists():
-            raise FileNotFoundError(f"g-xtb did not produce {grad_path}")
-        if n is not None and n <= 0:
-            raise ValueError(f"Expected a positive atom count, got {n}")
-
-        for group in _output_groups(grad_path, "$grad"):
-            cursor = 0
-            while cursor < len(group):
-                header = _CYCLE_HEADER.fullmatch(group[cursor])
-                if header is None or int(header[1]) < 1:
-                    raise ValueError(
-                        f"Malformed gradient cycle header in {grad_path}: {group[cursor]}"
-                    )
-                energy = _finite_float(header[2], str(grad_path))
-                _finite_float(header[3], str(grad_path))
-                cursor += 1
-
-                coordinate_count = 0
-                while cursor < len(group) and len(group[cursor].split()) == 4:
-                    parts = group[cursor].split()
-                    if not atomic_numbers.get(parts[3].capitalize(), 0):
-                        raise ValueError(
-                            f"Invalid coordinate atom label in {grad_path}: {parts[3]}"
-                        )
-                    for part in parts[:3]:
-                        _finite_float(part, str(grad_path))
-                    coordinate_count += 1
-                    cursor += 1
-                if not coordinate_count or (n is not None and coordinate_count != n):
-                    raise ValueError(
-                        f"Expected {n or 'nonzero'} coordinate rows in {grad_path}, "
-                        f"got {coordinate_count}"
-                    )
-
-                derivatives = []
-                for _ in range(coordinate_count):
-                    if cursor >= len(group):
-                        raise ValueError(f"Incomplete derivative rows in {grad_path}")
-                    parts = group[cursor].split()
-                    if len(parts) != 3:
-                        raise ValueError(
-                            f"Malformed derivative row in {grad_path}: {group[cursor]}"
-                        )
-                    derivatives.append(
-                        [_finite_float(part, str(grad_path)) for part in parts]
-                    )
-                    cursor += 1
-                gradient = np.asarray(derivatives, dtype=np.float64)
-        return energy, gradient
+        return _read_gradient_cycles(self.workdir, n)
 
 
 def _atoms_from_arrays(atom_numbers: np.ndarray, positions: np.ndarray) -> "ase.Atoms":
@@ -258,3 +246,61 @@ def _atoms_from_arrays(atom_numbers: np.ndarray, positions: np.ndarray) -> "ase.
         atom_numbers[nonzero].astype(int),
         positions=positions[nonzero],
     )
+
+
+def _run_gxtb_binary(atoms, gxtb_path: str, params_dir: str, workdir: Path):
+    """Run ``gxtb -grad`` and return (energy_Eh, gradient_Eh_bohr)."""
+    workdir.mkdir(parents=True, exist_ok=True)
+    coord_path = workdir / "coord.xyz"
+    ase.io.write(coord_path, atoms, format="xyz")
+
+    env = os.environ.copy()
+    env["GXTBHOME"] = str(params_dir)
+    gxtb_dir = str(Path(gxtb_path).resolve().parent)
+    env["PATH"] = gxtb_dir + os.pathsep + env.get("PATH", "")
+
+    result = subprocess.run(
+        [gxtb_path, "-grad", "-c", "coord.xyz"],
+        cwd=str(workdir),
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=600,
+    )
+    if result.returncode != 0:
+        tail = (result.stdout or "")[-2000:] if result.stdout else ""
+        raise RuntimeError(f"g-xtb failed (exit {result.returncode}). Output:\n{tail}")
+
+    energy = _parse_energy(workdir)
+    gradient = _read_gradient_cycles(workdir, len(atoms))[1]
+    return energy, gradient
+
+
+class GxTBCalculator(Calculator):
+    """ASE energy+force calculator wrapping the g-xTB binary."""
+
+    implemented_properties = ["energy", "forces"]
+
+    def __init__(
+        self,
+        gxtb_command: str = "gxtb",
+        params_dir=None,
+        workdir=None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        repo = Path(__file__).resolve().parents[3]
+        cmd = Path(gxtb_command)
+        self.gxtb_command = str(cmd.resolve()) if cmd.exists() else gxtb_command
+        if params_dir is None:
+            params_dir = repo / "g-xtb" / "parameters"
+        self.params_dir = str(Path(params_dir).resolve())
+        self._workdir = Path(workdir) if workdir else None
+
+    def calculate(self, atoms=None, properties=("energy", "forces"), system_changes=all_changes):
+        super().calculate(atoms, properties, system_changes)
+        workdir = self._workdir or Path(tempfile.mkdtemp(prefix="gxtb_ase_"))
+        energy_h, grad = _run_gxtb_binary(atoms, self.gxtb_command, self.params_dir, workdir)
+        energy_ev = float(energy_h) * ase.units.Hartree
+        forces = -np.asarray(grad) * (ase.units.Hartree / ase.units.Bohr)
+        self.results = {"energy": energy_ev, "forces": forces}

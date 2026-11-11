@@ -26,7 +26,7 @@ from equiv_dens.utils.grids import (
     becke_scheme
 )
 import equiv_dens.utils.base as utils
-from equiv_dens.utils import orbitals
+from equiv_dens.utils import orbitals, scipy_compat
 from pyscf.dft import gen_grid, radi
 import time
 
@@ -119,6 +119,7 @@ class AtomsDensityData(Dataset):
             self.calc_dpm = False
         self.centered_positions = center_positions
         self.atoms = np.load(np_path, allow_pickle=True).item()
+        self._pad_ragged_atoms()
         if self.atoms["atom_numbers"].ndim == 1:
             self.atoms["atom_numbers"] = self.atoms["atom_numbers"][None, :]
         if self.atoms["atom_numbers"].shape[0] != self.atoms["positions"].shape[0]:
@@ -127,7 +128,11 @@ class AtomsDensityData(Dataset):
             )
 
         if atom_dens_path is not None:
+            # The published models' priors hold BSplines pickled before SciPy
+            # 1.15 changed the pickle format; without this they raise on load.
+            scipy_compat.enable_legacy_bspline_unpickling()
             self.atom_dens = np.load(atom_dens_path, allow_pickle=True).item()
+            self._ensure_sad_mo_basis()
         else:
             self.atom_dens = None
         if all_atom_numbers is None:
@@ -282,6 +287,49 @@ class AtomsDensityData(Dataset):
         if self.verbose > 0:
             print("finished init")
 
+    def _pad_ragged_atoms(self):
+        """Pad object-array positions / numbers (mixed molecule sizes) to a rectangle."""
+        pos = self.atoms.get("positions")
+        anum = self.atoms.get("atom_numbers")
+        if pos is None or anum is None:
+            return
+        pos = np.asarray(pos, dtype=object) if getattr(pos, "dtype", None) == object else np.asarray(pos)
+        if pos.dtype != object and pos.ndim >= 2:
+            return
+        frames = list(pos)
+        numbers = list(np.asarray(anum, dtype=object))
+        n = len(frames)
+        max_a = max(len(np.asarray(p)) for p in frames)
+        P = np.zeros((n, max_a, 3), dtype=np.float64)
+        Z = np.zeros((n, max_a), dtype=np.int64)
+        for i, (p, z) in enumerate(zip(frames, numbers)):
+            p = np.asarray(p, dtype=np.float64)
+            z = np.asarray(z)
+            P[i, : len(p)] = p
+            Z[i, : len(z)] = z
+        self.atoms["positions"] = P
+        self.atoms["atom_numbers"] = Z
+        forces = self.atoms.get("forces")
+        if forces is not None and getattr(forces, "dtype", None) == object:
+            F = np.zeros((n, max_a, 3), dtype=np.float64)
+            for i, f in enumerate(forces):
+                f = np.asarray(f, dtype=np.float64)
+                F[i, : len(f)] = f
+            self.atoms["forces"] = F
+
+    def _ensure_sad_mo_basis(self, basis="augccpvdz"):
+        """Revision SAD files store mo_coeff/mo_occ but not PySCF mo_basis."""
+        if not isinstance(self.atom_dens, dict):
+            return
+        for z, rec in self.atom_dens.items():
+            if not isinstance(rec, dict) or "mo_coeff" not in rec:
+                continue
+            if rec.get("mo_basis") and int(z) in rec["mo_basis"]:
+                continue
+            symbol = rec.get("symbol") or utils.numbers_to_symbols([int(z)])[0]
+            mol = gto.M(atom=[[int(z), [0.0, 0.0, 0.0]]], basis=basis, spin=int(z) % 2)
+            rec["mo_basis"] = {int(z): mol._basis[symbol]}
+
     def create_subset(self, idx):
         """
         Returns a new dataset that only consists of provided indices.
@@ -348,11 +396,20 @@ class AtomsDensityData(Dataset):
         """
         if self.verbose > 0:
             print("energy before normalization", np.mean(self.atoms["energy"]))
+        table = {int(z): float(energy) for z, energy in atom_energies.items()}
         if not self.energy_centered:
             for i in range(self.atoms["atom_numbers"].shape[0]):
-                at_en = 0
+                at_en = 0.0
                 for j in range(self.atoms["atom_numbers"].shape[1]):
-                    at_en += atom_energies[self.atoms["atom_numbers"][i, j]]
+                    z = int(self.atoms["atom_numbers"][i, j])
+                    if z == 0:
+                        continue
+                    if z not in table:
+                        raise KeyError(
+                            f"atomic energy table missing Z={z} "
+                            f"(have {sorted(table)})"
+                        )
+                    at_en += table[z]
                 self.atoms["energy"][i] -= at_en
             self.energy_centered = True
         if self.verbose > 0:
@@ -399,7 +456,8 @@ class AtomsDensityData(Dataset):
         mol_props = {}
         for pname in self.required_properties:
             if pname in self.atoms.keys():
-                if self.atoms[pname][0].shape[0] > 1:
+                first = np.asarray(self.atoms[pname][0])
+                if first.ndim >= 1 and first.shape[0] > 1:
                     atom_props[pname] = self.atoms[pname][idx]
                 else:
                     mol_props[pname] = self.atoms[pname][idx]
@@ -622,7 +680,8 @@ class AtomsDensityData(Dataset):
         mol_props = {}
         for pname in self.required_properties:
             if pname in self.atoms.keys():
-                if self.atoms[pname][0].shape[0] > 1:
+                first = np.asarray(self.atoms[pname][0])
+                if first.ndim >= 1 and first.shape[0] > 1:
                     atom_props[pname] = self.atoms[pname][idx]
                 else:
                     mol_props[pname] = self.atoms[pname][idx]

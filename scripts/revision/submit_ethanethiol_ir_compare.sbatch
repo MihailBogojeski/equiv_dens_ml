@@ -1,0 +1,1 @@
+../../experiments/jacs_revision/slurm/submit_ethanethiol_ir_compare.sbatch

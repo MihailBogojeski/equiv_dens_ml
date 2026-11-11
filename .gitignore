@@ -10,9 +10,7 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 fairchem/
-
-# Large data files
-# (*.npy, *.pth, *.pt, *.zip now tracked via Git LFS - see .gitattributes)
+.conda/
 
 # Log and temporary files
 *.log
@@ -22,17 +20,16 @@ fairchem/
 *.out
 
 # Large data directories
-# (paper/models/ and paper/trajectories/ now tracked via Git LFS - see .gitattributes)
 paper/results/
 paper/test_*/
-# LFS budget fixed - archives now tracked via LFS
-# paper/archives/
-# paper/trajectories/archives/
+paper/archives/
+paper/trajectories/
+docs/manuscripts/
+paper/models/**/checkpoints/
+paper/models/**/*.pth
+paper/models/**/*.pt
+paper/models/**/*.npy
 
-# LFS budget fixed - trajectories now tracked via LFS
-# paper/trajectories/polythiophene_full_md/
-# paper/trajectories/polythiophene_full_with_velocity/
-# to_organize/thiophene_md_trajectories.zip
 # Backup directories (remove manually after confirming no unique content)
 for_paper_pre_paper_project_*/
 backups_gpu_opt/
@@ -68,28 +65,127 @@ water_dynamic_models
 dipole_calc_*.log
 ensemble_run.log
 
-# Training run directories (timestamped checkpoints from test/debug runs)
-# LFS budget fixed - model directories now tracked via LFS
-# 20*_*/
-
 # Legacy test output directory (now use scratch/test_runs via test_overrides.txt)
 test_runs/
+
+# User-space binaries and headers (fetch via scripts/revision/lib/fetch_*.sh)
+tools/dftbplus/
+tools/python312-headers/
 
 # Scratch/output directory - all generated run outputs (training, MD, dipole, etc.)
 # Safe to delete entirely when cleaning up
 scratch/
-results/
 
-# Specific large file patterns (legacy - dirs above now ignored)
-20*_*/checkpoints/*.pth
-20*_*/checkpoints/*.pt
+# Results: ignore everything except small revision analysis summaries
+results/
+experiments/internal/
+
+# Raw revision run trees (checkpoints, ORCA, MD, training dirs)
 
 # Jupyter notebook checkpoints
 .ipynb_checkpoints/
 
+# ---------------------------------------------------------------------------
+# Datasets: label arrays and generated campaign bulk stay local.
+# Small authored geometry inputs (*.xyz, *.json manifests) remain tracked.
+# ---------------------------------------------------------------------------
+datasets/**/*.npy
+# Small CI fixtures (h2o_small smoke training, basis and free-atom tables) stay tracked
+!datasets/atomization_energy_augccpvdz.npy
+!datasets/augccpvdz_orbital_basis.npy
+!datasets/augccpvqzjkfit_orbital_basis_df.npy
+!datasets/augccpvqzjkfit_orbital_basis_libcint_df.npy
+!datasets/augccpvqzjkfit_radial_coeffs_df.npy
+!datasets/augccpvqzjkfit_radial_coeffs_libcint_df.npy
+!datasets/ethanol_train_10.npy
+!datasets/free_atom_densities_augccpvdz_augccpvqzjkfit_pyscf.npy
+!datasets/free_atom_densities_augccpvdz_augccpvqzjkfit_pyscf_minimized.npy
+!datasets/free_atom_densities_augccpvdz_sgauss60.npy
+!datasets/free_atom_densities_augccpvdz_sgauss_pe.npy
+!datasets/h2o_small_combined_augccpvdz.npy
+!datasets/h2o_small_combined_augccpvdz_df_augccpvqzjkfit.npy
+!datasets/h2o_small_test_augccpvdz.npy
+!datasets/h2o_small_test_augccpvdz_df_augccpvqzjkfit.npy
+!datasets/h2o_small_test_dft_augccpvdz_df_hm_dm_oe_calc.npy
+!datasets/h2o_small_train_augccpvdz.npy
+!datasets/h2o_small_train_augccpvdz_df_augccpvqzjkfit.npy
+!datasets/h2o_small_train_dft_augccpvdz_df_hm_dm_oe_calc.npy
+!datasets/h2o_small_valid_augccpvdz.npy
+!datasets/h2o_small_valid_augccpvdz_df_augccpvqzjkfit.npy
+!datasets/h2o_small_valid_dft_augccpvdz_df_hm_dm_oe_calc.npy
+!datasets/h2o_static_pyscf_dft_augccpvdz_df_hm_dm_oe.npy
+!datasets/h2o_static_pyscf_dft_augccpvdz_df_hm_dm_oe_calc.npy
+
+# Generated revision campaign bulk (hundreds of GB)
+# No trailing slash: these paths are symlinks to an external data root after
+# the HF datasets migration, and a trailing-slash pattern only matches real
+# directories, not symlinks-to-directories.
+datasets/.nmer_opt_workdir
+datasets/revision/shards
+datasets/revision/shards*
+datasets/revision/cache
+datasets/revision/*_labels
+datasets/revision/csh_*
+datasets/revision/qm7x
+datasets/revision/omol25
+datasets/revision/water_labels
+datasets/revision/water_pilot
+datasets/revision/water_102
+datasets/revision/*_md10x*
+datasets/revision/*_newmotifs*
+datasets/revision/ethanol*
+datasets/revision/meoh*
+datasets/revision/acac
+datasets/revision/crambin*
+datasets/revision/nma*
+datasets/revision/paracetamol
+datasets/revision/pgg
+
+# OMol25 CSH bulk (keep only manifests + AO permutation JSON)
+datasets/revision/omol_csh/**
+!datasets/revision/omol_csh/manifests/
+!datasets/revision/omol_csh/manifests/**
+!datasets/revision/omol_csh/ao_permutation.json
+!datasets/revision/omol_csh/ao_permutation_8el.json
+
+# ---------------------------------------------------------------------------
+# Model checkpoints and training run directories
+# ---------------------------------------------------------------------------
+**/*.pth
+**/*.pt
+**/checkpoints/
+20*_*/
+logs/
+third_party/
+charges.bin
+dftb_pin.hsd
+
+# Generated revision geometries, external labels, and intermediate run caches.
+# Keep manifests and small analysis summaries versioned.
+datasets/revision/external/rackers_water/*.pkl
+datasets/revision/external/rackers_water/raw.xyz
+datasets/revision/*md40x*/*.xyz
+datasets/revision/*rackers/*.xyz
+datasets/revision/**/*.progress.json
+datasets/revision/ood_modes/**/*.npz
+dftb_in.hsd
+geo_end.gen
+
+# Isolated development environments and package build products
+/.venv/
+/.venv-revision/
+/build/
+/dist/
+
+# Local-only: external datasets and third-party installs (large)
+datasets/external/
+tools/pydeps-soap/
 # Local agent instructions / notes (Claude Code)
 .claude/
 CLAUDE.md
 
 # benchmark reference tensors (large)
 benchmarks/reference_data/
+
+# Local OAuth client secrets and tokens
+credentials/

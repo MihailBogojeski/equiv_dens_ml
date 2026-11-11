@@ -1,0 +1,1 @@
+../../experiments/jacs_revision/slurm/submit_ethanol_dft_relabel.sbatch

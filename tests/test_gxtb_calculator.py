@@ -3,11 +3,12 @@
 from pathlib import Path
 from types import SimpleNamespace
 
+import ase.units
 import numpy as np
 import pytest
 from ase import Atoms
 
-from equiv_dens.md.gxtb_calculator import GxtbMDCalculator
+from equiv_dens.md.gxtb_calculator import GxTBCalculator, GxtbMDCalculator
 
 
 # Independently captured from g-xTB v1.1.0 for H2 at 0.74 Angstrom.
@@ -182,3 +183,26 @@ def test_run_returns_recorded_derivatives(calculator, monkeypatch):
     energy, gradient = calculator._run_gxtb(Atoms("H2", positions=[[0, 0, 0], [0, 0, 0.74]]))
     assert energy == -1.16504144152114
     np.testing.assert_allclose(gradient, H2_DERIVATIVES, rtol=0, atol=1e-15)
+
+
+def test_ase_calculator_reads_latest_cycle(tmp_path, monkeypatch):
+    def completed_run(command, **kwargs):
+        workdir = Path(kwargs["cwd"])
+        (workdir / "gradient").write_text(
+            H2_GRADIENT.replace("$end\n", SECOND_CYCLE + "$end\n")
+        )
+        next_row = "  2 -1.200000000001D+00 80.0 99.9 99.9 99.9\n"
+        (workdir / "energy").write_text(H2_ENERGY.replace("$end\n", next_row + "$end\n"))
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr("equiv_dens.md.gxtb_calculator.subprocess.run", completed_run)
+    atoms = Atoms("H2", positions=[[0, 0, 0], [0, 0, 0.74]])
+    atoms.calc = GxTBCalculator("/unused/gxtb", params_dir="/unused/params", workdir=tmp_path)
+    forces = atoms.get_forces()
+    energy = atoms.get_potential_energy()
+    np.testing.assert_allclose(
+        forces,
+        -np.array([[0, 0, -0.04], [0, 0, 0.04]]) * ase.units.Hartree / ase.units.Bohr,
+        rtol=1e-12, atol=1e-12,
+    )
+    assert energy == -1.200000000001 * ase.units.Hartree

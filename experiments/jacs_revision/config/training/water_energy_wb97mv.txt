@@ -1,0 +1,12 @@
+--args_file_name=water_energy_wb97mv
+--save_dir=results/revision/water_wb97mv_def2tzvpd
+--np_dataset=datasets/revision/water_labels/water_train_wb97mv_def2tzvpd_base.npy
+--dens_dataset=datasets/revision/water_labels/water_train_wb97mv_def2tzvpd.npy
+--np_dataset_valid=datasets/revision/water_labels/water_val_wb97mv_def2tzvpd_base.npy
+--dens_dataset_valid=datasets/revision/water_labels/water_val_wb97mv_def2tzvpd.npy
+--np_dataset_test=datasets/revision/water_labels/water_id_test_wb97mv_def2tzvpd_base.npy
+--dens_dataset_test=datasets/revision/water_labels/water_id_test_wb97mv_def2tzvpd.npy
+--orbitals_file=datasets/augccpvqzjkfit_orbital_basis_df.npy
+--radial_coeffs_file=datasets/augccpvqzjkfit_radial_coeffs_libcint_df.npy
+--atom_dens_path=datasets/free_atom_densities_def2tzvpd_augccpvqzjkfit_pyscf_wb97m-v.npy
+--atomic_energies=datasets/revision/atomic_energies_water_wb97mv_def2tzvpd.npy
