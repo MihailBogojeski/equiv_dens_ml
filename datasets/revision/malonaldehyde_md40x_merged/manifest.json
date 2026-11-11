@@ -1,0 +1,28 @@
+{
+  "sources": [
+    "datasets/revision/malonaldehyde_md40x"
+  ],
+  "splits": {
+    "train": {
+      "xyz": "datasets/revision/malonaldehyde_md40x_merged/train.xyz",
+      "n_frames": 2100,
+      "by_n": {
+        "2": 2100
+      }
+    },
+    "val": {
+      "xyz": "datasets/revision/malonaldehyde_md40x_merged/val.xyz",
+      "n_frames": 826,
+      "by_n": {
+        "2": 826
+      }
+    },
+    "ood_proton_transfer": {
+      "xyz": "datasets/revision/malonaldehyde_md40x_merged/ood_proton_transfer.xyz",
+      "n_frames": 2311,
+      "by_n": {
+        "2": 2311
+      }
+    }
+  }
+}

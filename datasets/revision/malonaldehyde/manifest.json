@@ -1,0 +1,158 @@
+{
+  "seed": 2026,
+  "indices": {
+    "donor": 0,
+    "hydrogen": 5,
+    "acceptor": 4
+  },
+  "delta_minimum": -0.7214911969140863,
+  "splits": {
+    "train": {
+      "xyz": "/scratch/mh7373/projects/equiv_dens_ml/datasets/revision/malonaldehyde/train.xyz",
+      "n_frames": 400,
+      "delta_min": -1.4296231615818296,
+      "delta_max": -0.41958557931163876
+    },
+    "val": {
+      "xyz": "/scratch/mh7373/projects/equiv_dens_ml/datasets/revision/malonaldehyde/val.xyz",
+      "n_frames": 80,
+      "delta_min": -1.5202018396931685,
+      "delta_max": -0.41058986750514026
+    },
+    "ood_proton_transfer": {
+      "xyz": "/scratch/mh7373/projects/equiv_dens_ml/datasets/revision/malonaldehyde/ood_proton_transfer.xyz",
+      "n_frames": 125,
+      "delta_min": -0.867789494774598,
+      "delta_max": 0.6841714931769889,
+      "scan": [
+        {
+          "r_donor_h": 0.98,
+          "delta": -0.7575483380643845,
+          "energy_gfn2_ev": -450.40462808079747
+        },
+        {
+          "r_donor_h": 1.0058333333333334,
+          "delta": -0.7100453555019499,
+          "energy_gfn2_ev": -450.4095376483874
+        },
+        {
+          "r_donor_h": 1.0316666666666667,
+          "delta": -0.6327032508839836,
+          "energy_gfn2_ev": -450.3986861687485
+        },
+        {
+          "r_donor_h": 1.0575,
+          "delta": -0.5408689815319141,
+          "energy_gfn2_ev": -450.37880971003426
+        },
+        {
+          "r_donor_h": 1.0833333333333333,
+          "delta": -0.46839417850748255,
+          "energy_gfn2_ev": -450.35280752084543
+        },
+        {
+          "r_donor_h": 1.1091666666666666,
+          "delta": -0.3779781734771406,
+          "energy_gfn2_ev": -450.32583006163856
+        },
+        {
+          "r_donor_h": 1.135,
+          "delta": -0.3016782015689683,
+          "energy_gfn2_ev": -450.29986596557916
+        },
+        {
+          "r_donor_h": 1.1608333333333334,
+          "delta": -0.22082991292188892,
+          "energy_gfn2_ev": -450.277949861889
+        },
+        {
+          "r_donor_h": 1.1866666666666668,
+          "delta": -0.14702155662164507,
+          "energy_gfn2_ev": -450.2612229952178
+        },
+        {
+          "r_donor_h": 1.2125,
+          "delta": -0.07525940737900916,
+          "energy_gfn2_ev": -450.25091702642726
+        },
+        {
+          "r_donor_h": 1.2383333333333333,
+          "delta": -0.007441146921088881,
+          "energy_gfn2_ev": -450.247091387788
+        },
+        {
+          "r_donor_h": 1.2641666666666667,
+          "delta": 0.0560323918546084,
+          "energy_gfn2_ev": -450.2493293238459
+        },
+        {
+          "r_donor_h": 1.29,
+          "delta": 0.11315707636343775,
+          "energy_gfn2_ev": -450.2565975596033
+        },
+        {
+          "r_donor_h": 1.3158333333333334,
+          "delta": 0.1637863947517102,
+          "energy_gfn2_ev": -450.26753994127506
+        },
+        {
+          "r_donor_h": 1.3416666666666668,
+          "delta": 0.2137653021604422,
+          "energy_gfn2_ev": -450.28103048773346
+        },
+        {
+          "r_donor_h": 1.3675000000000002,
+          "delta": 0.2605601722883235,
+          "energy_gfn2_ev": -450.2958768081327
+        },
+        {
+          "r_donor_h": 1.3933333333333333,
+          "delta": 0.30491577161168926,
+          "energy_gfn2_ev": -450.31099762558495
+        },
+        {
+          "r_donor_h": 1.4191666666666667,
+          "delta": 0.3434323662937,
+          "energy_gfn2_ev": -450.3259657935106
+        },
+        {
+          "r_donor_h": 1.445,
+          "delta": 0.38353695439986235,
+          "energy_gfn2_ev": -450.3399419625859
+        },
+        {
+          "r_donor_h": 1.4708333333333334,
+          "delta": 0.41768458540875963,
+          "energy_gfn2_ev": -450.35302995131394
+        },
+        {
+          "r_donor_h": 1.4966666666666666,
+          "delta": 0.4526875877275853,
+          "energy_gfn2_ev": -450.36478451476034
+        },
+        {
+          "r_donor_h": 1.5225,
+          "delta": 0.48554340350438396,
+          "energy_gfn2_ev": -450.37542702730434
+        },
+        {
+          "r_donor_h": 1.5483333333333333,
+          "delta": 0.5193951633309604,
+          "energy_gfn2_ev": -450.38425195772976
+        },
+        {
+          "r_donor_h": 1.5741666666666667,
+          "delta": 0.5512662898947773,
+          "energy_gfn2_ev": -450.39191395637664
+        },
+        {
+          "r_donor_h": 1.6,
+          "delta": 0.5825962927254791,
+          "energy_gfn2_ev": -450.397849825734
+        }
+      ]
+    }
+  },
+  "train_delta_max": -0.4,
+  "n_rejected_crossed_barrier": 17
+}

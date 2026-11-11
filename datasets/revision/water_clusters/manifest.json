@@ -1,0 +1,47 @@
+{
+  "seed": 17,
+  "splits": {
+    "train": {
+      "xyz": "/scratch/mh7373/projects/equiv_dens_ml/datasets/revision/water_clusters/train.xyz",
+      "n_frames": 1250,
+      "by_n": {
+        "2": 250,
+        "3": 250,
+        "4": 250,
+        "5": 250,
+        "6": 250
+      }
+    },
+    "val": {
+      "xyz": "/scratch/mh7373/projects/equiv_dens_ml/datasets/revision/water_clusters/val.xyz",
+      "n_frames": 250,
+      "by_n": {
+        "2": 50,
+        "3": 50,
+        "4": 50,
+        "5": 50,
+        "6": 50
+      }
+    },
+    "id_test": {
+      "xyz": "/scratch/mh7373/projects/equiv_dens_ml/datasets/revision/water_clusters/id_test.xyz",
+      "n_frames": 250,
+      "by_n": {
+        "2": 50,
+        "3": 50,
+        "4": 50,
+        "5": 50,
+        "6": 50
+      }
+    },
+    "ood_size": {
+      "xyz": "/scratch/mh7373/projects/equiv_dens_ml/datasets/revision/water_clusters/ood_size.xyz",
+      "n_frames": 300,
+      "by_n": {
+        "8": 100,
+        "10": 100,
+        "12": 100
+      }
+    }
+  }
+}

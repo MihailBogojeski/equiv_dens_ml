@@ -1,0 +1,106 @@
+#!/bin/bash
+# Build shards and submit the whole labelling campaign in one go.
+#
+# Frames are split into a small and a large tier because a 24-water cluster in
+# def2-TZVPD costs orders of magnitude more than a water trimer, and giving both
+# the same walltime would either waste most of the small tasks' allocation or
+# kill every large one. The split is by atom count, and each tier gets its own
+# core count and walltime.
+#
+# Everything is idempotent: re-running rebuilds the shard lists and re-submits,
+# finished shards exit immediately, and unfinished ones resume mid-shard.
+#
+# Usage:  scripts/revision/water/launch_water_campaign.sh [THEORY] [--dry-run|--build-only]
+
+set -euo pipefail
+cd "$(dirname "$0")/../../.."
+
+THEORY=${1:-wb97mv_def2tzvpd}
+DRY=${2:-}
+SHARD_ROOT=${SHARD_ROOT:-datasets/revision/shards}
+OUT_ROOT=${OUT_ROOT:-results/revision/water_orca}
+CONCURRENT_SMALL=${CONCURRENT_SMALL:-200}
+CONCURRENT_LARGE=${CONCURRENT_LARGE:-60}
+LARGE_ATOM_CUTOFF=${LARGE_ATOM_CUTOFF:-33}
+
+# Override these to point a wave at an expanded tree (md10x, newmotifs, …)
+# without touching the finished 3k campaign paths.
+WATER=${WATER:-datasets/revision/water_clusters}
+OOD=${OOD:-datasets/revision/water_ood}
+MALON=${MALON:-datasets/revision/malonaldehyde}
+
+# Submission goes through the watchdog rather than a bare sbatch here, so the
+# first wave and every later recovery wave agree on the job name and on which
+# indices are outstanding. Names have to differ per split: the watchdog decides
+# whether to submit by counting its own queued tasks, and a name shared across
+# splits would let one slow split hold up all the others.
+submit_tier() {
+  local split=$1 sbatch_file=$2 concurrency=$3
+  local shard_dir="${SHARD_ROOT}/${split}/${THEORY}"
+  local outdir="${OUT_ROOT}/${split}/${THEORY}"
+  local n=0
+  if [[ -d "$shard_dir" ]]; then
+    n=$(find "$shard_dir" -maxdepth 1 -name 'shard_*.json' | wc -l)
+  fi
+  if [[ "$n" -eq 0 ]]; then
+    echo "  ${split}: no shards, skipping"
+    return
+  fi
+  echo "  ${split}: ${n} shards -> ${outdir}"
+  if [[ "$DRY" == "--dry-run" || "$DRY" == "--build-only" ]]; then
+    return
+  fi
+  ONESHOT=1 SBATCH_FILE="$sbatch_file" CONCURRENT="$concurrency" \
+    scripts/revision/water/watch_and_resubmit.sh "$shard_dir" "$outdir" "$THEORY"
+}
+
+build() {
+  local split=$1 xyz=$2
+  shift 2
+  if [[ ! -f "$xyz" ]]; then
+    echo "  ${split}: ${xyz} not present yet, skipping"
+    return 1
+  fi
+  ./.venv/bin/python scripts/revision/lib/build_shards_from_xyz.py \
+    --xyz "$xyz" --split "$split" --theory "$THEORY" --outdir "$SHARD_ROOT" "$@"
+}
+
+echo "=== building shards for ${THEORY} ==="
+
+# Small tier: everything up to and including a 10-water cluster, plus the
+# 9-atom malonaldehyde frames, at 8 cores in a 4 h window.
+for split in train val id_test ood_size; do
+  build "water_${split}_small" "${WATER}/${split}.xyz" \
+    --max-atoms $((LARGE_ATOM_CUTOFF - 1)) --walltime-s 14400 --max-frames-per-shard 40 || true
+done
+for split in train val ood_proton_transfer; do
+  build "malonaldehyde_${split}" "${MALON}/${split}.xyz" \
+    --walltime-s 14400 --max-frames-per-shard 100 || true
+done
+
+# Large tier: 11 waters and up, at 16 cores in a 24 h window.
+build water_ood_size_large "${WATER}/ood_size.xyz" \
+  --min-atoms "$LARGE_ATOM_CUTOFF" --walltime-s 86400 --max-frames-per-shard 8 || true
+build water_ood_order "${OOD}/ood_order.xyz" \
+  --walltime-s 86400 --max-frames-per-shard 4 || true
+build water_ood_density "${OOD}/ood_density.xyz" \
+  --walltime-s 86400 --max-frames-per-shard 4 || true
+# Rackers/Rakshit n=15–30 hold-out. Sampled PBE first; skip if the XYZ is absent.
+if [[ -f "${OOD}/ood_rackers.xyz" ]]; then
+  build water_ood_rackers "${OOD}/ood_rackers.xyz" \
+    --walltime-s 86400 --max-frames-per-shard 4 || true
+fi
+
+echo
+echo "=== submitting ==="
+for split in water_train_small water_val_small water_id_test_small water_ood_size_small \
+             malonaldehyde_train malonaldehyde_val malonaldehyde_ood_proton_transfer; do
+  submit_tier "$split" scripts/revision/submit_water_orca.sbatch "$CONCURRENT_SMALL"
+done
+for split in water_ood_size_large water_ood_order water_ood_density water_ood_rackers; do
+  submit_tier "$split" scripts/revision/submit_water_orca_large.sbatch "$CONCURRENT_LARGE"
+done
+
+echo
+echo "monitor with: ./.venv/bin/python scripts/revision/water/campaign_status.py --root ${SHARD_ROOT}"
+echo "keep alive with: scripts/revision/water/watch_water_campaign.sh"

@@ -1,0 +1,1 @@
+../../experiments/jacs_revision/slurm/submit_csh_train_8el.sbatch

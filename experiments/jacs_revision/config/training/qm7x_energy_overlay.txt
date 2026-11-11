@@ -1,0 +1,30 @@
+# Stage-D overrides for QM7x energy training (strict two-stage recipe).
+# Use with the density run args as base:
+#   run.py train --mode energy \
+#     @paper/models/qm7x/2024-04-22_bjOUNzrR/args.txt \
+#     @config/training/qm7x_energy_overlay.txt
+--restart=None
+--load_from=paper/models/qm7x/2024-04-22_bjOUNzrR
+--args_file_name=qm7x_energy_001
+--max_steps=100000
+--save_dir=results/revision/qm7x_energy
+--np_dataset=datasets/qm7x_train_dft_augccpvdz_orca_base.npy
+--dens_dataset=datasets/qm7x_train_dft_augccpvdz.npy
+--np_dataset_valid=datasets/qm7x_valid_dft_augccpvdz_orca_base.npy
+--dens_dataset_valid=datasets/qm7x_valid_dft_augccpvdz.npy
+--np_dataset_test=datasets/qm7x_valid_dft_augccpvdz_orca_base.npy
+--dens_dataset_test=datasets/qm7x_valid_dft_augccpvdz.npy
+--atom_dens_path=datasets/free_atom_densities_augccpvdz_augccpvqzjkfit_pyscf_minimzed.npy
+--num_train=20000
+--num_valid=2500
+--num_test=0
+--df_weight=0.0
+--density_weight=0.0
+--energy_weight=1.0
+--forces_weight=0.99
+--center_energy=True
+--validation_interval=500
+--checkpoint_interval=1000
+--keep_checkpoints=2
+--wandb_mode=offline
+--energy_unit_out=kcal/mol

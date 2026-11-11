@@ -1,0 +1,1 @@
+../../experiments/jacs_revision/slurm/submit_12mer_timing.sbatch

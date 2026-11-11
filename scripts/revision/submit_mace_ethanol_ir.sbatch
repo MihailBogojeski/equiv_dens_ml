@@ -1,0 +1,1 @@
+../../experiments/jacs_revision/slurm/submit_mace_ethanol_ir.sbatch

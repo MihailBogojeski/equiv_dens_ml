@@ -1,0 +1,42 @@
+{
+  "source": "datasets/revision/external/rackers_water/raw.xyz",
+  "n_kept": 6773,
+  "n_rejected_dedup": 225,
+  "splits": {
+    "ood_size": {
+      "xyz": "/scratch/mh7373/projects/equiv_dens_ml/datasets/revision/water_clusters_rackers/ood_size.xyz",
+      "n_frames": 3045,
+      "by_n": {
+        "7": 468,
+        "8": 577,
+        "10": 1000,
+        "12": 1000
+      }
+    },
+    "ood_rackers": {
+      "xyz": "/scratch/mh7373/projects/equiv_dens_ml/datasets/revision/water_ood_rackers/ood_rackers.xyz",
+      "n_frames": 3728,
+      "by_n": {
+        "15": 988,
+        "20": 997,
+        "25": 802,
+        "30": 941
+      }
+    },
+    "train": {
+      "xyz": null,
+      "n_frames": 0,
+      "by_n": {}
+    },
+    "val": {
+      "xyz": null,
+      "n_frames": 0,
+      "by_n": {}
+    },
+    "id_test": {
+      "xyz": null,
+      "n_frames": 0,
+      "by_n": {}
+    }
+  }
+}
