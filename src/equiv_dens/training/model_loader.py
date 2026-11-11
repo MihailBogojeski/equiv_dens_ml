@@ -45,6 +45,12 @@ def _recover_scaling_std(model, force_scaling) -> None:
     )
 
 
+def _drop_placeholder_scaling_std(state_dict) -> None:
+    """A state dict without an energy head was saved by a density-only phase, whose scaling.std is the placeholder 1."""
+    if not any('property_models.energy' in key for key in state_dict):
+        state_dict.pop('scaling.std', None)
+
+
 def _is_fatal_missing_key(key: str, args) -> bool:
     """True when a missing state-dict key is a real load error.
 
@@ -480,9 +486,11 @@ def load_model(args, dataset, train=False):
             for key in model_dict.keys():
                 if 'property_models.density' in key:
                     state_dict[key] = model_dict[key]
+        _drop_placeholder_scaling_std(state_dict)
         missing, unexpected = model.load_state_dict(state_dict, strict=False)
-        if 'scaling.std' in missing and _scaling_std_recoverable(args, dataset):
-            _recover_scaling_std(model, force_scaling)
+        if 'scaling.std' in missing:
+            if _scaling_std_recoverable(args, dataset):
+                _recover_scaling_std(model, force_scaling)
             missing = [key for key in missing if key != 'scaling.std']
         if len(unexpected) > 0:
             for key in unexpected:
