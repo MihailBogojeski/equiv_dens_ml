@@ -15,7 +15,7 @@ No writable data/output/checkpoint/shard directory is shared with production.
 Validation used CPU only, one OpenMP thread, disabled W&B, temporary fixtures and
 scheduler stubs. No real jobs were submitted, cancelled or restarted. Manuscript
 submodule paths and commit pins are unchanged. Protected production code hashes
-were checked against `baseline.json` and matched.
+were checked against a hash manifest of the production tree (not kept in the repository) and matched.
 
 ## Results
 

@@ -186,3 +186,6 @@ CLAUDE.md
 
 # benchmark reference tensors (large)
 benchmarks/reference_data/
+
+# Local OAuth client secrets and tokens
+credentials/

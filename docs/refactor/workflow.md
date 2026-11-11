@@ -48,7 +48,7 @@ scripts/{training,revision,md}/        existing paths, compatible adapters
 scripts/{analysis,data}/               existing general utilities
 config/ args/                         general configs and old-path aliases
 tests/{compatibility,fixtures/refactor,revision}/
-docs/refactor/{workflow.md,migration_map.json,baseline.json,validation.md}
+docs/refactor/{workflow.md,migration_map.json,validation.md}
 docs/repository_layout.md
 docs/{equiv-ml-paper,response-to-jacs-review}/  retain gitlink paths/pins
 datasets/ results/ logs/ scratch/      keep established paths
